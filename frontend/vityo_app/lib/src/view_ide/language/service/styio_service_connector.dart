@@ -7,11 +7,18 @@ import '../../environment/configuration/environment_variable_configuration.dart'
 import '../../environment/system_compatibility/file_system/file_system.dart';
 import '../../environment/system_compatibility/resource/resource.dart';
 import '../../foundation/foundation.dart';
-import '../../toolchain/toolchain.dart';
+import '../../runtime/runtime_output_channels.dart';
+import '../../toolchain/toolchain_catalog.dart';
+import '../../toolchain/toolchain_catalog_change.dart';
+import '../../toolchain/toolchain_codec.dart';
+import '../../toolchain/toolchain_health_check.dart';
+import '../../toolchain/toolchain_resolver.dart';
+import '../../toolchain/toolchain_runtime.dart';
 import '../contract/language_contract.dart';
 import '../features/styio_semantic_token_feature.dart';
 import 'language_service_foundation.dart';
 import 'local_styio_language_service.dart';
+import 'semantic_snapshot_event_bridge.dart';
 import 'styio_service_capability.dart';
 import 'styio_language_service.dart';
 
@@ -148,6 +155,8 @@ class StyioServiceResponse {
     this.exitCode,
     this.message,
     this.protocolVersion = 'styio-cli-jsonl-v1',
+    this.parserEngine,
+    this.grammarVersion,
     this.toolchainId = '',
     this.configPath,
     this.workingDirectory,
@@ -182,6 +191,8 @@ class StyioServiceResponse {
   final int? exitCode;
   final String? message;
   final String protocolVersion;
+  final String? parserEngine;
+  final String? grammarVersion;
   final String toolchainId;
   final String? configPath;
   final String? workingDirectory;
@@ -234,6 +245,8 @@ class StyioServiceResponse {
       'succeeded': succeeded,
       'hasPayload': hasPayload,
       'payloadCounts': payloadCounts,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       if (configPath != null) 'configPath': configPath,
       if (workingDirectory != null) 'workingDirectory': workingDirectory,
       if (capabilityStates.isNotEmpty) 'capabilityStates': capabilityStates,
@@ -310,6 +323,9 @@ class StyioCliJsonlProtocol {
     final surroundTemplates = <SurroundTemplate>[];
     final capabilityStates = <String, String>{};
     final capabilityMessages = <String, String>{};
+    var effectiveProtocolVersion = protocolVersion;
+    String? effectiveParserEngine = parserEngine;
+    String? effectiveGrammarVersion;
     var protocolError = false;
 
     for (final line in _jsonLines(stdout, stderr)) {
@@ -318,6 +334,18 @@ class StyioCliJsonlProtocol {
         protocolError = true;
         continue;
       }
+      effectiveProtocolVersion =
+          _stringValue(decoded['protocolVersion']) ??
+          _stringValue(decoded['protocol_version']) ??
+          effectiveProtocolVersion;
+      effectiveParserEngine =
+          _stringValue(decoded['parserEngine']) ??
+          _stringValue(decoded['parser_engine']) ??
+          effectiveParserEngine;
+      effectiveGrammarVersion =
+          _stringValue(decoded['grammarVersion']) ??
+          _stringValue(decoded['grammar_version']) ??
+          effectiveGrammarVersion;
       final kind = _kindFromJson(decoded);
       switch (kind) {
         case _StyioJsonRecordKind.facts:
@@ -523,7 +551,9 @@ class StyioCliJsonlProtocol {
       stderr: stderr,
       exitCode: exitCode,
       message: message,
-      protocolVersion: protocolVersion,
+      protocolVersion: effectiveProtocolVersion,
+      parserEngine: effectiveParserEngine,
+      grammarVersion: effectiveGrammarVersion,
       toolchainId: toolchainId,
       configPath: document.configPath,
       workingDirectory: document.workingDirectory,
@@ -1772,69 +1802,6 @@ class ToolchainStyioServiceConnector implements StyioServiceConnector {
   }
 }
 
-class ToolchainManagerStyioServiceConnector implements StyioServiceConnector {
-  const ToolchainManagerStyioServiceConnector({
-    required ToolchainManager manager,
-    this.protocol = const StyioCliJsonlProtocol(),
-    this.documentMaterializer,
-    ToolchainRequirement? requirement,
-    this.timeout = const Duration(seconds: 10),
-  }) : _manager = manager,
-       _requirement = requirement;
-
-  final ToolchainManager _manager;
-  final StyioCliJsonlProtocol protocol;
-  final StyioServiceDocumentMaterializer? documentMaterializer;
-  final ToolchainRequirement? _requirement;
-  final Duration timeout;
-
-  Future<ToolchainHealthReport> checkHealth({
-    List<String>? probeArguments,
-    Map<String, String> environment = const <String, String>{},
-    Iterable<EnvironmentVariableOverlay> environmentOverlays =
-        const <EnvironmentVariableOverlay>[],
-    String? workingDirectory,
-  }) {
-    return _manager.checkHealth(
-      kind: ToolchainKind.languageService,
-      requirement: _effectiveRequirement(),
-      probeArguments: probeArguments,
-      environment: environment,
-      environmentOverlays: environmentOverlays,
-      workingDirectory: workingDirectory,
-      timeout: timeout,
-    );
-  }
-
-  @override
-  Future<StyioServiceResponse> analyzeDocument(
-    StyioServiceDocument document,
-  ) async {
-    final catalog = await _manager.loadCatalog();
-    final runtime = _manager.runtimeFor(catalog);
-    return ToolchainStyioServiceConnector(
-      runtime: runtime,
-      protocol: protocol,
-      documentMaterializer:
-          documentMaterializer ??
-          StyioServiceDocumentMaterializer(
-            fileSystemManager: _manager.platformManagers.fileSystem,
-            resourceManager: _manager.platformManagers.resource,
-          ),
-      requirement: _effectiveRequirement(),
-      timeout: timeout,
-    ).analyzeDocument(document);
-  }
-
-  ToolchainRequirement _effectiveRequirement() {
-    return _requirement ??
-        ToolchainRequirement(
-          kind: ToolchainKind.languageService,
-          metadata: <String, Object?>{'contract': protocol.protocolVersion},
-        );
-  }
-}
-
 class StyioServiceResultAdapter {
   const StyioServiceResultAdapter();
 
@@ -2104,6 +2071,92 @@ class StyioServiceResultAdapter {
   }
 }
 
+class StyioServiceResponseTelemetryBridge {
+  const StyioServiceResponseTelemetryBridge({
+    this.semanticBridge = const SemanticSnapshotEventBridge(),
+  });
+
+  final SemanticSnapshotEventBridge semanticBridge;
+
+  List<RuntimeOutputEvent> eventsForResponse(
+    StyioServiceResponse response, {
+    DateTime? timestamp,
+  }) {
+    final emittedAt = timestamp ?? DateTime.now().toUtc();
+    return <RuntimeOutputEvent>[
+      semanticBridge.diagnosticsSnapshotEvent(
+        documentId: response.documentId,
+        providerId: _providerId(response),
+        diagnosticCount: response.diagnostics.length,
+        hasErrors: _hasErrors(response),
+        severityCounts: _severityCounts(response),
+        documentCount: response.documentId.isEmpty ? 0 : 1,
+        sourceCount: response.diagnostics.isEmpty ? 0 : 1,
+        timestamp: emittedAt,
+        message:
+            'StyioService ${response.status.name} diagnostics: '
+            '${response.diagnostics.length} diagnostic(s).',
+        payload: _basePayload(response),
+      ),
+      semanticBridge.semanticTokensEvent(
+        documentId: response.documentId,
+        semanticSpanCount: response.semanticSpans.length,
+        semanticBlockCount: response.semanticBlocks.length,
+        documentSymbolCount: response.documentSymbols.length,
+        inlayHintCount: response.inlayHints.length,
+        diagnosticCount: response.diagnostics.length,
+        timestamp: emittedAt,
+        message:
+            'StyioService ${response.status.name} semantic tokens: '
+            '${response.semanticSpans.length} span(s), '
+            '${response.semanticBlocks.length} block(s).',
+        payload: _basePayload(response),
+      ),
+    ];
+  }
+
+  String _providerId(StyioServiceResponse response) {
+    return response.toolchainId.isEmpty
+        ? 'styio-service'
+        : 'styio-service:${response.toolchainId}';
+  }
+
+  bool _hasErrors(StyioServiceResponse response) {
+    return response.diagnostics.any(
+      (diagnostic) => diagnostic.severity == DiagnosticSeverity.error,
+    );
+  }
+
+  Map<String, int> _severityCounts(StyioServiceResponse response) {
+    return <String, int>{
+      for (final severity in DiagnosticSeverity.values)
+        severity.name: response.diagnostics
+            .where((diagnostic) => diagnostic.severity == severity)
+            .length,
+    };
+  }
+
+  Map<String, Object?> _basePayload(StyioServiceResponse response) {
+    return <String, Object?>{
+      'source': 'styio-service-response',
+      'status': response.status.name,
+      'protocolVersion': response.protocolVersion,
+      if (response.parserEngine != null) 'parserEngine': response.parserEngine,
+      if (response.grammarVersion != null)
+        'grammarVersion': response.grammarVersion,
+      if (response.toolchainId.isNotEmpty) 'toolchainId': response.toolchainId,
+      if (response.configPath != null) 'configPath': response.configPath,
+      if (response.workingDirectory != null)
+        'workingDirectory': response.workingDirectory,
+      'payloadCounts': response.payloadCounts,
+      'stdoutBytes': utf8.encode(response.stdout).length,
+      'stderrBytes': utf8.encode(response.stderr).length,
+      if (response.exitCode != null) 'exitCode': response.exitCode,
+      if (response.message != null) 'message': response.message,
+    };
+  }
+}
+
 class StyioServiceResultCacheKey {
   const StyioServiceResultCacheKey({
     required this.documentId,
@@ -2171,6 +2224,8 @@ class StyioServiceResultCacheEntry {
     required this.surroundTemplateCount,
     this.configPath,
     this.workingDirectory,
+    this.parserEngine,
+    this.grammarVersion,
     this.message,
   });
 
@@ -2181,6 +2236,8 @@ class StyioServiceResultCacheEntry {
   final StyioServiceStatus status;
   final String? configPath;
   final String? workingDirectory;
+  final String? parserEngine;
+  final String? grammarVersion;
   final int diagnosticCount;
   final int completionCount;
   final int hoverCount;
@@ -2212,6 +2269,8 @@ class StyioServiceResultCacheEntry {
       status: _statusFromJson(json['status']),
       configPath: json['configPath'] as String?,
       workingDirectory: json['workingDirectory'] as String?,
+      parserEngine: json['parserEngine'] as String?,
+      grammarVersion: json['grammarVersion'] as String?,
       diagnosticCount: _intValue(json['diagnosticCount']),
       completionCount: _intValue(json['completionCount']),
       hoverCount: _intValue(json['hoverCount']),
@@ -2244,6 +2303,8 @@ class StyioServiceResultCacheEntry {
       'status': status.name,
       if (configPath != null) 'configPath': configPath,
       if (workingDirectory != null) 'workingDirectory': workingDirectory,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       'diagnosticCount': diagnosticCount,
       'completionCount': completionCount,
       'hoverCount': hoverCount,
@@ -2292,7 +2353,11 @@ class StyioServiceResultCacheEntry {
 }
 
 class StyioServiceResultCacheSnapshot {
-  const StyioServiceResultCacheSnapshot({required this.entries});
+  const StyioServiceResultCacheSnapshot({
+    required this.entries,
+    this.lookupHits = 0,
+    this.lookupMisses = 0,
+  });
 
   factory StyioServiceResultCacheSnapshot.fromJson(Map<String, Object?> json) {
     final entries = json['entries'];
@@ -2303,13 +2368,24 @@ class StyioServiceResultCacheSnapshot {
                 .whereType<StyioServiceResultCacheEntry>()
                 .toList(growable: false)
           : const <StyioServiceResultCacheEntry>[],
+      lookupHits: _intValue(json['lookupHits']),
+      lookupMisses: _intValue(json['lookupMisses']),
     );
   }
 
   final List<StyioServiceResultCacheEntry> entries;
+  final int lookupHits;
+  final int lookupMisses;
+
+  int get lookupCount => lookupHits + lookupMisses;
+  double get lookupHitRate => lookupCount == 0 ? 0 : lookupHits / lookupCount;
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'lookupHits': lookupHits,
+      'lookupMisses': lookupMisses,
+      'lookupCount': lookupCount,
+      'lookupHitRate': lookupHitRate,
       'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
     };
   }
@@ -2326,6 +2402,19 @@ class StyioServiceResultCacheSnapshot {
       );
     }
     return null;
+  }
+
+  static int _intValue(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
   }
 }
 
@@ -2454,9 +2543,13 @@ class StyioServiceResultCache {
   final int maximumEntries;
   final Map<StyioServiceResultCacheKey, StyioServiceResponse> _responses =
       <StyioServiceResultCacheKey, StyioServiceResponse>{};
+  var _lookupHits = 0;
+  var _lookupMisses = 0;
 
   StyioServiceResponse? lookup(StyioServiceResultCacheKey key) {
-    return _responses[key];
+    final response = _lookupExact(key);
+    _recordLookup(response != null);
+    return response;
   }
 
   StyioServiceResponse? lookupDocument({
@@ -2467,7 +2560,7 @@ class StyioServiceResultCache {
     String? configPath,
     String? workingDirectory,
   }) {
-    final exact = lookup(
+    final exact = _lookupExact(
       StyioServiceResultCacheKey(
         documentId: documentId,
         revision: revision,
@@ -2478,6 +2571,7 @@ class StyioServiceResultCache {
       ),
     );
     if (exact != null) {
+      _recordLookup(true);
       return exact;
     }
 
@@ -2494,8 +2588,10 @@ class StyioServiceResultCache {
         })
         .toList(growable: false);
     if (matches.length == 1) {
+      _recordLookup(true);
       return matches.single.value;
     }
+    _recordLookup(false);
     return null;
   }
 
@@ -2572,6 +2668,27 @@ class StyioServiceResultCache {
   }
 
   int get length => _responses.length;
+  int get lookupHits => _lookupHits;
+  int get lookupMisses => _lookupMisses;
+  int get lookupCount => _lookupHits + _lookupMisses;
+  double get lookupHitRate => lookupCount == 0 ? 0 : _lookupHits / lookupCount;
+
+  void resetTelemetry() {
+    _lookupHits = 0;
+    _lookupMisses = 0;
+  }
+
+  StyioServiceResponse? _lookupExact(StyioServiceResultCacheKey key) {
+    return _responses[key];
+  }
+
+  void _recordLookup(bool hit) {
+    if (hit) {
+      _lookupHits += 1;
+    } else {
+      _lookupMisses += 1;
+    }
+  }
 
   StyioServiceResultCacheSnapshot snapshot({String? documentId}) {
     final entries = <StyioServiceResultCacheEntry>[];
@@ -2590,6 +2707,8 @@ class StyioServiceResultCache {
           status: response.status,
           configPath: key.configPath,
           workingDirectory: key.workingDirectory,
+          parserEngine: response.parserEngine,
+          grammarVersion: response.grammarVersion,
           diagnosticCount: response.diagnostics.length,
           completionCount: response.completions.length,
           hoverCount: response.hovers.length,
@@ -2638,7 +2757,11 @@ class StyioServiceResultCache {
         right.workingDirectory ?? '',
       );
     });
-    return StyioServiceResultCacheSnapshot(entries: entries);
+    return StyioServiceResultCacheSnapshot(
+      entries: entries,
+      lookupHits: lookupHits,
+      lookupMisses: lookupMisses,
+    );
   }
 
   void _evictOverflow() {
@@ -2655,7 +2778,7 @@ class StyioServiceToolchainCacheInvalidator {
 
   final StyioServiceResultCache _cache;
 
-  int applyCatalogChange(ToolchainCatalogConfigurationChange change) {
+  int applyCatalogChange(ToolchainCatalogChange change) {
     if (change.deleted || change.catalog == null) {
       final removed = _cache.length;
       _cache.clear();
@@ -2676,14 +2799,13 @@ class StyioServiceToolchainCacheInvalidator {
 class StyioServiceToolchainCacheBinding {
   StyioServiceToolchainCacheBinding._({
     required StyioServiceToolchainCacheInvalidator invalidator,
-    required StreamSubscription<ToolchainCatalogConfigurationChange>
-    subscription,
+    required StreamSubscription<ToolchainCatalogChange> subscription,
   }) : _invalidator = invalidator,
        _subscription = subscription;
 
   factory StyioServiceToolchainCacheBinding.bind({
     required StyioServiceResultCache cache,
-    required Stream<ToolchainCatalogConfigurationChange> catalogChanges,
+    required Stream<ToolchainCatalogChange> catalogChanges,
     StyioServiceResultCacheManifestStore? resultCacheManifestStore,
   }) {
     final invalidator = StyioServiceToolchainCacheInvalidator(cache: cache);
@@ -2704,7 +2826,7 @@ class StyioServiceToolchainCacheBinding {
   }
 
   final StyioServiceToolchainCacheInvalidator _invalidator;
-  final StreamSubscription<ToolchainCatalogConfigurationChange> _subscription;
+  final StreamSubscription<ToolchainCatalogChange> _subscription;
 
   StyioServiceToolchainCacheInvalidator get invalidator => _invalidator;
 

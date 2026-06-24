@@ -1,20 +1,19 @@
 import '../../view_ide/platform/platform_target.dart';
 
-enum ViewportFamily {
-  desktop,
-  mobile,
-}
+enum ViewportFamily { desktop, mobile }
 
 class ViewportProfile {
   const ViewportProfile({
     required this.family,
     required this.width,
     required this.height,
+    this.platformTarget = PlatformTarget.unknown,
   });
 
   final ViewportFamily family;
   final double width;
   final double height;
+  final PlatformTarget platformTarget;
 
   bool get isDesktop => family == ViewportFamily.desktop;
   bool get isMobile => family == ViewportFamily.mobile;
@@ -42,6 +41,7 @@ ViewportProfile resolveViewportProfile({
         family: ViewportFamily.desktop,
         width: width,
         height: height,
+        platformTarget: platformTarget,
       );
     case PlatformTarget.android:
     case PlatformTarget.ios:
@@ -49,6 +49,7 @@ ViewportProfile resolveViewportProfile({
         family: ViewportFamily.mobile,
         width: width,
         height: height,
+        platformTarget: platformTarget,
       );
     case PlatformTarget.web:
     case PlatformTarget.unknown:
@@ -56,6 +57,7 @@ ViewportProfile resolveViewportProfile({
         family: width >= 960 ? ViewportFamily.desktop : ViewportFamily.mobile,
         width: width,
         height: height,
+        platformTarget: platformTarget,
       );
   }
 }

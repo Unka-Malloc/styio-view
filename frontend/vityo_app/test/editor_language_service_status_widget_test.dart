@@ -33,8 +33,14 @@ void main() {
         capabilitySnapshot: const StyioServiceCapabilityDetector().detect(
           response,
         ),
+        cacheSnapshot: const StyioServiceResultCacheSnapshot(
+          entries: <StyioServiceResultCacheEntry>[],
+          lookupHits: 3,
+          lookupMisses: 1,
+        ),
       ),
     );
+    var refreshRequested = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -57,6 +63,9 @@ void main() {
                 height: 800,
               ),
               languageServiceStatus: status,
+              onRefreshLanguageService: () {
+                refreshRequested = true;
+              },
             ),
           ),
         ),
@@ -68,7 +77,17 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('StyioService ready'), findsOneWidget);
+    expect(find.text('health degraded'), findsOneWidget);
+    expect(find.textContaining('missing '), findsWidgets);
+    expect(find.text('cache lookups 4'), findsOneWidget);
+    expect(find.text('cache hits 3'), findsOneWidget);
+    expect(find.text('cache misses 1'), findsOneWidget);
     expect(find.textContaining('completion available'), findsOneWidget);
+    final refreshAction = find.byKey(
+      const ValueKey('language-service-refresh-action'),
+    );
+    tester.widget<OutlinedButton>(refreshAction).onPressed!();
+    expect(refreshRequested, isTrue);
   });
 
   testWidgets('editor surface renders unsupported language capability', (
@@ -132,5 +151,55 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('hover unsupported'), findsOneWidget);
+    expect(find.text('health degraded'), findsOneWidget);
+    expect(find.text('blocked 1'), findsOneWidget);
+  });
+
+  testWidgets('editor surface exposes unavailable language service refresh', (
+    tester,
+  ) async {
+    var refreshRequested = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1200,
+            height: 800,
+            child: EditorSurface(
+              controller: EditorSessionController(
+                initialDocument: const DocumentState(
+                  documentId: 'fixture://editor-status-unavailable',
+                  text: 'value := 1\nvalue\n',
+                  revision: 1,
+                ),
+                languageService: const LocalStyioLanguageService(),
+              ),
+              viewportProfile: const ViewportProfile(
+                family: ViewportFamily.desktop,
+                width: 1200,
+                height: 800,
+              ),
+              languageServiceStatus: LanguageServiceStatusSurface.unavailable(),
+              onRefreshLanguageService: () {
+                refreshRequested = true;
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('language-service-status-card')),
+      findsOneWidget,
+    );
+    expect(find.text('StyioService unavailable'), findsOneWidget);
+
+    final refreshAction = find.byKey(
+      const ValueKey('language-service-refresh-action'),
+    );
+    tester.widget<OutlinedButton>(refreshAction).onPressed!();
+    expect(refreshRequested, isTrue);
   });
 }

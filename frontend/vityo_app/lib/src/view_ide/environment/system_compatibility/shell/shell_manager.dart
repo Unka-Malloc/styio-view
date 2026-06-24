@@ -2,12 +2,7 @@ import '../../configuration/shell_configuration.dart';
 import 'shell_adapter.dart';
 import 'shell_facts.dart';
 
-enum ShellCommandStatus {
-  succeeded,
-  failed,
-  timedOut,
-  blocked,
-}
+enum ShellCommandStatus { succeeded, failed, timedOut, blocked }
 
 enum ShellFailureKind {
   unsupported,
@@ -78,6 +73,7 @@ class ShellCommandResult {
     required this.stderr,
     required this.duration,
     this.message,
+    this.metadata = const <String, Object?>{},
   });
 
   final ShellCommandStatus status;
@@ -89,6 +85,7 @@ class ShellCommandResult {
   final String stderr;
   final Duration duration;
   final String? message;
+  final Map<String, Object?> metadata;
 
   bool get succeeded => status == ShellCommandStatus.succeeded;
 }
@@ -109,7 +106,9 @@ class ShellFailureClassifier {
     return ShellOperationFailure(
       kind: _kindFor(result),
       operation: operation,
-      target: result.executablePath.isEmpty ? result.command : result.executablePath,
+      target: result.executablePath.isEmpty
+          ? result.command
+          : result.executablePath,
       sourceManager: sourceManager,
       message: result.message ?? result.stderr,
       recoveryHint: recoveryHint,
@@ -121,9 +120,10 @@ class ShellFailureClassifier {
       ShellCommandStatus.succeeded => ShellFailureKind.unknownFailure,
       ShellCommandStatus.blocked => ShellFailureKind.unsupported,
       ShellCommandStatus.timedOut => ShellFailureKind.timedOut,
-      ShellCommandStatus.failed => result.exitCode == null
-          ? ShellFailureKind.spawnFailed
-          : ShellFailureKind.nonZeroExit,
+      ShellCommandStatus.failed =>
+        result.exitCode == null
+            ? ShellFailureKind.spawnFailed
+            : ShellFailureKind.nonZeroExit,
     };
   }
 }
@@ -181,10 +181,6 @@ class UnsupportedShellManager implements ShellManager {
   }) {
     return const ShellFailureClassifier(
       sourceManager: 'UnsupportedShellManager',
-    ).classify(
-      result,
-      operation: operation,
-      recoveryHint: recoveryHint,
-    );
+    ).classify(result, operation: operation, recoveryHint: recoveryHint);
   }
 }

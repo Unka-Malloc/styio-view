@@ -18,6 +18,18 @@ enum StyioServiceCapabilityState {
   stale,
 }
 
+enum StyioServiceCapabilityHealth { ready, degraded, unavailable }
+
+extension StyioServiceCapabilityHealthX on StyioServiceCapabilityHealth {
+  String get wireValue {
+    return switch (this) {
+      StyioServiceCapabilityHealth.ready => 'ready',
+      StyioServiceCapabilityHealth.degraded => 'degraded',
+      StyioServiceCapabilityHealth.unavailable => 'unavailable',
+    };
+  }
+}
+
 class StyioServiceCapabilityStatus {
   const StyioServiceCapabilityStatus({
     required this.capability,
@@ -44,6 +56,46 @@ class StyioServiceCapabilityStatus {
   }
 }
 
+class StyioServiceCapabilityHealthSummary {
+  const StyioServiceCapabilityHealthSummary({
+    required this.health,
+    required this.totalCount,
+    required this.freshCount,
+    required this.usableCount,
+    required this.missingCapabilities,
+    required this.blockedCapabilities,
+  });
+
+  final StyioServiceCapabilityHealth health;
+  final int totalCount;
+  final int freshCount;
+  final int usableCount;
+  final List<StyioServiceCapability> missingCapabilities;
+  final List<StyioServiceCapability> blockedCapabilities;
+
+  bool get fullyReady =>
+      health == StyioServiceCapabilityHealth.ready &&
+      missingCapabilities.isEmpty;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'health': health.wireValue,
+      'totalCount': totalCount,
+      'freshCount': freshCount,
+      'usableCount': usableCount,
+      'missingCount': missingCapabilities.length,
+      'blockedCount': blockedCapabilities.length,
+      'fullyReady': fullyReady,
+      'missingCapabilities': missingCapabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
+      'blockedCapabilities': blockedCapabilities
+          .map((capability) => capability.wireValue)
+          .toList(growable: false),
+    };
+  }
+}
+
 class StyioServiceCapabilitySnapshot {
   const StyioServiceCapabilitySnapshot({
     required this.documentId,
@@ -51,12 +103,16 @@ class StyioServiceCapabilitySnapshot {
     required this.protocolVersion,
     required this.statuses,
     this.toolchainId = '',
+    this.parserEngine,
+    this.grammarVersion,
   });
 
   final String documentId;
   final int revision;
   final String protocolVersion;
   final String toolchainId;
+  final String? parserEngine;
+  final String? grammarVersion;
   final Map<StyioServiceCapability, StyioServiceCapabilityStatus> statuses;
 
   StyioServiceCapabilityState stateOf(StyioServiceCapability capability) {
@@ -75,6 +131,40 @@ class StyioServiceCapabilitySnapshot {
         .where((entry) => entry.value.isUsable)
         .map((entry) => entry.key)
         .toSet();
+  }
+
+  StyioServiceCapabilityHealthSummary get healthSummary {
+    final missing = <StyioServiceCapability>[];
+    final blocked = <StyioServiceCapability>[];
+    var freshCount = 0;
+    var usableCount = 0;
+    for (final entry in statuses.entries) {
+      final status = entry.value;
+      if (status.hasFreshPayload) {
+        freshCount += 1;
+      }
+      if (status.isUsable) {
+        usableCount += 1;
+      } else {
+        missing.add(entry.key);
+      }
+      if (_isBlockedCapabilityState(status.state)) {
+        blocked.add(entry.key);
+      }
+    }
+    final health = statuses.isEmpty || usableCount == 0
+        ? StyioServiceCapabilityHealth.unavailable
+        : missing.isEmpty
+        ? StyioServiceCapabilityHealth.ready
+        : StyioServiceCapabilityHealth.degraded;
+    return StyioServiceCapabilityHealthSummary(
+      health: health,
+      totalCount: statuses.length,
+      freshCount: freshCount,
+      usableCount: usableCount,
+      missingCapabilities: List<StyioServiceCapability>.unmodifiable(missing),
+      blockedCapabilities: List<StyioServiceCapability>.unmodifiable(blocked),
+    );
   }
 
   Set<String> providerCapabilityWireValues({bool includeDerived = true}) {
@@ -128,11 +218,27 @@ class StyioServiceCapabilitySnapshot {
       'revision': revision,
       'protocolVersion': protocolVersion,
       'toolchainId': toolchainId,
+      if (parserEngine != null) 'parserEngine': parserEngine,
+      if (grammarVersion != null) 'grammarVersion': grammarVersion,
       'statuses': statuses.values
           .map((status) => status.toJson())
           .toList(growable: false),
+      'healthSummary': healthSummary.toJson(),
     };
   }
+}
+
+bool _isBlockedCapabilityState(StyioServiceCapabilityState state) {
+  return switch (state) {
+    StyioServiceCapabilityState.unsupported ||
+    StyioServiceCapabilityState.unavailable ||
+    StyioServiceCapabilityState.failed ||
+    StyioServiceCapabilityState.protocolError ||
+    StyioServiceCapabilityState.stale => true,
+    StyioServiceCapabilityState.available ||
+    StyioServiceCapabilityState.derived ||
+    StyioServiceCapabilityState.empty => false,
+  };
 }
 
 class StyioServiceCapabilityDetector {
@@ -181,6 +287,8 @@ class StyioServiceCapabilityDetector {
       revision: response.revision,
       protocolVersion: response.protocolVersion,
       toolchainId: toolchainId ?? response.toolchainId,
+      parserEngine: response.parserEngine,
+      grammarVersion: response.grammarVersion,
       statuses:
           Map<
             StyioServiceCapability,
@@ -544,6 +652,11 @@ class StyioServiceCapabilityNegotiationResult<T> {
       'report': <String, Object?>{
         'documentId': report.documentId,
         'revision': report.revision,
+        'protocolVersion': report.response.protocolVersion,
+        if (report.response.parserEngine != null)
+          'parserEngine': report.response.parserEngine,
+        if (report.response.grammarVersion != null)
+          'grammarVersion': report.response.grammarVersion,
         'serviceSucceeded': report.serviceSucceeded,
         'cachedResponseStored': report.cachedResponseStored,
       },

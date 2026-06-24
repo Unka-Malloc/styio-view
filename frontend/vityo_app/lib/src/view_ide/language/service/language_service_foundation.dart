@@ -118,15 +118,19 @@ class SemanticSnapshot {
       if (target == null) {
         continue;
       }
+      final referenceRange = _analysisReferenceRange(span, target);
+      if (!isSafeRange(referenceRange)) {
+        continue;
+      }
       final referenceKey =
-          '${_rangeKey(span.range)}->${_rangeKey(target.nameRange)}';
+          '${_rangeKey(referenceRange)}->${_rangeKey(target.nameRange)}';
       if (!referenceKeys.add(referenceKey)) {
         continue;
       }
       references.add(
         ResolvedReference(
           name: span.name,
-          range: span.range,
+          range: referenceRange,
           target: target,
           access: _resolvedReferenceAccessFromReferenceAccess(span.access),
           isDeclaration: span.isDeclaration,
@@ -197,6 +201,25 @@ class SemanticSnapshot {
 
     return candidates;
   }
+}
+
+SourceRange _analysisReferenceRange(
+  ReferenceSpan span,
+  ResolvedElement target,
+) {
+  final declarationReference =
+      span.isDeclaration || span.access == ReferenceAccess.declaration;
+  if (!declarationReference) {
+    return span.range;
+  }
+  if (_sameRange(span.range, target.nameRange)) {
+    return span.range;
+  }
+  if (_sameRange(span.range, target.declarationRange) ||
+      _rangeContainsRange(span.range, target.nameRange)) {
+    return target.nameRange;
+  }
+  return span.range;
 }
 
 class SemanticSnapshotBuilder {
@@ -657,16 +680,18 @@ class LanguageProviderRegistry<T> {
       <String, List<LanguageProviderRegistration<T>>>{};
 
   void register(LanguageProviderRegistration<T> registration) {
+    final normalizedRegistration = _normalizedRegistration(registration);
     final bucket = _registrations.putIfAbsent(
-      registration.descriptor.languageId,
+      normalizedRegistration.descriptor.languageId,
       () => <LanguageProviderRegistration<T>>[],
     );
 
     bucket.removeWhere(
       (current) =>
-          current.descriptor.providerId == registration.descriptor.providerId,
+          current.descriptor.providerId ==
+          normalizedRegistration.descriptor.providerId,
     );
-    bucket.add(registration);
+    bucket.add(normalizedRegistration);
     bucket.sort((left, right) {
       final priority = right.descriptor.priority.compareTo(
         left.descriptor.priority,
@@ -679,17 +704,19 @@ class LanguageProviderRegistry<T> {
   }
 
   bool unregister({required String languageId, required String providerId}) {
-    final bucket = _registrations[languageId];
+    final bucket = _registrations[_normalizedProviderLanguageId(languageId)];
     if (bucket == null) {
       return false;
     }
 
     final before = bucket.length;
+    final normalizedProviderId = _normalizedProviderId(providerId);
     bucket.removeWhere(
-      (registration) => registration.descriptor.providerId == providerId,
+      (registration) =>
+          registration.descriptor.providerId == normalizedProviderId,
     );
     if (bucket.isEmpty) {
-      _registrations.remove(languageId);
+      _registrations.remove(_normalizedProviderLanguageId(languageId));
     }
     return before != bucket.length;
   }
@@ -750,7 +777,7 @@ class LanguageProviderRegistry<T> {
     String languageId, {
     String? capability,
   }) {
-    final bucket = _registrations[languageId];
+    final bucket = _registrations[_normalizedProviderLanguageId(languageId)];
     if (bucket == null || capability == null) {
       return bucket;
     }
@@ -775,6 +802,54 @@ class LanguageProviderRegistry<T> {
         )
         .toList(growable: false);
   }
+
+  LanguageProviderRegistration<T> _normalizedRegistration(
+    LanguageProviderRegistration<T> registration,
+  ) {
+    return LanguageProviderRegistration<T>(
+      descriptor: LanguageProviderDescriptor(
+        languageId: _normalizedProviderLanguageId(
+          registration.descriptor.languageId,
+        ),
+        providerId: _normalizedProviderId(registration.descriptor.providerId),
+        displayName: _normalizedProviderDisplayName(
+          registration.descriptor.displayName,
+          providerId: registration.descriptor.providerId,
+        ),
+        priority: registration.descriptor.priority,
+        capabilities: Set.unmodifiable(
+          registration.descriptor.capabilities
+              .map(_canonicalProviderCapability)
+              .where((capability) => capability.isNotEmpty),
+        ),
+      ),
+      provider: registration.provider,
+    );
+  }
+}
+
+String _normalizedProviderLanguageId(String languageId) {
+  return languageId.trim().toLowerCase();
+}
+
+String _normalizedProviderId(String providerId) {
+  return providerId.trim();
+}
+
+String _normalizedProviderDisplayName(String displayName, {required String providerId}) {
+  final normalized = displayName.trim();
+  if (normalized.isNotEmpty) {
+    return normalized;
+  }
+  return _normalizedProviderId(providerId);
+}
+
+String _canonicalProviderCapability(String capability) {
+  final normalized = capability.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return '';
+  }
+  return normalized.replaceAll(RegExp(r'[\s_]+'), '-');
 }
 
 String _normalizedProviderCapability(String capability) {
@@ -783,6 +858,10 @@ String _normalizedProviderCapability(String capability) {
 
 bool _rangeContains(SourceRange range, int offset) {
   return range.contains(offset);
+}
+
+bool _rangeContainsRange(SourceRange range, SourceRange child) {
+  return range.start <= child.start && range.end >= child.end;
 }
 
 bool _sameRange(SourceRange left, SourceRange right) {

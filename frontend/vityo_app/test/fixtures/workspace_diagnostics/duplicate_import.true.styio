@@ -1,0 +1,6 @@
+@import { styio/core }
+@import { styio/core }
+
+#main := () => {
+  <| 0
+}

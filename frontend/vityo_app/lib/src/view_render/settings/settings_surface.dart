@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
+import '../../view_ide/foundation/foundation.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
+import '../../view_ide/toolchain/toolchain_manager.dart';
 import '../platform/viewport_profile.dart';
+import '../theme/theme.dart';
 
 class SettingsSurface extends StatelessWidget {
   const SettingsSurface({
@@ -12,10 +16,21 @@ class SettingsSurface extends StatelessWidget {
     this.toolchainSettings,
     this.toolchainInstallPlan,
     this.toolchainInstallExecution,
+    this.toolchainBootstrapSummary,
+    this.toolchainBootstrapActionDispatch,
     this.onToolchainRecoveryAction,
+    this.onToolchainBootstrapAction,
     this.onSelectToolchain,
+    this.onSelectClangCppVersion,
     this.onClearToolchain,
     this.onExecuteToolchainInstallPlan,
+    this.ideCapabilities,
+    this.commandPalettePreferences = const CommandPaletteDisplayPreferences(
+      workspaceId: 'default',
+    ),
+    this.onSaveCommandPalettePreferences,
+    this.themeOverride = const VityoThemeOverride(),
+    this.onSaveThemeOverride,
   });
 
   final ViewportProfile viewportProfile;
@@ -23,11 +38,23 @@ class SettingsSurface extends StatelessWidget {
   final ToolchainSettingsSurface? toolchainSettings;
   final ToolchainInstallPlanSurface? toolchainInstallPlan;
   final ToolchainInstallExecutionSurface? toolchainInstallExecution;
+  final ToolchainManagerBootstrapSummary? toolchainBootstrapSummary;
+  final ToolchainBootstrapActionDispatchResult?
+  toolchainBootstrapActionDispatch;
   final Future<void> Function(ToolchainRecoveryAction action)?
   onToolchainRecoveryAction;
+  final Future<void> Function(String actionId)? onToolchainBootstrapAction;
   final Future<void> Function(String id)? onSelectToolchain;
+  final Future<void> Function(String versionId, String cppStandard)?
+  onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
+  final IdeCapabilityFrameworkSnapshot? ideCapabilities;
+  final CommandPaletteDisplayPreferences commandPalettePreferences;
+  final Future<void> Function(CommandPaletteDisplayPreferences preferences)?
+  onSaveCommandPalettePreferences;
+  final VityoThemeOverride themeOverride;
+  final Future<void> Function(VityoThemeOverride override)? onSaveThemeOverride;
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +63,8 @@ class SettingsSurface extends StatelessWidget {
     final settings =
         toolchainSettings ??
         ToolchainSettingsSurface.fromStatus(toolchainStatus);
+    final capabilitySnapshot =
+        ideCapabilities ?? const VityoIdeCapabilityFramework().snapshot();
 
     return Card(
       key: const ValueKey('settings-surface'),
@@ -56,10 +85,26 @@ class SettingsSurface extends StatelessWidget {
                 settings: settings,
                 installPlan: toolchainInstallPlan,
                 installExecution: toolchainInstallExecution,
+                bootstrapSummary: toolchainBootstrapSummary,
+                bootstrapActionDispatch: toolchainBootstrapActionDispatch,
                 onRecoveryAction: onToolchainRecoveryAction,
+                onBootstrapAction: onToolchainBootstrapAction,
                 onSelectToolchain: onSelectToolchain,
+                onSelectClangCppVersion: onSelectClangCppVersion,
                 onClearToolchain: onClearToolchain,
                 onExecuteToolchainInstallPlan: onExecuteToolchainInstallPlan,
+              ),
+              const SizedBox(height: 14),
+              _IdeCapabilityFrameworkCard(snapshot: capabilitySnapshot),
+              const SizedBox(height: 14),
+              _CommandPaletteSettingsCard(
+                preferences: commandPalettePreferences,
+                onSavePreferences: onSaveCommandPalettePreferences,
+              ),
+              const SizedBox(height: 14),
+              _ThemeSettingsCard(
+                themeOverride: themeOverride,
+                onSaveThemeOverride: onSaveThemeOverride,
               ),
             ],
           ),
@@ -69,13 +114,424 @@ class SettingsSurface extends StatelessWidget {
   }
 }
 
+class _CommandPaletteSettingsCard extends StatefulWidget {
+  const _CommandPaletteSettingsCard({
+    required this.preferences,
+    required this.onSavePreferences,
+  });
+
+  final CommandPaletteDisplayPreferences preferences;
+  final Future<void> Function(CommandPaletteDisplayPreferences preferences)?
+  onSavePreferences;
+
+  @override
+  State<_CommandPaletteSettingsCard> createState() =>
+      _CommandPaletteSettingsCardState();
+}
+
+class _CommandPaletteSettingsCardState
+    extends State<_CommandPaletteSettingsCard> {
+  AppCommandCategory? _defaultCategory;
+  late bool _showCategoryFilters;
+  late bool _showRecentCommands;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncFromWidget();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CommandPaletteSettingsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.preferences != widget.preferences) {
+      _syncFromWidget();
+    }
+  }
+
+  void _syncFromWidget() {
+    _defaultCategory = widget.preferences.defaultCategory;
+    _showCategoryFilters = widget.preferences.showCategoryFilters;
+    _showRecentCommands = widget.preferences.showRecentCommands;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('settings-command-palette-card'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDE8F1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Command Palette Settings', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Workspace command palette display preferences. Persistence is delegated to CommandPaletteDisplayPreferencesStore.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<AppCommandCategory?>(
+            key: const ValueKey('settings-command-palette-default-category'),
+            initialValue: _defaultCategory,
+            decoration: const InputDecoration(labelText: 'Default category'),
+            items: <DropdownMenuItem<AppCommandCategory?>>[
+              const DropdownMenuItem<AppCommandCategory?>(
+                value: null,
+                child: Text('No default category'),
+              ),
+              ...AppCommandCategory.values.map(
+                (category) => DropdownMenuItem<AppCommandCategory?>(
+                  value: category,
+                  child: Text(category.wireValue),
+                ),
+              ),
+            ],
+            onChanged: (category) {
+              setState(() {
+                _defaultCategory = category;
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          SwitchListTile(
+            key: const ValueKey('settings-command-palette-show-filters'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show category filters'),
+            value: _showCategoryFilters,
+            onChanged: (value) {
+              setState(() {
+                _showCategoryFilters = value;
+              });
+            },
+          ),
+          SwitchListTile(
+            key: const ValueKey('settings-command-palette-show-recent'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show recent commands'),
+            value: _showRecentCommands,
+            onChanged: (value) {
+              setState(() {
+                _showRecentCommands = value;
+              });
+            },
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('workspace ${widget.preferences.workspaceId}')),
+              Chip(
+                label: Text('default ${_defaultCategory?.wireValue ?? 'none'}'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('settings-command-palette-save'),
+                onPressed: widget.onSavePreferences == null
+                    ? null
+                    : () {
+                        widget.onSavePreferences!(
+                          CommandPaletteDisplayPreferences(
+                            workspaceId: widget.preferences.workspaceId,
+                            defaultCategory: _defaultCategory,
+                            showCategoryFilters: _showCategoryFilters,
+                            showRecentCommands: _showRecentCommands,
+                            updatedAt: DateTime.now().toUtc(),
+                          ),
+                        );
+                      },
+                child: const Text('Save command palette'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('settings-command-palette-reset'),
+                onPressed: widget.onSavePreferences == null
+                    ? null
+                    : () {
+                        setState(() {
+                          _defaultCategory = null;
+                          _showCategoryFilters = true;
+                          _showRecentCommands = true;
+                        });
+                        widget.onSavePreferences!(
+                          CommandPaletteDisplayPreferences(
+                            workspaceId: widget.preferences.workspaceId,
+                            updatedAt: DateTime.now().toUtc(),
+                          ),
+                        );
+                      },
+                child: const Text('Reset command palette'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IdeCapabilityFrameworkCard extends StatelessWidget {
+  const _IdeCapabilityFrameworkCard({required this.snapshot});
+
+  final IdeCapabilityFrameworkSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final followUps = snapshot.followUps.take(8).toList(growable: false);
+    final missingRequiredCapabilityIds = snapshot.missingRequiredCapabilityIds
+        .toList(growable: false);
+    final coveredRequiredCapabilityCount =
+        requiredVityoIdeCapabilityIds.length -
+        missingRequiredCapabilityIds.length;
+
+    return Container(
+      key: const ValueKey('settings-ide-capability-framework'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6EEF1),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('IDE Capability Framework', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Cross-layer maturity map for Vityo IDE capabilities. TODO entries are explicit follow-up work, not production-ready claims.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text('version ${snapshot.version}')),
+              Chip(label: Text('entries ${snapshot.entries.length}')),
+              Chip(
+                label: Text(
+                  'required $coveredRequiredCapabilityCount/${requiredVityoIdeCapabilityIds.length}',
+                ),
+              ),
+              Chip(label: Text('follow-ups ${snapshot.followUps.length}')),
+              for (final statusCount in snapshot.statusCounts.entries)
+                Chip(label: Text('${statusCount.key} ${statusCount.value}')),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text('Layer Coverage', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: snapshot.layerCounts.entries
+                .where((entry) => entry.value > 0)
+                .map(
+                  (entry) => Chip(label: Text('${entry.key} ${entry.value}')),
+                )
+                .toList(growable: false),
+          ),
+          if (missingRequiredCapabilityIds.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Missing Required Capabilities',
+              style: theme.textTheme.titleSmall,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: missingRequiredCapabilityIds
+                  .map(
+                    (id) => Chip(
+                      key: ValueKey('settings-ide-capability-missing-$id'),
+                      label: Text(id),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Text('TODO Follow-ups', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 8),
+          if (followUps.isEmpty)
+            Text(
+              'No framework follow-ups are currently recorded.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: followUps
+                  .map(
+                    (entry) => Padding(
+                      key: ValueKey('settings-ide-capability-${entry.id}'),
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        '${entry.layer.wireValue} · ${entry.title} · ${entry.status.wireValue}: ${entry.todo}',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeSettingsCard extends StatefulWidget {
+  const _ThemeSettingsCard({
+    required this.themeOverride,
+    required this.onSaveThemeOverride,
+  });
+
+  final VityoThemeOverride themeOverride;
+  final Future<void> Function(VityoThemeOverride override)? onSaveThemeOverride;
+
+  @override
+  State<_ThemeSettingsCard> createState() => _ThemeSettingsCardState();
+}
+
+class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
+  late final TextEditingController _accentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _accentController = TextEditingController(
+      text: _colorToHex(widget.themeOverride.accent),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _ThemeSettingsCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final nextText = _colorToHex(widget.themeOverride.accent);
+    if (_accentController.text != nextText) {
+      _accentController.text = nextText;
+    }
+  }
+
+  @override
+  void dispose() {
+    _accentController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('settings-theme-card'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8EFE6),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Theme Settings', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Persist a workspace theme override through Configuration DataStore.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            key: const ValueKey('settings-theme-accent-input'),
+            controller: _accentController,
+            decoration: const InputDecoration(
+              labelText: 'Accent color',
+              hintText: '#2F6F73',
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              OutlinedButton(
+                key: const ValueKey('settings-theme-save-button'),
+                onPressed: widget.onSaveThemeOverride == null
+                    ? null
+                    : () {
+                        final accent = _parseHexColor(_accentController.text);
+                        if (accent == null) {
+                          return;
+                        }
+                        widget.onSaveThemeOverride!(
+                          widget.themeOverride.copyWith(accent: accent),
+                        );
+                      },
+                child: const Text('Save theme override'),
+              ),
+              OutlinedButton(
+                key: const ValueKey('settings-theme-reset-button'),
+                onPressed: widget.onSaveThemeOverride == null
+                    ? null
+                    : () {
+                        widget.onSaveThemeOverride!(const VityoThemeOverride());
+                      },
+                child: const Text('Reset theme'),
+              ),
+              if (widget.themeOverride.accent != null)
+                Chip(
+                  label: Text(
+                    'accent ${_colorToHex(widget.themeOverride.accent)}',
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _colorToHex(Color? color) {
+  if (color == null) {
+    return '';
+  }
+  final rgb = color.toARGB32() & 0x00FFFFFF;
+  return '#${rgb.toRadixString(16).padLeft(6, '0').toUpperCase()}';
+}
+
+Color? _parseHexColor(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  final normalized = trimmed.startsWith('#') ? trimmed.substring(1) : trimmed;
+  if (normalized.length != 6 && normalized.length != 8) {
+    return null;
+  }
+  final parsed = int.tryParse(normalized, radix: 16);
+  if (parsed == null) {
+    return null;
+  }
+  return Color(normalized.length == 6 ? 0xFF000000 | parsed : parsed);
+}
+
 class _ToolchainSettingsCard extends StatelessWidget {
   const _ToolchainSettingsCard({
     required this.settings,
     required this.installPlan,
     required this.installExecution,
+    required this.bootstrapSummary,
+    required this.bootstrapActionDispatch,
     required this.onRecoveryAction,
+    required this.onBootstrapAction,
     required this.onSelectToolchain,
+    required this.onSelectClangCppVersion,
     required this.onClearToolchain,
     required this.onExecuteToolchainInstallPlan,
   });
@@ -83,8 +539,13 @@ class _ToolchainSettingsCard extends StatelessWidget {
   final ToolchainSettingsSurface settings;
   final ToolchainInstallPlanSurface? installPlan;
   final ToolchainInstallExecutionSurface? installExecution;
+  final ToolchainManagerBootstrapSummary? bootstrapSummary;
+  final ToolchainBootstrapActionDispatchResult? bootstrapActionDispatch;
   final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
+  final Future<void> Function(String actionId)? onBootstrapAction;
   final Future<void> Function(String id)? onSelectToolchain;
+  final Future<void> Function(String versionId, String cppStandard)?
+  onSelectClangCppVersion;
   final Future<void> Function(ToolchainKind kind)? onClearToolchain;
   final Future<void> Function()? onExecuteToolchainInstallPlan;
 
@@ -98,6 +559,13 @@ class _ToolchainSettingsCard extends StatelessWidget {
       ToolchainStatusSeverity.blocked => const Color(0xFFF4E8D8),
       ToolchainStatusSeverity.failed => const Color(0xFFF3D8D6),
     };
+    final selectClangCppVersion =
+        onSelectClangCppVersion ??
+        (onSelectToolchain == null
+            ? null
+            : (String versionId, String _) {
+                return onSelectToolchain!(versionId);
+              });
 
     return Container(
       key: const ValueKey('settings-toolchain-status-card'),
@@ -152,6 +620,21 @@ class _ToolchainSettingsCard extends StatelessWidget {
                   .toList(growable: false),
             ),
           ],
+          if (bootstrapSummary != null) ...[
+            const SizedBox(height: 12),
+            _ToolchainBootstrapSummaryView(
+              summary: bootstrapSummary!,
+              dispatchResult: bootstrapActionDispatch,
+              onBootstrapAction: onBootstrapAction,
+            ),
+          ],
+          if (settings.clangCppVersions != null) ...[
+            const SizedBox(height: 14),
+            _ClangCppVersionManagerView(
+              versions: settings.clangCppVersions!,
+              onSelectClangCppVersion: selectClangCppVersion,
+            ),
+          ],
           const SizedBox(height: 14),
           _ToolchainCandidateList(
             toolchains: settings.toolchains,
@@ -173,12 +656,301 @@ class _ToolchainSettingsCard extends StatelessWidget {
           ],
           if (installExecution != null) ...[
             const SizedBox(height: 14),
-            _ToolchainInstallExecutionView(result: installExecution!),
+            _ToolchainInstallExecutionView(
+              result: installExecution!,
+              onRecoveryAction: onRecoveryAction,
+            ),
           ],
         ],
       ),
     );
   }
+}
+
+class _ToolchainBootstrapSummaryView extends StatelessWidget {
+  const _ToolchainBootstrapSummaryView({
+    required this.summary,
+    required this.dispatchResult,
+    required this.onBootstrapAction,
+  });
+
+  final ToolchainManagerBootstrapSummary summary;
+  final ToolchainBootstrapActionDispatchResult? dispatchResult;
+  final Future<void> Function(String actionId)? onBootstrapAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('settings-toolchain-bootstrap-summary'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Toolchain Bootstrap', style: theme.textTheme.titleSmall),
+          const SizedBox(height: 6),
+          Text(
+            summary.styioLifecycle.message,
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              Chip(label: Text(summary.ready ? 'ready' : 'actionable')),
+              Chip(label: Text('manager ${summary.managerReport.status.name}')),
+              Chip(label: Text('styio ${summary.styioLifecycle.state.name}')),
+            ],
+          ),
+          if (dispatchResult != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              key: const ValueKey(
+                'settings-toolchain-bootstrap-dispatch-result',
+              ),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Last dispatch: '
+                    '${dispatchResult!.status.wireValue} · '
+                    '${dispatchResult!.actionId}',
+                    style: theme.textTheme.labelLarge,
+                  ),
+                  if (dispatchResult!.message.isNotEmpty)
+                    Text(
+                      dispatchResult!.message,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  if (dispatchResult!.todo.isNotEmpty)
+                    Text(
+                      dispatchResult!.todo,
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          _ToolchainBootstrapActionGroup(
+            label: 'Settings',
+            keyPrefix: 'settings-toolchain-bootstrap-settings',
+            actionIds: summary.settingsActionIds,
+            onBootstrapAction: onBootstrapAction,
+          ),
+          _ToolchainBootstrapActionGroup(
+            label: 'Installer',
+            keyPrefix: 'settings-toolchain-bootstrap-installer',
+            actionIds: summary.installerActionIds,
+            onBootstrapAction: onBootstrapAction,
+          ),
+          _ToolchainBootstrapActionGroup(
+            label: 'Project Bootstrap',
+            keyPrefix: 'settings-toolchain-bootstrap-project',
+            actionIds: summary.projectBootstrapActionIds,
+            onBootstrapAction: onBootstrapAction,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToolchainBootstrapActionGroup extends StatelessWidget {
+  const _ToolchainBootstrapActionGroup({
+    required this.label,
+    required this.keyPrefix,
+    required this.actionIds,
+    required this.onBootstrapAction,
+  });
+
+  final String label;
+  final String keyPrefix;
+  final List<String> actionIds;
+  final Future<void> Function(String actionId)? onBootstrapAction;
+
+  @override
+  Widget build(BuildContext context) {
+    if (actionIds.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.labelLarge),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final actionId in actionIds)
+                OutlinedButton(
+                  key: ValueKey('$keyPrefix-$actionId'),
+                  onPressed: onBootstrapAction == null
+                      ? null
+                      : () {
+                          onBootstrapAction!(actionId);
+                        },
+                  child: Text(actionId),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClangCppVersionManagerView extends StatelessWidget {
+  const _ClangCppVersionManagerView({
+    required this.versions,
+    required this.onSelectClangCppVersion,
+  });
+
+  final ClangCppVersionSettingsSurface versions;
+  final Future<void> Function(String versionId, String cppStandard)?
+  onSelectClangCppVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final preferred = versions.preferredBuildEngineHandoff;
+    return Column(
+      key: const ValueKey('settings-clang-cpp-version-manager'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Clang/C++ Versions', style: theme.textTheme.titleSmall),
+        const SizedBox(height: 8),
+        Text(
+          'IDE-selected Clang/C++ compiler version and external build engine handoff.',
+          style: theme.textTheme.bodySmall,
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            Chip(label: Text('preference ${versions.preferenceStatus}')),
+            Chip(label: Text('standard c++${versions.defaultCppStandard}')),
+            Chip(label: Text('flag ${versions.defaultCompilerFlag}')),
+            Chip(label: Text('cmake ${versions.cmakeAvailable}')),
+            Chip(label: Text('ninja ${versions.ninjaAvailable}')),
+            if (preferred != null)
+              Chip(
+                key: const ValueKey('settings-clang-cpp-preferred-handoff'),
+                label: Text('handoff ${preferred.label}'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: versions.supportedStandards
+              .map(
+                (standard) => ActionChip(
+                  key: ValueKey(
+                    'settings-clang-cpp-standard-${standard.cmakeValue}',
+                  ),
+                  label: Text('c++${standard.cmakeValue}'),
+                  avatar: standard.active
+                      ? const Icon(Icons.check, size: 16)
+                      : null,
+                  onPressed:
+                      onSelectClangCppVersion == null ||
+                          versions.activeVersionId == null
+                      ? null
+                      : () {
+                          onSelectClangCppVersion!(
+                            versions.activeVersionId!,
+                            standard.cmakeValue,
+                          );
+                        },
+                ),
+              )
+              .toList(growable: false),
+        ),
+        if (versions.preferenceMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(versions.preferenceMessage!, style: theme.textTheme.bodySmall),
+        ],
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: versions.candidates
+              .map(
+                (candidate) => Chip(
+                  key: ValueKey(
+                    'settings-clang-cpp-version-${candidate.versionId}',
+                  ),
+                  label: Text(_clangCppCandidateLabel(candidate)),
+                  deleteIcon: candidate.active
+                      ? null
+                      : const Icon(Icons.check_circle_outline),
+                  onDeleted: candidate.active || onSelectClangCppVersion == null
+                      ? null
+                      : () {
+                          onSelectClangCppVersion!(
+                            candidate.versionId,
+                            versions.defaultCppStandard,
+                          );
+                        },
+                  deleteButtonTooltipMessage: candidate.active
+                      ? null
+                      : 'Select ${candidate.displayName}',
+                ),
+              )
+              .toList(growable: false),
+        ),
+        if (versions.buildEngineHandoffs.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: versions.buildEngineHandoffs
+                .map(
+                  (handoff) => Chip(
+                    key: ValueKey(
+                      'settings-clang-cpp-handoff-${handoff.label}',
+                    ),
+                    label: Text('${handoff.label} ${handoff.executablePath}'),
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+String _clangCppCandidateLabel(ClangCppVersionCandidateSurface candidate) {
+  return <String>[
+    if (candidate.active) 'active',
+    'clang',
+    candidate.displayName,
+    if (candidate.version != null) candidate.version!,
+    if (candidate.vendor != null) candidate.vendor!,
+    if (candidate.source != null) candidate.source!,
+  ].join(' ');
 }
 
 class _ToolchainInstallPlanView extends StatelessWidget {
@@ -233,9 +1005,13 @@ class _ToolchainInstallPlanView extends StatelessWidget {
 }
 
 class _ToolchainInstallExecutionView extends StatelessWidget {
-  const _ToolchainInstallExecutionView({required this.result});
+  const _ToolchainInstallExecutionView({
+    required this.result,
+    required this.onRecoveryAction,
+  });
 
   final ToolchainInstallExecutionSurface result;
+  final Future<void> Function(ToolchainRecoveryAction action)? onRecoveryAction;
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +1035,41 @@ class _ToolchainInstallExecutionView extends StatelessWidget {
         if (result.message != null) ...[
           const SizedBox(height: 8),
           Text(result.message!, style: theme.textTheme.bodySmall),
+        ],
+        if (result.recoveryActions.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Column(
+            key: const ValueKey(
+              'settings-toolchain-install-execution-recovery',
+            ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Install Recovery', style: theme.textTheme.labelLarge),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: result.recoveryActions
+                    .map(
+                      (action) => OutlinedButton(
+                        key: ValueKey(
+                          'settings-toolchain-install-execution-recovery-${action.id}',
+                        ),
+                        onPressed: onRecoveryAction == null
+                            ? null
+                            : () {
+                                onRecoveryAction!(action);
+                              },
+                        child: Text(action.label),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+              for (final action in result.recoveryActions)
+                if (action.description.isNotEmpty)
+                  Text(action.description, style: theme.textTheme.bodySmall),
+            ],
+          ),
         ],
       ],
     );

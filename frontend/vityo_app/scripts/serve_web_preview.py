@@ -10,7 +10,8 @@ from urllib.parse import urlparse
 
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-WEB_ROOT = APP_ROOT / "build" / "web"
+REPO_ROOT = APP_ROOT.parents[1]
+WEB_ROOT = REPO_ROOT / "prototype"
 HOST = os.environ.get("VITYO_WEB_PREVIEW_HOST", "127.0.0.1")
 PORT = int(os.environ.get("VITYO_WEB_PREVIEW_PORT", "8080"))
 WORKSPACE_ID = "demo-workspace"
@@ -26,6 +27,16 @@ class PreviewHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/":
+            self._redirect("/editor")
+            return
+        if parsed.path in ("/index", "/index.html"):
+            self._reject_removed_entrypoint()
+            return
+        if parsed.path in ("/editor", "/editor/"):
+            self.path = "/editor.html"
+            super().do_GET()
+            return
         if parsed.path.startswith("/api/styio-hosted/v1/"):
             self._handle_api("GET", parsed.path)
             return
@@ -34,8 +45,8 @@ class PreviewHandler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path.startswith("/api/styio-hosted/v1/"):
-            self._read_json_body()
-            self._handle_api("POST", parsed.path)
+            body = self._read_json_body()
+            self._handle_api("POST", parsed.path, body)
             return
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
@@ -55,13 +66,19 @@ class PreviewHandler(SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             return {}
 
-    def _handle_api(self, method: str, path: str) -> None:
+    def _handle_api(self, method: str, path: str, body: dict | None = None) -> None:
         key = f"{method} {path}"
         if key == "POST /api/styio-hosted/v1/workspaces/open":
             self._send_json(_open_workspace_response())
             return
         if key == f"GET /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/project-graph":
             self._send_json(_project_graph_response())
+            return
+        if key == f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/documents/load":
+            self._send_json(_document_load_response(body or {}))
+            return
+        if key == f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/documents/save":
+            self._send_json(_document_save_response(body or {}))
             return
 
         response = _command_response_for(key)
@@ -93,6 +110,15 @@ class PreviewHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _redirect(self, location: str) -> None:
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _reject_removed_entrypoint(self) -> None:
+        self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+
 
 def _open_workspace_response() -> dict:
     return {
@@ -114,6 +140,66 @@ def _project_graph_response() -> dict:
         "payload": _project_graph_payload(),
         "workspace": _hosted_workspace_record(),
     }
+
+
+def _document_load_response(body: dict) -> dict:
+    path = _body_string(body, "path") or "/workspace/demo/src/main.styio"
+    return {
+        "returncode": 0,
+        "message": "loaded preview hosted document",
+        "stdout": "",
+        "stderr": "",
+        "payload": {
+            "document_id": path,
+            "path": path,
+            "document_text": _document_text_for(path),
+            "revision": 1,
+        },
+    }
+
+
+def _document_save_response(body: dict) -> dict:
+    path = _body_string(body, "path") or "/workspace/demo/src/main.styio"
+    revision = _body_int(body, "revision") or 0
+    return {
+        "returncode": 0,
+        "message": "saved preview hosted document",
+        "stdout": "",
+        "stderr": "",
+        "payload": {
+            "path": path,
+            "revision": revision + 1,
+            "saved": True,
+        },
+    }
+
+
+def _document_text_for(path: str) -> str:
+    documents = {
+        "/workspace/demo/src/main.styio": "value = 1\nvalue\n",
+        "/workspace/demo/src/lib.styio": "value = 1\n",
+        "/workspace/demo/tests/render_test.styio": "value = 1\nvalue\n",
+    }
+    return documents.get(path, "value = 1\n")
+
+
+def _body_string(body: dict, key: str) -> str | None:
+    value = body.get(key)
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _body_int(body: dict, key: str) -> int | None:
+    value = body.get(key)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return None
+    return None
 
 
 def _command_response_for(key: str) -> dict | None:

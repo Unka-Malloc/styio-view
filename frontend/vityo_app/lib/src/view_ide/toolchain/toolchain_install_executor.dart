@@ -6,7 +6,9 @@ import '../environment/configuration/environment_variable_configuration.dart';
 import '../environment/system_compatibility/network/network_manager.dart';
 import '../environment/system_compatibility/platform_manager/platform_manager.dart';
 import '../environment/system_compatibility/process/process_manager.dart';
+import '../runtime/runtime.dart';
 import 'toolchain_archive_extractor.dart';
+import 'toolchain_catalog.dart';
 import 'toolchain_environment.dart';
 import 'toolchain_install_policy.dart';
 import 'toolchain_provenance_verifier.dart';
@@ -188,6 +190,288 @@ class ToolchainInstallExecutionResult {
       if (message != null) 'message': message,
       'succeeded': succeeded,
     };
+  }
+}
+
+class ToolchainInstallRuntimeExecutionPlan {
+  ToolchainInstallRuntimeExecutionPlan({
+    required this.installPlan,
+    required this.definition,
+    required this.executionPlan,
+    required this.handoff,
+    required this.binding,
+  });
+
+  factory ToolchainInstallRuntimeExecutionPlan.fromInstallPlan(
+    ToolchainInstallPlan installPlan, {
+    String outputChannelId = '',
+  }) {
+    final requirement = installPlan.requirement;
+    final taskId = 'toolchain.install.${requirement.kind.wireValue}';
+    final command = installPlan.actionable
+        ? installPlan.externalCommand?.trim().isNotEmpty == true
+              ? installPlan.externalCommand!.trim()
+              : 'toolchain-install:${installPlan.mode.name}'
+        : '';
+    final definition = RuntimeTaskDefinition(
+      id: taskId,
+      label: 'Install ${requirement.kind.wireValue} toolchain',
+      kind: RuntimeTaskKind.toolchain,
+      command: command,
+      arguments: installPlan.mode == ToolchainInstallMode.externalCommand
+          ? installPlan.externalArguments
+          : const <String>[],
+      metadata: <String, Object?>{
+        'toolchainInstall': true,
+        'toolchainKind': requirement.kind.wireValue,
+        'installMode': installPlan.mode.name,
+        'installPlanStatus': installPlan.status.name,
+        if (installPlan.downloadUri != null)
+          'downloadUri': installPlan.downloadUri.toString(),
+      },
+    );
+    final executionPlan = const RuntimeExecutionPlanner().plan(
+      definition: definition,
+    );
+    final handoff = executionPlan.createHandoff(
+      target: RuntimeExecutionHandoffTarget.toolchainManager,
+      outputChannelId: outputChannelId.trim().isEmpty
+          ? taskId
+          : outputChannelId.trim(),
+      metadata: const <String, Object?>{'toolchainInstall': true},
+    );
+    final binding = handoff.bind(
+      outputKind: RuntimeOutputChannelKind.nativeTools,
+      metadata: <String, Object?>{
+        'toolchainInstall': true,
+        'toolchainKind': requirement.kind.wireValue,
+        'installMode': installPlan.mode.name,
+      },
+    );
+    return ToolchainInstallRuntimeExecutionPlan(
+      installPlan: installPlan,
+      definition: definition,
+      executionPlan: executionPlan,
+      handoff: handoff,
+      binding: binding,
+    );
+  }
+
+  final ToolchainInstallPlan installPlan;
+  final RuntimeTaskDefinition definition;
+  final RuntimeExecutionPlan executionPlan;
+  final RuntimeExecutionHandoff handoff;
+  final RuntimeExecutionHandoffBinding binding;
+
+  bool get ready => executionPlan.ready && handoff.ready && binding.ready;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'installPlan': installPlan.toJson(),
+      'definition': definition.toJson(),
+      'executionPlan': executionPlan.toJson(),
+      'handoff': handoff.toJson(),
+      'binding': binding.toJson(),
+    };
+  }
+}
+
+enum ToolchainInstallRuntimeExecutionStatus { executed, blocked, wrongRoute }
+
+extension ToolchainInstallRuntimeExecutionStatusX
+    on ToolchainInstallRuntimeExecutionStatus {
+  String get wireValue => switch (this) {
+    ToolchainInstallRuntimeExecutionStatus.executed => 'executed',
+    ToolchainInstallRuntimeExecutionStatus.blocked => 'blocked',
+    ToolchainInstallRuntimeExecutionStatus.wrongRoute => 'wrong-route',
+  };
+}
+
+class ToolchainInstallRuntimeExecutionResult {
+  const ToolchainInstallRuntimeExecutionResult({
+    required this.plan,
+    required this.status,
+    required this.dispatchResult,
+    required this.outputEvents,
+    this.execution,
+  });
+
+  final ToolchainInstallRuntimeExecutionPlan plan;
+  final ToolchainInstallRuntimeExecutionStatus status;
+  final RuntimeExecutionDispatchResult dispatchResult;
+  final List<RuntimeOutputEvent> outputEvents;
+  final ToolchainInstallExecutionResult? execution;
+
+  bool get executed =>
+      status == ToolchainInstallRuntimeExecutionStatus.executed;
+  bool get succeeded => execution?.succeeded ?? false;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'executed': executed,
+      'succeeded': succeeded,
+      'plan': plan.toJson(),
+      'dispatch': dispatchResult.toJson(),
+      if (execution != null) 'execution': execution!.toJson(),
+      'outputEvents': outputEvents
+          .map((event) => event.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
+class ToolchainInstallRuntimeExecutionAdapter {
+  ToolchainInstallRuntimeExecutionAdapter({
+    required this.executor,
+    RuntimeExecutionManagerRegistry? registry,
+    RuntimeTaskClock? clock,
+  }) : _registry =
+           registry ?? RuntimeExecutionManagerRegistry.defaultManagers(),
+       _clock = clock ?? DateTime.now().toUtc;
+
+  final ToolchainInstallExecutor executor;
+  final RuntimeExecutionManagerRegistry _registry;
+  final RuntimeTaskClock _clock;
+
+  Future<ToolchainInstallRuntimeExecutionResult> executePlan(
+    ToolchainInstallRuntimeExecutionPlan plan, {
+    required RuntimeOutputLiveBuffer buffer,
+    Map<String, String> environment = const <String, String>{},
+    Iterable<EnvironmentVariableOverlay> environmentOverlays =
+        const <EnvironmentVariableOverlay>[],
+    String? workingDirectory,
+    Duration? timeout,
+  }) async {
+    final dispatchResult = _registry.dispatchToLiveBuffer(
+      plan.binding,
+      buffer: buffer,
+      timestamp: _clock(),
+      metadata: <String, Object?>{
+        'toolchainInstall': true,
+        'installMode': plan.installPlan.mode.name,
+      },
+    );
+    if (plan.binding.managerId != 'toolchain-manager') {
+      return _controlResult(
+        plan: plan,
+        buffer: buffer,
+        dispatchResult: dispatchResult,
+        status: ToolchainInstallRuntimeExecutionStatus.wrongRoute,
+        message:
+            'Toolchain install ignored non-toolchain route ${plan.binding.managerId}.',
+      );
+    }
+    if (!plan.ready ||
+        dispatchResult.status != RuntimeExecutionDispatchStatus.dispatched) {
+      return _controlResult(
+        plan: plan,
+        buffer: buffer,
+        dispatchResult: dispatchResult,
+        status: ToolchainInstallRuntimeExecutionStatus.blocked,
+        message: plan.ready
+            ? dispatchResult.message
+            : 'Toolchain install runtime plan is blocked.',
+      );
+    }
+
+    final execution = await executor.execute(
+      plan.installPlan,
+      environment: environment,
+      environmentOverlays: environmentOverlays,
+      workingDirectory: workingDirectory,
+      timeout: timeout,
+    );
+    final outputEvents = _eventsForExecution(
+      binding: plan.binding,
+      execution: execution,
+    );
+    for (final event in outputEvents) {
+      buffer.addEvent(event, now: event.timestamp);
+    }
+    return ToolchainInstallRuntimeExecutionResult(
+      plan: plan,
+      status: ToolchainInstallRuntimeExecutionStatus.executed,
+      dispatchResult: dispatchResult,
+      execution: execution,
+      outputEvents: List<RuntimeOutputEvent>.unmodifiable(outputEvents),
+    );
+  }
+
+  ToolchainInstallRuntimeExecutionResult _controlResult({
+    required ToolchainInstallRuntimeExecutionPlan plan,
+    required RuntimeOutputLiveBuffer buffer,
+    required RuntimeExecutionDispatchResult dispatchResult,
+    required ToolchainInstallRuntimeExecutionStatus status,
+    required String message,
+  }) {
+    final event = plan.binding.outputEvent(
+      message: message,
+      timestamp: _clock(),
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      metadata: <String, Object?>{
+        'toolchainInstallRuntimeStatus': status.wireValue,
+        'dispatchStatus': dispatchResult.status.wireValue,
+      },
+    );
+    buffer.addEvent(event, now: event.timestamp);
+    return ToolchainInstallRuntimeExecutionResult(
+      plan: plan,
+      status: status,
+      dispatchResult: dispatchResult,
+      outputEvents: <RuntimeOutputEvent>[event],
+    );
+  }
+
+  List<RuntimeOutputEvent> _eventsForExecution({
+    required RuntimeExecutionHandoffBinding binding,
+    required ToolchainInstallExecutionResult execution,
+  }) {
+    final timestamp = _clock();
+    return <RuntimeOutputEvent>[
+      binding.outputEvent(
+        message:
+            execution.message ?? 'Toolchain install ${execution.status.name}.',
+        timestamp: timestamp,
+        kind: RuntimeOutputChannelKind.runtimeEvents,
+        metadata: <String, Object?>{
+          'toolchainInstallRuntimeStatus':
+              ToolchainInstallRuntimeExecutionStatus.executed.wireValue,
+          'installStatus': execution.status.name,
+          'installSucceeded': execution.succeeded,
+          'recoveryActionCount': execution.recoveryActions.length,
+        },
+      ),
+      for (final line in _toolchainInstallOutputChunks(
+        execution.processResult?.stdout ?? '',
+      ))
+        RuntimeOutputEvent(
+          channelId: '${binding.outputChannel.id}.stdout',
+          label: '${binding.outputChannel.label} stdout',
+          kind: RuntimeOutputChannelKind.stdout,
+          message: line,
+          timestamp: timestamp,
+          metadata: const <String, Object?>{
+            'toolchainInstallRuntimeStatus': 'executed',
+            'stream': 'stdout',
+          },
+        ),
+      for (final line in _toolchainInstallOutputChunks(
+        execution.processResult?.stderr ?? '',
+      ))
+        RuntimeOutputEvent(
+          channelId: '${binding.outputChannel.id}.stderr',
+          label: '${binding.outputChannel.label} stderr',
+          kind: RuntimeOutputChannelKind.stderr,
+          message: line,
+          timestamp: timestamp,
+          metadata: const <String, Object?>{
+            'toolchainInstallRuntimeStatus': 'executed',
+            'stream': 'stderr',
+          },
+        ),
+    ];
   }
 }
 
@@ -672,4 +956,16 @@ class ToolchainInstallExecutor {
     }
     return null;
   }
+}
+
+List<String> _toolchainInstallOutputChunks(String output) {
+  if (output.isEmpty) {
+    return const <String>[];
+  }
+  final normalized = output.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  final lines = normalized.split('\n');
+  if (lines.isNotEmpty && lines.last.isEmpty) {
+    lines.removeLast();
+  }
+  return lines.isEmpty ? <String>[output] : lines;
 }

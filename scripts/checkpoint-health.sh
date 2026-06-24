@@ -10,7 +10,7 @@ Run the repository-wide checkpoint health gate for Vityo.
 Options:
   --flutter-dir <dir>    Flutter shell directory (default: frontend/vityo_app)
   --prototype-dir <dir>  Handwritten prototype directory (default: prototype)
-  --editor-url <url>     Focused editor URL for prototype selftest (default: http://127.0.0.1:4180/editor.html)
+  --editor-url <url>     Focused editor URL for prototype selftest (default: http://127.0.0.1:4180/editor)
   --styio-bin <path>     Explicit Styio executable for language fixture gate
   --skip-language-fixtures
                           Skip Styio language fixture confidence gate
@@ -27,7 +27,7 @@ cd "$ROOT"
 
 FLUTTER_DIR="frontend/vityo_app"
 PROTOTYPE_DIR="prototype"
-EDITOR_URL="http://127.0.0.1:4180/editor.html"
+EDITOR_URL="http://127.0.0.1:4180/editor"
 STYIO_BIN="${STYIO:-}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 RUN_LANGUAGE_FIXTURES=1

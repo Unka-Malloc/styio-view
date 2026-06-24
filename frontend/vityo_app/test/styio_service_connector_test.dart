@@ -11,6 +11,7 @@ import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart'
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_capability_detector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_connector.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
@@ -303,7 +304,62 @@ void main() {
       response.payloadCounts[StyioServiceCapability.completion.wireValue],
       1,
     );
-    expect(response.protocolVersion, 'styio-cli-jsonl-v1');
+    expect(response.protocolVersion, 'styio-service-facts-v1');
+  });
+
+  test('JSONL protocol decodes Styio parser and grammar versions', () {
+    const protocol = StyioCliJsonlProtocol();
+    const document = StyioServiceDocument(
+      documentId: 'fixture://grammar-version',
+      text: 'value\n',
+      revision: 1,
+      filePath: '/workspace/main.styio',
+    );
+
+    final response = protocol.decode(
+      document: document,
+      stdout:
+          '{"record":"facts","protocolVersion":"styio-service-facts-v1",'
+          '"parserEngine":"nightly","grammarVersion":"2026.05",'
+          '"facts":{"completions":[{"label":"value",'
+          '"kind":"variable","insertText":"value"}]}}\n',
+      stderr: '',
+      exitCode: 0,
+      toolchainSucceeded: true,
+    );
+
+    expect(response.protocolVersion, 'styio-service-facts-v1');
+    expect(response.parserEngine, 'nightly');
+    expect(response.grammarVersion, '2026.05');
+    expect(response.toJson()['parserEngine'], 'nightly');
+    expect(response.toJson()['grammarVersion'], '2026.05');
+  });
+
+  test('JSONL protocol accepts snake case service protocol version', () {
+    const protocol = StyioCliJsonlProtocol();
+    const document = StyioServiceDocument(
+      documentId: 'fixture://snake-case-protocol',
+      text: 'value\n',
+      revision: 1,
+      filePath: '/workspace/main.styio',
+    );
+
+    final response = protocol.decode(
+      document: document,
+      stdout:
+          '{"record":"facts","protocol_version":"styio-service-facts-v2",'
+          '"parser_engine":"nightly","grammar_version":"2026.06",'
+          '"facts":{"completions":[{"label":"value",'
+          '"kind":"variable","insertText":"value"}]}}\n',
+      stderr: '',
+      exitCode: 0,
+      toolchainSucceeded: true,
+    );
+
+    expect(response.protocolVersion, 'styio-service-facts-v2');
+    expect(response.parserEngine, 'nightly');
+    expect(response.grammarVersion, '2026.06');
+    expect(response.completions.single.label, 'value');
   });
 
   test('JSONL protocol normalizes capability names from service records', () {
@@ -870,6 +926,76 @@ void main() {
     expect(merged.inlayHints, isEmpty);
     expect(merged.documentSymbols, isEmpty);
     expect(merged.referenceSpans, isEmpty);
+  });
+
+  test('response telemetry bridge emits semantic panel events', () {
+    const bridge = StyioServiceResponseTelemetryBridge();
+    final events = bridge.eventsForResponse(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://telemetry',
+        revision: 7,
+        diagnostics: <StyioServiceDiagnosticDto>[
+          StyioServiceDiagnosticDto(
+            severity: DiagnosticSeverity.error,
+            code: 'styio.syntax',
+            message: 'Unexpected token.',
+            range: SourceRange(start: 0, end: 1),
+          ),
+        ],
+        semanticSpans: <SemanticSpan>[
+          SemanticSpan(
+            range: SourceRange(start: 0, end: 4),
+            kind: SemanticKind.function,
+          ),
+        ],
+        semanticBlocks: <SemanticBlockRange>[
+          SemanticBlockRange(
+            range: SourceRange(start: 0, end: 4),
+            label: 'function',
+          ),
+        ],
+        documentSymbols: <DocumentSymbol>[
+          DocumentSymbol(
+            name: 'main',
+            kind: SymbolKind.function,
+            nameRange: SourceRange(start: 0, end: 4),
+            declarationRange: SourceRange(start: 0, end: 4),
+          ),
+        ],
+        inlayHints: <InlayHint>[
+          InlayHint(
+            label: ': string',
+            kind: InlayHintKind.type,
+            position: 4,
+            range: SourceRange(start: 0, end: 4),
+          ),
+        ],
+        protocolVersion: 'styio-cli-jsonl-v2',
+        parserEngine: 'nightly',
+        grammarVersion: '2026.05',
+        toolchainId: 'styio-nightly',
+      ),
+      timestamp: DateTime.utc(2026, 5, 21, 3),
+    );
+
+    final diagnosticsPayload =
+        events.first.metadata['payload']! as Map<String, Object?>;
+    final tokensPayload =
+        events.last.metadata['payload']! as Map<String, Object?>;
+
+    expect(events, hasLength(2));
+    expect(events.first.metadata['semanticEventKind'], 'diagnostics-snapshot');
+    expect(events.last.metadata['semanticEventKind'], 'semantic-tokens');
+    expect(diagnosticsPayload['providerId'], 'styio-service:styio-nightly');
+    expect(diagnosticsPayload['diagnosticCount'], 1);
+    expect(diagnosticsPayload['hasErrors'], isTrue);
+    expect(diagnosticsPayload['status'], 'succeeded');
+    expect(diagnosticsPayload['grammarVersion'], '2026.05');
+    expect(tokensPayload['semanticSpanCount'], 1);
+    expect(tokensPayload['semanticBlockCount'], 1);
+    expect(tokensPayload['documentSymbolCount'], 1);
+    expect(tokensPayload['inlayHintCount'], 1);
   });
 
   test(
@@ -1962,6 +2088,9 @@ void main() {
           status: StyioServiceStatus.succeeded,
           documentId: 'fixture://negotiation',
           revision: 9,
+          protocolVersion: 'styio-service-facts-v1',
+          parserEngine: 'nightly',
+          grammarVersion: '2026.05',
           documentSymbols: <DocumentSymbol>[
             DocumentSymbol(
               name: 'value',
@@ -2004,9 +2133,14 @@ void main() {
           );
 
       expect(result.report.cachedResponseStored, isTrue);
+      final resultJson = result.toJson();
+      final reportJson = resultJson['report']! as Map<String, Object?>;
       expect(connector.documents.single.filePath, '/workspace/main.styio');
       expect(connector.documents.single.configPath, '/workspace/styio.toml');
       expect(connector.documents.single.workingDirectory, '/workspace');
+      expect(reportJson['protocolVersion'], 'styio-service-facts-v1');
+      expect(reportJson['parserEngine'], 'nightly');
+      expect(reportJson['grammarVersion'], '2026.05');
       expect(result.registration.descriptor.priority, 30);
       expect(
         registry.resolve(
@@ -2015,7 +2149,7 @@ void main() {
         ),
         'negotiated-provider',
       );
-      expect(result.toJson()['registration'], isA<Map<String, Object?>>());
+      expect(resultJson['registration'], isA<Map<String, Object?>>());
     },
   );
 
@@ -3782,6 +3916,8 @@ void main() {
             documentId: 'fixture://driver-manifest',
             revision: 8,
             toolchainId: 'styio-nightly',
+            parserEngine: 'nightly',
+            grammarVersion: '2026.05',
             diagnostics: <StyioServiceDiagnosticDto>[
               StyioServiceDiagnosticDto(
                 severity: DiagnosticSeverity.error,
@@ -3807,7 +3943,10 @@ void main() {
 
       expect(manifest.entries.single.documentId, 'fixture://driver-manifest');
       expect(manifest.entries.single.toolchainId, 'styio-nightly');
+      expect(manifest.entries.single.parserEngine, 'nightly');
+      expect(manifest.entries.single.grammarVersion, '2026.05');
       expect(manifest.entries.single.diagnosticCount, 1);
+      expect(manifest.toJson().toString(), contains('grammarVersion'));
       expect(manifestText, isNot(contains('driver raw payload')));
       expect(manifestText, isNot(contains('styio.driver.raw')));
     },
@@ -3973,6 +4112,106 @@ void main() {
       ),
       isNull,
     );
+  });
+
+  test('result cache records lookup hit and miss telemetry', () {
+    final cache = StyioServiceResultCache();
+    cache.store(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://cache-telemetry',
+        revision: 1,
+        toolchainId: 'styio-nightly',
+      ),
+    );
+
+    expect(
+      cache.lookupDocument(
+        documentId: 'fixture://cache-telemetry',
+        revision: 1,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      ),
+      isNotNull,
+    );
+    expect(
+      cache.lookup(
+        const StyioServiceResultCacheKey(
+          documentId: 'fixture://cache-telemetry',
+          revision: 2,
+          protocolVersion: 'styio-cli-jsonl-v1',
+          toolchainId: 'styio-nightly',
+        ),
+      ),
+      isNull,
+    );
+
+    expect(cache.lookupHits, 1);
+    expect(cache.lookupMisses, 1);
+    expect(cache.lookupCount, 2);
+    expect(cache.lookupHitRate, 0.5);
+
+    cache.resetTelemetry();
+
+    expect(cache.lookupHits, 0);
+    expect(cache.lookupMisses, 0);
+    expect(cache.lookupCount, 0);
+  });
+
+  test('result cache snapshot exposes lookup telemetry metadata', () {
+    final cache = StyioServiceResultCache();
+    cache.store(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://cache-snapshot-telemetry',
+        revision: 1,
+        toolchainId: 'styio-nightly',
+      ),
+    );
+
+    expect(
+      cache.lookupDocument(
+        documentId: 'fixture://cache-snapshot-telemetry',
+        revision: 1,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      ),
+      isNotNull,
+    );
+    expect(
+      cache.lookup(
+        const StyioServiceResultCacheKey(
+          documentId: 'fixture://cache-snapshot-telemetry',
+          revision: 2,
+          protocolVersion: 'styio-cli-jsonl-v1',
+          toolchainId: 'styio-nightly',
+        ),
+      ),
+      isNull,
+    );
+
+    final snapshot = cache.snapshot(
+      documentId: 'fixture://cache-snapshot-telemetry',
+    );
+    final json = snapshot.toJson();
+    final restored = StyioServiceResultCacheSnapshot.fromJson(json);
+    final legacy = StyioServiceResultCacheSnapshot.fromJson(<String, Object?>{
+      'entries': const <Object?>[],
+    });
+
+    expect(snapshot.entries, hasLength(1));
+    expect(snapshot.lookupHits, 1);
+    expect(snapshot.lookupMisses, 1);
+    expect(snapshot.lookupCount, 2);
+    expect(snapshot.lookupHitRate, 0.5);
+    expect(json['lookupHits'], 1);
+    expect(json['lookupMisses'], 1);
+    expect(json['lookupCount'], 2);
+    expect(json['lookupHitRate'], 0.5);
+    expect(restored.lookupHits, 1);
+    expect(restored.lookupMisses, 1);
+    expect(restored.lookupCount, 2);
+    expect(restored.lookupHitRate, 0.5);
+    expect(legacy.lookupCount, 0);
+    expect(legacy.lookupHitRate, 0);
   });
 
   test('result cache snapshot exposes manifest counts without payloads', () {
@@ -4354,6 +4593,16 @@ void main() {
             ],
           ),
         );
+      cache.lookupDocument(
+        documentId: 'fixture://manifest',
+        revision: 7,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      );
+      cache.lookupDocument(
+        documentId: 'fixture://manifest-missing',
+        revision: 1,
+        protocolVersion: 'styio-cli-jsonl-v1',
+      );
 
       await manifestStore.save(cache.snapshot());
       final loaded = await manifestStore.load();
@@ -4362,6 +4611,9 @@ void main() {
       expect(loaded.entries.single.documentId, 'fixture://manifest');
       expect(loaded.entries.single.toolchainId, 'styio-nightly');
       expect(loaded.entries.single.diagnosticCount, 1);
+      expect(loaded.lookupHits, 1);
+      expect(loaded.lookupMisses, 1);
+      expect(loaded.lookupCount, 2);
       expect(jsonText, isNot(contains('raw payload must not be persisted')));
       expect(jsonText, isNot(contains('styio.secret.payload')));
       expect(await manifestStore.delete(), isTrue);

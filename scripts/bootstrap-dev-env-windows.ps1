@@ -276,4 +276,4 @@ if ($WithAndroid) {
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\\scripts\\android-sdk-profile.ps1 build --profiles $AndroidProfiles --parallel --artifact apk --mode debug"
 }
 Write-Host "  cd frontend\\vityo_app; flutter analyze; flutter test"
-Write-Host "  cd prototype; `$env:STYIO_CHROME_PATH = '$chromePath'; `$env:STYIO_EDITOR_URL = 'http://127.0.0.1:4180/editor.html'; npm run selftest:editor"
+Write-Host "  cd prototype; `$env:STYIO_CHROME_PATH = '$chromePath'; `$env:STYIO_EDITOR_URL = 'http://127.0.0.1:4180/editor'; npm run selftest:editor"

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../agent/agent.dart';
+import '../commands/command_palette_surface.dart';
 import '../editor/editor.dart';
+import '../extensions/extensions.dart';
 import '../../backend_toolchain/adapter_contracts.dart';
 import '../../backend_toolchain/dependency_source_adapter.dart';
 import '../../backend_toolchain/deployment_adapter.dart';
@@ -13,18 +15,20 @@ import '../../backend_toolchain/toolchain_management_adapter.dart';
 import '../../module_host/module_definition.dart';
 import '../../module_host/module_manifest.dart';
 import '../../platform/platform_target.dart';
-import '../../view_ide/language/language.dart'
-    show
-        DiagnosticSeverity,
-        ReferenceAccess,
-        StyioProjectSymbolKind,
-        SymbolKind;
-import '../../view_ide/workspace/workspace.dart';
+import '../../view_ide/agent/agent.dart' show AgentWorkspaceSnapshotService;
 import '../platform/platform.dart';
+import '../problems/problems.dart';
 import '../runtime/runtime.dart';
+import '../search/search.dart';
 import '../settings/settings_surface.dart';
+import '../source_control/source_control.dart';
+import '../terminal/terminal.dart';
+import '../testing/testing.dart';
+import '../../view_ide/workspace/workspace.dart';
 
+import 'hosted_workspace_lifecycle_banner.dart';
 import '../../app/commands/app_commands.dart';
+import 'shell_layout_plan.dart';
 import 'shell_model.dart';
 import 'shell_scope.dart';
 
@@ -35,6 +39,9 @@ class VityoShellScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final shell = ShellScope.of(context);
     final project = shell.workspaceController.activeProject;
+    final hostedClosePlan = const HostedWorkspaceLifecycle().closePlanFor(
+      project,
+    );
     final viewportProfile = resolveViewportProfile(
       platformTarget: shell.platformTarget,
       width: MediaQuery.sizeOf(context).width,
@@ -61,12 +68,15 @@ class VityoShellScaffold extends StatelessWidget {
                 child: Column(
                   children: [
                     _TopBar(
-                      shell: shell,
                       platformTarget: shell.platformTarget,
                       activeProjectTitle: project.title,
                       viewportProfile: viewportProfile,
                     ),
                     const SizedBox(height: 16),
+                    if (hostedClosePlan != null) ...[
+                      HostedWorkspaceLifecycleBanner(plan: hostedClosePlan),
+                      const SizedBox(height: 16),
+                    ],
                     Expanded(
                       child: LayoutBuilder(
                         builder: (context, constraints) {
@@ -75,11 +85,17 @@ class VityoShellScaffold extends StatelessWidget {
                             width: constraints.maxWidth,
                             height: constraints.maxHeight,
                           );
+                          final layoutBinding = shell
+                              .shellLayoutPreferenceController
+                              .renderBindingForViewport(
+                                compact: layoutViewport.isMobile,
+                              );
 
                           if (layoutViewport.isMobile) {
                             return _MobileShellBody(
                               shell: shell,
                               viewportProfile: layoutViewport,
+                              layoutBinding: layoutBinding,
                               bottomSurface: _buildBottomSurface(
                                 shell,
                                 layoutViewport,
@@ -90,6 +106,7 @@ class VityoShellScaffold extends StatelessWidget {
                           return _DesktopShellBody(
                             shell: shell,
                             viewportProfile: layoutViewport,
+                            layoutBinding: layoutBinding,
                             bottomSurface: _buildBottomSurface(
                               shell,
                               layoutViewport,
@@ -133,101 +150,27 @@ class VityoShellScaffold extends StatelessWidget {
           adapterCapabilities: shell.adapterCapabilities,
           executionSession: shell.lastExecutionSession,
           runtimeEvents: shell.lastRuntimeEvents,
+          nativeToolResults: shell.nativeToolResults,
+          outputSnapshot: shell.runtimeOutputBuffer.snapshot,
+          onOpenNativeToolDiagnostics: shell.openFirstNativeToolDiagnostic,
         );
-      case BottomSurfaceTab.commands:
-        return _CommandPaletteSurface(
-          shell: shell,
+      case BottomSurfaceTab.terminal:
+        return TerminalSurface(
           viewportProfile: viewportProfile,
+          logEntries: shell.debugLog,
+          runtimeEventSummaries: shell.lastRuntimeEvents
+              .map(_terminalRuntimeEventSummary)
+              .toList(growable: false),
+          onRunActiveTarget: () {
+            return shell.executeCommand(AppCommandId.run);
+          },
         );
-      case BottomSurfaceTab.navigate:
-        return _WorkspaceQuickOpenSurface(
-          shell: shell,
+      case BottomSurfaceTab.commandPalette:
+        return CommandPaletteSurface(
           viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.locations:
-        return _WorkspaceRecentLocationsSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.documentLinks:
-        return _WorkspaceDocumentLinksSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.documentHighlights:
-        return _WorkspaceDocumentHighlightsSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.codeLenses:
-        return _WorkspaceCodeLensSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.declarations:
-        return _WorkspaceDeclarationSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.definitions:
-        return _WorkspaceDefinitionSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.typeDefinitions:
-        return _WorkspaceTypeDefinitionSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.implementations:
-        return _WorkspaceImplementationSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.typeHierarchy:
-        return _WorkspaceTypeHierarchySurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.outline:
-        return _WorkspaceOutlineSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.rename:
-        return _WorkspaceRenameSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.symbols:
-        return _WorkspaceSymbolSearchSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.usages:
-        return _WorkspaceReferenceSearchSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.calls:
-        return _WorkspaceCallHierarchySurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.search:
-        return _WorkspaceSearchSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.problems:
-        return _WorkspaceProblemsSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
-        );
-      case BottomSurfaceTab.actions:
-        return _WorkspaceCodeActionsSurface(
-          shell: shell,
-          viewportProfile: viewportProfile,
+          onExecuteCommand: shell.executeCommand,
+          onExecuteCommandWithInput: shell.executeCommandWithInput,
+          blockedReasonForCommand: shell.blockedReasonForCommand,
         );
       case BottomSurfaceTab.agent:
         return AgentSurface(
@@ -235,12 +178,234 @@ class VityoShellScaffold extends StatelessWidget {
           viewportProfile: viewportProfile,
           visibleModules: shell.visibleModules,
           adapterCapabilities: shell.adapterCapabilities,
+          sessionContext: shell.agentSessionContext,
+          codingController: shell.agentCodingController,
+          activityHistory: shell.agentCodingController.sessionHistorySnapshot,
+          onApplyPendingPatch: () async {
+            await shell.applyAgentPendingPatch();
+          },
+          workspaceSnapshotService: AgentWorkspaceSnapshotService(
+            editorController: shell.editorController,
+            workspaceDocumentStore: shell.workspaceDocumentStore,
+          ),
+          extensionToolExecutionRegistry:
+              shell.agentExtensionToolExecutionRegistry,
+          onApplyAgentWorkspacePatch: (patch) async {
+            return shell.applyAgentWorkspacePatchTool(patch);
+          },
+          onApplyIdeCommandSuggestion: (suggestion) async {
+            return shell.applyAgentIdeCommandSuggestion(suggestion);
+          },
+          onResolveIdeCommandResult: (suggestion) {
+            return shell.lastAgentIdeCommandResult;
+          },
+          onSaveProviderProfile: (profile, {bearerToken}) async {
+            await shell.saveAndMountAgentProfile(
+              profile,
+              bearerToken: bearerToken,
+            );
+          },
+          onMountSavedProviderProfile: (profileKey) async {
+            await shell.failoverAgentProviderProfile(profileKey);
+          },
+        );
+      case BottomSurfaceTab.sourceControl:
+        final sourceControlController = shell.sourceControlStatusController;
+        Widget buildSourceControlSurface() {
+          return SourceControlSurface(
+            viewportProfile: viewportProfile,
+            workspaceFileCount: shell.workspaceController.files.length,
+            changedDocumentIds: shell.dirtyDocumentPaths,
+            status: shell.sourceControlStatusSnapshot,
+            diffPreview: shell.sourceControlDiffPreview,
+            commitDraft: shell.sourceControlCommitDraft,
+            commitDialogState: shell.sourceControlCommitDialogState,
+            branchSnapshot: shell.sourceControlBranchSnapshot,
+            historySnapshot: shell.sourceControlHistorySnapshot,
+            lastHunkActionResult: shell.sourceControlHunkActionResult,
+            onOpenFile: shell.openWorkspaceFileForAgent,
+            onSaveAll: () {
+              return shell.executeCommand(AppCommandId.saveAll);
+            },
+            onRefresh: () {
+              return shell.executeCommand(AppCommandId.refreshSourceControl);
+            },
+            onPreviewDiff: shell.previewSourceControlDiff,
+            onStagePaths: shell.stageSourceControlPaths,
+            onUnstagePaths: shell.unstageSourceControlPaths,
+            onSwitchBranch: (plan) {
+              return shell.planSourceControlBranchSwitch(plan.targetBranch);
+            },
+            onOpenCommit: () async {
+              shell.planSourceControlCommitDraft(message: '');
+            },
+            onConfirmDiffAction: shell.confirmSourceControlDiffAction,
+            pendingHunkDiscardConfirmation:
+                sourceControlController?.pendingHunkDiscardConfirmation,
+            onSelectHunkAction: shell.planSourceControlHunkAction,
+            onConfirmHunkDiscard: () async {
+              await shell.confirmPendingSourceControlHunkDiscard();
+            },
+          );
+        }
+
+        if (sourceControlController == null) {
+          return buildSourceControlSurface();
+        }
+        return ListenableBuilder(
+          listenable: sourceControlController,
+          builder: (_, _) => buildSourceControlSurface(),
+        );
+      case BottomSurfaceTab.search:
+        return WorkspaceSearchSurface(
+          viewportProfile: viewportProfile,
+          workspaceFileCount: shell.workspaceController.files.length,
+          workspaceFiles: shell.workspaceController.files,
+          lastSearch: shell.agentSessionContext.workspace.lastSearch,
+          lastSymbolSearch:
+              shell.agentSessionContext.workspace.lastSymbolSearch,
+          lastReplacePreview: shell.lastWorkspaceReplacePreview,
+          onSearch: shell.searchWorkspaceForAgent,
+          onOpenFile: shell.openWorkspaceFileForAgent,
+          onPreviewReplace: (query, replacement) async {
+            await shell.previewWorkspaceReplace(
+              query: query,
+              replacement: replacement,
+            );
+          },
+          onApplyReplacePreview: shell.applyWorkspaceReplacePreview,
+          onOpenMatch: (match) =>
+              shell.openWorkspaceFileForAgent(match.documentId),
+          onOpenSymbolMatch: (match) =>
+              shell.openWorkspaceFileForAgent(match.documentId),
+        );
+      case BottomSurfaceTab.problems:
+        final diagnosticsController = shell.workspaceDiagnosticsController;
+        Widget buildProblemsSurface() {
+          return ProblemsSurface(
+            viewportProfile: viewportProfile,
+            documentId: shell.editorController.document.documentId,
+            diagnostics: shell.editorController.analysis.diagnostics,
+            workspaceDiagnostics: shell.workspaceDiagnosticsSnapshot,
+            diagnosticsProducerLifecycles: shell.diagnosticsProducerLifecycles,
+            onSelectDiagnostic: shell.editorController.selectDiagnostic,
+            onSelectWorkspaceDiagnostic: (diagnostic) {
+              shell.selectWorkspaceDiagnostic(diagnostic);
+            },
+            workspaceEditPreview: shell.lastWorkspaceEditPreview,
+            workspaceEditApplyResult: shell.lastWorkspaceEditApplyResult,
+            quickFixTelemetry: shell.workspaceQuickFixTelemetrySnapshot,
+            semanticSnapshotPanelViewModel:
+                shell.semanticProblemsPanelViewModel,
+            onRefreshWorkspaceDiagnostics: () {
+              return shell.executeCommand(
+                AppCommandId.refreshWorkspaceDiagnostics,
+              );
+            },
+            onCancelDiagnosticsProducer:
+                shell.cancelWorkspaceDiagnosticsProducer,
+            onPreviewWorkspaceQuickFix: () async {
+              await shell.executeCommand(AppCommandId.previewQuickFix);
+            },
+            onApplyWorkspaceQuickFix: () {
+              return shell.executeCommand(AppCommandId.applyQuickFix);
+            },
+            onPreviewDiagnosticQuickFix: (route) async {
+              shell.selectWorkspaceDiagnostic(route.diagnostic);
+              await shell.executeCommand(AppCommandId.previewQuickFix);
+            },
+            onApplyDiagnosticQuickFix: (route) async {
+              shell.selectWorkspaceDiagnostic(route.diagnostic);
+              await shell.executeCommand(AppCommandId.applyQuickFix);
+            },
+          );
+        }
+
+        if (diagnosticsController == null) {
+          return buildProblemsSurface();
+        }
+        return ListenableBuilder(
+          listenable: diagnosticsController,
+          builder: (_, _) => buildProblemsSurface(),
+        );
+      case BottomSurfaceTab.testing:
+        final testingController = shell.testingSessionController;
+        Widget buildTestingSurface() {
+          return TestingSurface(
+            viewportProfile: viewportProfile,
+            nativeToolResults: shell.nativeToolResults,
+            discovery: shell.testDiscovery,
+            lastRun: shell.lastTestRun,
+            runHistory: shell.testRunHistory,
+            failedRetryHistory: shell.failedTestRetryHistory,
+            configurationSet: shell.testRunConfigurationSet,
+            failedDebugCancellationRoute: shell.failedDebugCancellationRoute,
+            onRunTests: () {
+              return shell.executeCommand(AppCommandId.runTests);
+            },
+            onRunConfiguration: shell.runTestConfiguration,
+            onDebugConfiguration: (configuration) async {
+              await shell.debugTestConfiguration(configuration);
+              shell.selectBottomTab(BottomSurfaceTab.debug);
+            },
+            onCancelFailedTestDebug: shell.cancelFailedTestDebug,
+            onRerunFailed: () {
+              return shell.rerunFailedTests();
+            },
+            onSelectRunConfiguration: shell.selectTestRunConfiguration,
+            onSelectFailedTest: (_) {
+              shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);
+            },
+            onOpenDiagnostics: () {
+              shell.openFirstNativeToolDiagnostic(AppCommandId.runTests);
+            },
+          );
+        }
+
+        if (testingController == null) {
+          return buildTestingSurface();
+        }
+        return ListenableBuilder(
+          listenable: testingController,
+          builder: (_, _) => buildTestingSurface(),
+        );
+      case BottomSurfaceTab.extensions:
+        return ExtensionsSurface(
+          viewportProfile: viewportProfile,
+          visibleModules: shell.visibleModules,
+          mountedModules: shell.mountedModules,
+          onRefreshModules: () {
+            return shell.executeCommand(AppCommandId.refreshModules);
+          },
         );
       case BottomSurfaceTab.debug:
         return DebugConsoleSurface(
           viewportProfile: viewportProfile,
           entries: shell.debugLog,
           runtimeEvents: shell.lastRuntimeEvents,
+          debugSession: shell.debugSession,
+          debugRuntimeExecution: shell.lastDebugRuntimeExecutionResult,
+          onStartDebugging: () {
+            return shell.executeCommand(AppCommandId.startDebugging);
+          },
+          onRetryDebugLaunch: () {
+            return shell.executeCommand(AppCommandId.startDebugging);
+          },
+          onStopDebugging: () {
+            return shell.executeCommand(AppCommandId.stopDebugging);
+          },
+          onContinueDebugging: () {
+            return shell.executeCommand(AppCommandId.continueDebugging);
+          },
+          onStepOver: () {
+            return shell.executeCommand(AppCommandId.stepOver);
+          },
+          onSelectStackFrame: (frameId) {
+            shell.selectDebugStackFrame(frameId);
+          },
+          onSelectThread: (threadId) {
+            shell.selectDebugThread(threadId);
+          },
         );
       case BottomSurfaceTab.settings:
         return SettingsSurface(
@@ -249,10 +414,24 @@ class VityoShellScaffold extends StatelessWidget {
           toolchainSettings: shell.toolchainSettingsSurface,
           toolchainInstallPlan: shell.toolchainInstallPlanSurface,
           toolchainInstallExecution: shell.toolchainInstallExecutionSurface,
+          toolchainBootstrapSummary: shell.toolchainBootstrapSummary,
+          toolchainBootstrapActionDispatch:
+              shell.lastToolchainBootstrapActionDispatch,
+          themeOverride: shell.themeOverride,
+          commandPalettePreferences: shell.commandPalettePreferences,
           onToolchainRecoveryAction: shell.handleToolchainRecoveryAction,
+          onToolchainBootstrapAction: shell.handleToolchainBootstrapAction,
           onSelectToolchain: shell.selectToolchainCandidate,
+          onSelectClangCppVersion: (versionId, cppStandard) {
+            return shell.selectClangCppVersion(
+              versionId,
+              cppStandard: cppStandard,
+            );
+          },
           onClearToolchain: shell.clearToolchainCandidate,
           onExecuteToolchainInstallPlan: shell.executeLastToolchainInstallPlan,
+          onSaveCommandPalettePreferences: shell.saveCommandPalettePreferences,
+          onSaveThemeOverride: shell.saveThemeOverride,
         );
     }
   }
@@ -260,13 +439,11 @@ class VityoShellScaffold extends StatelessWidget {
 
 class _TopBar extends StatelessWidget {
   const _TopBar({
-    required this.shell,
     required this.platformTarget,
     required this.activeProjectTitle,
     required this.viewportProfile,
   });
 
-  final ShellModel shell;
   final PlatformTarget platformTarget;
   final String activeProjectTitle;
   final ViewportProfile viewportProfile;
@@ -280,200 +457,77 @@ class _TopBar extends StatelessWidget {
         builder: (context, constraints) {
           final compact =
               viewportProfile.isMobile || constraints.maxWidth < 900;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Vityo Integration Shell',
-                style: theme.textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Product-owned adapters, project graph, and execution routes across Web, desktop, and mobile shells.',
-                style: theme.textTheme.bodyMedium,
-              ),
-            ],
-          );
-          final metadata = Wrap(
-            spacing: 12,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Chip(label: Text(platformTarget.label)),
-              Chip(label: Text(viewportProfile.label)),
-            ],
-          );
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                compact
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+            child: compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Vityo Editor Workbench',
+                        style: theme.textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Editor, runtime, agent, settings, and workspace operations for the active Vityo project.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 10,
                         children: [
-                          titleBlock,
-                          const SizedBox(height: 12),
-                          metadata,
-                          const SizedBox(height: 10),
+                          Chip(label: Text(platformTarget.label)),
+                          Chip(label: Text(viewportProfile.label)),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        activeProjectTitle,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Vityo Editor Workbench',
+                              style: theme.textTheme.headlineMedium,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Editor, runtime, agent, settings, and workspace operations for the active Vityo project.',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Chip(label: Text(platformTarget.label)),
+                          const SizedBox(height: 8),
+                          Chip(label: Text(viewportProfile.label)),
+                          const SizedBox(height: 8),
                           Text(
                             activeProjectTitle,
                             style: theme.textTheme.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(child: titleBlock),
-                          const SizedBox(width: 18),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              metadata,
-                              const SizedBox(height: 8),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 260,
-                                ),
-                                child: Text(
-                                  activeProjectTitle,
-                                  style: theme.textTheme.bodySmall,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
-                const SizedBox(height: 12),
-                AnimatedBuilder(
-                  animation: shell.editorController,
-                  builder: (context, _) {
-                    return _WorkspaceBreadcrumbTrail(
-                      compact: compact,
-                      result: shell.currentWorkspaceBreadcrumbs,
-                      onOpenItem: shell.openWorkspaceBreadcrumbItem,
-                    );
-                  },
-                ),
-              ],
-            ),
+                    ],
+                  ),
           );
         },
       ),
     );
-  }
-}
-
-class _WorkspaceBreadcrumbTrail extends StatelessWidget {
-  const _WorkspaceBreadcrumbTrail({
-    required this.compact,
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final bool compact;
-  final WorkspaceBreadcrumbsResult result;
-  final Future<void> Function(WorkspaceBreadcrumbItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    if (result.items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final children = _trailChildren();
-    if (compact) {
-      return Wrap(
-        key: const ValueKey('workspace-breadcrumb-trail'),
-        spacing: 4,
-        runSpacing: 6,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: children,
-      );
-    }
-
-    return SizedBox(
-      key: const ValueKey('workspace-breadcrumb-trail'),
-      height: 36,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(mainAxisSize: MainAxisSize.min, children: children),
-      ),
-    );
-  }
-
-  List<Widget> _trailChildren() {
-    final children = <Widget>[];
-    for (var index = 0; index < result.items.length; index += 1) {
-      final item = result.items[index];
-      children.add(
-        _BreadcrumbChip(
-          compact: compact,
-          item: item,
-          onOpenItem: onOpenItem,
-        ),
-      );
-      if (index < result.items.length - 1) {
-        children.add(
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 2),
-            child: Icon(Icons.chevron_right_rounded, size: 16),
-          ),
-        );
-      }
-    }
-    return children;
-  }
-}
-
-class _BreadcrumbChip extends StatelessWidget {
-  const _BreadcrumbChip({
-    required this.compact,
-    required this.item,
-    required this.onOpenItem,
-  });
-
-  final bool compact;
-  final WorkspaceBreadcrumbItem item;
-  final Future<void> Function(WorkspaceBreadcrumbItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = ConstrainedBox(
-      constraints: BoxConstraints(maxWidth: compact ? 160 : 220),
-      child: Text(
-        item.label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    );
-    final avatar = Icon(_workspaceBreadcrumbIcon(item), size: 16);
-    final key = ValueKey(
-      'workspace-breadcrumb-${item.kind.name}-${item.label}',
-    );
-    final chip = item.selectable
-        ? ActionChip(
-            key: key,
-            avatar: avatar,
-            visualDensity: VisualDensity.compact,
-            label: label,
-            onPressed: () {
-              onOpenItem(item);
-            },
-          )
-        : Chip(
-            key: key,
-            avatar: avatar,
-            visualDensity: VisualDensity.compact,
-            label: label,
-          );
-
-    return Tooltip(message: _workspaceBreadcrumbTooltip(item), child: chip);
   }
 }
 
@@ -574,11 +628,13 @@ class _DesktopShellBody extends StatelessWidget {
   const _DesktopShellBody({
     required this.shell,
     required this.viewportProfile,
+    required this.layoutBinding,
     required this.bottomSurface,
   });
 
   final ShellModel shell;
   final ViewportProfile viewportProfile;
+  final ShellLayoutRenderBinding layoutBinding;
   final Widget bottomSurface;
 
   @override
@@ -593,7 +649,7 @@ class _DesktopShellBody extends StatelessWidget {
         : 160.0;
 
     return KeyedSubtree(
-      key: const ValueKey('shell-viewport-desktop'),
+      key: ValueKey(layoutBinding.viewportKey),
       child: Row(
         children: [
           SizedBox(
@@ -614,9 +670,41 @@ class _DesktopShellBody extends StatelessWidget {
                           viewportProfile: viewportProfile,
                           languageServiceStatus:
                               shell.languageServiceStatus.value,
+                          projectHoverAtSelection:
+                              shell.projectHoverAtSelection,
+                          projectCompletionsAtSelection:
+                              shell.projectCompletionsAtSelection,
                           fileBindingSnapshot: shell.editorFileBindingSnapshot,
+                          closeRequestSurface: shell.closeRequestSurface,
                           onAcceptExternalChange:
                               shell.acceptEditorExternalChange,
+                          onSaveLocalChanges: () {
+                            shell.saveActiveWorkspaceFileChanges();
+                          },
+                          onDiscardLocalChanges: () {
+                            shell.discardActiveWorkspaceFileChanges();
+                          },
+                          onSaveAndCloseRequest: () {
+                            shell.saveAndCloseRequestedWorkspaceFile();
+                          },
+                          onDiscardAndCloseRequest: () {
+                            shell.discardAndCloseRequestedWorkspaceFile();
+                          },
+                          onSwitchToCloseRequestFile:
+                              shell.switchToCloseRequestFile,
+                          onCancelCloseRequest: shell.clearCloseRequestResult,
+                          openDocumentIds:
+                              shell.workspaceController.openFilePaths,
+                          dirtyDocumentIds: shell.dirtyDocumentPaths,
+                          activeDocumentId:
+                              shell.workspaceController.activeFilePath,
+                          onSelectDocument: shell.workspaceController.openFile,
+                          onCloseDocument: shell.requestCloseWorkspaceFile,
+                          onRefreshLanguageService: () {
+                            shell.executeCommand(
+                              AppCommandId.refreshLanguageService,
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -632,8 +720,16 @@ class _DesktopShellBody extends StatelessWidget {
                   shell: shell,
                   viewportProfile: viewportProfile,
                 ),
-                const SizedBox(height: 10),
-                SizedBox(height: bottomSurfaceHeight, child: bottomSurface),
+                if (layoutBinding.bottomPanelExpanded) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: bottomSurfaceHeight,
+                    child: KeyedSubtree(
+                      key: ValueKey(layoutBinding.activeBottomPanelId),
+                      child: bottomSurface,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -647,11 +743,13 @@ class _MobileShellBody extends StatelessWidget {
   const _MobileShellBody({
     required this.shell,
     required this.viewportProfile,
+    required this.layoutBinding,
     required this.bottomSurface,
   });
 
   final ShellModel shell;
   final ViewportProfile viewportProfile;
+  final ShellLayoutRenderBinding layoutBinding;
   final Widget bottomSurface;
 
   @override
@@ -662,9 +760,8 @@ class _MobileShellBody extends StatelessWidget {
     final bottomSurfaceHeight = viewportProfile.height >= 820 ? 220.0 : 180.0;
 
     return KeyedSubtree(
-      key: const ValueKey('shell-viewport-mobile'),
+      key: ValueKey(layoutBinding.viewportKey),
       child: ListView(
-        key: const ValueKey('shell-mobile-scroll'),
         children: [
           SizedBox(
             height: editorHeight,
@@ -672,8 +769,34 @@ class _MobileShellBody extends StatelessWidget {
               controller: shell.editorController,
               viewportProfile: viewportProfile,
               languageServiceStatus: shell.languageServiceStatus.value,
+              projectHoverAtSelection: shell.projectHoverAtSelection,
+              projectCompletionsAtSelection:
+                  shell.projectCompletionsAtSelection,
               fileBindingSnapshot: shell.editorFileBindingSnapshot,
+              closeRequestSurface: shell.closeRequestSurface,
               onAcceptExternalChange: shell.acceptEditorExternalChange,
+              onSaveLocalChanges: () {
+                shell.saveActiveWorkspaceFileChanges();
+              },
+              onDiscardLocalChanges: () {
+                shell.discardActiveWorkspaceFileChanges();
+              },
+              onSaveAndCloseRequest: () {
+                shell.saveAndCloseRequestedWorkspaceFile();
+              },
+              onDiscardAndCloseRequest: () {
+                shell.discardAndCloseRequestedWorkspaceFile();
+              },
+              onSwitchToCloseRequestFile: shell.switchToCloseRequestFile,
+              onCancelCloseRequest: shell.clearCloseRequestResult,
+              openDocumentIds: shell.workspaceController.openFilePaths,
+              dirtyDocumentIds: shell.dirtyDocumentPaths,
+              activeDocumentId: shell.workspaceController.activeFilePath,
+              onSelectDocument: shell.workspaceController.openFile,
+              onCloseDocument: shell.requestCloseWorkspaceFile,
+              onRefreshLanguageService: () {
+                shell.executeCommand(AppCommandId.refreshLanguageService);
+              },
             ),
           ),
           const SizedBox(height: 16),
@@ -688,8 +811,16 @@ class _MobileShellBody extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _BottomSurfaceTabs(shell: shell, viewportProfile: viewportProfile),
-          const SizedBox(height: 10),
-          SizedBox(height: bottomSurfaceHeight, child: bottomSurface),
+          if (layoutBinding.bottomPanelExpanded) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              height: bottomSurfaceHeight,
+              child: KeyedSubtree(
+                key: ValueKey(layoutBinding.activeBottomPanelId),
+                child: bottomSurface,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -725,6 +856,16 @@ class _WorkspaceSidebar extends StatelessWidget {
             _CompilerHandshakeCard(project: project),
             const SizedBox(height: 12),
             _ProjectOperationsCard(shell: shell),
+            if (shell.pendingWorkspaceFileCommandConfirmation != null) ...[
+              const SizedBox(height: 12),
+              _WorkspaceFileCommandConfirmationCard(
+                pending: shell.pendingWorkspaceFileCommandConfirmation!,
+                onConfirm: () {
+                  shell.confirmPendingWorkspaceFileCommand();
+                },
+                onCancel: shell.cancelPendingWorkspaceFileCommand,
+              ),
+            ],
             const SizedBox(height: 12),
             _RequiredHandoffsCard(
               platformTarget: shell.platformTarget,
@@ -880,6 +1021,11 @@ class _ProjectWorkflowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selection = selectBackendExecutionRoute(
+      platformTarget: platformTarget,
+      projectGraph: project,
+      adapterCapabilities: adapterCapabilities,
+    );
     final summary = summarizeExecutionRoute(
       platformTarget: platformTarget,
       projectGraph: project,
@@ -899,19 +1045,18 @@ class _ProjectWorkflowCard extends StatelessWidget {
           children: [
             Text('Project Workflow', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
-            Text(summary.title, style: theme.textTheme.titleSmall),
+            Text(selection.title, style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            Text(summary.body, style: theme.textTheme.bodySmall),
+            Text(selection.detail, style: theme.textTheme.bodySmall),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-                Chip(label: Text(summary.primaryAdapterKind.label)),
+                Chip(label: Text(selection.adapterKind.label)),
+                Chip(label: Text(selection.routeKind.wireValue)),
                 Chip(
-                  label: Text(
-                    summary.previewOnly ? 'preview-only' : 'live-capable',
-                  ),
+                  label: Text(selection.allowed ? 'live-capable' : 'blocked'),
                 ),
                 if (project.compilePlanConsumerAdvertised)
                   const Chip(label: Text('compile-plan detected')),
@@ -1455,6500 +1600,6 @@ class _WorkflowStatusChip extends StatelessWidget {
   }
 }
 
-class _CommandPaletteSurface extends StatefulWidget {
-  const _CommandPaletteSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_CommandPaletteSurface> createState() => _CommandPaletteSurfaceState();
-}
-
-class _CommandPaletteSurfaceState extends State<_CommandPaletteSurface> {
-  final TextEditingController _queryController = TextEditingController();
-  CommandPaletteResult? _result;
-
-  @override
-  void initState() {
-    super.initState();
-    _result = _runCommandPalette();
-    _queryController.addListener(_handleQueryChanged);
-  }
-
-  @override
-  void dispose() {
-    _queryController.removeListener(_handleQueryChanged);
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  CommandPaletteResult _runCommandPalette() {
-    return widget.shell.searchCommandPalette(
-      CommandPaletteQuery(pattern: _queryController.text, maxResults: 80),
-    );
-  }
-
-  void _handleQueryChanged() {
-    setState(() {
-      _result = _runCommandPalette();
-    });
-  }
-
-  Future<void> _executeItem(CommandPaletteItem item) async {
-    await widget.shell.executeCommandPaletteItem(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = _runCommandPalette();
-    });
-  }
-
-  CommandPaletteItem? _firstEnabledItem(CommandPaletteResult? result) {
-    if (result == null) {
-      return null;
-    }
-    for (final item in result.items) {
-      if (item.enabled) {
-        return item;
-      }
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastCommandPalette;
-    final headerChips = <Widget>[
-      Chip(label: Text('${widget.shell.recentCommandIds.length} recent')),
-      Chip(label: Text('${StyioCommandRegistry.commands.length} commands')),
-    ];
-
-    return Card(
-      key: const ValueKey('command-palette-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Command Palette',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Command Palette',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('command-palette-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Command name',
-                  prefixIcon: Icon(Icons.keyboard_command_key_rounded),
-                ),
-                onSubmitted: (_) {
-                  final firstItem = _firstEnabledItem(result);
-                  if (firstItem != null) {
-                    _executeItem(firstItem);
-                  }
-                },
-              ),
-              const SizedBox(height: 14),
-              _CommandPaletteResultView(
-                result: result,
-                onExecuteItem: _executeItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CommandPaletteResultView extends StatelessWidget {
-  const _CommandPaletteResultView({
-    required this.result,
-    required this.onExecuteItem,
-  });
-
-  final CommandPaletteResult? result;
-  final Future<void> Function(CommandPaletteItem item) onExecuteItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final commandResult = result;
-    if (commandResult == null) {
-      return Text('No commands indexed yet.', style: theme.textTheme.bodySmall);
-    }
-
-    final statusColor = switch (commandResult.status) {
-      CommandPaletteStatus.completed => const Color(0xFFE3F1E1),
-      CommandPaletteStatus.hitLimit => const Color(0xFFF6E9D7),
-      CommandPaletteStatus.noCommands => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (commandResult.status) {
-      CommandPaletteStatus.completed => 'ready',
-      CommandPaletteStatus.hitLimit => 'limited',
-      CommandPaletteStatus.noCommands => 'empty',
-    };
-
-    return Column(
-      key: const ValueKey('command-palette-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${commandResult.matchCount} matches')),
-            Chip(label: Text('${commandResult.commandsSearched} indexed')),
-            if (commandResult.blockedCount > 0)
-              Chip(label: Text('${commandResult.blockedCount} blocked')),
-          ],
-        ),
-        if (commandResult.items.isEmpty) ...[
-          const SizedBox(height: 10),
-          Text('No matching commands.', style: theme.textTheme.bodySmall),
-        ],
-        if (commandResult.items.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in commandResult.items.take(60)) ...[
-            _CommandPaletteItemTile(
-              item: item,
-              onTap: () {
-                onExecuteItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _CommandPaletteItemTile extends StatelessWidget {
-  const _CommandPaletteItemTile({required this.item, required this.onTap});
-
-  final CommandPaletteItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final iconColor = item.enabled
-        ? theme.colorScheme.primary
-        : theme.disabledColor;
-    return InkWell(
-      key: ValueKey('command-palette-item-${item.commandId.name}'),
-      borderRadius: BorderRadius.circular(12),
-      onTap: item.enabled ? onTap : null,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: item.enabled
-              ? const Color(0xFFF8F4ED)
-              : const Color(0xFFF2EEE8),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_commandIcon(item.commandId), size: 18, color: iconColor),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.label,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.description,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      Chip(label: Text(item.category)),
-                      Chip(label: Text(item.shortcutHint)),
-                      if (item.isRecent)
-                        Chip(label: Text('recent ${item.recentRank! + 1}')),
-                      if (!item.enabled) const Chip(label: Text('blocked')),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceQuickOpenSurface extends StatefulWidget {
-  const _WorkspaceQuickOpenSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceQuickOpenSurface> createState() =>
-      _WorkspaceQuickOpenSurfaceState();
-}
-
-class _WorkspaceQuickOpenSurfaceState
-    extends State<_WorkspaceQuickOpenSurface> {
-  final TextEditingController _queryController = TextEditingController();
-  WorkspaceQuickOpenResult? _result;
-
-  @override
-  void initState() {
-    super.initState();
-    _result = _runQuickOpen();
-    _queryController.addListener(_handleQueryChanged);
-  }
-
-  @override
-  void dispose() {
-    _queryController.removeListener(_handleQueryChanged);
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  WorkspaceQuickOpenResult _runQuickOpen() {
-    return widget.shell.quickOpenWorkspace(
-      WorkspaceQuickOpenQuery(pattern: _queryController.text, maxResults: 80),
-    );
-  }
-
-  void _handleQueryChanged() {
-    setState(() {
-      _result = _runQuickOpen();
-    });
-  }
-
-  Future<void> _openItem(WorkspaceQuickOpenItem item) async {
-    await widget.shell.openWorkspaceQuickOpenItem(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = _runQuickOpen();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceQuickOpen;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text(
-          '${widget.shell.workspaceController.recentFiles.length} recent',
-        ),
-      ),
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-quick-open-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Quick Open',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Quick Open',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-quick-open-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'File name or path',
-                  prefixIcon: Icon(Icons.drive_file_move_outline),
-                ),
-                onSubmitted: (_) {
-                  final firstItem =
-                      result != null && result.items.isNotEmpty
-                      ? result.items.first
-                      : null;
-                  if (firstItem != null) {
-                    _openItem(firstItem);
-                  }
-                },
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceQuickOpenResultView(
-                result: result,
-                activeFilePath: widget.shell.workspaceController.activeFilePath,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceQuickOpenResultView extends StatelessWidget {
-  const _WorkspaceQuickOpenResultView({
-    required this.result,
-    required this.activeFilePath,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceQuickOpenResult? result;
-  final String activeFilePath;
-  final Future<void> Function(WorkspaceQuickOpenItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final quickOpenResult = result;
-    if (quickOpenResult == null) {
-      return Text('No files indexed yet.', style: theme.textTheme.bodySmall);
-    }
-
-    final statusColor = switch (quickOpenResult.status) {
-      WorkspaceQuickOpenStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceQuickOpenStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceQuickOpenStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (quickOpenResult.status) {
-      WorkspaceQuickOpenStatus.completed => 'ready',
-      WorkspaceQuickOpenStatus.hitLimit => 'limited',
-      WorkspaceQuickOpenStatus.emptyWorkspace => 'empty',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-quick-open-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${quickOpenResult.matchCount} matches')),
-            Chip(label: Text('${quickOpenResult.filesSearched} indexed')),
-          ],
-        ),
-        if (quickOpenResult.items.isEmpty) ...[
-          const SizedBox(height: 10),
-          Text('No matching files.', style: theme.textTheme.bodySmall),
-        ],
-        if (quickOpenResult.items.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in quickOpenResult.items.take(60)) ...[
-            _WorkspaceQuickOpenItemTile(
-              item: item,
-              active: item.filePath == activeFilePath,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceQuickOpenItemTile extends StatelessWidget {
-  const _WorkspaceQuickOpenItemTile({
-    required this.item,
-    required this.active,
-    required this.onTap,
-  });
-
-  final WorkspaceQuickOpenItem item;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey('workspace-quick-open-item-${item.filePath}'),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFFEAF2EA) : const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              active ? Icons.article_rounded : Icons.article_outlined,
-              size: 18,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.fileName,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.parentPath.isEmpty ? item.filePath : item.parentPath,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            if (item.isRecent) ...[
-              const SizedBox(width: 8),
-              Chip(label: Text('recent ${item.recentRank! + 1}')),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceRecentLocationsSurface extends StatefulWidget {
-  const _WorkspaceRecentLocationsSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceRecentLocationsSurface> createState() =>
-      _WorkspaceRecentLocationsSurfaceState();
-}
-
-class _WorkspaceRecentLocationsSurfaceState
-    extends State<_WorkspaceRecentLocationsSurface> {
-  final TextEditingController _queryController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController.addListener(_handleQueryChanged);
-  }
-
-  @override
-  void dispose() {
-    _queryController.removeListener(_handleQueryChanged);
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  void _handleQueryChanged() {
-    setState(() {});
-  }
-
-  Future<void> _navigate({required bool forward}) async {
-    await widget.shell.navigateWorkspaceHistory(forward: forward);
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> _openLocation(WorkspaceNavigationLocation location) async {
-    await widget.shell.openWorkspaceNavigationLocation(location);
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  List<WorkspaceNavigationLocation> _filteredLocations(
-    List<WorkspaceNavigationLocation> locations,
-  ) {
-    final query = _queryController.text.trim().toLowerCase();
-    if (query.isEmpty) {
-      return locations;
-    }
-    return locations
-        .where(
-          (location) =>
-              location.filePath.toLowerCase().contains(query) ||
-              location.label.toLowerCase().contains(query) ||
-              location.previewText.toLowerCase().contains(query) ||
-              location.kind.name.contains(query),
-        )
-        .toList(growable: false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final snapshot = widget.shell.workspaceNavigationHistory;
-    final locations = _filteredLocations(snapshot.recentLocations);
-    final headerChips = <Widget>[
-      Chip(label: Text('${snapshot.entries.length} entries')),
-      Chip(label: Text('${snapshot.recentLocations.length} recent')),
-      Chip(label: Text(snapshot.canGoBack ? 'back ready' : 'back empty')),
-      Chip(
-        label: Text(snapshot.canGoForward ? 'forward ready' : 'forward empty'),
-      ),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-recent-locations-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recent Locations',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Recent Locations',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-recent-locations-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'File, symbol, or preview',
-                  prefixIcon: Icon(Icons.history_rounded),
-                ),
-                onSubmitted: (_) {
-                  if (locations.isNotEmpty) {
-                    _openLocation(locations.first);
-                  }
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-navigation-back'),
-                    onPressed: snapshot.canGoBack
-                        ? () {
-                            _navigate(forward: false);
-                          }
-                        : null,
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('Back'),
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-navigation-forward'),
-                    onPressed: snapshot.canGoForward
-                        ? () {
-                            _navigate(forward: true);
-                          }
-                        : null,
-                    icon: const Icon(Icons.arrow_forward_rounded),
-                    label: const Text('Forward'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceRecentLocationsResultView(
-                locations: locations,
-                currentLocation: snapshot.currentLocation,
-                onOpenLocation: _openLocation,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceRecentLocationsResultView extends StatelessWidget {
-  const _WorkspaceRecentLocationsResultView({
-    required this.locations,
-    required this.currentLocation,
-    required this.onOpenLocation,
-  });
-
-  final List<WorkspaceNavigationLocation> locations;
-  final WorkspaceNavigationLocation? currentLocation;
-  final Future<void> Function(WorkspaceNavigationLocation location)
-      onOpenLocation;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    if (locations.isEmpty) {
-      return Text('No recent locations.', style: theme.textTheme.bodySmall);
-    }
-
-    return Column(
-      key: const ValueKey('workspace-recent-locations-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final location in locations.take(80)) ...[
-          _WorkspaceRecentLocationTile(
-            location: location,
-            active: currentLocation?.sameTarget(location) ?? false,
-            onTap: () {
-              onOpenLocation(location);
-            },
-          ),
-          const SizedBox(height: 8),
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceRecentLocationTile extends StatelessWidget {
-  const _WorkspaceRecentLocationTile({
-    required this.location,
-    required this.active,
-    required this.onTap,
-  });
-
-  final WorkspaceNavigationLocation location;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-recent-location-${location.filePath}-${location.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: active ? const Color(0xFFEAF2EA) : const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_workspaceNavigationLocationIcon(location.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    location.label,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    location.displayLocation,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (location.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      location.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Chip(label: Text(location.kind.name)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDocumentLinksSurface extends StatefulWidget {
-  const _WorkspaceDocumentLinksSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceDocumentLinksSurface> createState() =>
-      _WorkspaceDocumentLinksSurfaceState();
-}
-
-class _WorkspaceDocumentLinksSurfaceState
-    extends State<_WorkspaceDocumentLinksSurface> {
-  late final TextEditingController _queryController;
-  WorkspaceDocumentLinksResult? _result;
-  bool _collecting = false;
-  bool _includeExternal = true;
-  bool _includeUnresolved = true;
-  int _collectGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController();
-    _collectLinks();
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _collectLinks() async {
-    final generation = _collectGeneration + 1;
-    _collectGeneration = generation;
-    setState(() {
-      _collecting = true;
-    });
-    final result = await widget.shell.collectWorkspaceDocumentLinks(
-      WorkspaceDocumentLinksQuery(
-        targetFilePath: widget.shell.workspaceDocumentLinksTargetFilePath,
-        pattern: _queryController.text,
-        includeExternal: _includeExternal,
-        includeUnresolved: _includeUnresolved,
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _collectGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _collecting = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceDocumentLinkItem item) async {
-    await widget.shell.openWorkspaceDocumentLink(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceDocumentLinks;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceDocumentLinks;
-    final headerChips = <Widget>[
-      Chip(label: Text(widget.shell.workspaceDocumentLinksTargetFilePath)),
-      if (_collecting) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-document-links-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Document Links',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Document Links',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-document-links-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Filter links',
-                  prefixIcon: Icon(Icons.link_rounded),
-                ),
-                onSubmitted: (_) {
-                  _collectLinks();
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-document-links-include-external',
-                    ),
-                    selected: _includeExternal,
-                    label: const Text('External'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeExternal = selected;
-                      });
-                      _collectLinks();
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-document-links-include-unresolved',
-                    ),
-                    selected: _includeUnresolved,
-                    label: const Text('Unresolved'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeUnresolved = selected;
-                      });
-                      _collectLinks();
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-document-links-refresh'),
-                    onPressed: _collecting
-                        ? null
-                        : () {
-                            _collectLinks();
-                          },
-                    icon: Icon(
-                      _collecting
-                          ? Icons.hourglass_top_rounded
-                          : Icons.refresh_rounded,
-                    ),
-                    label: Text(_collecting ? 'Collecting' : 'Refresh'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceDocumentLinksResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDocumentLinksResultView extends StatelessWidget {
-  const _WorkspaceDocumentLinksResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceDocumentLinksResult? result;
-  final Future<void> Function(WorkspaceDocumentLinkItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final linksResult = result;
-    if (linksResult == null) {
-      return Text(
-        'No document links collected yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (linksResult.status) {
-      WorkspaceDocumentLinksStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceDocumentLinksStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceDocumentLinksStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceDocumentLinksStatus.noLinks => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (linksResult.status) {
-      WorkspaceDocumentLinksStatus.completed => 'completed',
-      WorkspaceDocumentLinksStatus.hitLimit => 'limited',
-      WorkspaceDocumentLinksStatus.emptyWorkspace => 'empty',
-      WorkspaceDocumentLinksStatus.noLinks => 'no links',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-document-links-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${linksResult.linkCount} links')),
-            Chip(label: Text('${linksResult.workspaceLinkCount} workspace')),
-            Chip(label: Text('${linksResult.externalLinkCount} external')),
-            Chip(label: Text('${linksResult.unresolvedLinkCount} unresolved')),
-            Chip(label: Text('${linksResult.linksIndexed} indexed')),
-          ],
-        ),
-        if (linksResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (linksResult.links.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in linksResult.links.take(80)) ...[
-            _WorkspaceDocumentLinkItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceDocumentLinkItemTile extends StatelessWidget {
-  const _WorkspaceDocumentLinkItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceDocumentLinkItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-document-link-item-${item.sourceFilePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: item.canOpen ? onTap : null,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: item.canOpen
-              ? const Color(0xFFF8F4ED)
-              : const Color(0xFFF3F0EA),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 560;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.target,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.sourceFilePath}:${item.line + 1}:${item.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.resolvedFilePath case final resolved?) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    resolved,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-                if (item.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                if (item.canOpen) const Chip(label: Text('open')),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(_workspaceDocumentLinkKindIcon(item.kind), size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDocumentHighlightsSurface extends StatefulWidget {
-  const _WorkspaceDocumentHighlightsSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceDocumentHighlightsSurface> createState() =>
-      _WorkspaceDocumentHighlightsSurfaceState();
-}
-
-class _WorkspaceDocumentHighlightsSurfaceState
-    extends State<_WorkspaceDocumentHighlightsSurface> {
-  WorkspaceDocumentHighlightsResult? _result;
-  bool _collecting = false;
-  bool _includeText = true;
-  bool _includeDeclarations = true;
-  bool _includeRead = true;
-  bool _includeWrite = true;
-  int _collectGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _collectHighlights();
-  }
-
-  Future<void> _collectHighlights() async {
-    final generation = _collectGeneration + 1;
-    _collectGeneration = generation;
-    setState(() {
-      _collecting = true;
-    });
-    final result = await widget.shell.collectWorkspaceDocumentHighlights(
-      WorkspaceDocumentHighlightsQuery(
-        targetFilePath: widget.shell.workspaceDocumentHighlightsTargetFilePath,
-        offset: widget.shell.workspaceDocumentHighlightsOffset,
-        includeText: _includeText,
-        includeDeclarations: _includeDeclarations,
-        includeRead: _includeRead,
-        includeWrite: _includeWrite,
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _collectGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _collecting = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceDocumentHighlightItem item) async {
-    await widget.shell.openWorkspaceDocumentHighlight(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceDocumentHighlights;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceDocumentHighlights;
-    final headerChips = <Widget>[
-      Chip(label: Text(widget.shell.workspaceDocumentHighlightsTargetFilePath)),
-      Chip(
-        label: Text('offset ${widget.shell.workspaceDocumentHighlightsOffset}'),
-      ),
-      if (_collecting) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-document-highlights-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Document Highlights',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Document Highlights',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-document-highlights-include-text',
-                    ),
-                    selected: _includeText,
-                    label: const Text('Text'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeText = selected;
-                      });
-                      _collectHighlights();
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-document-highlights-include-declarations',
-                    ),
-                    selected: _includeDeclarations,
-                    label: const Text('Declarations'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeDeclarations = selected;
-                      });
-                      _collectHighlights();
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-document-highlights-include-read',
-                    ),
-                    selected: _includeRead,
-                    label: const Text('Read'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeRead = selected;
-                      });
-                      _collectHighlights();
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-document-highlights-include-write',
-                    ),
-                    selected: _includeWrite,
-                    label: const Text('Write'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeWrite = selected;
-                      });
-                      _collectHighlights();
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-document-highlights-refresh'),
-                    onPressed: _collecting
-                        ? null
-                        : () {
-                            _collectHighlights();
-                          },
-                    icon: Icon(
-                      _collecting
-                          ? Icons.hourglass_top_rounded
-                          : Icons.refresh_rounded,
-                    ),
-                    label: Text(_collecting ? 'Collecting' : 'Refresh'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceDocumentHighlightsResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDocumentHighlightsResultView extends StatelessWidget {
-  const _WorkspaceDocumentHighlightsResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceDocumentHighlightsResult? result;
-  final Future<void> Function(WorkspaceDocumentHighlightItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final highlightsResult = result;
-    if (highlightsResult == null) {
-      return Text(
-        'No document highlights collected yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (highlightsResult.status) {
-      WorkspaceDocumentHighlightsStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceDocumentHighlightsStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceDocumentHighlightsStatus.emptyWorkspace ||
-      WorkspaceDocumentHighlightsStatus.emptySelection ||
-      WorkspaceDocumentHighlightsStatus.noHighlights =>
-        const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (highlightsResult.status) {
-      WorkspaceDocumentHighlightsStatus.completed => 'completed',
-      WorkspaceDocumentHighlightsStatus.hitLimit => 'limited',
-      WorkspaceDocumentHighlightsStatus.emptyWorkspace => 'empty',
-      WorkspaceDocumentHighlightsStatus.emptySelection => 'no symbol',
-      WorkspaceDocumentHighlightsStatus.noHighlights => 'no highlights',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-document-highlights-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${highlightsResult.highlightCount} highlights')),
-            Chip(label: Text('${highlightsResult.declarationCount} decls')),
-            Chip(label: Text('${highlightsResult.readCount} read')),
-            Chip(label: Text('${highlightsResult.writeCount} write')),
-            Chip(label: Text('${highlightsResult.textCount} text')),
-            Chip(label: Text('${highlightsResult.highlightsIndexed} indexed')),
-          ],
-        ),
-        if (highlightsResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (highlightsResult.highlights.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in highlightsResult.highlights.take(80)) ...[
-            _WorkspaceDocumentHighlightItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceDocumentHighlightItemTile extends StatelessWidget {
-  const _WorkspaceDocumentHighlightItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceDocumentHighlightItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-document-highlight-item-${item.filePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: item.isActive
-              ? const Color(0xFFEFE6CF)
-              : const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 560;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                Chip(label: Text(item.symbolKindLabel)),
-                if (item.isActive) const Chip(label: Text('active')),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(_workspaceDocumentHighlightKindIcon(item.kind), size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 240),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCodeLensSurface extends StatefulWidget {
-  const _WorkspaceCodeLensSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceCodeLensSurface> createState() =>
-      _WorkspaceCodeLensSurfaceState();
-}
-
-class _WorkspaceCodeLensSurfaceState extends State<_WorkspaceCodeLensSurface> {
-  WorkspaceCodeLensResult? _result;
-  bool _collecting = false;
-  int _collectGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _collectCodeLenses();
-  }
-
-  Future<void> _collectCodeLenses() async {
-    final generation = _collectGeneration + 1;
-    _collectGeneration = generation;
-    setState(() {
-      _collecting = true;
-    });
-    final result = await widget.shell.collectWorkspaceCodeLenses(
-      WorkspaceCodeLensQuery(
-        targetFilePath: widget.shell.workspaceCodeLensTargetFilePath,
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _collectGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _collecting = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceCodeLensItem item) async {
-    await widget.shell.openWorkspaceCodeLens(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceCodeLens;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceCodeLens;
-    final headerChips = <Widget>[
-      Chip(label: Text(widget.shell.workspaceCodeLensTargetFilePath)),
-      if (_collecting) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-code-lens-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Code Lens', style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Code Lens',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const ValueKey('workspace-code-lens-refresh'),
-                onPressed: _collecting
-                    ? null
-                    : () {
-                        _collectCodeLenses();
-                      },
-                icon: Icon(
-                  _collecting
-                      ? Icons.hourglass_top_rounded
-                      : Icons.refresh_rounded,
-                ),
-                label: Text(_collecting ? 'Collecting' : 'Refresh'),
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceCodeLensResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCodeLensResultView extends StatelessWidget {
-  const _WorkspaceCodeLensResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceCodeLensResult? result;
-  final Future<void> Function(WorkspaceCodeLensItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final codeLensResult = result;
-    if (codeLensResult == null) {
-      return Text(
-        'No code lenses collected yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (codeLensResult.status) {
-      WorkspaceCodeLensStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceCodeLensStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceCodeLensStatus.emptyWorkspace ||
-      WorkspaceCodeLensStatus.noLenses => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (codeLensResult.status) {
-      WorkspaceCodeLensStatus.completed => 'completed',
-      WorkspaceCodeLensStatus.hitLimit => 'limited',
-      WorkspaceCodeLensStatus.emptyWorkspace => 'empty',
-      WorkspaceCodeLensStatus.noLenses => 'no lenses',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-code-lens-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${codeLensResult.lensCount} lenses')),
-            Chip(
-              label: Text(
-                '${codeLensResult.referencedSymbolCount} referenced',
-              ),
-            ),
-            Chip(label: Text('${codeLensResult.symbolsIndexed} symbols')),
-            Chip(label: Text('${codeLensResult.filesSearched} files')),
-          ],
-        ),
-        if (codeLensResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (codeLensResult.lenses.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in codeLensResult.lenses.take(80)) ...[
-            _WorkspaceCodeLensItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceCodeLensItemTile extends StatelessWidget {
-  const _WorkspaceCodeLensItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceCodeLensItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-code-lens-item-${item.filePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 560;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${item.commandTitle} · ${item.symbolName}',
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                Chip(label: Text(item.symbolKindLabel)),
-                Chip(label: Text('${item.usageCount} usages')),
-                Chip(label: Text('${item.referenceCount} refs')),
-                if (item.type case final type?) Chip(label: Text(type)),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(_workspaceReferenceKindIcon(item.symbolKind), size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 260),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDeclarationSurface extends StatefulWidget {
-  const _WorkspaceDeclarationSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceDeclarationSurface> createState() =>
-      _WorkspaceDeclarationSurfaceState();
-}
-
-class _WorkspaceDeclarationSurfaceState
-    extends State<_WorkspaceDeclarationSurface> {
-  late final TextEditingController _queryController;
-  WorkspaceDeclarationResult? _result;
-  bool _searching = false;
-  int _searchGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController(
-      text: widget.shell.workspaceDeclarationQuerySeed,
-    );
-    if (_queryController.text.isNotEmpty) {
-      _runSearch();
-    }
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _searching = true;
-    });
-    final result = await widget.shell.findWorkspaceDeclarations(
-      WorkspaceDeclarationQuery(
-        pattern: _queryController.text,
-        maxResults: 80,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _searching = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceDeclarationItem item) async {
-    await widget.shell.openWorkspaceDeclaration(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceDeclaration;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceDeclaration;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_searching) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-declaration-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Go to Declaration',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Go to Declaration',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-declaration-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Symbol name',
-                  prefixIcon: Icon(Icons.subdirectory_arrow_left_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const ValueKey('workspace-declaration-search-run'),
-                onPressed: _searching
-                    ? null
-                    : () {
-                        _runSearch();
-                      },
-                icon: Icon(
-                  _searching
-                      ? Icons.hourglass_top_rounded
-                      : Icons.subdirectory_arrow_left_rounded,
-                ),
-                label: Text(_searching ? 'Resolving' : 'Resolve'),
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceDeclarationResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDeclarationResultView extends StatelessWidget {
-  const _WorkspaceDeclarationResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceDeclarationResult? result;
-  final Future<void> Function(WorkspaceDeclarationItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final declarationResult = result;
-    if (declarationResult == null) {
-      return Text(
-        'No declarations queried yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (declarationResult.status) {
-      WorkspaceDeclarationStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceDeclarationStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceDeclarationStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceDeclarationStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceDeclarationStatus.noDeclarations => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (declarationResult.status) {
-      WorkspaceDeclarationStatus.completed => 'completed',
-      WorkspaceDeclarationStatus.hitLimit => 'limited',
-      WorkspaceDeclarationStatus.emptyPattern => 'empty',
-      WorkspaceDeclarationStatus.emptyWorkspace => 'empty',
-      WorkspaceDeclarationStatus.noDeclarations => 'no symbol',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-declaration-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${declarationResult.matchCount} declarations')),
-            Chip(label: Text('${declarationResult.matchedFileCount} files')),
-            Chip(
-              label: Text('${declarationResult.declarationsIndexed} indexed'),
-            ),
-            Chip(label: Text('${declarationResult.filesSearched} files')),
-          ],
-        ),
-        if (declarationResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (declarationResult.declarations.isEmpty &&
-            declarationResult.message == null) ...[
-          const SizedBox(height: 10),
-          Text('No matching declarations.', style: theme.textTheme.bodySmall),
-        ],
-        if (declarationResult.declarations.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in declarationResult.declarations.take(60)) ...[
-            _WorkspaceDeclarationItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceDeclarationItemTile extends StatelessWidget {
-  const _WorkspaceDeclarationItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceDeclarationItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-declaration-item-${item.filePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 520;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                if (item.type case final type?) Chip(label: Text(type)),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(_workspaceDeclarationKindIcon(item.kind), size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDefinitionSurface extends StatefulWidget {
-  const _WorkspaceDefinitionSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceDefinitionSurface> createState() =>
-      _WorkspaceDefinitionSurfaceState();
-}
-
-class _WorkspaceDefinitionSurfaceState
-    extends State<_WorkspaceDefinitionSurface> {
-  late final TextEditingController _queryController;
-  WorkspaceDefinitionResult? _result;
-  bool _searching = false;
-  int _searchGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController(
-      text: widget.shell.workspaceDefinitionQuerySeed,
-    );
-    if (_queryController.text.isNotEmpty) {
-      _runSearch();
-    }
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _searching = true;
-    });
-    final result = await widget.shell.findWorkspaceDefinitions(
-      WorkspaceDefinitionQuery(
-        pattern: _queryController.text,
-        maxResults: 80,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _searching = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceDefinitionItem item) async {
-    await widget.shell.openWorkspaceDefinition(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceDefinition;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceDefinition;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_searching) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-definition-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Go to Definition',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Go to Definition',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-definition-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Symbol name',
-                  prefixIcon: Icon(Icons.subdirectory_arrow_right_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const ValueKey('workspace-definition-search-run'),
-                onPressed: _searching
-                    ? null
-                    : () {
-                        _runSearch();
-                      },
-                icon: Icon(
-                  _searching
-                      ? Icons.hourglass_top_rounded
-                      : Icons.subdirectory_arrow_right_rounded,
-                ),
-                label: Text(_searching ? 'Resolving' : 'Resolve'),
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceDefinitionResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceDefinitionResultView extends StatelessWidget {
-  const _WorkspaceDefinitionResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceDefinitionResult? result;
-  final Future<void> Function(WorkspaceDefinitionItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final definitionResult = result;
-    if (definitionResult == null) {
-      return Text(
-        'No definitions queried yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (definitionResult.status) {
-      WorkspaceDefinitionStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceDefinitionStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceDefinitionStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceDefinitionStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceDefinitionStatus.noDefinitions => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (definitionResult.status) {
-      WorkspaceDefinitionStatus.completed => 'completed',
-      WorkspaceDefinitionStatus.hitLimit => 'limited',
-      WorkspaceDefinitionStatus.emptyPattern => 'empty',
-      WorkspaceDefinitionStatus.emptyWorkspace => 'empty',
-      WorkspaceDefinitionStatus.noDefinitions => 'no symbol',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-definition-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${definitionResult.matchCount} definitions')),
-            Chip(label: Text('${definitionResult.matchedFileCount} files')),
-            Chip(
-              label: Text('${definitionResult.definitionsIndexed} indexed'),
-            ),
-            Chip(label: Text('${definitionResult.filesSearched} files')),
-          ],
-        ),
-        if (definitionResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (definitionResult.definitions.isEmpty &&
-            definitionResult.message == null) ...[
-          const SizedBox(height: 10),
-          Text('No matching definitions.', style: theme.textTheme.bodySmall),
-        ],
-        if (definitionResult.definitions.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in definitionResult.definitions.take(60)) ...[
-            _WorkspaceDefinitionItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceDefinitionItemTile extends StatelessWidget {
-  const _WorkspaceDefinitionItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceDefinitionItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-definition-item-${item.filePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 520;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                if (item.type case final type?) Chip(label: Text(type)),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(_workspaceReferenceKindIcon(item.kind), size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceTypeDefinitionSurface extends StatefulWidget {
-  const _WorkspaceTypeDefinitionSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceTypeDefinitionSurface> createState() =>
-      _WorkspaceTypeDefinitionSurfaceState();
-}
-
-class _WorkspaceTypeDefinitionSurfaceState
-    extends State<_WorkspaceTypeDefinitionSurface> {
-  late final TextEditingController _queryController;
-  WorkspaceTypeDefinitionResult? _result;
-  bool _searching = false;
-  int _searchGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController(
-      text: widget.shell.workspaceTypeDefinitionQuerySeed,
-    );
-    if (_queryController.text.isNotEmpty) {
-      _runSearch();
-    }
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _searching = true;
-    });
-    final result = await widget.shell.findWorkspaceTypeDefinitions(
-      WorkspaceTypeDefinitionQuery(
-        pattern: _queryController.text,
-        maxResults: 80,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _searching = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceTypeDefinitionItem item) async {
-    await widget.shell.openWorkspaceTypeDefinition(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceTypeDefinition;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceTypeDefinition;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_searching) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-type-definition-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Go to Type Definition',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Go to Type Definition',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-type-definition-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Type name',
-                  prefixIcon: Icon(Icons.category_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const ValueKey('workspace-type-definition-search-run'),
-                onPressed: _searching
-                    ? null
-                    : () {
-                        _runSearch();
-                      },
-                icon: Icon(
-                  _searching
-                      ? Icons.hourglass_top_rounded
-                      : Icons.category_rounded,
-                ),
-                label: Text(_searching ? 'Resolving' : 'Resolve'),
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceTypeDefinitionResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceTypeDefinitionResultView extends StatelessWidget {
-  const _WorkspaceTypeDefinitionResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceTypeDefinitionResult? result;
-  final Future<void> Function(WorkspaceTypeDefinitionItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final typeResult = result;
-    if (typeResult == null) {
-      return Text(
-        'No type definitions queried yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (typeResult.status) {
-      WorkspaceTypeDefinitionStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceTypeDefinitionStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceTypeDefinitionStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceTypeDefinitionStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceTypeDefinitionStatus.noTypes => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (typeResult.status) {
-      WorkspaceTypeDefinitionStatus.completed => 'completed',
-      WorkspaceTypeDefinitionStatus.hitLimit => 'limited',
-      WorkspaceTypeDefinitionStatus.emptyPattern => 'empty',
-      WorkspaceTypeDefinitionStatus.emptyWorkspace => 'empty',
-      WorkspaceTypeDefinitionStatus.noTypes => 'no type',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-type-definition-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${typeResult.matchCount} types')),
-            Chip(label: Text('${typeResult.matchedFileCount} files')),
-            Chip(label: Text('${typeResult.typesIndexed} indexed')),
-            Chip(label: Text('${typeResult.filesSearched} files')),
-          ],
-        ),
-        if (typeResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (typeResult.types.isEmpty && typeResult.message == null) ...[
-          const SizedBox(height: 10),
-          Text(
-            'No matching type definitions.',
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
-        if (typeResult.types.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in typeResult.types.take(60)) ...[
-            _WorkspaceTypeDefinitionItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceTypeDefinitionItemTile extends StatelessWidget {
-  const _WorkspaceTypeDefinitionItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceTypeDefinitionItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-type-definition-item-${item.filePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.category_rounded, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (item.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      item.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Chip(label: Text(item.kindLabel)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceImplementationSurface extends StatefulWidget {
-  const _WorkspaceImplementationSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceImplementationSurface> createState() =>
-      _WorkspaceImplementationSurfaceState();
-}
-
-class _WorkspaceImplementationSurfaceState
-    extends State<_WorkspaceImplementationSurface> {
-  late final TextEditingController _queryController;
-  WorkspaceImplementationResult? _result;
-  bool _loading = false;
-  int _searchGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController(
-      text: widget.shell.workspaceImplementationQuerySeed,
-    );
-    if (_queryController.text.isNotEmpty) {
-      _runSearch();
-    }
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _loading = true;
-    });
-    final result = await widget.shell.findWorkspaceImplementations(
-      WorkspaceImplementationQuery(
-        pattern: _queryController.text,
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openImplementation(WorkspaceImplementationItem item) async {
-    await widget.shell.openWorkspaceImplementation(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceImplementation;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceImplementation;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_loading) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-implementation-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Go to Implementation',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Go to Implementation',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-implementation-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Type name',
-                  prefixIcon: Icon(Icons.call_split_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const ValueKey('workspace-implementation-run'),
-                onPressed: _loading
-                    ? null
-                    : () {
-                        _runSearch();
-                      },
-                icon: Icon(
-                  _loading
-                      ? Icons.hourglass_top_rounded
-                      : Icons.call_split_rounded,
-                ),
-                label: Text(_loading ? 'Finding' : 'Find'),
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceImplementationResultView(
-                result: result,
-                onOpenImplementation: _openImplementation,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceImplementationResultView extends StatelessWidget {
-  const _WorkspaceImplementationResultView({
-    required this.result,
-    required this.onOpenImplementation,
-  });
-
-  final WorkspaceImplementationResult? result;
-  final Future<void> Function(WorkspaceImplementationItem item)
-      onOpenImplementation;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final implementationResult = result;
-    if (implementationResult == null) {
-      return Text(
-        'No implementations searched yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (implementationResult.status) {
-      WorkspaceImplementationStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceImplementationStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceImplementationStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceImplementationStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceImplementationStatus.noTypes => const Color(0xFFF5E1DE),
-      WorkspaceImplementationStatus.noImplementations =>
-        const Color(0xFFEEE9F2),
-    };
-    final statusLabel = switch (implementationResult.status) {
-      WorkspaceImplementationStatus.completed => 'completed',
-      WorkspaceImplementationStatus.hitLimit => 'limited',
-      WorkspaceImplementationStatus.emptyPattern => 'empty',
-      WorkspaceImplementationStatus.emptyWorkspace => 'empty',
-      WorkspaceImplementationStatus.noTypes => 'no type',
-      WorkspaceImplementationStatus.noImplementations => 'none',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-implementation-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(
-              label: Text(
-                '${implementationResult.implementationCount} implementations',
-              ),
-            ),
-            Chip(
-              label: Text('${implementationResult.referenceCount} references'),
-            ),
-            Chip(label: Text('${implementationResult.typesIndexed} indexed')),
-          ],
-        ),
-        if (implementationResult.target case final target?) ...[
-          const SizedBox(height: 10),
-          _WorkspaceImplementationTargetTile(symbol: target),
-        ],
-        if (implementationResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (implementationResult.implementations.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in implementationResult.implementations.take(60)) ...[
-            _WorkspaceImplementationItemTile(
-              item: item,
-              onTap: () {
-                onOpenImplementation(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceImplementationTargetTile extends StatelessWidget {
-  const _WorkspaceImplementationTargetTile({required this.symbol});
-
-  final WorkspaceTypeHierarchySymbol symbol;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      key: const ValueKey('workspace-implementation-target'),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F0F4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(_workspaceTypeHierarchyKindIcon(symbol.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    symbol.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${symbol.filePath}:${symbol.line + 1}:${symbol.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Chip(label: Text(symbol.kindLabel)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceImplementationItemTile extends StatelessWidget {
-  const _WorkspaceImplementationItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceImplementationItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final firstReference = item.firstReference;
-    return InkWell(
-      key: ValueKey(
-        'workspace-implementation-item-${item.filePath}-'
-        '${item.range.start}-${firstReference.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_workspaceTypeHierarchyKindIcon(item.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (firstReference.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      firstReference.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                Chip(label: Text('${item.referenceCount} ref')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceTypeHierarchySurface extends StatefulWidget {
-  const _WorkspaceTypeHierarchySurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceTypeHierarchySurface> createState() =>
-      _WorkspaceTypeHierarchySurfaceState();
-}
-
-class _WorkspaceTypeHierarchySurfaceState
-    extends State<_WorkspaceTypeHierarchySurface> {
-  late final TextEditingController _queryController;
-  WorkspaceTypeHierarchyDirection _direction =
-      WorkspaceTypeHierarchyDirection.supertypes;
-  WorkspaceTypeHierarchyResult? _result;
-  bool _loading = false;
-  int _searchGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController = TextEditingController(
-      text: widget.shell.workspaceTypeHierarchyQuerySeed,
-    );
-    if (_queryController.text.isNotEmpty) {
-      _runSearch();
-    }
-  }
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _loading = true;
-    });
-    final result = await widget.shell.buildWorkspaceTypeHierarchy(
-      WorkspaceTypeHierarchyQuery(
-        pattern: _queryController.text,
-        direction: _direction,
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openRelation(WorkspaceTypeHierarchyRelation relation) async {
-    await widget.shell.openWorkspaceTypeHierarchySymbol(relation.symbol);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceTypeHierarchy;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceTypeHierarchy;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_loading) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-type-hierarchy-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Type Hierarchy',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Type Hierarchy',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-type-hierarchy-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Type name',
-                  prefixIcon: Icon(Icons.account_tree_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SegmentedButton<WorkspaceTypeHierarchyDirection>(
-                    key: const ValueKey('workspace-type-hierarchy-direction'),
-                    segments:
-                        const <ButtonSegment<WorkspaceTypeHierarchyDirection>>[
-                      ButtonSegment<WorkspaceTypeHierarchyDirection>(
-                        value: WorkspaceTypeHierarchyDirection.supertypes,
-                        icon: Icon(Icons.arrow_upward_rounded),
-                        label: Text('Supertypes'),
-                      ),
-                      ButtonSegment<WorkspaceTypeHierarchyDirection>(
-                        value: WorkspaceTypeHierarchyDirection.subtypes,
-                        icon: Icon(Icons.arrow_downward_rounded),
-                        label: Text('Subtypes'),
-                      ),
-                    ],
-                    selected: <WorkspaceTypeHierarchyDirection>{_direction},
-                    onSelectionChanged: (selection) {
-                      final nextDirection = selection.first;
-                      setState(() {
-                        _direction = nextDirection;
-                      });
-                      if (result != null) {
-                        _runSearch();
-                      }
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-type-hierarchy-run'),
-                    onPressed: _loading
-                        ? null
-                        : () {
-                            _runSearch();
-                          },
-                    icon: Icon(
-                      _loading
-                          ? Icons.hourglass_top_rounded
-                          : Icons.account_tree_rounded,
-                    ),
-                    label: Text(_loading ? 'Building' : 'Build'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceTypeHierarchyResultView(
-                result: result,
-                onOpenRelation: _openRelation,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceTypeHierarchyResultView extends StatelessWidget {
-  const _WorkspaceTypeHierarchyResultView({
-    required this.result,
-    required this.onOpenRelation,
-  });
-
-  final WorkspaceTypeHierarchyResult? result;
-  final Future<void> Function(WorkspaceTypeHierarchyRelation relation)
-      onOpenRelation;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final hierarchyResult = result;
-    if (hierarchyResult == null) {
-      return Text(
-        'No type hierarchy built yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (hierarchyResult.status) {
-      WorkspaceTypeHierarchyStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceTypeHierarchyStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceTypeHierarchyStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceTypeHierarchyStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceTypeHierarchyStatus.noTypes => const Color(0xFFF5E1DE),
-      WorkspaceTypeHierarchyStatus.noRelations => const Color(0xFFEEE9F2),
-    };
-    final statusLabel = switch (hierarchyResult.status) {
-      WorkspaceTypeHierarchyStatus.completed => 'completed',
-      WorkspaceTypeHierarchyStatus.hitLimit => 'limited',
-      WorkspaceTypeHierarchyStatus.emptyPattern => 'empty',
-      WorkspaceTypeHierarchyStatus.emptyWorkspace => 'empty',
-      WorkspaceTypeHierarchyStatus.noTypes => 'no type',
-      WorkspaceTypeHierarchyStatus.noRelations => 'no relation',
-    };
-    final directionLabel =
-        hierarchyResult.query.direction ==
-            WorkspaceTypeHierarchyDirection.supertypes
-        ? 'supertypes'
-        : 'subtypes';
-
-    return Column(
-      key: const ValueKey('workspace-type-hierarchy-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${hierarchyResult.relationCount} nodes')),
-            Chip(label: Text('${hierarchyResult.referenceCount} references')),
-            Chip(label: Text('${hierarchyResult.typesIndexed} indexed')),
-            Chip(label: Text(directionLabel)),
-          ],
-        ),
-        if (hierarchyResult.target case final target?) ...[
-          const SizedBox(height: 10),
-          _WorkspaceTypeHierarchyTargetTile(symbol: target),
-        ],
-        if (hierarchyResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (hierarchyResult.relations.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final relation in hierarchyResult.relations.take(60)) ...[
-            _WorkspaceTypeHierarchyRelationTile(
-              relation: relation,
-              onTap: () {
-                onOpenRelation(relation);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceTypeHierarchyTargetTile extends StatelessWidget {
-  const _WorkspaceTypeHierarchyTargetTile({required this.symbol});
-
-  final WorkspaceTypeHierarchySymbol symbol;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      key: const ValueKey('workspace-type-hierarchy-target'),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F0F4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(_workspaceTypeHierarchyKindIcon(symbol.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    symbol.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${symbol.filePath}:${symbol.line + 1}:${symbol.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Chip(label: Text(symbol.kindLabel)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceTypeHierarchyRelationTile extends StatelessWidget {
-  const _WorkspaceTypeHierarchyRelationTile({
-    required this.relation,
-    required this.onTap,
-  });
-
-  final WorkspaceTypeHierarchyRelation relation;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final location = relation.firstLocation;
-    return InkWell(
-      key: ValueKey(
-        'workspace-type-hierarchy-item-${relation.symbol.filePath}-'
-        '${relation.symbol.range.start}-${location.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              _workspaceTypeHierarchyKindIcon(relation.symbol.kind),
-              size: 18,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    relation.symbol.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${relation.symbol.filePath}:'
-                    '${relation.symbol.line + 1}:'
-                    '${relation.symbol.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (location.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      location.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(relation.symbol.kindLabel)),
-                Chip(label: Text('${relation.referenceCount} ref')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceOutlineSurface extends StatefulWidget {
-  const _WorkspaceOutlineSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceOutlineSurface> createState() =>
-      _WorkspaceOutlineSurfaceState();
-}
-
-class _WorkspaceOutlineSurfaceState extends State<_WorkspaceOutlineSurface> {
-  final TextEditingController _filterController = TextEditingController();
-  WorkspaceOutlineResult? _result;
-  bool _loading = false;
-  int _generation = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _filterController.addListener(_handleFilterChanged);
-    _runCollection();
-  }
-
-  @override
-  void dispose() {
-    _filterController.removeListener(_handleFilterChanged);
-    _filterController.dispose();
-    super.dispose();
-  }
-
-  void _handleFilterChanged() {
-    _runCollection();
-  }
-
-  WorkspaceOutlineQuery _query() {
-    return WorkspaceOutlineQuery(
-      targetFilePath: widget.shell.workspaceOutlineTargetFilePath,
-      pattern: _filterController.text,
-      maxResults: 100,
-    );
-  }
-
-  Future<void> _runCollection() async {
-    final generation = _generation + 1;
-    _generation = generation;
-    setState(() {
-      _loading = true;
-    });
-    final result = await widget.shell.collectWorkspaceOutline(_query());
-    if (!mounted || generation != _generation) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceOutlineItem item) async {
-    await widget.shell.openWorkspaceOutlineItem(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceOutline;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceOutline;
-    final headerChips = <Widget>[
-      Chip(label: Text(widget.shell.workspaceOutlineTargetFilePath)),
-      if (_loading) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-outline-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Outline', style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Outline',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-outline-filter-field'),
-                controller: _filterController,
-                decoration: const InputDecoration(
-                  labelText: 'Filter symbols',
-                  prefixIcon: Icon(Icons.view_list_rounded),
-                ),
-                onSubmitted: (_) {
-                  final firstItem =
-                      result != null && result.items.isNotEmpty
-                      ? result.items.first
-                      : null;
-                  if (firstItem != null) {
-                    _openItem(firstItem);
-                  }
-                },
-              ),
-              const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const ValueKey('workspace-outline-refresh'),
-                onPressed: _loading
-                    ? null
-                    : () {
-                        _runCollection();
-                      },
-                icon: Icon(
-                  _loading
-                      ? Icons.hourglass_top_rounded
-                      : Icons.refresh_rounded,
-                ),
-                label: Text(_loading ? 'Indexing' : 'Refresh'),
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceOutlineResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceOutlineResultView extends StatelessWidget {
-  const _WorkspaceOutlineResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceOutlineResult? result;
-  final Future<void> Function(WorkspaceOutlineItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final outlineResult = result;
-    if (outlineResult == null) {
-      return Text(
-        'No outline indexed yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (outlineResult.status) {
-      WorkspaceOutlineStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceOutlineStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceOutlineStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceOutlineStatus.noSymbols => const Color(0xFFEEE9F2),
-    };
-    final statusLabel = switch (outlineResult.status) {
-      WorkspaceOutlineStatus.completed => 'ready',
-      WorkspaceOutlineStatus.hitLimit => 'limited',
-      WorkspaceOutlineStatus.emptyWorkspace => 'empty',
-      WorkspaceOutlineStatus.noSymbols => 'no symbols',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-outline-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${outlineResult.matchCount} matches')),
-            Chip(label: Text('${outlineResult.symbolsIndexed} symbols')),
-            Chip(label: Text('${outlineResult.filesSearched} file')),
-          ],
-        ),
-        if (outlineResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (outlineResult.items.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in outlineResult.items.take(80)) ...[
-            _WorkspaceOutlineItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceOutlineItemTile extends StatelessWidget {
-  const _WorkspaceOutlineItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceOutlineItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey('workspace-outline-item-${item.nameRange.start}'),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 520;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (item.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    item.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.kindLabel)),
-                if (item.detail.isNotEmpty) Chip(label: Text(item.detail)),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(_workspaceSymbolIcon(item.kind), size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceRenameSurface extends StatefulWidget {
-  const _WorkspaceRenameSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceRenameSurface> createState() => _WorkspaceRenameSurfaceState();
-}
-
-class _WorkspaceRenameSurfaceState extends State<_WorkspaceRenameSurface> {
-  late final TextEditingController _nameController;
-  WorkspaceRenameResult? _result;
-  WorkspaceRenameApplyResult? _applyResult;
-  bool _previewing = false;
-  bool _applying = false;
-  int _previewGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    final seed = widget.shell.workspaceRenameQuerySeed;
-    _nameController = TextEditingController(
-      text: seed.isEmpty ? '' : '${seed}_next',
-    );
-    if (seed.isNotEmpty) {
-      _runPreview();
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  WorkspaceRenameQuery _query() {
-    return WorkspaceRenameQuery(
-      targetFilePath: widget.shell.workspaceRenameTargetFilePath,
-      targetOffset: widget.shell.workspaceRenameTargetOffset,
-      newName: _nameController.text,
-    );
-  }
-
-  Future<void> _runPreview() async {
-    final generation = _previewGeneration + 1;
-    _previewGeneration = generation;
-    setState(() {
-      _previewing = true;
-      _applyResult = null;
-    });
-    final result = await widget.shell.previewWorkspaceRename(_query());
-    if (!mounted || generation != _previewGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _previewing = false;
-    });
-  }
-
-  Future<void> _applyRename() async {
-    final preview = _result;
-    if (preview == null || !preview.canApply || _applying) {
-      return;
-    }
-    setState(() {
-      _applying = true;
-    });
-    final result = await widget.shell.applyWorkspaceRename(
-      preview.query.copyWith(newName: _nameController.text),
-    );
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = result.preview;
-      _applyResult = result;
-      _applying = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result;
-    final seed = widget.shell.workspaceRenameQuerySeed;
-    final headerChips = <Widget>[
-      Chip(label: Text(widget.shell.workspaceRenameTargetFilePath)),
-      if (seed.isNotEmpty) Chip(label: Text(seed)),
-      if (_previewing) const Chip(label: Text('previewing')),
-      if (_applying) const Chip(label: Text('applying')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-rename-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Rename Symbol',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Rename Symbol',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-rename-name-field'),
-                controller: _nameController,
-                decoration: const InputDecoration(
-                  labelText: 'New symbol name',
-                  prefixIcon: Icon(Icons.drive_file_rename_outline_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runPreview();
-                },
-                onChanged: (_) {
-                  setState(() {
-                    _result = null;
-                    _applyResult = null;
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-rename-preview-run'),
-                    onPressed: _previewing || _applying
-                        ? null
-                        : () {
-                            _runPreview();
-                          },
-                    icon: Icon(
-                      _previewing
-                          ? Icons.hourglass_top_rounded
-                          : Icons.manage_search_rounded,
-                    ),
-                    label: Text(_previewing ? 'Previewing' : 'Preview'),
-                  ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('workspace-rename-apply-run'),
-                    onPressed: result != null &&
-                            result.canApply &&
-                            !_previewing &&
-                            !_applying
-                        ? _applyRename
-                        : null,
-                    icon: Icon(
-                      _applying
-                          ? Icons.hourglass_top_rounded
-                          : Icons.done_rounded,
-                    ),
-                    label: Text(_applying ? 'Applying' : 'Apply'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceRenameResultView(
-                result: result,
-                applyResult: _applyResult,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceRenameResultView extends StatelessWidget {
-  const _WorkspaceRenameResultView({
-    required this.result,
-    required this.applyResult,
-  });
-
-  final WorkspaceRenameResult? result;
-  final WorkspaceRenameApplyResult? applyResult;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final renameResult = result;
-    if (renameResult == null) {
-      return Text(
-        'No rename preview yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (renameResult.status) {
-      WorkspaceRenameStatus.ready => const Color(0xFFE3F1E1),
-      WorkspaceRenameStatus.noChanges => const Color(0xFFEEE9F2),
-      WorkspaceRenameStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceRenameStatus.noTarget => const Color(0xFFF5E1DE),
-      WorkspaceRenameStatus.conflict => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (renameResult.status) {
-      WorkspaceRenameStatus.ready => 'ready',
-      WorkspaceRenameStatus.noChanges => 'no changes',
-      WorkspaceRenameStatus.emptyWorkspace => 'empty',
-      WorkspaceRenameStatus.noTarget => 'no symbol',
-      WorkspaceRenameStatus.conflict => 'blocked',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-rename-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${renameResult.editCount} edits')),
-            Chip(label: Text('${renameResult.matchedFileCount} files')),
-            Chip(label: Text('${renameResult.filesSearched} indexed')),
-            if (renameResult.oldName.isNotEmpty)
-              Chip(
-                label: Text(
-                  '${renameResult.oldName} -> ${renameResult.newName}',
-                ),
-              ),
-          ],
-        ),
-        if (renameResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (applyResult?.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (renameResult.edits.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final edit in renameResult.edits.take(80)) ...[
-            _WorkspaceRenameEditTile(edit: edit),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceRenameEditTile extends StatelessWidget {
-  const _WorkspaceRenameEditTile({required this.edit});
-
-  final WorkspaceRenameEdit edit;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Ink(
-      key: ValueKey(
-        'workspace-rename-edit-${edit.filePath}-${edit.range.start}',
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F4ED),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.drive_file_rename_outline_rounded, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${edit.filePath}:${edit.line + 1}:${edit.column + 1}',
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (edit.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    edit.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _WorkspaceSymbolSearchSurface extends StatefulWidget {
-  const _WorkspaceSymbolSearchSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceSymbolSearchSurface> createState() =>
-      _WorkspaceSymbolSearchSurfaceState();
-}
-
-class _WorkspaceSymbolSearchSurfaceState
-    extends State<_WorkspaceSymbolSearchSurface> {
-  final TextEditingController _queryController = TextEditingController();
-  WorkspaceSymbolSearchResult? _result;
-  bool _searching = false;
-  int _searchGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _queryController.addListener(_handleQueryChanged);
-    _runSearch();
-  }
-
-  @override
-  void dispose() {
-    _queryController.removeListener(_handleQueryChanged);
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  void _handleQueryChanged() {
-    _runSearch();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _searching = true;
-    });
-    final result = await widget.shell.searchWorkspaceSymbols(
-      WorkspaceSymbolSearchQuery(
-        pattern: _queryController.text,
-        maxResults: 100,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _searching = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceSymbolSearchItem item) async {
-    await widget.shell.openWorkspaceSymbol(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceSymbolSearch;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceSymbolSearch;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_searching) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-symbol-search-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Workspace Symbols',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Workspace Symbols',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-symbol-search-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Symbol name',
-                  prefixIcon: Icon(Icons.account_tree_outlined),
-                ),
-                onSubmitted: (_) {
-                  final firstItem =
-                      result != null && result.items.isNotEmpty
-                      ? result.items.first
-                      : null;
-                  if (firstItem != null) {
-                    _openItem(firstItem);
-                  }
-                },
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceSymbolSearchResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceSymbolSearchResultView extends StatelessWidget {
-  const _WorkspaceSymbolSearchResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceSymbolSearchResult? result;
-  final Future<void> Function(WorkspaceSymbolSearchItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final symbolResult = result;
-    if (symbolResult == null) {
-      return Text(
-        'No symbols indexed yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (symbolResult.status) {
-      WorkspaceSymbolSearchStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceSymbolSearchStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceSymbolSearchStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (symbolResult.status) {
-      WorkspaceSymbolSearchStatus.completed => 'ready',
-      WorkspaceSymbolSearchStatus.hitLimit => 'limited',
-      WorkspaceSymbolSearchStatus.emptyWorkspace => 'empty',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-symbol-search-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${symbolResult.matchCount} matches')),
-            Chip(label: Text('${symbolResult.matchedFileCount} files')),
-            Chip(label: Text('${symbolResult.symbolsIndexed} symbols')),
-            Chip(label: Text('${symbolResult.filesSearched} indexed')),
-          ],
-        ),
-        if (symbolResult.items.isEmpty) ...[
-          const SizedBox(height: 10),
-          Text('No matching symbols.', style: theme.textTheme.bodySmall),
-        ],
-        if (symbolResult.items.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in symbolResult.items.take(50)) ...[
-            _WorkspaceSymbolSearchItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceSymbolSearchItemTile extends StatelessWidget {
-  const _WorkspaceSymbolSearchItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceSymbolSearchItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-symbol-search-item-${item.filePath}-${item.nameRange.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_workspaceSymbolIcon(item.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (item.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      item.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Chip(label: Text(item.kindLabel)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceReferenceSearchSurface extends StatefulWidget {
-  const _WorkspaceReferenceSearchSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceReferenceSearchSurface> createState() =>
-      _WorkspaceReferenceSearchSurfaceState();
-}
-
-class _WorkspaceReferenceSearchSurfaceState
-    extends State<_WorkspaceReferenceSearchSurface> {
-  final TextEditingController _queryController = TextEditingController();
-  WorkspaceReferenceSearchResult? _result;
-  bool _includeDefinitions = true;
-  bool _includeReads = true;
-  bool _includeWrites = true;
-  bool _searching = false;
-  int _searchGeneration = 0;
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _searching = true;
-    });
-    final result = await widget.shell.findWorkspaceReferences(
-      WorkspaceReferenceSearchQuery(
-        pattern: _queryController.text,
-        includeDefinitions: _includeDefinitions,
-        accessKinds: <ReferenceAccess>{
-          if (_includeDefinitions) ReferenceAccess.declaration,
-          if (_includeReads) ReferenceAccess.read,
-          if (_includeWrites) ReferenceAccess.write,
-        },
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _searching = false;
-    });
-  }
-
-  Future<void> _openItem(WorkspaceReferenceSearchItem item) async {
-    await widget.shell.openWorkspaceReference(item);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceReferenceSearch;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceReferenceSearch;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_searching) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-reference-search-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Find Usages', style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Find Usages',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-reference-search-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Symbol name',
-                  prefixIcon: Icon(Icons.manage_search_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-reference-search-include-definitions',
-                    ),
-                    selected: _includeDefinitions,
-                    label: const Text('Definitions'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeDefinitions = selected;
-                      });
-                      if (result != null) {
-                        _runSearch();
-                      }
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-reference-search-include-reads',
-                    ),
-                    selected: _includeReads,
-                    label: const Text('Reads'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeReads = selected;
-                      });
-                      if (result != null) {
-                        _runSearch();
-                      }
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey(
-                      'workspace-reference-search-include-writes',
-                    ),
-                    selected: _includeWrites,
-                    label: const Text('Writes'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _includeWrites = selected;
-                      });
-                      if (result != null) {
-                        _runSearch();
-                      }
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-reference-search-run'),
-                    onPressed: _searching
-                        ? null
-                        : () {
-                            _runSearch();
-                          },
-                    icon: Icon(
-                      _searching
-                          ? Icons.hourglass_top_rounded
-                          : Icons.manage_search_rounded,
-                    ),
-                    label: Text(_searching ? 'Finding' : 'Find'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceReferenceSearchResultView(
-                result: result,
-                onOpenItem: _openItem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceReferenceSearchResultView extends StatelessWidget {
-  const _WorkspaceReferenceSearchResultView({
-    required this.result,
-    required this.onOpenItem,
-  });
-
-  final WorkspaceReferenceSearchResult? result;
-  final Future<void> Function(WorkspaceReferenceSearchItem item) onOpenItem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final referenceResult = result;
-    if (referenceResult == null) {
-      return Text(
-        'No usages queried yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (referenceResult.status) {
-      WorkspaceReferenceSearchStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceReferenceSearchStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceReferenceSearchStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceReferenceSearchStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceReferenceSearchStatus.noDefinitions => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (referenceResult.status) {
-      WorkspaceReferenceSearchStatus.completed => 'completed',
-      WorkspaceReferenceSearchStatus.hitLimit => 'limited',
-      WorkspaceReferenceSearchStatus.emptyPattern => 'empty',
-      WorkspaceReferenceSearchStatus.emptyWorkspace => 'empty',
-      WorkspaceReferenceSearchStatus.noDefinitions => 'no symbol',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-reference-search-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${referenceResult.matchCount} references')),
-            Chip(label: Text('${referenceResult.matchedFileCount} files')),
-            Chip(label: Text('${referenceResult.definitions.length} symbols')),
-            Chip(label: Text('${referenceResult.declarationCount} decls')),
-            Chip(label: Text('${referenceResult.readCount} reads')),
-            Chip(label: Text('${referenceResult.writeCount} writes')),
-            Chip(label: Text('${referenceResult.filesSearched} indexed')),
-          ],
-        ),
-        if (referenceResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (referenceResult.references.isEmpty &&
-            referenceResult.message == null) ...[
-          const SizedBox(height: 10),
-          Text('No matching usages.', style: theme.textTheme.bodySmall),
-        ],
-        if (referenceResult.references.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final item in referenceResult.references.take(60)) ...[
-            _WorkspaceReferenceSearchItemTile(
-              item: item,
-              onTap: () {
-                onOpenItem(item);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceReferenceSearchItemTile extends StatelessWidget {
-  const _WorkspaceReferenceSearchItemTile({
-    required this.item,
-    required this.onTap,
-  });
-
-  final WorkspaceReferenceSearchItem item;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-reference-search-item-${item.filePath}-${item.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_workspaceReferenceKindIcon(item.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${item.filePath}:${item.line + 1}:${item.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (item.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      item.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(item.isDefinition ? 'definition' : 'usage')),
-                Chip(label: Text(item.accessLabel)),
-                Chip(label: Text(item.definition.kindLabel)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCallHierarchySurface extends StatefulWidget {
-  const _WorkspaceCallHierarchySurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceCallHierarchySurface> createState() =>
-      _WorkspaceCallHierarchySurfaceState();
-}
-
-class _WorkspaceCallHierarchySurfaceState
-    extends State<_WorkspaceCallHierarchySurface> {
-  final TextEditingController _queryController = TextEditingController();
-  WorkspaceCallHierarchyDirection _direction =
-      WorkspaceCallHierarchyDirection.incoming;
-  WorkspaceCallHierarchyResult? _result;
-  bool _loading = false;
-  int _searchGeneration = 0;
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    final generation = _searchGeneration + 1;
-    _searchGeneration = generation;
-    setState(() {
-      _loading = true;
-    });
-    final result = await widget.shell.buildWorkspaceCallHierarchy(
-      WorkspaceCallHierarchyQuery(
-        pattern: _queryController.text,
-        direction: _direction,
-        maxResults: 120,
-      ),
-    );
-    if (!mounted || generation != _searchGeneration) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openCall(WorkspaceCallHierarchyCall call) async {
-    if (call.locations.isEmpty) {
-      return;
-    }
-    await widget.shell.openWorkspaceCallHierarchyLocation(call.firstLocation);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceCallHierarchy;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceCallHierarchy;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_loading) const Chip(label: Text('indexing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-call-hierarchy-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Call Hierarchy',
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Call Hierarchy',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-call-hierarchy-query-field'),
-                controller: _queryController,
-                decoration: const InputDecoration(
-                  labelText: 'Callable symbol',
-                  prefixIcon: Icon(Icons.account_tree_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runSearch();
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SegmentedButton<WorkspaceCallHierarchyDirection>(
-                    key: const ValueKey('workspace-call-hierarchy-direction'),
-                    segments:
-                        const <ButtonSegment<WorkspaceCallHierarchyDirection>>[
-                      ButtonSegment<WorkspaceCallHierarchyDirection>(
-                        value: WorkspaceCallHierarchyDirection.incoming,
-                        icon: Icon(Icons.call_received_rounded),
-                        label: Text('Incoming'),
-                      ),
-                      ButtonSegment<WorkspaceCallHierarchyDirection>(
-                        value: WorkspaceCallHierarchyDirection.outgoing,
-                        icon: Icon(Icons.call_made_rounded),
-                        label: Text('Outgoing'),
-                      ),
-                    ],
-                    selected: <WorkspaceCallHierarchyDirection>{_direction},
-                    onSelectionChanged: (selection) {
-                      final nextDirection = selection.first;
-                      setState(() {
-                        _direction = nextDirection;
-                      });
-                      if (result != null) {
-                        _runSearch();
-                      }
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-call-hierarchy-run'),
-                    onPressed: _loading
-                        ? null
-                        : () {
-                            _runSearch();
-                          },
-                    icon: Icon(
-                      _loading
-                          ? Icons.hourglass_top_rounded
-                          : Icons.account_tree_rounded,
-                    ),
-                    label: Text(_loading ? 'Building' : 'Build'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceCallHierarchyResultView(
-                result: result,
-                onOpenCall: _openCall,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCallHierarchyResultView extends StatelessWidget {
-  const _WorkspaceCallHierarchyResultView({
-    required this.result,
-    required this.onOpenCall,
-  });
-
-  final WorkspaceCallHierarchyResult? result;
-  final Future<void> Function(WorkspaceCallHierarchyCall call) onOpenCall;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final hierarchyResult = result;
-    if (hierarchyResult == null) {
-      return Text(
-        'No call hierarchy built yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (hierarchyResult.status) {
-      WorkspaceCallHierarchyStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceCallHierarchyStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceCallHierarchyStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceCallHierarchyStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceCallHierarchyStatus.noDefinitions => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (hierarchyResult.status) {
-      WorkspaceCallHierarchyStatus.completed => 'completed',
-      WorkspaceCallHierarchyStatus.hitLimit => 'limited',
-      WorkspaceCallHierarchyStatus.emptyPattern => 'empty',
-      WorkspaceCallHierarchyStatus.emptyWorkspace => 'empty',
-      WorkspaceCallHierarchyStatus.noDefinitions => 'no symbol',
-    };
-    final directionLabel =
-        hierarchyResult.query.direction ==
-            WorkspaceCallHierarchyDirection.incoming
-        ? 'incoming'
-        : 'outgoing';
-
-    return Column(
-      key: const ValueKey('workspace-call-hierarchy-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${hierarchyResult.callCount} nodes')),
-            Chip(label: Text('${hierarchyResult.referenceCount} references')),
-            Chip(label: Text('${hierarchyResult.filesSearched} indexed')),
-            Chip(label: Text(directionLabel)),
-          ],
-        ),
-        if (hierarchyResult.target case final target?) ...[
-          const SizedBox(height: 10),
-          _WorkspaceCallHierarchyTargetTile(symbol: target),
-        ],
-        if (hierarchyResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (hierarchyResult.calls.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final call in hierarchyResult.calls.take(60)) ...[
-            _WorkspaceCallHierarchyCallTile(
-              call: call,
-              onTap: () {
-                onOpenCall(call);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceCallHierarchyTargetTile extends StatelessWidget {
-  const _WorkspaceCallHierarchyTargetTile({required this.symbol});
-
-  final WorkspaceCallHierarchySymbol symbol;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return DecoratedBox(
-      key: const ValueKey('workspace-call-hierarchy-target'),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F0F4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(_workspaceCallHierarchyKindIcon(symbol.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    symbol.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${symbol.filePath}:${symbol.line + 1}:${symbol.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Chip(label: Text(symbol.kindLabel)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCallHierarchyCallTile extends StatelessWidget {
-  const _WorkspaceCallHierarchyCallTile({
-    required this.call,
-    required this.onTap,
-  });
-
-  final WorkspaceCallHierarchyCall call;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final location = call.firstLocation;
-    return InkWell(
-      key: ValueKey(
-        'workspace-call-hierarchy-item-${call.symbol.filePath}-'
-        '${call.symbol.range.start}-${location.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(_workspaceCallHierarchyKindIcon(call.symbol.kind), size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    call.symbol.name,
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${location.filePath}:${location.line + 1}:${location.column + 1}',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (location.previewText.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      location.previewText,
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(call.symbol.kindLabel)),
-                Chip(label: Text('${call.referenceCount} ref')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceSearchSurface extends StatefulWidget {
-  const _WorkspaceSearchSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceSearchSurface> createState() =>
-      _WorkspaceSearchSurfaceState();
-}
-
-class _WorkspaceSearchSurfaceState extends State<_WorkspaceSearchSurface> {
-  final TextEditingController _queryController = TextEditingController();
-  final TextEditingController _replaceController = TextEditingController();
-  final TextEditingController _includeController = TextEditingController(
-    text: '**/*.styio',
-  );
-  final TextEditingController _excludeController = TextEditingController();
-  bool _literal = true;
-  bool _caseSensitive = false;
-  bool _searching = false;
-
-  @override
-  void dispose() {
-    _queryController.dispose();
-    _replaceController.dispose();
-    _includeController.dispose();
-    _excludeController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runSearch() async {
-    if (_searching) {
-      return;
-    }
-    setState(() {
-      _searching = true;
-    });
-    await widget.shell.searchWorkspaceText(
-      WorkspaceTextSearchQuery(
-        pattern: _queryController.text,
-        literal: _literal,
-        caseSensitive: _caseSensitive,
-        includeGlobs: _splitGlobs(_includeController.text),
-        excludeGlobs: _splitGlobs(_excludeController.text),
-        maxResults: 100,
-      ),
-    );
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _searching = false;
-    });
-  }
-
-  Future<void> _previewReplace() async {
-    if (_searching) {
-      return;
-    }
-    setState(() {
-      _searching = true;
-    });
-    await widget.shell.previewWorkspaceReplace(_replaceQuery());
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _searching = false;
-    });
-  }
-
-  Future<void> _applyReplace() async {
-    if (_searching) {
-      return;
-    }
-    setState(() {
-      _searching = true;
-    });
-    await widget.shell.applyWorkspaceReplace(_replaceQuery());
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _searching = false;
-    });
-  }
-
-  WorkspaceTextReplaceQuery _replaceQuery() {
-    return WorkspaceTextReplaceQuery(
-      pattern: _queryController.text,
-      replacement: _replaceController.text,
-      literal: _literal,
-      caseSensitive: _caseSensitive,
-      includeGlobs: _splitGlobs(_includeController.text),
-      excludeGlobs: _splitGlobs(_excludeController.text),
-      maxResults: 100,
-    );
-  }
-
-  List<String> _splitGlobs(String value) {
-    return value
-        .split(RegExp(r'[,\n]'))
-        .map((entry) => entry.trim())
-        .where((entry) => entry.isNotEmpty)
-        .toList(growable: false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final result = widget.shell.lastWorkspaceSearch;
-    final replacePreview = widget.shell.lastWorkspaceReplace;
-    final compact = widget.viewportProfile.isMobile;
-
-    return Card(
-      key: const ValueKey('workspace-search-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Find in Files',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  ),
-                  Chip(
-                    label: Text(
-                      '${widget.shell.workspaceController.files.length} files',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              compact
-                  ? Column(
-                      children: _searchInputs(compact: true),
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _searchInputs(compact: false),
-                    ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilterChip(
-                    key: const ValueKey('workspace-search-literal-mode'),
-                    selected: _literal,
-                    label: const Text('Literal'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _literal = selected || !_literal;
-                      });
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey('workspace-search-regex-mode'),
-                    selected: !_literal,
-                    label: const Text('Regex'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _literal = !selected;
-                      });
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey('workspace-search-case-sensitive'),
-                    selected: _caseSensitive,
-                    label: const Text('Match case'),
-                    onSelected: (selected) {
-                      setState(() {
-                        _caseSensitive = selected;
-                      });
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-search-run'),
-                    onPressed: _searching
-                        ? null
-                        : () {
-                            _runSearch();
-                          },
-                    icon: Icon(
-                      _searching
-                          ? Icons.hourglass_top_rounded
-                          : Icons.manage_search_rounded,
-                    ),
-                    label: Text(_searching ? 'Searching' : 'Search'),
-                  ),
-                  OutlinedButton.icon(
-                    key: const ValueKey('workspace-replace-preview'),
-                    onPressed: _searching
-                        ? null
-                        : () {
-                            _previewReplace();
-                          },
-                    icon: const Icon(Icons.find_replace_rounded),
-                    label: const Text('Preview Replace'),
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-replace-apply'),
-                    onPressed: _searching
-                        ? null
-                        : () {
-                            _applyReplace();
-                          },
-                    icon: const Icon(Icons.done_all_rounded),
-                    label: const Text('Replace All'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              if (replacePreview != null)
-                _WorkspaceReplaceResultView(
-                  preview: replacePreview,
-                  onOpenMatch: widget.shell.openWorkspaceSearchMatch,
-                )
-              else
-                _WorkspaceSearchResultView(
-                  result: result,
-                  onOpenMatch: widget.shell.openWorkspaceSearchMatch,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _searchInputs({required bool compact}) {
-    final queryField = TextField(
-      key: const ValueKey('workspace-search-query-field'),
-      controller: _queryController,
-      decoration: const InputDecoration(
-        labelText: 'Search',
-        prefixIcon: Icon(Icons.search_rounded),
-      ),
-      onSubmitted: (_) {
-        _runSearch();
-      },
-    );
-    final replaceField = TextField(
-      key: const ValueKey('workspace-replace-field'),
-      controller: _replaceController,
-      decoration: const InputDecoration(
-        labelText: 'Replace',
-        prefixIcon: Icon(Icons.find_replace_rounded),
-      ),
-      onSubmitted: (_) {
-        _previewReplace();
-      },
-    );
-    final includeField = TextField(
-      key: const ValueKey('workspace-search-include-field'),
-      controller: _includeController,
-      decoration: const InputDecoration(labelText: 'Include'),
-      onSubmitted: (_) {
-        _runSearch();
-      },
-    );
-    final excludeField = TextField(
-      key: const ValueKey('workspace-search-exclude-field'),
-      controller: _excludeController,
-      decoration: const InputDecoration(labelText: 'Exclude'),
-      onSubmitted: (_) {
-        _runSearch();
-      },
-    );
-
-    if (compact) {
-      return [
-        queryField,
-        const SizedBox(height: 10),
-        replaceField,
-        const SizedBox(height: 10),
-        includeField,
-        const SizedBox(height: 10),
-        excludeField,
-      ];
-    }
-
-    return [
-      Expanded(flex: 3, child: queryField),
-      const SizedBox(width: 10),
-      Expanded(flex: 3, child: replaceField),
-      const SizedBox(width: 10),
-      Expanded(flex: 2, child: includeField),
-      const SizedBox(width: 10),
-      Expanded(flex: 2, child: excludeField),
-    ];
-  }
-}
-
-class _WorkspaceReplaceResultView extends StatelessWidget {
-  const _WorkspaceReplaceResultView({
-    required this.preview,
-    required this.onOpenMatch,
-  });
-
-  final WorkspaceTextReplacePreview preview;
-  final Future<void> Function(WorkspaceTextSearchMatch match) onOpenMatch;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final statusColor = switch (preview.status) {
-      WorkspaceTextSearchStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceTextSearchStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceTextSearchStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceTextSearchStatus.invalidPattern => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (preview.status) {
-      WorkspaceTextSearchStatus.completed => 'replace preview',
-      WorkspaceTextSearchStatus.hitLimit => 'limited',
-      WorkspaceTextSearchStatus.emptyPattern => 'empty',
-      WorkspaceTextSearchStatus.invalidPattern => 'invalid',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-replace-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${preview.replacementCount} replacements')),
-            Chip(label: Text('${preview.matchedFileCount} files')),
-            Chip(label: Text('${preview.filesSearched} scanned')),
-          ],
-        ),
-        if (preview.message != null) ...[
-          const SizedBox(height: 8),
-          Text(preview.message!, style: theme.textTheme.bodySmall),
-        ],
-        if (preview.matches.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final match in preview.matches.take(40)) ...[
-            _WorkspaceReplaceMatchTile(
-              match: match,
-              onTap: () {
-                onOpenMatch(match.searchMatch);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceReplaceMatchTile extends StatelessWidget {
-  const _WorkspaceReplaceMatchTile({
-    required this.match,
-    required this.onTap,
-  });
-
-  final WorkspaceTextReplaceMatch match;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final replacementText = match.replacementPreviewText.isEmpty
-        ? '(empty replacement)'
-        : match.replacementPreviewText;
-    return InkWell(
-      key: ValueKey(
-        'workspace-replace-match-${match.filePath}-${match.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.find_replace_rounded, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${match.filePath}:${match.line + 1}:${match.column + 1}',
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    match.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    replacementText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceSearchResultView extends StatelessWidget {
-  const _WorkspaceSearchResultView({
-    required this.result,
-    required this.onOpenMatch,
-  });
-
-  final WorkspaceTextSearchResult? result;
-  final Future<void> Function(WorkspaceTextSearchMatch match) onOpenMatch;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final searchResult = result;
-    if (searchResult == null) {
-      return Text(
-        'No search results yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (searchResult.status) {
-      WorkspaceTextSearchStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceTextSearchStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceTextSearchStatus.emptyPattern => const Color(0xFFEEE9F2),
-      WorkspaceTextSearchStatus.invalidPattern => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (searchResult.status) {
-      WorkspaceTextSearchStatus.completed => 'completed',
-      WorkspaceTextSearchStatus.hitLimit => 'limited',
-      WorkspaceTextSearchStatus.emptyPattern => 'empty',
-      WorkspaceTextSearchStatus.invalidPattern => 'invalid',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-search-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${searchResult.matchCount} matches')),
-            Chip(label: Text('${searchResult.matchedFileCount} files')),
-            Chip(label: Text('${searchResult.filesSearched} scanned')),
-          ],
-        ),
-        if (searchResult.message != null) ...[
-          const SizedBox(height: 8),
-          Text(searchResult.message!, style: theme.textTheme.bodySmall),
-        ],
-        if (searchResult.matches.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final match in searchResult.matches.take(40)) ...[
-            _WorkspaceSearchMatchTile(
-              match: match,
-              onTap: () {
-                onOpenMatch(match);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceSearchMatchTile extends StatelessWidget {
-  const _WorkspaceSearchMatchTile({
-    required this.match,
-    required this.onTap,
-  });
-
-  final WorkspaceTextSearchMatch match;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-search-match-${match.filePath}-${match.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.manage_search_rounded, size: 18),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${match.filePath}:${match.line + 1}:${match.column + 1}',
-                    style: theme.textTheme.titleSmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    match.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceProblemsSurface extends StatefulWidget {
-  const _WorkspaceProblemsSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceProblemsSurface> createState() =>
-      _WorkspaceProblemsSurfaceState();
-}
-
-class _WorkspaceProblemsSurfaceState extends State<_WorkspaceProblemsSurface> {
-  final TextEditingController _filterController = TextEditingController();
-  Set<DiagnosticSeverity> _severities = const <DiagnosticSeverity>{
-    DiagnosticSeverity.error,
-    DiagnosticSeverity.warning,
-    DiagnosticSeverity.hint,
-  };
-  WorkspaceProblemsResult? _result;
-  bool _loading = false;
-  int _generation = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _runCollection();
-  }
-
-  @override
-  void dispose() {
-    _filterController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runCollection() async {
-    final generation = _generation + 1;
-    _generation = generation;
-    setState(() {
-      _loading = true;
-    });
-    final result = await widget.shell.collectWorkspaceProblems(
-      WorkspaceProblemsQuery(
-        pattern: _filterController.text,
-        severities: _severities,
-        maxResults: 200,
-      ),
-    );
-    if (!mounted || generation != _generation) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _loading = false;
-    });
-  }
-
-  Future<void> _openProblem(WorkspaceProblemItem problem) async {
-    await widget.shell.openWorkspaceProblem(problem);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = widget.shell.lastWorkspaceProblems;
-    });
-  }
-
-  void _toggleSeverity(DiagnosticSeverity severity, bool selected) {
-    final next = <DiagnosticSeverity>{..._severities};
-    if (selected) {
-      next.add(severity);
-    } else {
-      next.remove(severity);
-    }
-    setState(() {
-      _severities = next;
-    });
-    _runCollection();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceProblems;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_loading) const Chip(label: Text('analyzing')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-problems-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Problems', style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Problems',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-problems-filter-field'),
-                controller: _filterController,
-                decoration: const InputDecoration(
-                  labelText: 'Filter',
-                  prefixIcon: Icon(Icons.filter_list_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runCollection();
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilterChip(
-                    key: const ValueKey('workspace-problems-errors'),
-                    selected: _severities.contains(DiagnosticSeverity.error),
-                    label: const Text('Errors'),
-                    onSelected: (selected) {
-                      _toggleSeverity(DiagnosticSeverity.error, selected);
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey('workspace-problems-warnings'),
-                    selected: _severities.contains(DiagnosticSeverity.warning),
-                    label: const Text('Warnings'),
-                    onSelected: (selected) {
-                      _toggleSeverity(DiagnosticSeverity.warning, selected);
-                    },
-                  ),
-                  FilterChip(
-                    key: const ValueKey('workspace-problems-hints'),
-                    selected: _severities.contains(DiagnosticSeverity.hint),
-                    label: const Text('Hints'),
-                    onSelected: (selected) {
-                      _toggleSeverity(DiagnosticSeverity.hint, selected);
-                    },
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-problems-refresh'),
-                    onPressed: _loading
-                        ? null
-                        : () {
-                            _runCollection();
-                          },
-                    icon: Icon(
-                      _loading
-                          ? Icons.hourglass_top_rounded
-                          : Icons.refresh_rounded,
-                    ),
-                    label: Text(_loading ? 'Analyzing' : 'Refresh'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceProblemsResultView(
-                result: result,
-                onOpenProblem: _openProblem,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceProblemsResultView extends StatelessWidget {
-  const _WorkspaceProblemsResultView({
-    required this.result,
-    required this.onOpenProblem,
-  });
-
-  final WorkspaceProblemsResult? result;
-  final Future<void> Function(WorkspaceProblemItem problem) onOpenProblem;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final problemsResult = result;
-    if (problemsResult == null) {
-      return Text(
-        'No workspace diagnostics collected yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (problemsResult.status) {
-      WorkspaceProblemsStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceProblemsStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceProblemsStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-    };
-    final statusLabel = switch (problemsResult.status) {
-      WorkspaceProblemsStatus.completed => 'completed',
-      WorkspaceProblemsStatus.hitLimit => 'limited',
-      WorkspaceProblemsStatus.emptyWorkspace => 'empty',
-    };
-
-    return Column(
-      key: const ValueKey('workspace-problems-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${problemsResult.problemCount} problems')),
-            Chip(label: Text('${problemsResult.errorCount} errors')),
-            Chip(label: Text('${problemsResult.warningCount} warnings')),
-            Chip(label: Text('${problemsResult.hintCount} hints')),
-            Chip(label: Text('${problemsResult.matchedFileCount} files')),
-            Chip(label: Text('${problemsResult.filesSearched} indexed')),
-          ],
-        ),
-        if (problemsResult.message case final message?) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (problemsResult.problems.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final problem in problemsResult.problems.take(80)) ...[
-            _WorkspaceProblemTile(
-              problem: problem,
-              onTap: () {
-                onOpenProblem(problem);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceProblemTile extends StatelessWidget {
-  const _WorkspaceProblemTile({
-    required this.problem,
-    required this.onTap,
-  });
-
-  final WorkspaceProblemItem problem;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      key: ValueKey(
-        'workspace-problem-${problem.filePath}-${problem.range.start}',
-      ),
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Ink(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F4ED),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.dividerColor),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 520;
-            final details = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  problem.diagnostic.message,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${problem.filePath}:${problem.line + 1}:${problem.column + 1}',
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (problem.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    problem.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            );
-            final badges = Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                Chip(label: Text(problem.severity.name)),
-                Chip(label: Text(problem.diagnostic.code)),
-              ],
-            );
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  _workspaceProblemIcon(problem.severity),
-                  color: _workspaceProblemColor(problem.severity),
-                  size: 18,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: compact
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            details,
-                            const SizedBox(height: 8),
-                            badges,
-                          ],
-                        )
-                      : details,
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: badges,
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCodeActionsSurface extends StatefulWidget {
-  const _WorkspaceCodeActionsSurface({
-    required this.shell,
-    required this.viewportProfile,
-  });
-
-  final ShellModel shell;
-  final ViewportProfile viewportProfile;
-
-  @override
-  State<_WorkspaceCodeActionsSurface> createState() =>
-      _WorkspaceCodeActionsSurfaceState();
-}
-
-class _WorkspaceCodeActionsSurfaceState
-    extends State<_WorkspaceCodeActionsSurface> {
-  final TextEditingController _filterController = TextEditingController();
-  WorkspaceCodeActionsResult? _result;
-  WorkspaceCodeActionApplyResult? _applyResult;
-  bool _loading = false;
-  bool _applying = false;
-  int _generation = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _runCollection();
-  }
-
-  @override
-  void dispose() {
-    _filterController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _runCollection() async {
-    final generation = _generation + 1;
-    _generation = generation;
-    setState(() {
-      _loading = true;
-    });
-    final result = await widget.shell.collectWorkspaceCodeActions(
-      WorkspaceCodeActionsQuery(
-        pattern: _filterController.text,
-        maxResults: 50,
-      ),
-    );
-    if (!mounted || generation != _generation) {
-      return;
-    }
-    setState(() {
-      _result = result;
-      _loading = false;
-      _applyResult = null;
-    });
-  }
-
-  Future<void> _applyAction(WorkspaceCodeActionItem action) async {
-    if (_applying) {
-      return;
-    }
-    final source = _result ?? widget.shell.lastWorkspaceCodeActions;
-    if (source == null) {
-      return;
-    }
-    setState(() {
-      _applying = true;
-    });
-    final result = await widget.shell.applyWorkspaceCodeAction(
-      query: source.query,
-      actionId: action.id,
-    );
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _result = result.preview;
-      _applyResult = result;
-      _applying = false;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final compact = widget.viewportProfile.isMobile;
-    final result = _result ?? widget.shell.lastWorkspaceCodeActions;
-    final headerChips = <Widget>[
-      Chip(
-        label: Text('${widget.shell.workspaceController.files.length} files'),
-      ),
-      if (_loading) const Chip(label: Text('analyzing')),
-      if (_applying) const Chip(label: Text('applying')),
-    ];
-
-    return Card(
-      key: const ValueKey('workspace-code-actions-surface'),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 14 : 18),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Code Actions', style: theme.textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Wrap(spacing: 8, runSpacing: 8, children: headerChips),
-                      ],
-                    )
-                  : Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Code Actions',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                        ),
-                        Wrap(spacing: 8, children: headerChips),
-                      ],
-                    ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('workspace-code-actions-filter-field'),
-                controller: _filterController,
-                decoration: const InputDecoration(
-                  labelText: 'Filter',
-                  prefixIcon: Icon(Icons.filter_list_rounded),
-                ),
-                onSubmitted: (_) {
-                  _runCollection();
-                },
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  FilledButton.icon(
-                    key: const ValueKey('workspace-code-actions-refresh'),
-                    onPressed: _loading || _applying
-                        ? null
-                        : () {
-                            _runCollection();
-                          },
-                    icon: Icon(
-                      _loading
-                          ? Icons.hourglass_top_rounded
-                          : Icons.refresh_rounded,
-                    ),
-                    label: Text(_loading ? 'Analyzing' : 'Refresh'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              _WorkspaceCodeActionsResultView(
-                result: result,
-                applyResult: _applyResult,
-                applying: _applying,
-                onApplyAction: _applyAction,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WorkspaceCodeActionsResultView extends StatelessWidget {
-  const _WorkspaceCodeActionsResultView({
-    required this.result,
-    required this.applyResult,
-    required this.applying,
-    required this.onApplyAction,
-  });
-
-  final WorkspaceCodeActionsResult? result;
-  final WorkspaceCodeActionApplyResult? applyResult;
-  final bool applying;
-  final Future<void> Function(WorkspaceCodeActionItem action) onApplyAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final actionsResult = result;
-    if (actionsResult == null) {
-      return Text(
-        'No workspace code actions collected yet.',
-        style: theme.textTheme.bodySmall,
-      );
-    }
-
-    final statusColor = switch (actionsResult.status) {
-      WorkspaceCodeActionsStatus.completed => const Color(0xFFE3F1E1),
-      WorkspaceCodeActionsStatus.hitLimit => const Color(0xFFF6E9D7),
-      WorkspaceCodeActionsStatus.emptyWorkspace => const Color(0xFFF5E1DE),
-      WorkspaceCodeActionsStatus.noActions => const Color(0xFFEEE9F2),
-    };
-    final statusLabel = switch (actionsResult.status) {
-      WorkspaceCodeActionsStatus.completed => 'completed',
-      WorkspaceCodeActionsStatus.hitLimit => 'limited',
-      WorkspaceCodeActionsStatus.emptyWorkspace => 'empty',
-      WorkspaceCodeActionsStatus.noActions => 'no actions',
-    };
-    final message = applyResult?.message ?? actionsResult.message;
-
-    return Column(
-      key: const ValueKey('workspace-code-actions-results'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _WorkflowStatusChip(label: statusLabel, color: statusColor),
-            Chip(label: Text('${actionsResult.actionCount} actions')),
-            Chip(label: Text('${actionsResult.editCount} edits')),
-            Chip(label: Text('${actionsResult.matchedFileCount} files')),
-            Chip(label: Text('${actionsResult.filesSearched} indexed')),
-            Chip(
-              label: Text('${actionsResult.diagnosticsScanned} diagnostics'),
-            ),
-          ],
-        ),
-        if (message != null) ...[
-          const SizedBox(height: 10),
-          Text(message, style: theme.textTheme.bodySmall),
-        ],
-        if (actionsResult.actions.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          for (final action in actionsResult.actions.take(50)) ...[
-            _WorkspaceCodeActionTile(
-              action: action,
-              applying: applying,
-              onApply: () {
-                onApplyAction(action);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ],
-      ],
-    );
-  }
-}
-
-class _WorkspaceCodeActionTile extends StatelessWidget {
-  const _WorkspaceCodeActionTile({
-    required this.action,
-    required this.applying,
-    required this.onApply,
-  });
-
-  final WorkspaceCodeActionItem action;
-  final bool applying;
-  final VoidCallback onApply;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Ink(
-      key: ValueKey('workspace-code-action-${action.id}'),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F4ED),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 620;
-          final details = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                action.label,
-                style: theme.textTheme.titleSmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (action.detail.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  action.detail,
-                  style: theme.textTheme.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  Chip(label: Text('${action.editCount} edits')),
-                  Chip(label: Text('${action.changedFileCount} files')),
-                  for (final document in action.documents.take(3))
-                    Chip(
-                      label: Text(
-                        '${document.filePath}:${document.line + 1}',
-                      ),
-                    ),
-                ],
-              ),
-              for (final document in action.documents.take(2)) ...[
-                if (document.previewText.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    document.previewText,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ],
-            ],
-          );
-          final button = FilledButton.icon(
-            key: ValueKey('workspace-code-action-apply-${action.id}'),
-            onPressed: applying ? null : onApply,
-            icon: Icon(
-              applying
-                  ? Icons.hourglass_top_rounded
-                  : Icons.check_circle_outline_rounded,
-            ),
-            label: Text(applying ? 'Applying' : 'Apply'),
-          );
-
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                details,
-                const SizedBox(height: 10),
-                Align(alignment: Alignment.centerRight, child: button),
-              ],
-            );
-          }
-
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.lightbulb_outline_rounded,
-                color: theme.colorScheme.primary,
-                size: 18,
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: details),
-              const SizedBox(width: 12),
-              button,
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
 class _RequiredHandoffTile extends StatelessWidget {
   const _RequiredHandoffTile({required this.handoff});
 
@@ -8022,6 +1673,82 @@ class _WorkspaceFileTile extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(child: Text(file, style: theme.textTheme.bodyMedium)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceFileCommandConfirmationCard extends StatelessWidget {
+  const _WorkspaceFileCommandConfirmationCard({
+    required this.pending,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  final WorkspaceFileCommandRouteResult pending;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final plan = pending.confirmationPlan;
+    final request = pending.request;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF2D7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5A93B)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              plan?.title ?? 'Confirm workspace file command',
+              key: const ValueKey('workspace-file-confirmation-title'),
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              pending.message,
+              key: const ValueKey('workspace-file-confirmation-message'),
+              style: theme.textTheme.bodySmall,
+            ),
+            if (request != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '${request.kind.wireValue}: ${request.path}',
+                key: const ValueKey('workspace-file-confirmation-target'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  key: const ValueKey('workspace-file-confirmation-apply'),
+                  onPressed: onConfirm,
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Confirm'),
+                ),
+                OutlinedButton.icon(
+                  key: const ValueKey('workspace-file-confirmation-cancel'),
+                  onPressed: onCancel,
+                  icon: const Icon(Icons.close_rounded),
+                  label: const Text('Cancel'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -8315,84 +2042,24 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.runtime),
       ),
       _SurfaceTabChip(
+        label: 'Terminal',
+        active: shell.activeBottomTab == BottomSurfaceTab.terminal,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.terminal),
+      ),
+      _SurfaceTabChip(
         label: 'Commands',
-        active: shell.activeBottomTab == BottomSurfaceTab.commands,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.commands),
+        active: shell.activeBottomTab == BottomSurfaceTab.commandPalette,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.commandPalette),
       ),
       _SurfaceTabChip(
-        label: 'Navigate',
-        active: shell.activeBottomTab == BottomSurfaceTab.navigate,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.navigate),
+        label: 'Agent',
+        active: shell.activeBottomTab == BottomSurfaceTab.agent,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
       ),
       _SurfaceTabChip(
-        label: 'Locations',
-        active: shell.activeBottomTab == BottomSurfaceTab.locations,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.locations),
-      ),
-      _SurfaceTabChip(
-        label: 'Links',
-        active: shell.activeBottomTab == BottomSurfaceTab.documentLinks,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.documentLinks),
-      ),
-      _SurfaceTabChip(
-        label: 'Highlights',
-        active: shell.activeBottomTab == BottomSurfaceTab.documentHighlights,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.documentHighlights),
-      ),
-      _SurfaceTabChip(
-        label: 'Lenses',
-        active: shell.activeBottomTab == BottomSurfaceTab.codeLenses,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.codeLenses),
-      ),
-      _SurfaceTabChip(
-        label: 'Decls',
-        active: shell.activeBottomTab == BottomSurfaceTab.declarations,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.declarations),
-      ),
-      _SurfaceTabChip(
-        label: 'Definitions',
-        active: shell.activeBottomTab == BottomSurfaceTab.definitions,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.definitions),
-      ),
-      _SurfaceTabChip(
-        label: 'Types',
-        active: shell.activeBottomTab == BottomSurfaceTab.typeDefinitions,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.typeDefinitions),
-      ),
-      _SurfaceTabChip(
-        label: 'Impls',
-        active: shell.activeBottomTab == BottomSurfaceTab.implementations,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.implementations),
-      ),
-      _SurfaceTabChip(
-        label: 'Type Tree',
-        active: shell.activeBottomTab == BottomSurfaceTab.typeHierarchy,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.typeHierarchy),
-      ),
-      _SurfaceTabChip(
-        label: 'Outline',
-        active: shell.activeBottomTab == BottomSurfaceTab.outline,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.outline),
-      ),
-      _SurfaceTabChip(
-        label: 'Rename',
-        active: shell.activeBottomTab == BottomSurfaceTab.rename,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.rename),
-      ),
-      _SurfaceTabChip(
-        label: 'Symbols',
-        active: shell.activeBottomTab == BottomSurfaceTab.symbols,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.symbols),
-      ),
-      _SurfaceTabChip(
-        label: 'Usages',
-        active: shell.activeBottomTab == BottomSurfaceTab.usages,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.usages),
-      ),
-      _SurfaceTabChip(
-        label: 'Calls',
-        active: shell.activeBottomTab == BottomSurfaceTab.calls,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.calls),
+        label: 'SCM',
+        active: shell.activeBottomTab == BottomSurfaceTab.sourceControl,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.sourceControl),
       ),
       _SurfaceTabChip(
         label: 'Search',
@@ -8405,14 +2072,14 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.problems),
       ),
       _SurfaceTabChip(
-        label: 'Actions',
-        active: shell.activeBottomTab == BottomSurfaceTab.actions,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.actions),
+        label: 'Tests',
+        active: shell.activeBottomTab == BottomSurfaceTab.testing,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.testing),
       ),
       _SurfaceTabChip(
-        label: 'Agent',
-        active: shell.activeBottomTab == BottomSurfaceTab.agent,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
+        label: 'Extensions',
+        active: shell.activeBottomTab == BottomSurfaceTab.extensions,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.extensions),
       ),
       _SurfaceTabChip(
         label: 'Debug',
@@ -8434,10 +2101,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, commands, navigate, locations, links, '
-            'highlights, lenses, declarations, definitions, outline, rename, '
-            'symbols, usages, calls, search, problems, actions, agent, debug, '
-            'and settings on one vertical route.',
+            'Mobile shell keeps runtime, terminal, commands, agent, source control, search, problems, testing, extensions, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -8499,52 +2163,22 @@ class _BottomSurfaceTabs extends StatelessWidget {
   }
 }
 
+String _terminalRuntimeEventSummary(RuntimeEventEnvelope event) {
+  final payloadMessage =
+      event.payload['message'] ??
+      event.payload['text'] ??
+      event.payload['line'] ??
+      event.payload['data'];
+  if (payloadMessage == null) {
+    return '${event.eventKind}: ${event.origin}';
+  }
+  return '${event.eventKind}: $payloadMessage';
+}
+
 IconData _commandIcon(AppCommandId commandId) {
   switch (commandId) {
     case AppCommandId.run:
       return Icons.play_arrow_rounded;
-    case AppCommandId.commandPalette:
-      return Icons.keyboard_command_key_rounded;
-    case AppCommandId.quickOpen:
-      return Icons.drive_file_move_outline;
-    case AppCommandId.navigateBack:
-      return Icons.arrow_back_rounded;
-    case AppCommandId.navigateForward:
-      return Icons.arrow_forward_rounded;
-    case AppCommandId.showRecentLocations:
-      return Icons.history_rounded;
-    case AppCommandId.showWorkspaceDocumentLinks:
-      return Icons.link_rounded;
-    case AppCommandId.showWorkspaceDocumentHighlights:
-      return Icons.highlight_alt_rounded;
-    case AppCommandId.showWorkspaceCodeLenses:
-      return Icons.visibility_rounded;
-    case AppCommandId.goToWorkspaceDeclaration:
-      return Icons.subdirectory_arrow_left_rounded;
-    case AppCommandId.goToWorkspaceDefinition:
-      return Icons.subdirectory_arrow_right_rounded;
-    case AppCommandId.goToWorkspaceTypeDefinition:
-      return Icons.category_rounded;
-    case AppCommandId.goToWorkspaceImplementation:
-      return Icons.call_split_rounded;
-    case AppCommandId.showWorkspaceTypeHierarchy:
-      return Icons.account_tree_rounded;
-    case AppCommandId.showWorkspaceOutline:
-      return Icons.view_list_rounded;
-    case AppCommandId.renameWorkspaceSymbol:
-      return Icons.drive_file_rename_outline_rounded;
-    case AppCommandId.searchWorkspaceSymbols:
-      return Icons.account_tree_outlined;
-    case AppCommandId.findWorkspaceReferences:
-      return Icons.link_rounded;
-    case AppCommandId.showWorkspaceCallHierarchy:
-      return Icons.account_tree_rounded;
-    case AppCommandId.searchWorkspace:
-      return Icons.manage_search_rounded;
-    case AppCommandId.showWorkspaceProblems:
-      return Icons.error_outline_rounded;
-    case AppCommandId.showWorkspaceCodeActions:
-      return Icons.lightbulb_outline_rounded;
     case AppCommandId.fetchDependencies:
       return Icons.cloud_download_rounded;
     case AppCommandId.vendorDependencies:
@@ -8555,6 +2189,12 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.push_pin_outlined;
     case AppCommandId.clearPinnedCompiler:
       return Icons.push_pin_rounded;
+    case AppCommandId.bootstrapStyioToolchain:
+      return Icons.build_circle_outlined;
+    case AppCommandId.executeToolchainInstallPlan:
+      return Icons.download_for_offline_outlined;
+    case AppCommandId.selectClangCppVersion:
+      return Icons.developer_board_rounded;
     case AppCommandId.packProject:
       return Icons.archive_rounded;
     case AppCommandId.preparePublish:
@@ -8563,129 +2203,109 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.refresh_rounded;
     case AppCommandId.save:
       return Icons.save_rounded;
+    case AppCommandId.saveAll:
+      return Icons.save_as_rounded;
     case AppCommandId.showRuntime:
       return Icons.terminal_rounded;
     case AppCommandId.showAgent:
       return Icons.smart_toy_outlined;
     case AppCommandId.showDebug:
       return Icons.bug_report_outlined;
+    case AppCommandId.toggleBreakpoint:
+      return Icons.radio_button_checked_rounded;
+    case AppCommandId.startDebugging:
+      return Icons.play_circle_outline_rounded;
+    case AppCommandId.stopDebugging:
+      return Icons.stop_circle_outlined;
+    case AppCommandId.continueDebugging:
+      return Icons.not_started_outlined;
+    case AppCommandId.stepOver:
+      return Icons.skip_next_rounded;
+    case AppCommandId.selectDebugThread:
+      return Icons.account_tree_outlined;
+    case AppCommandId.selectDebugStackFrame:
+      return Icons.layers_outlined;
+    case AppCommandId.nextDiagnostic:
+      return Icons.keyboard_double_arrow_down_rounded;
+    case AppCommandId.previousDiagnostic:
+      return Icons.keyboard_double_arrow_up_rounded;
+    case AppCommandId.applyQuickFix:
+      return Icons.auto_fix_high_rounded;
+    case AppCommandId.previewQuickFix:
+      return Icons.difference_outlined;
+    case AppCommandId.refreshLanguageService:
+      return Icons.manage_search_rounded;
+    case AppCommandId.refreshWorkspaceDiagnostics:
+      return Icons.rule_folder_outlined;
+    case AppCommandId.refreshSourceControl:
+      return Icons.account_tree_rounded;
+    case AppCommandId.previewSourceControlDiff:
+      return Icons.difference_outlined;
+    case AppCommandId.stageSourceControl:
+      return Icons.add_task_rounded;
+    case AppCommandId.unstageSourceControl:
+      return Icons.remove_done_outlined;
+    case AppCommandId.planSourceControlBranchSwitch:
+      return Icons.alt_route_rounded;
+    case AppCommandId.planSourceControlCommitDraft:
+      return Icons.commit_rounded;
+    case AppCommandId.collectAgentCodingCheckpoint:
+      return Icons.assignment_turned_in_outlined;
+    case AppCommandId.collectProjectLanguageContext:
+      return Icons.schema_outlined;
+    case AppCommandId.retryAgentProvider:
+      return Icons.replay_rounded;
+    case AppCommandId.failoverAgentProvider:
+      return Icons.swap_horiz_rounded;
+    case AppCommandId.replayAgentPrompt:
+      return Icons.history_edu_outlined;
+    case AppCommandId.goToDefinition:
+      return Icons.subdirectory_arrow_right_rounded;
+    case AppCommandId.openWorkspaceFile:
+      return Icons.file_open_outlined;
+    case AppCommandId.createWorkspaceFile:
+      return Icons.note_add_outlined;
+    case AppCommandId.renameWorkspaceFile:
+      return Icons.drive_file_rename_outline_rounded;
+    case AppCommandId.deleteWorkspaceFile:
+      return Icons.delete_outline_rounded;
+    case AppCommandId.revealWorkspaceFile:
+      return Icons.folder_open_outlined;
+    case AppCommandId.searchWorkspace:
+      return Icons.search_rounded;
+    case AppCommandId.previewWorkspaceReplace:
+      return Icons.find_replace_rounded;
+    case AppCommandId.applyWorkspaceReplace:
+      return Icons.playlist_add_check_rounded;
+    case AppCommandId.runBuild:
+      return Icons.construction_rounded;
+    case AppCommandId.formatActiveDocument:
+      return Icons.format_align_left_rounded;
+    case AppCommandId.runStaticAnalysis:
+      return Icons.fact_check_outlined;
+    case AppCommandId.runTests:
+      return Icons.science_outlined;
+    case AppCommandId.rerunFailedTests:
+      return Icons.replay_circle_filled_outlined;
+    case AppCommandId.debugFailedTests:
+      return Icons.bug_report_rounded;
+    case AppCommandId.runTestConfiguration:
+      return Icons.playlist_play_rounded;
+    case AppCommandId.debugTestConfiguration:
+      return Icons.science_rounded;
+    case AppCommandId.nextReference:
+      return Icons.keyboard_arrow_down_rounded;
+    case AppCommandId.previousReference:
+      return Icons.keyboard_arrow_up_rounded;
+    case AppCommandId.renameSymbol:
+      return Icons.drive_file_rename_outline_rounded;
+    case AppCommandId.safeDelete:
+      return Icons.delete_sweep_outlined;
+    case AppCommandId.inlineVariable:
+      return Icons.merge_type_rounded;
     case AppCommandId.openSettings:
       return Icons.settings_outlined;
   }
-}
-
-IconData _workspaceNavigationLocationIcon(
-  WorkspaceNavigationLocationKind kind,
-) {
-  return switch (kind) {
-    WorkspaceNavigationLocationKind.caret => Icons.notes_rounded,
-    WorkspaceNavigationLocationKind.file => Icons.description_outlined,
-    WorkspaceNavigationLocationKind.symbol => Icons.account_tree_outlined,
-    WorkspaceNavigationLocationKind.search => Icons.manage_search_rounded,
-    WorkspaceNavigationLocationKind.problem => Icons.error_outline_rounded,
-  };
-}
-
-IconData _workspaceSymbolIcon(SymbolKind kind) {
-  return switch (kind) {
-    SymbolKind.function => Icons.functions_rounded,
-    SymbolKind.pipeline => Icons.schema_outlined,
-    SymbolKind.state => Icons.memory_rounded,
-    SymbolKind.resource => Icons.storage_rounded,
-    SymbolKind.variable => Icons.data_object_rounded,
-    SymbolKind.parameter => Icons.input_rounded,
-    SymbolKind.task => Icons.task_alt_rounded,
-  };
-}
-
-IconData _workspaceBreadcrumbIcon(WorkspaceBreadcrumbItem item) {
-  return switch (item.kind) {
-    WorkspaceBreadcrumbItemKind.folder => Icons.folder_outlined,
-    WorkspaceBreadcrumbItemKind.file => Icons.description_outlined,
-    WorkspaceBreadcrumbItemKind.symbol => _workspaceSymbolIcon(
-      item.symbolKind ?? SymbolKind.variable,
-    ),
-  };
-}
-
-String _workspaceBreadcrumbTooltip(WorkspaceBreadcrumbItem item) {
-  return switch (item.kind) {
-    WorkspaceBreadcrumbItemKind.folder => 'Folder ${item.filePath}',
-    WorkspaceBreadcrumbItemKind.file => item.filePath,
-    WorkspaceBreadcrumbItemKind.symbol =>
-      '${item.kindLabel} ${item.label} · ${item.filePath}'
-          '${item.line == null ? '' : ':${item.line! + 1}:${(item.column ?? 0) + 1}'}',
-  };
-}
-
-IconData _workspaceReferenceKindIcon(StyioProjectSymbolKind kind) {
-  return switch (kind) {
-    StyioProjectSymbolKind.function => Icons.functions_rounded,
-    StyioProjectSymbolKind.resource => Icons.storage_rounded,
-    StyioProjectSymbolKind.task => Icons.task_alt_rounded,
-  };
-}
-
-IconData _workspaceDocumentLinkKindIcon(WorkspaceDocumentLinkKind kind) {
-  return switch (kind) {
-    WorkspaceDocumentLinkKind.workspaceImport => Icons.open_in_new_rounded,
-    WorkspaceDocumentLinkKind.externalImport => Icons.public_rounded,
-    WorkspaceDocumentLinkKind.unresolvedImport => Icons.link_off_rounded,
-  };
-}
-
-IconData _workspaceDocumentHighlightKindIcon(
-  WorkspaceDocumentHighlightKind kind,
-) {
-  return switch (kind) {
-    WorkspaceDocumentHighlightKind.text => Icons.text_fields_rounded,
-    WorkspaceDocumentHighlightKind.declaration => Icons.flag_rounded,
-    WorkspaceDocumentHighlightKind.read => Icons.visibility_outlined,
-    WorkspaceDocumentHighlightKind.write => Icons.edit_rounded,
-  };
-}
-
-IconData _workspaceDeclarationKindIcon(WorkspaceDeclarationKind kind) {
-  return switch (kind) {
-    WorkspaceDeclarationKind.function => Icons.functions_rounded,
-    WorkspaceDeclarationKind.resource => Icons.storage_rounded,
-    WorkspaceDeclarationKind.task => Icons.task_alt_rounded,
-    WorkspaceDeclarationKind.schema => Icons.category_rounded,
-    WorkspaceDeclarationKind.state => Icons.radio_button_checked_rounded,
-  };
-}
-
-IconData _workspaceCallHierarchyKindIcon(
-  WorkspaceCallHierarchySymbolKind kind,
-) {
-  return switch (kind) {
-    WorkspaceCallHierarchySymbolKind.function => Icons.functions_rounded,
-    WorkspaceCallHierarchySymbolKind.task => Icons.task_alt_rounded,
-    WorkspaceCallHierarchySymbolKind.topLevel => Icons.notes_rounded,
-  };
-}
-
-IconData _workspaceTypeHierarchyKindIcon(WorkspaceTypeDefinitionKind kind) {
-  return switch (kind) {
-    WorkspaceTypeDefinitionKind.schema => Icons.category_rounded,
-    WorkspaceTypeDefinitionKind.state => Icons.radio_button_checked_rounded,
-  };
-}
-
-IconData _workspaceProblemIcon(DiagnosticSeverity severity) {
-  return switch (severity) {
-    DiagnosticSeverity.error => Icons.error_outline_rounded,
-    DiagnosticSeverity.warning => Icons.warning_amber_rounded,
-    DiagnosticSeverity.hint => Icons.lightbulb_outline_rounded,
-  };
-}
-
-Color _workspaceProblemColor(DiagnosticSeverity severity) {
-  return switch (severity) {
-    DiagnosticSeverity.error => const Color(0xFF9F3A35),
-    DiagnosticSeverity.warning => const Color(0xFFA36B00),
-    DiagnosticSeverity.hint => const Color(0xFF3F6A9A),
-  };
 }
 
 class _SurfaceTabChip extends StatelessWidget {

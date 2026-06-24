@@ -4,12 +4,17 @@ import '../../view_ide/backend_toolchain/adapter_contracts.dart';
 import '../../view_ide/backend_toolchain/execution_adapter.dart';
 import '../../view_ide/backend_toolchain/execution_route_summary.dart';
 import '../../view_ide/backend_toolchain/project_graph_contract.dart';
+import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/module_host/module_definition.dart';
 import '../../view_ide/module_host/module_manifest.dart';
 import '../../view_ide/platform/platform_target.dart';
-import '../platform/viewport_profile.dart';
+import '../../view_ide/runtime/runtime_output_channels.dart';
+import '../../view_ide/runtime/runtime_surface_feature_registry.dart';
 import '../../view_ide/runtime/runtime_replay_summary.dart';
+import '../../view_ide/shell_runtime/shell_runtime.dart';
+import '../native_tool_result_summary.dart';
+import '../platform/viewport_profile.dart';
 
 typedef ToolchainRecoveryActionHandler =
     Future<void> Function(ToolchainRecoveryAction action);
@@ -26,6 +31,10 @@ class RuntimeSurface extends StatelessWidget {
     required this.adapterCapabilities,
     required this.executionSession,
     required this.runtimeEvents,
+    this.nativeToolResults = const <NativeToolResultRecord>[],
+    this.outputSnapshot,
+    this.outputChannelFilter = const RuntimeOutputChannelFilterState(),
+    this.onOpenNativeToolDiagnostics,
   });
 
   final PlatformTarget platformTarget;
@@ -37,21 +46,15 @@ class RuntimeSurface extends StatelessWidget {
   final List<AdapterCapabilitySnapshot> adapterCapabilities;
   final ExecutionSession? executionSession;
   final List<RuntimeEventEnvelope> runtimeEvents;
+  final List<NativeToolResultRecord> nativeToolResults;
+  final RuntimeOutputPanelSnapshot? outputSnapshot;
+  final RuntimeOutputChannelFilterState outputChannelFilter;
+  final ValueChanged<AppCommandId>? onOpenNativeToolDiagnostics;
 
   @override
   Widget build(BuildContext context) {
-    final runtimeModules = mountedModules
-        .where(
-          (module) => switch (module.manifest.slot) {
-            ModuleSlot.runtimeSurface ||
-            ModuleSlot.localRuntime ||
-            ModuleSlot.cloudRuntime ||
-            ModuleSlot.debugTools => true,
-            _ => false,
-          },
-        )
-        .toList(growable: false);
-    final routeSummary = summarizeExecutionRoute(
+    final runtimeFeatures = runtimeSurfaceFeatureEntriesFor(mountedModules);
+    final routeSelection = selectBackendExecutionRoute(
       platformTarget: platformTarget,
       projectGraph: projectGraph,
       adapterCapabilities: adapterCapabilities,
@@ -60,35 +63,15 @@ class RuntimeSurface extends StatelessWidget {
     final graph = summarizeRuntimeGraph(runtimeEvents);
     final debugLanes = summarizeRuntimeDebugLanes(runtimeEvents);
     final laneCount =
-        runtimeModules.any(
-          (module) => module.manifest.slot == ModuleSlot.localRuntime,
+        runtimeFeatures.any(
+          (feature) => feature.slot == ModuleSlot.localRuntime,
         )
         ? 3
         : (replay.lanes.isNotEmpty ? replay.lanes.length : 1);
-    final executionCapability = adapterCapabilities
-        .firstWhere(
-          (snapshot) => snapshot.adapterKind == AdapterKind.cli,
-          orElse: () => const AdapterCapabilitySnapshot(
-            adapterKind: AdapterKind.cli,
-            languageService: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-            projectGraph: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-            execution: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-            runtimeEvents: AdapterEndpointCapability(
-              level: AdapterCapabilityLevel.unavailable,
-              detail: 'No CLI adapter resolved.',
-            ),
-          ),
-        )
-        .execution;
+    final executionCapability = _executionCapabilityFor(
+      adapterCapabilities,
+      routeSelection.adapterKind,
+    );
     final cardSpacing = viewportProfile.isMobile ? 12.0 : 14.0;
 
     return _SurfaceFrame(
@@ -103,7 +86,7 @@ class RuntimeSurface extends StatelessWidget {
                 _MetricSection(
                   title: 'Execution Route',
                   body:
-                      '${routeSummary.title}. ${routeSummary.body} ${executionCapability.detail}',
+                      '${routeSelection.title} (${routeSelection.routeKind.wireValue}). ${routeSelection.detail} ${executionCapability.detail}',
                   accent: const Color(0xFFD9E8F8),
                 ),
                 SizedBox(height: cardSpacing),
@@ -123,13 +106,26 @@ class RuntimeSurface extends StatelessWidget {
                 _MetricSection(
                   title: 'Registry Gate',
                   body:
-                      '${runtimeModules.length} runtime-related module(s) mounted. Unsupported semantic subsets will continue to degrade explicitly.',
+                      '${runtimeFeatures.length} runtime-related feature(s) mounted. Unsupported semantic subsets will continue to degrade explicitly.',
                   accent: const Color(0xFFE4E7D2),
                 ),
                 SizedBox(height: cardSpacing),
                 _ExecutionSessionSection(
                   executionSession: executionSession,
                   runtimeEventCount: runtimeEvents.length,
+                ),
+                SizedBox(height: cardSpacing),
+                _NativeToolResultSection(
+                  results: nativeToolResults,
+                  onOpenNativeToolDiagnostics: onOpenNativeToolDiagnostics,
+                ),
+                SizedBox(height: cardSpacing),
+                _OutputChannelSection(
+                  executionSession: executionSession,
+                  runtimeEvents: runtimeEvents,
+                  nativeToolResults: nativeToolResults,
+                  outputSnapshot: outputSnapshot,
+                  filter: outputChannelFilter,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -142,7 +138,7 @@ class RuntimeSurface extends StatelessWidget {
                 SizedBox(height: cardSpacing),
                 _ModuleChipSection(
                   title: 'Mounted Runtime Modules',
-                  modules: runtimeModules,
+                  features: runtimeFeatures,
                 ),
               ],
             )
@@ -152,7 +148,7 @@ class RuntimeSurface extends StatelessWidget {
                 _MetricSection(
                   title: 'Execution Route',
                   body:
-                      '${routeSummary.title}. ${routeSummary.body} ${executionCapability.detail}',
+                      '${routeSelection.title} (${routeSelection.routeKind.wireValue}). ${routeSelection.detail} ${executionCapability.detail}',
                   accent: const Color(0xFFD9E8F8),
                 ),
                 SizedBox(height: cardSpacing),
@@ -178,7 +174,7 @@ class RuntimeSurface extends StatelessWidget {
                       child: _MetricSection(
                         title: 'Registry Gate',
                         body:
-                            '${runtimeModules.length} runtime-related module(s) mounted. Surface features will load from the module registry at startup.',
+                            '${runtimeFeatures.length} runtime-related feature(s) mounted. Surface features load from mounted module registry entries at startup.',
                         accent: const Color(0xFFE4E7D2),
                       ),
                     ),
@@ -188,6 +184,19 @@ class RuntimeSurface extends StatelessWidget {
                 _ExecutionSessionSection(
                   executionSession: executionSession,
                   runtimeEventCount: runtimeEvents.length,
+                ),
+                SizedBox(height: cardSpacing),
+                _NativeToolResultSection(
+                  results: nativeToolResults,
+                  onOpenNativeToolDiagnostics: onOpenNativeToolDiagnostics,
+                ),
+                SizedBox(height: cardSpacing),
+                _OutputChannelSection(
+                  executionSession: executionSession,
+                  runtimeEvents: runtimeEvents,
+                  nativeToolResults: nativeToolResults,
+                  outputSnapshot: outputSnapshot,
+                  filter: outputChannelFilter,
                 ),
                 SizedBox(height: cardSpacing),
                 _RuntimeGraphSection(graph: graph),
@@ -200,12 +209,42 @@ class RuntimeSurface extends StatelessWidget {
                 SizedBox(height: cardSpacing),
                 _ModuleChipSection(
                   title: 'Mounted Runtime Modules',
-                  modules: runtimeModules,
+                  features: runtimeFeatures,
                 ),
               ],
             ),
     );
   }
+}
+
+AdapterEndpointCapability _executionCapabilityFor(
+  List<AdapterCapabilitySnapshot> adapterCapabilities,
+  AdapterKind adapterKind,
+) {
+  return adapterCapabilities
+      .firstWhere(
+        (snapshot) => snapshot.adapterKind == adapterKind,
+        orElse: () => AdapterCapabilitySnapshot(
+          adapterKind: adapterKind,
+          languageService: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+          projectGraph: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+          execution: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+          runtimeEvents: AdapterEndpointCapability(
+            level: AdapterCapabilityLevel.unavailable,
+            detail: 'No ${adapterKind.name} adapter resolved.',
+          ),
+        ),
+      )
+      .execution;
 }
 
 class _ToolchainStatusSection extends StatelessWidget {
@@ -438,6 +477,93 @@ class _ExecutionSessionSection extends StatelessWidget {
   }
 }
 
+class _NativeToolResultSection extends StatelessWidget {
+  const _NativeToolResultSection({
+    required this.results,
+    this.onOpenNativeToolDiagnostics,
+  });
+
+  final List<NativeToolResultRecord> results;
+  final ValueChanged<AppCommandId>? onOpenNativeToolDiagnostics;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final recentResults = results.take(4).toList(growable: false);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF1EA),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Native Tool Results', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          if (recentResults.isEmpty)
+            Text(
+              'No native build, format, static-analysis, or test command has completed yet.',
+              style: theme.textTheme.bodySmall,
+            )
+          else
+            ...recentResults.map((result) {
+              final statusLabel = result.applied ? 'passed' : 'blocked';
+              final diagnosticCount = nativeToolMetadataDiagnosticCount(
+                result.metadata,
+              );
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${result.label} · $statusLabel',
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(result.message, style: theme.textTheme.bodySmall),
+                        const SizedBox(height: 4),
+                        Text(
+                          nativeToolMetadataSummaryText(
+                            result.metadata,
+                            describeUnstructured: true,
+                          )!,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        if (diagnosticCount > 0 &&
+                            onOpenNativeToolDiagnostics != null) ...[
+                          const SizedBox(height: 8),
+                          TextButton(
+                            key: ValueKey(
+                              'runtime-native-tool-open-diagnostics-${result.commandId}',
+                            ),
+                            onPressed: () {
+                              onOpenNativeToolDiagnostics!(result.command);
+                            },
+                            child: Text('Open diagnostics ($diagnosticCount)'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+}
+
 class _RuntimeEventSection extends StatelessWidget {
   const _RuntimeEventSection({required this.replay});
 
@@ -498,6 +624,190 @@ class _RuntimeEventSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OutputChannelSection extends StatelessWidget {
+  const _OutputChannelSection({
+    required this.executionSession,
+    required this.runtimeEvents,
+    required this.nativeToolResults,
+    required this.outputSnapshot,
+    required this.filter,
+  });
+
+  final ExecutionSession? executionSession;
+  final List<RuntimeEventEnvelope> runtimeEvents;
+  final List<NativeToolResultRecord> nativeToolResults;
+  final RuntimeOutputPanelSnapshot? outputSnapshot;
+  final RuntimeOutputChannelFilterState filter;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final channels = _mergedOutputChannels(
+      baseChannels: _outputChannels(
+        executionSession: executionSession,
+        runtimeEvents: runtimeEvents,
+        nativeToolResults: nativeToolResults,
+      ),
+      liveSnapshot: outputSnapshot,
+    );
+    final snapshot = RuntimeOutputChannelSnapshot(
+      channels: channels,
+      filter: filter,
+    );
+    final subscriptionPlan = RuntimeOutputStreamSubscriptionPlan.forManager(
+      taskId: executionSession?.sessionId ?? 'runtime-surface-preview',
+      managerId: 'runtime-surface',
+      routeKind: 'output-panel',
+      channelIds: channels.map((channel) => channel.id),
+      kinds: channels.map((channel) => channel.kind),
+      status: RuntimeOutputSubscriptionStatus.active,
+      retentionPolicy: const RuntimeOutputRetentionPolicy.workspaceHistory(),
+      metadata: const <String, Object?>{'source': 'runtime-surface'},
+    );
+    final visibleChannels = snapshot.visibleChannels;
+    final liveEvents =
+        outputSnapshot?.visibleEvents ?? const <RuntimeOutputEvent>[];
+    return Container(
+      key: const ValueKey('runtime-output-channels'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE8ECF6),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Output Channels', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 8),
+          Text(
+            'Filtered output channel summary for runtime events, process streams, native tool activity, RuntimeOutputLiveBuffer snapshots, ShellManagerRuntimeExecutionAdapter streams, language-service output, and debug output producers.',
+            style: theme.textTheme.bodySmall,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Subscription ${subscriptionPlan.summary}',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (filter.active) ...[
+            const SizedBox(height: 6),
+            Chip(label: Text('filter ${filter.summary}')),
+          ],
+          const SizedBox(height: 10),
+          if (visibleChannels.isEmpty)
+            Text(
+              'No output has been captured yet.',
+              style: theme.textTheme.bodySmall,
+            )
+          else ...[
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                for (final channel in visibleChannels)
+                  Chip(label: Text('${channel.id} ${channel.eventCount}')),
+              ],
+            ),
+            const SizedBox(height: 10),
+            for (final channel in visibleChannels.take(4))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  '${channel.label}: ${channel.latestMessage}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+          ],
+          if (liveEvents.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text('Live Output Events', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 6),
+            for (final event in liveEvents.take(6))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '${event.channelId} ${event.kind.wireValue} ${event.message}',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+List<RuntimeOutputChannelSummary> _mergedOutputChannels({
+  required List<RuntimeOutputChannelSummary> baseChannels,
+  required RuntimeOutputPanelSnapshot? liveSnapshot,
+}) {
+  final channels = <String, RuntimeOutputChannelSummary>{
+    for (final channel in baseChannels) channel.id: channel,
+  };
+  for (final channel
+      in liveSnapshot?.channelSnapshot.channels ??
+          const <RuntimeOutputChannelSummary>[]) {
+    final existing = channels[channel.id];
+    channels[channel.id] = existing == null
+        ? channel
+        : RuntimeOutputChannelSummary(
+            id: channel.id,
+            label: channel.label,
+            kind: channel.kind,
+            eventCount: existing.eventCount + channel.eventCount,
+            latestMessage: channel.latestMessage.isEmpty
+                ? existing.latestMessage
+                : channel.latestMessage,
+          );
+  }
+  return channels.values.toList(growable: false);
+}
+
+List<RuntimeOutputChannelSummary> _outputChannels({
+  required ExecutionSession? executionSession,
+  required List<RuntimeEventEnvelope> runtimeEvents,
+  required List<NativeToolResultRecord> nativeToolResults,
+}) {
+  return <RuntimeOutputChannelSummary>[
+    RuntimeOutputChannelSummary(
+      id: 'runtime-events',
+      label: 'Runtime events',
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      eventCount: runtimeEvents.length,
+      latestMessage: runtimeEvents.isEmpty
+          ? 'No runtime event.'
+          : '${runtimeEvents.last.eventKind} from ${runtimeEvents.last.origin}',
+    ),
+    RuntimeOutputChannelSummary(
+      id: 'stdout',
+      label: 'Stdout',
+      kind: RuntimeOutputChannelKind.stdout,
+      eventCount: executionSession?.stdoutEvents.length ?? 0,
+      latestMessage: executionSession?.stdoutEvents.isEmpty ?? true
+          ? 'No stdout event.'
+          : executionSession!.stdoutEvents.last.message,
+    ),
+    RuntimeOutputChannelSummary(
+      id: 'stderr',
+      label: 'Stderr',
+      kind: RuntimeOutputChannelKind.stderr,
+      eventCount: executionSession?.stderrEvents.length ?? 0,
+      latestMessage: executionSession?.stderrEvents.isEmpty ?? true
+          ? 'No stderr event.'
+          : executionSession!.stderrEvents.last.message,
+    ),
+    RuntimeOutputChannelSummary(
+      id: 'native-tools',
+      label: 'Native tools',
+      kind: RuntimeOutputChannelKind.nativeTools,
+      eventCount: nativeToolResults.length,
+      latestMessage: nativeToolResults.isEmpty
+          ? 'No native tool result.'
+          : nativeToolResults.first.message,
+    ),
+  ];
 }
 
 class _RuntimeLaneSection extends StatelessWidget {
@@ -952,10 +1262,10 @@ class _RuntimeDebugLaneSection extends StatelessWidget {
 }
 
 class _ModuleChipSection extends StatelessWidget {
-  const _ModuleChipSection({required this.title, required this.modules});
+  const _ModuleChipSection({required this.title, required this.features});
 
   final String title;
-  final List<ModuleDefinition> modules;
+  final List<RuntimeSurfaceFeatureEntry> features;
 
   @override
   Widget build(BuildContext context) {
@@ -972,7 +1282,7 @@ class _ModuleChipSection extends StatelessWidget {
         children: [
           Text(title, style: theme.textTheme.titleMedium),
           const SizedBox(height: 10),
-          if (modules.isEmpty)
+          if (features.isEmpty)
             Text(
               'No runtime modules are mounted for this target.',
               style: theme.textTheme.bodySmall,
@@ -981,10 +1291,8 @@ class _ModuleChipSection extends StatelessWidget {
             Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: modules
-                  .map(
-                    (module) => Chip(label: Text(module.manifest.displayName)),
-                  )
+              children: features
+                  .map((feature) => Chip(label: Text(feature.displayName)))
                   .toList(growable: false),
             ),
         ],

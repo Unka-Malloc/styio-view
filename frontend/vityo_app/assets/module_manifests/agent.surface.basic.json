@@ -8,6 +8,38 @@
   "enabledByDefault": true,
   "entrypoint": "lib/src/agent/agent_surface.dart",
   "distributionPolicyRef": "cross-platform-ui",
+  "extension": {
+    "activationEvents": ["onStartup"],
+    "metadata": {
+      "isolationMode": "in-process"
+    },
+    "contributions": [
+      {
+        "kind": "agent",
+        "id": "collect-agent-surface-context",
+        "target": "agent.tools",
+        "title": "Collect Agent Surface Context",
+        "metadata": {
+          "toolId": "collectAgentSurfaceContext",
+          "handlerId": "collect-agent-surface-context",
+          "description": "Collect agent surface and provider context from the extension host.",
+          "permissionMode": "never",
+          "supportedProviderKinds": ["cloud_openai_compatible", "local_bridge"],
+          "supportedProtocols": ["openai-responses", "openai-compatible"],
+          "capabilities": ["agent.surface.context", "provider.context"],
+          "outputLimit": 4096,
+          "schema": [
+            {
+              "name": "includeProviderStatus",
+              "type": "boolean",
+              "required": false,
+              "description": "Include provider readiness and selection status."
+            }
+          ]
+        }
+      }
+    ]
+  },
   "capabilityFlags": {
     "agentPanel": true,
     "providerAdapters": true,

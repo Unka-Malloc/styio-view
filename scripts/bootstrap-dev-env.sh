@@ -323,7 +323,7 @@ Typical next steps:
   ./scripts/android-sdk-profile.sh build --profiles $ANDROID_PROFILES --parallel --artifact apk --mode debug
   cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" analyze
   cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" test
-  cd "$ROOT/prototype" && STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html npm run selftest:editor
+  cd "$ROOT/prototype" && STYIO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
 EOF
 }
 

@@ -12,28 +12,33 @@ class WorkspaceController extends ChangeNotifier {
            (projectSnapshot.editorFiles.isNotEmpty
                ? projectSnapshot.editorFiles.first
                : '') {
-    _rememberRecent(_activeFilePath);
+    if (_activeFilePath.isNotEmpty) {
+      _openFilePaths.add(_activeFilePath);
+    }
   }
 
   ProjectGraphSnapshot _projectSnapshot;
   String _activeFilePath;
-  final List<String> _recentFiles = <String>[];
+  final List<String> _openFilePaths = <String>[];
 
   ProjectGraphSnapshot get activeProject => _projectSnapshot;
 
   List<String> get files => _projectSnapshot.editorFiles;
 
-  List<String> get recentFiles => List<String>.unmodifiable(_recentFiles);
-
   List<ProjectTargetDescriptor> get targets => _projectSnapshot.targets;
 
   String get activeFilePath => _activeFilePath;
+
+  List<String> get openFilePaths => List.unmodifiable(_openFilePaths);
 
   void replaceProject(
     ProjectGraphSnapshot projectSnapshot, {
     String? activeFilePath,
   }) {
     _projectSnapshot = projectSnapshot;
+    _openFilePaths.removeWhere(
+      (path) => !projectSnapshot.editorFiles.contains(path),
+    );
     _activeFilePath =
         activeFilePath ??
         (projectSnapshot.editorFiles.contains(_activeFilePath)
@@ -41,48 +46,129 @@ class WorkspaceController extends ChangeNotifier {
             : projectSnapshot.editorFiles.isNotEmpty
             ? projectSnapshot.editorFiles.first
             : '');
-    _recentFiles.removeWhere(
-      (filePath) => !projectSnapshot.editorFiles.contains(filePath),
-    );
-    _rememberRecent(_activeFilePath);
+    if (_activeFilePath.isNotEmpty && !_openFilePaths.contains(_activeFilePath)) {
+      _openFilePaths.add(_activeFilePath);
+    }
     notifyListeners();
   }
 
   void openFile(String filePath) {
-    final changedActiveFile = _activeFilePath != filePath;
-    _activeFilePath = filePath;
-    final changedRecentFiles = _rememberRecent(filePath);
-    if (!changedActiveFile && !changedRecentFiles) {
+    final added = !_openFilePaths.contains(filePath);
+    if (added) {
+      _openFilePaths.add(filePath);
+    }
+    if (_activeFilePath == filePath) {
+      if (added) {
+        notifyListeners();
+      }
       return;
     }
+    _activeFilePath = filePath;
+    notifyListeners();
+  }
+
+  void closeFile(String filePath) {
+    final removed = _openFilePaths.remove(filePath);
+    if (!removed) {
+      return;
+    }
+    if (_activeFilePath == filePath) {
+      _activeFilePath = _openFilePaths.isNotEmpty
+          ? _openFilePaths.last
+          : _projectSnapshot.editorFiles.isNotEmpty
+          ? _projectSnapshot.editorFiles.first
+          : '';
+      if (_activeFilePath.isNotEmpty &&
+          !_openFilePaths.contains(_activeFilePath)) {
+        _openFilePaths.add(_activeFilePath);
+      }
+    }
+    notifyListeners();
+  }
+
+  void registerFile(String filePath, {bool open = false}) {
+    if (filePath.trim().isEmpty) {
+      return;
+    }
+    if (_projectSnapshot.editorFiles.contains(filePath)) {
+      if (open) {
+        openFile(filePath);
+      }
+      return;
+    }
+    _projectSnapshot = _projectSnapshot.copyWith(
+      editorFiles: List<String>.unmodifiable(<String>[
+        ..._projectSnapshot.editorFiles,
+        filePath,
+      ]),
+    );
+    if (open) {
+      openFile(filePath);
+      return;
+    }
+    notifyListeners();
+  }
+
+  void unregisterFile(String filePath) {
+    if (!_projectSnapshot.editorFiles.contains(filePath)) {
+      return;
+    }
+    _projectSnapshot = _projectSnapshot.copyWith(
+      editorFiles: List<String>.unmodifiable(
+        _projectSnapshot.editorFiles.where((path) => path != filePath),
+      ),
+    );
+    _openFilePaths.remove(filePath);
+    if (_activeFilePath == filePath) {
+      _activeFilePath = _openFilePaths.isNotEmpty
+          ? _openFilePaths.last
+          : _projectSnapshot.editorFiles.isNotEmpty
+          ? _projectSnapshot.editorFiles.first
+          : '';
+      if (_activeFilePath.isNotEmpty &&
+          !_openFilePaths.contains(_activeFilePath)) {
+        _openFilePaths.add(_activeFilePath);
+      }
+    }
+    notifyListeners();
+  }
+
+  void restoreOpenFiles(
+    List<String> filePaths, {
+    String? activeFilePath,
+  }) {
+    final restored = <String>[];
+    for (final filePath in filePaths) {
+      if (!_projectSnapshot.editorFiles.contains(filePath) ||
+          restored.contains(filePath)) {
+        continue;
+      }
+      restored.add(filePath);
+    }
+
+    final nextActiveFilePath =
+        activeFilePath != null && restored.contains(activeFilePath)
+        ? activeFilePath
+        : restored.contains(_activeFilePath)
+        ? _activeFilePath
+        : restored.isNotEmpty
+        ? restored.last
+        : _projectSnapshot.editorFiles.isNotEmpty
+        ? _projectSnapshot.editorFiles.first
+        : '';
+
+    _openFilePaths
+      ..clear()
+      ..addAll(restored);
+    if (nextActiveFilePath.isNotEmpty &&
+        !_openFilePaths.contains(nextActiveFilePath)) {
+      _openFilePaths.add(nextActiveFilePath);
+    }
+    _activeFilePath = nextActiveFilePath;
     notifyListeners();
   }
 
   void openTarget(ProjectTargetDescriptor target) {
-    final changedActiveFile = _activeFilePath != target.filePath;
-    _activeFilePath = target.filePath;
-    final changedRecentFiles = _rememberRecent(target.filePath);
-    if (!changedActiveFile && !changedRecentFiles) {
-      return;
-    }
-    notifyListeners();
-  }
-
-  bool _rememberRecent(String filePath) {
-    if (filePath.isEmpty || !_projectSnapshot.editorFiles.contains(filePath)) {
-      return false;
-    }
-    final existingIndex = _recentFiles.indexOf(filePath);
-    if (existingIndex == 0) {
-      return false;
-    }
-    if (existingIndex > 0) {
-      _recentFiles.removeAt(existingIndex);
-    }
-    _recentFiles.insert(0, filePath);
-    if (_recentFiles.length > 20) {
-      _recentFiles.removeRange(20, _recentFiles.length);
-    }
-    return true;
+    openFile(target.filePath);
   }
 }

@@ -56,7 +56,10 @@ class ModuleCapabilityMatrix {
         );
   }
 
-  bool isVisibleOn(PlatformTarget target) => ruleFor(target).visible;
+  bool isVisibleOn(PlatformTarget target) {
+    final rule = ruleFor(target);
+    return rule.supported && rule.visible;
+  }
 
   bool isMountedOn(PlatformTarget target) {
     final rule = ruleFor(target);

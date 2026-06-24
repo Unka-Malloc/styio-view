@@ -1,15 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import 'layout/vityo_shell_scaffold.dart';
 import '../view_render/theme/theme.dart';
 import 'app_bootstrap.dart';
-import 'layout/vityo_shell_scaffold.dart';
 import 'state/shell_model.dart';
 import 'state/shell_scope.dart';
 
 class VityoApp extends StatefulWidget {
-  const VityoApp({super.key, required this.bootstrap});
+  const VityoApp({super.key, required this.bootstrap, this.initialPath});
 
   final AppBootstrap bootstrap;
+  final String? initialPath;
 
   @override
   State<VityoApp> createState() => _VityoAppState();
@@ -37,9 +40,34 @@ class _VityoAppState extends State<VityoApp> {
       dependencySourceAdapter: widget.bootstrap.dependencySourceAdapter,
       deploymentAdapter: widget.bootstrap.deploymentAdapter,
       toolchainManagementAdapter: widget.bootstrap.toolchainManagementAdapter,
+      agentCodingController: widget.bootstrap.agentCodingController,
+      agentExtensionToolExecutionRegistry:
+          widget.bootstrap.agentExtensionToolExecutionRegistry,
+      runtimeOutputBuffer: widget.bootstrap.runtimeOutputBuffer,
+      agentProviderConfigurator: widget.bootstrap.agentProviderConfigurator,
+      refreshActiveLanguageService:
+          widget.bootstrap.refreshActiveLanguageService,
+      styioServiceSubscriptionController:
+          widget.bootstrap.styioServiceSubscriptionController,
       toolchainManager: widget.bootstrap.toolchainManager,
       languageServiceStatus: widget.bootstrap.languageServiceStatus,
       toolchainStatusReport: widget.bootstrap.toolchainStatusReport,
+      clangCppVersionPreference: widget.bootstrap.clangCppVersionPreference,
+      themeOverrideStore: widget.bootstrap.themeOverrideStore,
+      commandPalettePreferencesStore:
+          widget.bootstrap.commandPalettePreferencesStore,
+      workspaceDiagnosticsController:
+          widget.bootstrap.workspaceDiagnosticsController,
+      testingSessionController: widget.bootstrap.testingSessionController,
+      sourceControlStatusController:
+          widget.bootstrap.sourceControlStatusController,
+      projectLanguageService: widget.bootstrap.projectLanguageService,
+    );
+    unawaited(_shellModel.loadThemeOverride());
+    unawaited(
+      _shellModel.loadCommandPalettePreferences(
+        workspaceId: widget.bootstrap.workspaceController.activeProject.id,
+      ),
     );
   }
 
@@ -52,14 +80,38 @@ class _VityoAppState extends State<VityoApp> {
 
   @override
   Widget build(BuildContext context) {
-    return ShellScope(
-      model: _shellModel,
-      child: MaterialApp(
-        title: 'Vityo',
-        debugShowCheckedModeBanner: false,
-        theme: VityoTheme.light(),
-        home: const VityoShellScaffold(),
-      ),
+    return AnimatedBuilder(
+      animation: _shellModel,
+      builder: (context, _) {
+        return ShellScope(
+          model: _shellModel,
+          child: MaterialApp(
+            title: 'Vityo',
+            debugShowCheckedModeBanner: false,
+            theme: VityoTheme.light(overrides: _shellModel.themeOverride),
+            initialRoute: _editorInitialRoute(widget.initialPath),
+            onGenerateInitialRoutes: (initialRoute) => <Route<dynamic>>[
+              _editorRoute(initialRoute),
+            ],
+            onGenerateRoute: (settings) => _editorRoute(settings.name),
+            onUnknownRoute: (settings) => _editorRoute(settings.name),
+          ),
+        );
+      },
     );
   }
+}
+
+String _editorInitialRoute(String? path) {
+  if (path == null || path.trim().isEmpty) {
+    return '/editor';
+  }
+  return '/editor';
+}
+
+Route<dynamic> _editorRoute(String? _) {
+  return MaterialPageRoute<void>(
+    settings: const RouteSettings(name: '/editor'),
+    builder: (_) => const VityoShellScaffold(),
+  );
 }

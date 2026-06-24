@@ -22,6 +22,7 @@ class EditorDocumentResourceBinding {
   StreamSubscription<DocumentResourceEvent>? _resourceEventSubscription;
   final StreamController<DocumentResourceBindingSnapshot> _snapshotEvents =
       StreamController<DocumentResourceBindingSnapshot>.broadcast(sync: true);
+  int _openGeneration = 0;
 
   DocumentResourceBindingSnapshot _snapshot =
       const DocumentResourceBindingSnapshot(state: DocumentResourceBindingState.unbound);
@@ -36,6 +37,7 @@ class EditorDocumentResourceBinding {
   bool get isDirty => _snapshot.state == DocumentResourceBindingState.boundDirty;
 
   DocumentResourceBindingSnapshot bindLoadedDocument(DocumentState document) {
+    _openGeneration += 1;
     _snapshot = DocumentResourceBindingSnapshot(
       state: DocumentResourceBindingState.boundClean,
       resourceId: document.documentId,
@@ -48,6 +50,7 @@ class EditorDocumentResourceBinding {
   }
 
   Future<DocumentResourceBindingOpenResult> open(String resourceId) async {
+    final openGeneration = ++_openGeneration;
     _snapshot = _snapshot.copyWith(
       state: DocumentResourceBindingState.binding,
       resourceId: resourceId,
@@ -57,6 +60,13 @@ class EditorDocumentResourceBinding {
 
     try {
       final document = await _resourceStore.loadDocument(resourceId);
+      if (openGeneration != _openGeneration) {
+        return DocumentResourceBindingOpenResult.failed(
+          snapshot: _snapshot,
+          failureKind: DocumentResourceBindingFailureKind.binding,
+          message: 'Stale workspace resource load ignored.',
+        );
+      }
       _snapshot = DocumentResourceBindingSnapshot(
         state: DocumentResourceBindingState.boundClean,
         resourceId: resourceId,
@@ -67,6 +77,14 @@ class EditorDocumentResourceBinding {
       _watchResource(resourceId);
       return DocumentResourceBindingOpenResult.opened(_snapshot);
     } catch (error) {
+      if (openGeneration != _openGeneration) {
+        return DocumentResourceBindingOpenResult.failed(
+          snapshot: _snapshot,
+          failureKind: DocumentResourceBindingFailureKind.binding,
+          message: 'Stale workspace resource load ignored.',
+          error: error,
+        );
+      }
       _snapshot = DocumentResourceBindingSnapshot(
         state: DocumentResourceBindingState.providerUnavailable,
         resourceId: resourceId,
@@ -84,6 +102,7 @@ class EditorDocumentResourceBinding {
   }
 
   DocumentResourceBindingSnapshot bindUntitled(DocumentState document) {
+    _openGeneration += 1;
     _snapshot = DocumentResourceBindingSnapshot(
       state: DocumentResourceBindingState.unbound,
       document: document,

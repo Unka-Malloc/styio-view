@@ -2,7 +2,6 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_DIR="$ROOT_DIR/frontend/vityo_app"
 HOST="${VITYO_WEB_PREVIEW_HOST:-127.0.0.1}"
 PORT="${VITYO_WEB_PREVIEW_PORT:-8080}"
 BUILD_MODE="${VITYO_WEB_PREVIEW_BUILD_MODE:-debug}"
@@ -13,21 +12,20 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/serve-flutter-web-preview.sh [options]
 
-Build and serve the Vityo Flutter Web shell with the local hosted-control
-plane preview API required for browser startup.
+Serve the canonical Vityo focused editor at /editor.
 
 Options:
   --host HOST       Bind host. Default: 127.0.0.1
   --port PORT       Preferred port. Default: 8080
-  --debug           Build debug web output. Default.
-  --release         Build release web output.
-  --skip-build      Serve existing build/web output.
+  --debug           Accepted for compatibility; no Flutter build is run.
+  --release         Accepted for compatibility; no Flutter build is run.
+  --skip-build      Accepted for compatibility; no Flutter build is run.
   -h, --help        Show this help.
 
 Environment:
   VITYO_WEB_PREVIEW_HOST
   VITYO_WEB_PREVIEW_PORT
-  VITYO_WEB_PREVIEW_BUILD_MODE
+  STYIO_DEV_SERVER_ENABLE_MUTATION
 
 EOF
 }
@@ -116,23 +114,11 @@ if [[ "$check_host" == "0.0.0.0" ]]; then
   check_host="127.0.0.1"
 fi
 
-cd "$APP_DIR"
-
-if [[ "$SKIP_BUILD" -eq 0 ]]; then
-  flutter pub get
-  flutter build web "--$BUILD_MODE"
-fi
-
-if [[ ! -f "$APP_DIR/build/web/flutter_bootstrap.js" ]]; then
-  echo "Missing build/web/flutter_bootstrap.js. Run without --skip-build once." >&2
-  exit 1
-fi
-
 selected_port="$(select_port)"
-export VITYO_WEB_PREVIEW_HOST="$HOST"
-export VITYO_WEB_PREVIEW_PORT="$selected_port"
+export STYIO_DEV_SERVER_HOST="$HOST"
+export STYIO_DEV_SERVER_PORT="$selected_port"
 
-python3 scripts/serve_web_preview.py &
+python3 "$ROOT_DIR/prototype/dev_server.py" &
 server_pid="$!"
 
 cleanup() {
@@ -146,7 +132,7 @@ trap cleanup INT TERM EXIT
 base_url="http://${check_host}:${selected_port}"
 
 for _ in $(seq 1 60); do
-  if curl -fsS "$base_url/" >/dev/null 2>&1; then
+  if curl -fsS "$base_url/editor" >/dev/null 2>&1; then
     break
   fi
   if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -157,27 +143,23 @@ for _ in $(seq 1 60); do
   sleep 0.25
 done
 
-curl -fsSI "$base_url/flutter_bootstrap.js" >/dev/null
-curl -fsSI "$base_url/main.dart.js" >/dev/null
-curl -fsS \
-  -H 'Content-Type: application/json' \
-  -X POST \
-  "$base_url/api/styio-hosted/v1/workspaces/open" \
-  -d '{"platform":"web"}' >/dev/null
+curl -fsSI "$base_url/editor" >/dev/null
 
 cat <<EOF
-Vityo Flutter Web preview is ready.
+Vityo focused editor preview is ready.
 
 URL:
-  $base_url/
+  $base_url/editor
+
+Root:
+  $base_url/ redirects to /editor
 
 Mode:
-  build: $BUILD_MODE
-  hosted control-plane: local preview mock
+  canonical focused editor
 
 Note:
-  The preview mock lets the Web shell boot for UI and language-service checks.
-  It does not prove real Styio compile/run/package workflows are complete.
+  This route serves prototype/editor.html, the product-facing editor surface.
+  The Flutter integration shell is not used as the default preview page.
 
 Press Ctrl-C to stop the server.
 EOF

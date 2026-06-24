@@ -6,8 +6,25 @@ import '../../view_ide/language/language_contract.dart';
 import '../platform/viewport_profile.dart';
 import '../../view_ide/editor/document_state.dart';
 import '../../view_ide/editor/editor_controller.dart';
-import '../../view_ide/editor/editor_render_layers.dart';
+import '../../view_ide/editor/render_plan/render_plan.dart';
 import '../../view_ide/editor/selection_state.dart';
+import 'editor_text_style_binding.dart';
+
+List<CompletionItem> mergeCompletionItems(
+  Iterable<CompletionItem> primary,
+  Iterable<CompletionItem> fallback,
+) {
+  final completions = <CompletionItem>[];
+  final seen = <String>{};
+  for (final completion in [...primary, ...fallback]) {
+    final key =
+        '${completion.kind.name}:${completion.label}:${completion.insertText}';
+    if (seen.add(key)) {
+      completions.add(completion);
+    }
+  }
+  return List<CompletionItem>.unmodifiable(completions);
+}
 
 class EditorSurface extends StatelessWidget {
   const EditorSurface({
@@ -16,14 +33,46 @@ class EditorSurface extends StatelessWidget {
     required this.viewportProfile,
     this.languageServiceStatus,
     this.fileBindingSnapshot,
+    this.closeRequestSurface,
+    this.semanticThemeBinding,
     this.onAcceptExternalChange,
+    this.onSaveLocalChanges,
+    this.onDiscardLocalChanges,
+    this.onSaveAndCloseRequest,
+    this.onDiscardAndCloseRequest,
+    this.onSwitchToCloseRequestFile,
+    this.onCancelCloseRequest,
+    this.projectHoverAtSelection,
+    this.projectCompletionsAtSelection = const <CompletionItem>[],
+    this.openDocumentIds = const <String>[],
+    this.dirtyDocumentIds = const <String>[],
+    this.activeDocumentId,
+    this.onSelectDocument,
+    this.onCloseDocument,
+    this.onRefreshLanguageService,
   });
 
   final EditorSessionController controller;
   final ViewportProfile viewportProfile;
   final LanguageServiceStatusSurface? languageServiceStatus;
   final DocumentResourceBindingSnapshot? fileBindingSnapshot;
+  final EditorCloseRequestSurface? closeRequestSurface;
+  final EditorSemanticThemeBinding? semanticThemeBinding;
   final VoidCallback? onAcceptExternalChange;
+  final VoidCallback? onSaveLocalChanges;
+  final VoidCallback? onDiscardLocalChanges;
+  final VoidCallback? onSaveAndCloseRequest;
+  final VoidCallback? onDiscardAndCloseRequest;
+  final VoidCallback? onSwitchToCloseRequestFile;
+  final VoidCallback? onCancelCloseRequest;
+  final HoverPayload? projectHoverAtSelection;
+  final List<CompletionItem> projectCompletionsAtSelection;
+  final List<String> openDocumentIds;
+  final List<String> dirtyDocumentIds;
+  final String? activeDocumentId;
+  final ValueChanged<String>? onSelectDocument;
+  final ValueChanged<String>? onCloseDocument;
+  final VoidCallback? onRefreshLanguageService;
 
   @override
   Widget build(BuildContext context) {
@@ -34,20 +83,28 @@ class EditorSurface extends StatelessWidget {
         final document = controller.document;
         final selection = controller.selection;
         final renderPlan = controller.renderPlan;
+        final semanticThemeBinding =
+            this.semanticThemeBinding ??
+            EditorSemanticThemeBinding.fromTheme(
+              EditorSemanticTheme.foundation(),
+            );
         final analysis = controller.analysis;
-        final hover = controller.hoverAtSelection;
-        final completions = controller.completionsAtSelection;
+        final hover = projectHoverAtSelection ?? controller.hoverAtSelection;
+        final completions = mergeCompletionItems(
+          controller.completionsAtSelection,
+          projectCompletionsAtSelection,
+        );
         final activeReferences = controller.referencesAtSelection;
         final activeToken = controller.tokenAtSelection;
         final activeSemanticKind = controller.semanticKindAtSelection;
         final serviceStatus = languageServiceStatus;
         final fileBindingStatus = _fileBindingStatusFor(fileBindingSnapshot);
-        final visibleServiceStatus =
-            serviceStatus != null &&
-                serviceStatus.severity !=
-                    LanguageServiceStatusSeverity.unavailable
-            ? serviceStatus
-            : null;
+        final closeRequest = closeRequestSurface;
+        final activeOpenDocumentId = activeDocumentId ?? document.documentId;
+        final visibleOpenDocumentIds = openDocumentIds.isEmpty
+            ? <String>[document.documentId]
+            : openDocumentIds;
+        final visibleServiceStatus = serviceStatus;
         final summaryPills = <String>[
           'lines ${document.lines.length}',
           'chars ${document.length}',
@@ -103,6 +160,14 @@ class EditorSurface extends StatelessWidget {
                         Chip(label: Text('rev ${document.revision}')),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    _OpenDocumentTabStrip(
+                      documentIds: visibleOpenDocumentIds,
+                      dirtyDocumentIds: dirtyDocumentIds,
+                      activeDocumentId: activeOpenDocumentId,
+                      onSelectDocument: onSelectDocument,
+                      onCloseDocument: onCloseDocument,
+                    ),
                     const SizedBox(height: 14),
                     Wrap(
                       spacing: 10,
@@ -111,11 +176,25 @@ class EditorSurface extends StatelessWidget {
                           .map((label) => _CapabilityPill(label: label))
                           .toList(growable: false),
                     ),
-                    if (fileBindingStatus != null) ...[
+                    if (closeRequest != null &&
+                        closeRequest.requiresUserChoice) ...[
+                      const SizedBox(height: 12),
+                      _CloseRequestBanner(
+                        request: closeRequest,
+                        onSaveLocalChanges:
+                            onSaveAndCloseRequest ?? onSaveLocalChanges,
+                        onDiscardLocalChanges:
+                            onDiscardAndCloseRequest ?? onDiscardLocalChanges,
+                        onSwitchToCloseRequestFile: onSwitchToCloseRequestFile,
+                        onCancelCloseRequest: onCancelCloseRequest,
+                      ),
+                    ] else if (fileBindingStatus != null) ...[
                       const SizedBox(height: 12),
                       _FileBindingStatusBanner(
                         status: fileBindingStatus,
                         onAcceptExternalChange: onAcceptExternalChange,
+                        onSaveLocalChanges: onSaveLocalChanges,
+                        onDiscardLocalChanges: onDiscardLocalChanges,
                       ),
                     ],
                     if (!dense && fileBindingStatus == null) ...[
@@ -137,183 +216,230 @@ class EditorSurface extends StatelessWidget {
                           border: Border.all(color: theme.dividerColor),
                         ),
                         padding: EdgeInsets.all(innerPadding),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: renderPlan.activeLayers
-                                  .map(
-                                    (layer) => _CapabilityPill(
-                                      label: 'layer ${layer.name}',
-                                    ),
-                                  )
-                                  .toList(growable: false),
-                            ),
-                            const SizedBox(height: 16),
-                            Expanded(
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final mobileFamily = viewportProfile.isMobile;
-                                  final scrollStackedPane =
-                                      mobileFamily &&
-                                      constraints.maxHeight < 460;
-                                  final inspectorHeight =
-                                      constraints.maxHeight >= 720
-                                      ? 240.0
-                                      : constraints.maxHeight >= 560
-                                      ? 200.0
-                                      : 160.0;
-
-                                  if (scrollStackedPane) {
-                                    return KeyedSubtree(
-                                      key: const ValueKey(
-                                        'editor-language-family-mobile',
-                                      ),
-                                      child: ListView(
-                                        key: ValueKey(
-                                          'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
+                        child: LayoutBuilder(
+                          builder: (context, sourceConstraints) {
+                            final showLayerToolbar =
+                                !dense && sourceConstraints.maxHeight >= 128;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (showLayerToolbar) ...[
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    crossAxisAlignment:
+                                        WrapCrossAlignment.center,
+                                    children: [
+                                      ...renderPlan.activeLayers.map(
+                                        (layer) => _CapabilityPill(
+                                          label: 'layer ${layer.name}',
                                         ),
-                                        children: [
-                                          SizedBox(
-                                            height: 220,
-                                            child: _SourcePreviewPane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeReferences:
-                                                  activeReferences,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              document: document,
-                                              selection: selection,
-                                              analysis: analysis,
-                                              renderPlan: renderPlan,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          SizedBox(
-                                            height: 180,
-                                            child: _LanguageServicePane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              analysis: analysis,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              languageServiceStatus:
-                                                  visibleServiceStatus,
-                                            ),
-                                          ),
-                                        ],
                                       ),
-                                    );
-                                  }
-
-                                  if (mobileFamily) {
-                                    return KeyedSubtree(
-                                      key: const ValueKey(
-                                        'editor-language-family-mobile',
-                                      ),
-                                      child: Column(
+                                      FilterChip(
                                         key: const ValueKey(
-                                          'editor-language-layout-mobile',
+                                          'editor-glyph-substitution-toggle',
                                         ),
-                                        children: [
-                                          Expanded(
-                                            child: _SourcePreviewPane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeReferences:
-                                                  activeReferences,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              document: document,
-                                              selection: selection,
-                                              analysis: analysis,
-                                              renderPlan: renderPlan,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          SizedBox(
-                                            height: inspectorHeight,
-                                            child: _LanguageServicePane(
-                                              controller: controller,
-                                              viewportProfile: viewportProfile,
-                                              analysis: analysis,
-                                              hover: hover,
-                                              completions: completions,
-                                              activeToken: activeToken,
-                                              activeSemanticKind:
-                                                  activeSemanticKind,
-                                              languageServiceStatus:
-                                                  visibleServiceStatus,
-                                            ),
-                                          ),
-                                        ],
+                                        selected:
+                                            renderPlan.glyphSubstitutionEnabled,
+                                        label: Text(
+                                          renderPlan.glyphSubstitutionEnabled
+                                              ? 'glyph substitution on'
+                                              : 'glyph substitution off',
+                                        ),
+                                        onSelected: (_) {
+                                          controller.toggleGlyphSubstitution();
+                                        },
                                       ),
-                                    );
-                                  }
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final mobileFamily =
+                                          viewportProfile.isMobile;
+                                      final scrollStackedPane =
+                                          mobileFamily &&
+                                          constraints.maxHeight < 460;
+                                      final inspectorHeight =
+                                          constraints.maxHeight >= 720
+                                          ? 240.0
+                                          : constraints.maxHeight >= 560
+                                          ? 200.0
+                                          : 160.0;
 
-                                  return KeyedSubtree(
-                                    key: const ValueKey(
-                                      'editor-language-family-desktop',
-                                    ),
-                                    child: Row(
-                                      key: const ValueKey(
-                                        'editor-language-layout-desktop',
-                                      ),
-                                      children: [
-                                        Expanded(
-                                          flex: 5,
-                                          child: _SourcePreviewPane(
-                                            controller: controller,
-                                            viewportProfile: viewportProfile,
-                                            hover: hover,
-                                            completions: completions,
-                                            activeReferences: activeReferences,
-                                            activeToken: activeToken,
-                                            activeSemanticKind:
-                                                activeSemanticKind,
-                                            document: document,
-                                            selection: selection,
-                                            analysis: analysis,
-                                            renderPlan: renderPlan,
+                                      if (scrollStackedPane) {
+                                        return KeyedSubtree(
+                                          key: const ValueKey(
+                                            'editor-language-family-mobile',
                                           ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        SizedBox(
-                                          width: constraints.maxWidth >= 760
-                                              ? 300
-                                              : 248,
-                                          child: _LanguageServicePane(
-                                            controller: controller,
-                                            viewportProfile: viewportProfile,
-                                            analysis: analysis,
-                                            hover: hover,
-                                            completions: completions,
-                                            activeToken: activeToken,
-                                            activeSemanticKind:
-                                                activeSemanticKind,
-                                            languageServiceStatus:
-                                                visibleServiceStatus,
+                                          child: SingleChildScrollView(
+                                            key: ValueKey(
+                                              'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
+                                            ),
+                                            child: Column(
+                                              children: [
+                                                SizedBox(
+                                                  height: 320,
+                                                  child: _SourcePreviewPane(
+                                                    controller: controller,
+                                                    viewportProfile:
+                                                        viewportProfile,
+                                                    hover: hover,
+                                                    completions: completions,
+                                                    activeReferences:
+                                                        activeReferences,
+                                                    activeToken: activeToken,
+                                                    activeSemanticKind:
+                                                        activeSemanticKind,
+                                                    document: document,
+                                                    selection: selection,
+                                                    analysis: analysis,
+                                                    renderPlan: renderPlan,
+                                                    semanticThemeBinding:
+                                                        semanticThemeBinding,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 16),
+                                                SizedBox(
+                                                  height: 180,
+                                                  child: _LanguageServicePane(
+                                                    controller: controller,
+                                                    viewportProfile:
+                                                        viewportProfile,
+                                                    analysis: analysis,
+                                                    hover: hover,
+                                                    completions: completions,
+                                                    activeToken: activeToken,
+                                                    activeSemanticKind:
+                                                        activeSemanticKind,
+                                                    languageServiceStatus:
+                                                        visibleServiceStatus,
+                                                    onRefreshLanguageService:
+                                                        onRefreshLanguageService,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
+                                        );
+                                      }
+
+                                      if (mobileFamily) {
+                                        return KeyedSubtree(
+                                          key: const ValueKey(
+                                            'editor-language-family-mobile',
+                                          ),
+                                          child: Column(
+                                            key: const ValueKey(
+                                              'editor-language-layout-mobile',
+                                            ),
+                                            children: [
+                                              Expanded(
+                                                child: _SourcePreviewPane(
+                                                  controller: controller,
+                                                  viewportProfile:
+                                                      viewportProfile,
+                                                  hover: hover,
+                                                  completions: completions,
+                                                  activeReferences:
+                                                      activeReferences,
+                                                  activeToken: activeToken,
+                                                  activeSemanticKind:
+                                                      activeSemanticKind,
+                                                  document: document,
+                                                  selection: selection,
+                                                  analysis: analysis,
+                                                  renderPlan: renderPlan,
+                                                  semanticThemeBinding:
+                                                      semanticThemeBinding,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              SizedBox(
+                                                height: inspectorHeight,
+                                                child: _LanguageServicePane(
+                                                  controller: controller,
+                                                  viewportProfile:
+                                                      viewportProfile,
+                                                  analysis: analysis,
+                                                  hover: hover,
+                                                  completions: completions,
+                                                  activeToken: activeToken,
+                                                  activeSemanticKind:
+                                                      activeSemanticKind,
+                                                  languageServiceStatus:
+                                                      visibleServiceStatus,
+                                                  onRefreshLanguageService:
+                                                      onRefreshLanguageService,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+
+                                      return KeyedSubtree(
+                                        key: const ValueKey(
+                                          'editor-language-family-desktop',
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
+                                        child: Row(
+                                          key: const ValueKey(
+                                            'editor-language-layout-desktop',
+                                          ),
+                                          children: [
+                                            Expanded(
+                                              flex: 5,
+                                              child: _SourcePreviewPane(
+                                                controller: controller,
+                                                viewportProfile:
+                                                    viewportProfile,
+                                                hover: hover,
+                                                completions: completions,
+                                                activeReferences:
+                                                    activeReferences,
+                                                activeToken: activeToken,
+                                                activeSemanticKind:
+                                                    activeSemanticKind,
+                                                document: document,
+                                                selection: selection,
+                                                analysis: analysis,
+                                                renderPlan: renderPlan,
+                                                semanticThemeBinding:
+                                                    semanticThemeBinding,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            SizedBox(
+                                              width: constraints.maxWidth >= 760
+                                                  ? 300
+                                                  : 248,
+                                              child: _LanguageServicePane(
+                                                controller: controller,
+                                                viewportProfile:
+                                                    viewportProfile,
+                                                analysis: analysis,
+                                                hover: hover,
+                                                completions: completions,
+                                                activeToken: activeToken,
+                                                activeSemanticKind:
+                                                    activeSemanticKind,
+                                                languageServiceStatus:
+                                                    visibleServiceStatus,
+                                                onRefreshLanguageService:
+                                                    onRefreshLanguageService,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -328,54 +454,301 @@ class EditorSurface extends StatelessWidget {
   }
 }
 
+class _CloseRequestBanner extends StatelessWidget {
+  const _CloseRequestBanner({
+    required this.request,
+    required this.onSaveLocalChanges,
+    required this.onDiscardLocalChanges,
+    required this.onSwitchToCloseRequestFile,
+    required this.onCancelCloseRequest,
+  });
+
+  final EditorCloseRequestSurface request;
+  final VoidCallback? onSaveLocalChanges;
+  final VoidCallback? onDiscardLocalChanges;
+  final VoidCallback? onSwitchToCloseRequestFile;
+  final VoidCallback? onCancelCloseRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('editor-close-request-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer.withValues(alpha: 0.36),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.secondary.withValues(alpha: 0.36),
+        ),
+      ),
+      child: Wrap(
+        spacing: 12,
+        runSpacing: 10,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Close blocked', style: theme.textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text(request.message, style: theme.textTheme.bodySmall),
+              ],
+            ),
+          ),
+          if (request.canSwitchToFile)
+            OutlinedButton(
+              key: const ValueKey('editor-close-request-switch'),
+              onPressed: onSwitchToCloseRequestFile,
+              child: const Text('Switch to file'),
+            ),
+          OutlinedButton(
+            key: const ValueKey('editor-close-request-save'),
+            onPressed: request.canSave ? onSaveLocalChanges : null,
+            child: const Text('Save changes'),
+          ),
+          TextButton(
+            key: const ValueKey('editor-close-request-discard'),
+            onPressed: request.canDiscard ? onDiscardLocalChanges : null,
+            child: const Text('Discard changes'),
+          ),
+          TextButton(
+            key: const ValueKey('editor-close-request-cancel'),
+            onPressed: onCancelCloseRequest,
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpenDocumentTabStrip extends StatelessWidget {
+  const _OpenDocumentTabStrip({
+    required this.documentIds,
+    required this.dirtyDocumentIds,
+    required this.activeDocumentId,
+    required this.onSelectDocument,
+    required this.onCloseDocument,
+  });
+
+  final List<String> documentIds;
+  final List<String> dirtyDocumentIds;
+  final String activeDocumentId;
+  final ValueChanged<String>? onSelectDocument;
+  final ValueChanged<String>? onCloseDocument;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      key: const ValueKey('editor-open-file-tab-strip'),
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: documentIds.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final documentId = documentIds[index];
+          final active = documentId == activeDocumentId;
+          final dirty = dirtyDocumentIds.contains(documentId);
+          return _OpenDocumentTab(
+            documentId: documentId,
+            active: active,
+            dirty: dirty,
+            onSelectDocument: onSelectDocument,
+            onCloseDocument: onCloseDocument,
+            color: active
+                ? theme.colorScheme.primaryContainer
+                : theme.colorScheme.surface,
+            borderColor: active
+                ? theme.colorScheme.primary.withValues(alpha: 0.42)
+                : theme.dividerColor,
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _OpenDocumentTab extends StatelessWidget {
+  const _OpenDocumentTab({
+    required this.documentId,
+    required this.active,
+    required this.dirty,
+    required this.onSelectDocument,
+    required this.onCloseDocument,
+    required this.color,
+    required this.borderColor,
+  });
+
+  final String documentId;
+  final bool active;
+  final bool dirty;
+  final ValueChanged<String>? onSelectDocument;
+  final ValueChanged<String>? onCloseDocument;
+  final Color color;
+  final Color borderColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      key: ValueKey('editor-open-file-tab-$documentId'),
+      color: color,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: active ? null : () => onSelectDocument?.call(documentId),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 14, right: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 180),
+                child: Text(
+                  _documentTabLabel(documentId),
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    color: active
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              if (dirty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  '•',
+                  key: ValueKey('editor-open-file-tab-dirty-$documentId'),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: active
+                        ? theme.colorScheme.onPrimaryContainer
+                        : theme.colorScheme.primary,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+              const SizedBox(width: 4),
+              IconButton(
+                key: ValueKey('editor-open-file-tab-close-$documentId'),
+                tooltip: 'Close $documentId',
+                icon: const Icon(Icons.close_rounded, size: 16),
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 28,
+                  height: 28,
+                ),
+                onPressed: onCloseDocument == null
+                    ? null
+                    : () => onCloseDocument!(documentId),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+String _documentTabLabel(String documentId) {
+  final normalized = documentId.replaceAll('\\', '/');
+  final segments = normalized.split('/').where((segment) => segment.isNotEmpty);
+  return segments.isEmpty ? documentId : segments.last;
+}
+
 class _FileBindingStatus {
   const _FileBindingStatus({
     required this.title,
     required this.message,
     required this.actionLabel,
     required this.actionEnabled,
+    required this.action,
+    this.secondaryActionLabel,
+    this.secondaryActionEnabled = false,
+    this.secondaryAction,
   });
 
   final String title;
   final String message;
   final String actionLabel;
   final bool actionEnabled;
+  final _FileBindingStatusAction action;
+  final String? secondaryActionLabel;
+  final bool secondaryActionEnabled;
+  final _FileBindingStatusAction? secondaryAction;
+}
+
+enum _FileBindingStatusAction {
+  acceptExternal,
+  saveLocal,
+  discardLocal,
+  unavailable,
 }
 
 _FileBindingStatus? _fileBindingStatusFor(
   DocumentResourceBindingSnapshot? snapshot,
 ) {
   return switch (snapshot?.state) {
+    DocumentResourceBindingState.boundDirty => const _FileBindingStatus(
+      title: 'Unsaved local changes',
+      message:
+          'Save this file or discard local changes before closing the tab.',
+      actionLabel: 'Save changes',
+      actionEnabled: true,
+      action: _FileBindingStatusAction.saveLocal,
+      secondaryActionLabel: 'Discard changes',
+      secondaryActionEnabled: true,
+      secondaryAction: _FileBindingStatusAction.discardLocal,
+    ),
     DocumentResourceBindingState.externalChanged => const _FileBindingStatus(
       title: 'External file change',
-      message: 'The backing file changed on disk. Reload to use the external revision.',
+      message:
+          'The backing file changed on disk. Reload to use the external revision.',
       actionLabel: 'Reload external',
       actionEnabled: true,
+      action: _FileBindingStatusAction.acceptExternal,
     ),
     DocumentResourceBindingState.conflicted => const _FileBindingStatus(
       title: 'External file conflict',
-      message: 'The backing file changed while this editor has unsaved local edits.',
+      message:
+          'The backing file changed while this editor has unsaved local edits.',
       actionLabel: 'Use external version',
       actionEnabled: true,
+      action: _FileBindingStatusAction.acceptExternal,
     ),
     DocumentResourceBindingState.deletedOnDisk => const _FileBindingStatus(
       title: 'Backing file deleted',
       message: 'The backing file was deleted or became unavailable.',
       actionLabel: 'Reload unavailable',
       actionEnabled: false,
+      action: _FileBindingStatusAction.unavailable,
     ),
     DocumentResourceBindingState.readonly => const _FileBindingStatus(
       title: 'Backing file is read-only',
       message: 'The current file cannot be saved until it becomes writable.',
       actionLabel: 'Read-only',
       actionEnabled: false,
+      action: _FileBindingStatusAction.unavailable,
     ),
-    DocumentResourceBindingState.providerUnavailable => const _FileBindingStatus(
-      title: 'File provider unavailable',
-      message: 'The current file provider is unavailable.',
-      actionLabel: 'Provider unavailable',
-      actionEnabled: false,
-    ),
+    DocumentResourceBindingState.providerUnavailable =>
+      const _FileBindingStatus(
+        title: 'File provider unavailable',
+        message: 'The current file provider is unavailable.',
+        actionLabel: 'Provider unavailable',
+        actionEnabled: false,
+        action: _FileBindingStatusAction.unavailable,
+      ),
     _ => null,
   };
 }
@@ -384,14 +757,31 @@ class _FileBindingStatusBanner extends StatelessWidget {
   const _FileBindingStatusBanner({
     required this.status,
     required this.onAcceptExternalChange,
+    required this.onSaveLocalChanges,
+    required this.onDiscardLocalChanges,
   });
 
   final _FileBindingStatus status;
   final VoidCallback? onAcceptExternalChange;
+  final VoidCallback? onSaveLocalChanges;
+  final VoidCallback? onDiscardLocalChanges;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final actionCallback = switch (status.action) {
+      _FileBindingStatusAction.acceptExternal => onAcceptExternalChange,
+      _FileBindingStatusAction.saveLocal => onSaveLocalChanges,
+      _FileBindingStatusAction.discardLocal => onDiscardLocalChanges,
+      _FileBindingStatusAction.unavailable => null,
+    };
+    final secondaryActionCallback = switch (status.secondaryAction) {
+      _FileBindingStatusAction.acceptExternal => onAcceptExternalChange,
+      _FileBindingStatusAction.saveLocal => onSaveLocalChanges,
+      _FileBindingStatusAction.discardLocal => onDiscardLocalChanges,
+      _FileBindingStatusAction.unavailable => null,
+      null => null,
+    };
     return Container(
       key: const ValueKey('editor-file-binding-status-banner'),
       width: double.infinity,
@@ -422,9 +812,17 @@ class _FileBindingStatusBanner extends StatelessWidget {
           ),
           OutlinedButton(
             key: const ValueKey('editor-file-binding-accept-external'),
-            onPressed: status.actionEnabled ? onAcceptExternalChange : null,
+            onPressed: status.actionEnabled ? actionCallback : null,
             child: Text(status.actionLabel),
           ),
+          if (status.secondaryActionLabel case final label?)
+            TextButton(
+              key: const ValueKey('editor-file-binding-secondary-action'),
+              onPressed: status.secondaryActionEnabled
+                  ? secondaryActionCallback
+                  : null,
+              child: Text(label),
+            ),
         ],
       ),
     );
@@ -444,6 +842,7 @@ class _SourcePreviewPane extends StatefulWidget {
     required this.selection,
     required this.analysis,
     required this.renderPlan,
+    required this.semanticThemeBinding,
   });
 
   final EditorSessionController controller;
@@ -457,6 +856,7 @@ class _SourcePreviewPane extends StatefulWidget {
   final SelectionState selection;
   final StyioDocumentAnalysis analysis;
   final EditorRenderPlan renderPlan;
+  final EditorSemanticThemeBinding semanticThemeBinding;
 
   @override
   State<_SourcePreviewPane> createState() => _SourcePreviewPaneState();
@@ -466,6 +866,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   static const double _gutterWidth = 62;
   static const double _estimatedCharacterWidth = 8.4;
   static const double _estimatedLineHeight = 34;
+  static const int _maxRenderedPreviewLines = 400;
 
   late final FocusNode _focusNode;
   late final FocusNode _inlineRenameFocusNode;
@@ -473,6 +874,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   late final FocusNode _extractFunctionFocusNode;
   late final FocusNode _changeSignatureNameFocusNode;
   late final FocusNode _changeSignatureParametersFocusNode;
+  late final ScrollController _sourceScrollController;
   late final TextEditingController _inlineRenameController;
   late final TextEditingController _introduceVariableController;
   late final TextEditingController _extractFunctionController;
@@ -520,6 +922,8 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _changeSignatureParametersFocusNode = FocusNode(
       debugLabel: 'editor-change-signature-parameters',
     );
+    _sourceScrollController = ScrollController()
+      ..addListener(_handleSourceScrollChanged);
     _inlineRenameController = TextEditingController();
     _introduceVariableController = TextEditingController();
     _extractFunctionController = TextEditingController();
@@ -537,6 +941,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     _extractFunctionFocusNode.dispose();
     _changeSignatureNameFocusNode.dispose();
     _changeSignatureParametersFocusNode.dispose();
+    _sourceScrollController
+      ..removeListener(_handleSourceScrollChanged)
+      ..dispose();
     _inlineRenameController.dispose();
     _introduceVariableController.dispose();
     _extractFunctionController.dispose();
@@ -546,6 +953,12 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   void _handleFocusChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _handleSourceScrollChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -905,6 +1318,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
           return widget.controller.selectDefinitionAtSelection()
               ? KeyEventResult.handled
               : KeyEventResult.ignored;
+        case LogicalKeyboardKey.keyC:
+          return _copySelectionToClipboard()
+              ? KeyEventResult.handled
+              : KeyEventResult.ignored;
         case LogicalKeyboardKey.keyD:
           return widget.controller.duplicateLineOrSelection()
               ? KeyEventResult.handled
@@ -1068,6 +1485,15 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     }
   }
 
+  bool _copySelectionToClipboard() {
+    final selectedSourceText = widget.controller.selectedSourceText;
+    if (selectedSourceText == null) {
+      return false;
+    }
+    Clipboard.setData(ClipboardData(text: selectedSourceText));
+    return true;
+  }
+
   bool _isPlainTextCharacter(String? character) {
     if (character == null || character.isEmpty) {
       return false;
@@ -1085,7 +1511,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     if (!_shouldAutoPopupCompletion(character)) {
       return;
     }
-    final completions = widget.controller.completionsAtSelection;
+    final completions = widget.completions;
     if (completions.isEmpty) {
       return;
     }
@@ -2162,6 +2588,23 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             constraints.maxHeight < 240;
         final cramped = constraints.maxHeight < 120;
         final contentPadding = dense ? 12.0 : 18.0;
+        final scrollOffset = _sourceScrollController.hasClients
+            ? _sourceScrollController.offset
+            : _sourceScrollController.initialScrollOffset;
+        final viewportBinding =
+            EditorRenderViewportBinding.fromScrollControllerFacts(
+              scrollOffsetPixels: scrollOffset,
+              viewportHeightPixels: constraints.maxHeight,
+              lineHeightPixels: _estimatedLineHeight,
+              overscanLineCount: dense ? 4 : 8,
+              totalLineCount: widget.document.lines.length,
+            );
+        final renderPipelinePlan = EditorRenderPipelinePlan.fromRenderFacts(
+          renderPlan: widget.renderPlan,
+          lineCount: widget.document.lines.length,
+          viewportBinding: viewportBinding,
+          maxRenderedLines: _maxRenderedPreviewLines,
+        );
 
         return Focus(
           focusNode: _focusNode,
@@ -2200,6 +2643,18 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                               ? 'editing'
                               : 'click to focus',
                         ),
+                        _CapabilityPill(
+                          label: viewportBinding.boundToScrollController
+                              ? 'viewport bound'
+                              : 'viewport unbound',
+                        ),
+                        _CapabilityPill(
+                          label:
+                              'visible ${viewportBinding.viewportFirstLine + 1}+${viewportBinding.viewportLineCapacity}',
+                        ),
+                        _CapabilityPill(
+                          label: 'renderer ${renderPipelinePlan.rendererKind}',
+                        ),
                       ],
                     ),
                   if (!dense && !cramped) ...[
@@ -2214,7 +2669,17 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                   if (!cramped) const SizedBox(height: 14),
                   Expanded(
                     child: ListView(
+                      key: const ValueKey('source-buffer-scroll'),
+                      controller: _sourceScrollController,
                       children: [
+                        KeyedSubtree(
+                          key: ValueKey(
+                            viewportBinding.boundToScrollController
+                                ? 'source-viewport-binding-bound'
+                                : 'source-viewport-binding-unbound',
+                          ),
+                          child: const SizedBox.shrink(),
+                        ),
                         if (_inlineRenameOpen) ...[
                           _buildInlineRenamePanel(context),
                           const SizedBox(height: 12),
@@ -2280,8 +2745,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
                           selection: widget.selection,
                           analysis: widget.analysis,
                           renderPlan: widget.renderPlan,
+                          semanticThemeBinding: widget.semanticThemeBinding,
                           lineStarts: lineStarts,
                           semanticBlocks: semanticBlocks,
+                          maxRenderedLineCount: _maxRenderedPreviewLines,
                           collapsedSemanticBlockKeys:
                               _collapsedSemanticBlockKeys,
                           onToggleSemanticBlock: _toggleSemanticBlock,
@@ -4294,6 +4761,7 @@ class _HighlightedLineRow extends StatelessWidget {
     required this.lineIndex,
     required this.lineStarts,
     required this.renderPlan,
+    required this.semanticThemeBinding,
     required this.onTapDown,
     required this.onPanStart,
     required this.onPanUpdate,
@@ -4308,6 +4776,7 @@ class _HighlightedLineRow extends StatelessWidget {
   final int lineIndex;
   final List<int> lineStarts;
   final EditorRenderPlan renderPlan;
+  final EditorSemanticThemeBinding semanticThemeBinding;
   final ValueChanged<TapDownDetails> onTapDown;
   final ValueChanged<DragStartDetails> onPanStart;
   final ValueChanged<DragUpdateDetails> onPanUpdate;
@@ -4374,6 +4843,7 @@ class _HighlightedLineRow extends StatelessWidget {
                         activeTokenRange: activeTokenRange,
                         selection: selection,
                         renderPlan: renderPlan,
+                        semanticThemeBinding: semanticThemeBinding,
                       ),
                     ),
                     softWrap: false,
@@ -4481,16 +4951,21 @@ class _InlineLanguageFeedback extends StatelessWidget {
                               quickFixes[index],
                             ),
                           ),
-                        ...compactCompletions.map(
-                          (item) => _InlineActionChip(
+                        for (
+                          var index = 0;
+                          index < compactCompletions.length;
+                          index += 1
+                        )
+                          _InlineActionChip(
                             key: ValueKey(
-                              'inline-completion-action-${item.label}',
+                              'inline-completion-action-$index-${compactCompletions[index].label}',
                             ),
                             icon: Icons.auto_awesome_rounded,
-                            label: item.label,
-                            onTap: () => controller.applyCompletionItem(item),
+                            label: compactCompletions[index].label,
+                            onTap: () => controller.applyCompletionItem(
+                              compactCompletions[index],
+                            ),
                           ),
-                        ),
                         if (formattingEdits.isNotEmpty)
                           _InlineActionChip(
                             key: const ValueKey('inline-format-action'),
@@ -4582,17 +5057,22 @@ class _InlineLanguageFeedback extends StatelessWidget {
                                         quickFixes[index],
                                       ),
                                 ),
-                              ...compactCompletions.map(
-                                (item) => _InlineActionChip(
+                              for (
+                                var index = 0;
+                                index < compactCompletions.length;
+                                index += 1
+                              )
+                                _InlineActionChip(
                                   key: ValueKey(
-                                    'inline-completion-action-${item.label}',
+                                    'inline-completion-action-$index-${compactCompletions[index].label}',
                                   ),
                                   icon: Icons.auto_awesome_rounded,
-                                  label: '${item.label} · ${item.kind.name}',
-                                  onTap: () =>
-                                      controller.applyCompletionItem(item),
+                                  label:
+                                      '${compactCompletions[index].label} · ${compactCompletions[index].kind.name}',
+                                  onTap: () => controller.applyCompletionItem(
+                                    compactCompletions[index],
+                                  ),
                                 ),
-                              ),
                               if (formattingEdits.isNotEmpty)
                                 _InlineActionChip(
                                   key: const ValueKey('inline-format-action'),
@@ -4821,6 +5301,7 @@ class _LanguageServicePane extends StatefulWidget {
     required this.activeToken,
     required this.activeSemanticKind,
     required this.languageServiceStatus,
+    required this.onRefreshLanguageService,
   });
 
   final EditorSessionController controller;
@@ -4831,6 +5312,7 @@ class _LanguageServicePane extends StatefulWidget {
   final TokenSpan? activeToken;
   final SemanticKind? activeSemanticKind;
   final LanguageServiceStatusSurface? languageServiceStatus;
+  final VoidCallback? onRefreshLanguageService;
 
   @override
   State<_LanguageServicePane> createState() => _LanguageServicePaneState();
@@ -4851,16 +5333,12 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
   @override
   Widget build(BuildContext context) {
     final analysis = widget.analysis;
-    final showServiceStatusCard =
-        widget.languageServiceStatus != null &&
-        widget.languageServiceStatus!.severity !=
-            LanguageServiceStatusSeverity.unavailable;
+    final showServiceStatusCard = widget.languageServiceStatus != null;
 
     if (widget.viewportProfile.isMobile) {
       return KeyedSubtree(
         key: const ValueKey('language-pane-mobile'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
             Wrap(
               spacing: 8,
@@ -4907,21 +5385,10 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
               ),
             ),
             const SizedBox(height: 12),
-            Expanded(
-              child: ListView(
-                children: [
-                  _InspectorCard(
-                    key: ValueKey(
-                      'language-mobile-section-${_selectedSection.name}',
-                    ),
-                    title: _selectedSection.label,
-                    child: _buildSectionContent(
-                      context,
-                      section: _selectedSection,
-                    ),
-                  ),
-                ],
-              ),
+            _InspectorCard(
+              key: ValueKey('language-mobile-section-${_selectedSection.name}'),
+              title: _selectedSection.label,
+              child: _buildSectionContent(context, section: _selectedSection),
             ),
           ],
         ),
@@ -5065,12 +5532,33 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
           children: [
             _CapabilityPill(label: 'runtime ${status.runtimeState}'),
             _CapabilityPill(label: 'severity ${status.severity.name}'),
+            _CapabilityPill(label: 'health ${status.capabilityHealth}'),
             _CapabilityPill(label: 'usable ${status.usableCapabilityCount}'),
             _CapabilityPill(label: 'fresh ${status.freshCapabilityCount}'),
+            _CapabilityPill(label: 'missing ${status.missingCapabilityCount}'),
+            _CapabilityPill(label: 'blocked ${status.blockedCapabilityCount}'),
+            if (status.cacheLookupCount > 0) ...[
+              _CapabilityPill(
+                label: 'cache lookups ${status.cacheLookupCount}',
+              ),
+              _CapabilityPill(label: 'cache hits ${status.cacheLookupHits}'),
+              _CapabilityPill(
+                label: 'cache misses ${status.cacheLookupMisses}',
+              ),
+            ],
             for (final entry in primaryStates)
               _CapabilityPill(label: '${entry.key} ${entry.value}'),
           ],
         ),
+        if (status.refreshRecommended) ...[
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            key: const ValueKey('language-service-refresh-action'),
+            onPressed: widget.onRefreshLanguageService,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: const Text('Refresh language service'),
+          ),
+        ],
       ],
     );
   }
@@ -5692,8 +6180,10 @@ List<Widget> _buildPreviewChildren(
   required SelectionState selection,
   required StyioDocumentAnalysis analysis,
   required EditorRenderPlan renderPlan,
+  required EditorSemanticThemeBinding semanticThemeBinding,
   required List<int> lineStarts,
   required List<_SemanticLineBlock> semanticBlocks,
+  required int maxRenderedLineCount,
   required Set<String> collapsedSemanticBlockKeys,
   required ValueChanged<_SemanticLineBlock> onToggleSemanticBlock,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
@@ -5710,15 +6200,29 @@ List<Widget> _buildPreviewChildren(
   final activeLineIndex = document
       .positionForOffset(selection.extentOffset)
       .line;
-  var lineIndex = 0;
+  final renderedLineCount = document.lines.length < maxRenderedLineCount
+      ? document.lines.length
+      : maxRenderedLineCount;
+  final renderStartLine = _previewRenderStartLine(
+    totalLineCount: document.lines.length,
+    maxRenderedLineCount: maxRenderedLineCount,
+    activeLineIndex: activeLineIndex,
+  );
+  final renderEndLine = renderStartLine + renderedLineCount;
+  var lineIndex = renderStartLine;
 
-  while (lineIndex < document.lines.length) {
+  while (lineIndex < renderEndLine) {
     final block = blockByStart[lineIndex];
     if (block != null) {
       final collapsed = collapsedSemanticBlockKeys.contains(
         _semanticBlockKey(block),
       );
-      final visibleBlockEnd = collapsed ? block.startLine : block.endLine;
+      final visibleLimitEnd = renderEndLine - 1;
+      final visibleBlockEnd = collapsed
+          ? block.startLine
+          : block.endLine < visibleLimitEnd
+          ? block.endLine
+          : visibleLimitEnd;
       children.add(
         Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -5750,6 +6254,7 @@ List<Widget> _buildPreviewChildren(
                     activeLineIndex: activeLineIndex,
                     lineStarts: lineStarts,
                     renderPlan: renderPlan,
+                    semanticThemeBinding: semanticThemeBinding,
                     onTapLine: onTapLine,
                     onPanStartLine: onPanStartLine,
                     onPanUpdateLine: onPanUpdateLine,
@@ -5786,6 +6291,7 @@ List<Widget> _buildPreviewChildren(
         activeLineIndex: activeLineIndex,
         lineStarts: lineStarts,
         renderPlan: renderPlan,
+        semanticThemeBinding: semanticThemeBinding,
         onTapLine: onTapLine,
         onPanStartLine: onPanStartLine,
         onPanUpdateLine: onPanUpdateLine,
@@ -5795,7 +6301,90 @@ List<Widget> _buildPreviewChildren(
     lineIndex += 1;
   }
 
+  if (renderedLineCount < document.lines.length) {
+    children.add(
+      _LargeDocumentPreviewTruncationBanner(
+        renderedLineCount: renderedLineCount,
+        totalLineCount: document.lines.length,
+        renderStartLine: renderStartLine,
+        renderEndLine: renderEndLine,
+        activeLineIndex: activeLineIndex,
+      ),
+    );
+  }
+
   return children;
+}
+
+int _previewRenderStartLine({
+  required int totalLineCount,
+  required int maxRenderedLineCount,
+  required int activeLineIndex,
+}) {
+  if (totalLineCount <= maxRenderedLineCount) {
+    return 0;
+  }
+  final maxStartLine = totalLineCount - maxRenderedLineCount;
+  var startLine = activeLineIndex - (maxRenderedLineCount ~/ 2);
+  if (startLine < 0) {
+    return 0;
+  }
+  if (startLine > maxStartLine) {
+    return maxStartLine;
+  }
+  return startLine;
+}
+
+class _LargeDocumentPreviewTruncationBanner extends StatelessWidget {
+  const _LargeDocumentPreviewTruncationBanner({
+    required this.renderedLineCount,
+    required this.totalLineCount,
+    required this.renderStartLine,
+    required this.renderEndLine,
+    required this.activeLineIndex,
+  });
+
+  final int renderedLineCount;
+  final int totalLineCount;
+  final int renderStartLine;
+  final int renderEndLine;
+  final int activeLineIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const ValueKey('source-large-document-truncation-banner'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Large document preview: rendering lines ${renderStartLine + 1}-$renderEndLine of $totalLineCount.',
+            style: theme.textTheme.bodySmall,
+          ),
+          if (activeLineIndex < renderStartLine ||
+              activeLineIndex >= renderEndLine) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Current caret line ${activeLineIndex + 1} is outside the rendered preview window.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 List<Widget> _buildLineWithInlineFeedback(
@@ -5814,6 +6403,7 @@ List<Widget> _buildLineWithInlineFeedback(
   required int activeLineIndex,
   required List<int> lineStarts,
   required EditorRenderPlan renderPlan,
+  required EditorSemanticThemeBinding semanticThemeBinding,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
   required void Function(int lineIndex, DragStartDetails details)
   onPanStartLine,
@@ -5832,6 +6422,7 @@ List<Widget> _buildLineWithInlineFeedback(
       lineIndex: lineIndex,
       lineStarts: lineStarts,
       renderPlan: renderPlan,
+      semanticThemeBinding: semanticThemeBinding,
       onTapDown: (details) => onTapLine(lineIndex, details),
       onPanStart: (details) => onPanStartLine(lineIndex, details),
       onPanUpdate: (details) => onPanUpdateLine(lineIndex, details),
@@ -5880,6 +6471,7 @@ List<InlineSpan> _buildLineSpans(
   required SourceRange? activeTokenRange,
   required SelectionState selection,
   required EditorRenderPlan renderPlan,
+  required EditorSemanticThemeBinding semanticThemeBinding,
 }) {
   final spans = <InlineSpan>[];
   final caretOffset = selection.isCollapsed ? selection.end : null;
@@ -5930,6 +6522,7 @@ List<InlineSpan> _buildLineSpans(
           tokenKind: TokenKind.whitespace,
           semanticKind: null,
           diagnosticSeverity: null,
+          semanticThemeBinding: semanticThemeBinding,
         ),
       ),
     );
@@ -5955,6 +6548,7 @@ List<InlineSpan> _buildLineSpans(
         tokenKind: TokenKind.whitespace,
         semanticKind: null,
         diagnosticSeverity: null,
+        semanticThemeBinding: semanticThemeBinding,
       );
       _appendCaretIfNeeded(
         spans,
@@ -6002,8 +6596,10 @@ List<InlineSpan> _buildLineSpans(
           activeToken:
               activeTokenRange != null &&
               _sameRange(activeTokenRange, tokenRange),
+          semanticThemeBinding: semanticThemeBinding,
           enableGlyphSubstitution:
               renderPlan.activeLayers.contains(EditorRenderLayer.decoration) &&
+              renderPlan.glyphSubstitutionEnabled &&
               !_selectionTouchesRange(selectionRange, caretOffset, tokenRange),
         ),
       );
@@ -6017,6 +6613,7 @@ List<InlineSpan> _buildLineSpans(
       tokenKind: TokenKind.whitespace,
       semanticKind: null,
       diagnosticSeverity: null,
+      semanticThemeBinding: semanticThemeBinding,
     );
     _appendCaretIfNeeded(
       spans,
@@ -6070,6 +6667,7 @@ List<InlineSpan> _inlineSpansForToken(
   required DiagnosticSeverity? diagnosticSeverity,
   required ReferenceSpan? activeReference,
   required bool activeToken,
+  required EditorSemanticThemeBinding semanticThemeBinding,
   required bool enableGlyphSubstitution,
 }) {
   final style = _textStyleForToken(
@@ -6077,6 +6675,7 @@ List<InlineSpan> _inlineSpansForToken(
     tokenKind: token.kind,
     semanticKind: semanticKind,
     diagnosticSeverity: diagnosticSeverity,
+    semanticThemeBinding: semanticThemeBinding,
   );
   final referenceHighlightColor = _referenceHighlightColor(activeReference);
 
@@ -6322,101 +6921,15 @@ TextStyle _textStyleForToken(
   required TokenKind tokenKind,
   required SemanticKind? semanticKind,
   required DiagnosticSeverity? diagnosticSeverity,
+  required EditorSemanticThemeBinding semanticThemeBinding,
 }) {
-  Color color;
-  FontWeight weight = FontWeight.w500;
-
-  switch (tokenKind) {
-    case TokenKind.keyword:
-      color = const Color(0xFF6450A7);
-      break;
-    case TokenKind.identifier:
-      color = const Color(0xFF2C2725);
-      break;
-    case TokenKind.number:
-      color = const Color(0xFF0F7B68);
-      break;
-    case TokenKind.string:
-      color = const Color(0xFFAF5B33);
-      break;
-    case TokenKind.comment:
-      color = const Color(0xFF9A9185);
-      break;
-    case TokenKind.operator:
-      color = const Color(0xFF255A96);
-      break;
-    case TokenKind.punctuation:
-      color = const Color(0xFF6D655E);
-      break;
-    case TokenKind.whitespace:
-      color = const Color(0xFF2C2725);
-      weight = FontWeight.w400;
-      break;
-    case TokenKind.unknown:
-      color = const Color(0xFFCB4D45);
-      break;
-  }
-
-  switch (semanticKind) {
-    case SemanticKind.function:
-      color = const Color(0xFFAA4D7D);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.pipeline:
-      color = const Color(0xFF25637A);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.state:
-      color = const Color(0xFF847A22);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.resource:
-      color = const Color(0xFF8B5E28);
-      weight = FontWeight.w700;
-      break;
-    case SemanticKind.variable:
-      color = const Color(0xFF6A4C33);
-      weight = FontWeight.w600;
-      break;
-    case SemanticKind.parameter:
-      color = const Color(0xFF355E97);
-      weight = FontWeight.w600;
-      break;
-    case SemanticKind.typeName:
-      color = const Color(0xFF4D6D2A);
-      weight = FontWeight.w700;
-      break;
-    case null:
-      break;
-  }
-
-  var decoration = TextDecoration.none;
-  var decorationColor = color;
-  var decorationStyle = TextDecorationStyle.solid;
-
-  if (diagnosticSeverity != null) {
-    decoration = TextDecoration.underline;
-    decorationStyle = TextDecorationStyle.wavy;
-    switch (diagnosticSeverity) {
-      case DiagnosticSeverity.error:
-        decorationColor = const Color(0xFFCB4D45);
-        break;
-      case DiagnosticSeverity.warning:
-        decorationColor = const Color(0xFFD5962A);
-        break;
-      case DiagnosticSeverity.hint:
-        decorationColor = const Color(0xFF6980B5);
-        break;
-    }
-  }
-
-  return Theme.of(context).textTheme.bodyMedium!.copyWith(
-    fontFamily: 'monospace',
-    color: color,
-    fontWeight: weight,
-    decoration: decoration,
-    decorationColor: decorationColor,
-    decorationStyle: decorationStyle,
+  return EditorFlutterTextStyleBinding(
+    semanticThemeBinding: semanticThemeBinding,
+  ).styleForToken(
+    baseStyle: Theme.of(context).textTheme.bodyMedium!,
+    tokenKind: tokenKind,
+    semanticKind: semanticKind,
+    diagnosticSeverity: diagnosticSeverity,
   );
 }
 

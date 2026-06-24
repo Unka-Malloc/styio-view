@@ -104,6 +104,38 @@ class FileSystemWorkspaceDocumentStore
   }
 
   @override
+  Future<bool> deleteDocument(String path) async {
+    await fileSystemManager.createDirectory(rootDirectory.path, recursive: true);
+    if (fileSystemManager.compatibility.isAbsolutePath(path)) {
+      if (!await fileSystemManager.exists(path)) {
+        return false;
+      }
+      await fileSystemManager.delete(path);
+      return true;
+    }
+
+    final sourcePath = _sourcePath(path);
+    final metadataPath = _metadataPath(path);
+    if (!await fileSystemManager.exists(sourcePath)) {
+      return false;
+    }
+    await fileSystemManager.delete(sourcePath);
+    if (await fileSystemManager.exists(metadataPath)) {
+      await fileSystemManager.delete(metadataPath);
+    }
+    return true;
+  }
+
+  @override
+  Future<bool> documentExists(String path) async {
+    await fileSystemManager.createDirectory(rootDirectory.path, recursive: true);
+    if (fileSystemManager.compatibility.isAbsolutePath(path)) {
+      return fileSystemManager.exists(path);
+    }
+    return fileSystemManager.exists(_sourcePath(path));
+  }
+
+  @override
   String? filePathForDocumentId(String documentId) {
     if (fileSystemManager.compatibility.isAbsolutePath(documentId)) {
       return documentId;
@@ -157,10 +189,24 @@ class FileSystemWorkspaceDocumentStore
   }
 
   String _resolvePath(String documentId) {
-    final segments = documentId
+    final rawSegments = documentId
+        .replaceAll('\\', '/')
         .split('/')
         .where((segment) => segment.isNotEmpty)
-        .map(Uri.encodeComponent);
+        .toList(growable: false);
+    if (rawSegments.isEmpty) {
+      throw ArgumentError.value(documentId, 'documentId', 'must not be empty');
+    }
+    for (final segment in rawSegments) {
+      if (segment == '.' || segment == '..') {
+        throw ArgumentError.value(
+          documentId,
+          'documentId',
+          'must not contain path traversal segments',
+        );
+      }
+    }
+    final segments = rawSegments.map(Uri.encodeComponent);
     return fileSystemManager.joinPath(<String>[rootDirectory.path, ...segments]);
   }
 

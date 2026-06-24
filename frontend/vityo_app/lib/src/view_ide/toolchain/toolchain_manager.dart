@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import '../environment/configuration/environment_variable_configuration.dart';
 import '../environment/system_compatibility/platform_manager/platform_manager.dart';
+import '../runtime/runtime.dart';
+import 'clang_cpp_version_configuration.dart';
 import 'toolchain_catalog.dart';
 import 'toolchain_configuration_store.dart';
 import 'toolchain_environment.dart';
@@ -10,6 +12,7 @@ import 'toolchain_install_executor.dart';
 import 'toolchain_install_policy.dart';
 import 'toolchain_resolver.dart';
 import 'toolchain_runtime.dart';
+import 'styio_toolchain_lifecycle.dart';
 
 class ToolchainStateEntry {
   const ToolchainStateEntry({
@@ -204,6 +207,703 @@ class ToolchainManagerStatusReport {
   }
 }
 
+class ToolchainManagerBootstrapSummary {
+  const ToolchainManagerBootstrapSummary({
+    required this.managerReport,
+    required this.styioLifecycle,
+    required this.settingsActionIds,
+    required this.installerActionIds,
+    required this.projectBootstrapActionIds,
+  });
+
+  factory ToolchainManagerBootstrapSummary.fromReports({
+    required ToolchainManagerStatusReport managerReport,
+    required StyioToolchainLifecycleReport styioLifecycle,
+  }) {
+    final settingsActions = <String>{
+      ...managerReport.recoveryState.actionIds,
+      for (final role in styioLifecycle.selectableRequiredRoles)
+        'select-styio-${role.role.wireValue}',
+      for (final role in styioLifecycle.missingRequiredRoles)
+        'install-styio-${role.role.wireValue}',
+    };
+    final installerActions = <String>{
+      if (styioLifecycle.missingRequiredRoles.isNotEmpty)
+        'install-managed-styio-toolchain',
+      if (managerReport.recoveryState.kind ==
+          ToolchainRecoveryStateKind.retryAvailable)
+        'retry-toolchain-action',
+      if (styioLifecycle.ready) 'verify-styio-toolchain',
+    };
+    final projectBootstrapActions = <String>{
+      if (managerReport.ready && styioLifecycle.ready)
+        'validate-project-toolchain'
+      else ...<String>{'open-toolchain-settings', 'bootstrap-styio-toolchain'},
+    };
+    return ToolchainManagerBootstrapSummary(
+      managerReport: managerReport,
+      styioLifecycle: styioLifecycle,
+      settingsActionIds: List<String>.unmodifiable(settingsActions),
+      installerActionIds: List<String>.unmodifiable(installerActions),
+      projectBootstrapActionIds: List<String>.unmodifiable(
+        projectBootstrapActions,
+      ),
+    );
+  }
+
+  final ToolchainManagerStatusReport managerReport;
+  final StyioToolchainLifecycleReport styioLifecycle;
+  final List<String> settingsActionIds;
+  final List<String> installerActionIds;
+  final List<String> projectBootstrapActionIds;
+
+  bool get ready => managerReport.ready && styioLifecycle.ready;
+
+  Map<String, Object?> get agentContext {
+    final activeEntries = managerReport.snapshot.entries
+        .where((entry) => entry.active)
+        .toList(growable: false);
+    return <String, Object?>{
+      'toolchainReady': ready,
+      'managerStatus': managerReport.status.name,
+      'styioLifecycleState': styioLifecycle.state.name,
+      'activeToolchains': activeEntries
+          .map((entry) => entry.toJson())
+          .toList(growable: false),
+      'requiredStyioRoles': styioLifecycle.requiredRoles
+          .map((role) => role.wireValue)
+          .toList(growable: false),
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'managerReport': managerReport.toJson(),
+      'styioLifecycle': styioLifecycle.toJson(),
+      'settingsActionIds': settingsActionIds,
+      'installerActionIds': installerActionIds,
+      'projectBootstrapActionIds': projectBootstrapActionIds,
+      'executionPlan': executionPlan().toJson(),
+      'agentContext': agentContext,
+    };
+  }
+
+  ToolchainBootstrapExecutionPlan executionPlan() {
+    return ToolchainBootstrapExecutionPlan.fromSummary(this);
+  }
+}
+
+enum ToolchainBootstrapActionSurface { settings, installer, project }
+
+extension ToolchainBootstrapActionSurfaceX on ToolchainBootstrapActionSurface {
+  String get wireValue {
+    return switch (this) {
+      ToolchainBootstrapActionSurface.settings => 'settings',
+      ToolchainBootstrapActionSurface.installer => 'installer',
+      ToolchainBootstrapActionSurface.project => 'project',
+    };
+  }
+}
+
+class ToolchainBootstrapActionStep {
+  const ToolchainBootstrapActionStep({
+    required this.stepId,
+    required this.actionId,
+    required this.surface,
+    required this.required,
+    this.completed = false,
+  });
+
+  final String stepId;
+  final String actionId;
+  final ToolchainBootstrapActionSurface surface;
+  final bool required;
+  final bool completed;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'stepId': stepId,
+      'actionId': actionId,
+      'surface': surface.wireValue,
+      'required': required,
+      'completed': completed,
+    };
+  }
+}
+
+class ToolchainBootstrapExecutionPlan {
+  const ToolchainBootstrapExecutionPlan({
+    required this.ready,
+    required this.steps,
+    this.todo = '',
+  });
+
+  factory ToolchainBootstrapExecutionPlan.fromSummary(
+    ToolchainManagerBootstrapSummary summary,
+  ) {
+    var index = 0;
+    ToolchainBootstrapActionStep step(
+      String actionId,
+      ToolchainBootstrapActionSurface surface, {
+      required bool required,
+    }) {
+      index += 1;
+      return ToolchainBootstrapActionStep(
+        stepId: 'toolchain-bootstrap.$index',
+        actionId: actionId,
+        surface: surface,
+        required: required,
+        completed: summary.ready,
+      );
+    }
+
+    return ToolchainBootstrapExecutionPlan(
+      ready: summary.ready,
+      steps: List<ToolchainBootstrapActionStep>.unmodifiable(
+        <ToolchainBootstrapActionStep>[
+          for (final actionId in summary.settingsActionIds)
+            step(
+              actionId,
+              ToolchainBootstrapActionSurface.settings,
+              required: true,
+            ),
+          for (final actionId in summary.installerActionIds)
+            step(
+              actionId,
+              ToolchainBootstrapActionSurface.installer,
+              required: !summary.ready,
+            ),
+          for (final actionId in summary.projectBootstrapActionIds)
+            step(
+              actionId,
+              ToolchainBootstrapActionSurface.project,
+              required: true,
+            ),
+        ],
+      ),
+      todo:
+          'TODO: bind concrete installer UX and project bootstrap runners to ToolchainBootstrapExecutionBridge handlers.',
+    );
+  }
+
+  final bool ready;
+  final List<ToolchainBootstrapActionStep> steps;
+  final String todo;
+
+  bool get canExecute => !ready && steps.isNotEmpty;
+  int get requiredStepCount => steps.where((step) => step.required).length;
+
+  Map<String, int> get surfaceCounts {
+    return <String, int>{
+      for (final surface in ToolchainBootstrapActionSurface.values)
+        surface.wireValue: steps
+            .where((step) => step.surface == surface)
+            .length,
+    };
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'ready': ready,
+      'canExecute': canExecute,
+      'stepCount': steps.length,
+      'requiredStepCount': requiredStepCount,
+      'surfaceCounts': surfaceCounts,
+      'steps': steps.map((step) => step.toJson()).toList(growable: false),
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+enum ToolchainBootstrapActionDispatchStatus {
+  dispatched,
+  blocked,
+  missingHandler,
+  unknownAction,
+  alreadyReady,
+}
+
+extension ToolchainBootstrapActionDispatchStatusX
+    on ToolchainBootstrapActionDispatchStatus {
+  String get wireValue {
+    return switch (this) {
+      ToolchainBootstrapActionDispatchStatus.dispatched => 'dispatched',
+      ToolchainBootstrapActionDispatchStatus.blocked => 'blocked',
+      ToolchainBootstrapActionDispatchStatus.missingHandler =>
+        'missing-handler',
+      ToolchainBootstrapActionDispatchStatus.unknownAction => 'unknown-action',
+      ToolchainBootstrapActionDispatchStatus.alreadyReady => 'already-ready',
+    };
+  }
+}
+
+class ToolchainBootstrapActionDispatchResult {
+  const ToolchainBootstrapActionDispatchResult({
+    required this.status,
+    required this.actionId,
+    this.surface,
+    this.message = '',
+    this.todo = '',
+  });
+
+  factory ToolchainBootstrapActionDispatchResult.dispatched(
+    ToolchainBootstrapActionStep step, {
+    String message = 'Toolchain bootstrap action dispatched.',
+  }) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.dispatched,
+      actionId: step.actionId,
+      surface: step.surface,
+      message: message,
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.blocked(
+    ToolchainBootstrapActionStep step, {
+    required String message,
+    String todo = '',
+  }) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.blocked,
+      actionId: step.actionId,
+      surface: step.surface,
+      message: message,
+      todo: todo,
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.missingHandler(
+    ToolchainBootstrapActionStep step,
+  ) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.missingHandler,
+      actionId: step.actionId,
+      surface: step.surface,
+      message:
+          'No ${step.surface.wireValue} handler is registered for ${step.actionId}.',
+      todo:
+          'TODO: bind ${step.surface.wireValue} bootstrap action handler to concrete UI or project runner.',
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.unknownAction(
+    String actionId,
+  ) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.unknownAction,
+      actionId: actionId,
+      message: 'Unknown toolchain bootstrap action: $actionId.',
+    );
+  }
+
+  factory ToolchainBootstrapActionDispatchResult.alreadyReady(String actionId) {
+    return ToolchainBootstrapActionDispatchResult(
+      status: ToolchainBootstrapActionDispatchStatus.alreadyReady,
+      actionId: actionId,
+      message: 'Toolchain bootstrap is already ready.',
+    );
+  }
+
+  final ToolchainBootstrapActionDispatchStatus status;
+  final String actionId;
+  final ToolchainBootstrapActionSurface? surface;
+  final String message;
+  final String todo;
+
+  bool get dispatched =>
+      status == ToolchainBootstrapActionDispatchStatus.dispatched;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'status': status.wireValue,
+      'actionId': actionId,
+      if (surface != null) 'surface': surface!.wireValue,
+      if (message.isNotEmpty) 'message': message,
+      if (todo.isNotEmpty) 'todo': todo,
+    };
+  }
+}
+
+typedef ToolchainBootstrapActionHandler =
+    Future<ToolchainBootstrapActionDispatchResult> Function(
+      ToolchainBootstrapActionStep step,
+    );
+
+class ToolchainBootstrapActionRouter {
+  const ToolchainBootstrapActionRouter({
+    this.onSettingsAction,
+    this.onInstallerAction,
+    this.onProjectAction,
+  });
+
+  final ToolchainBootstrapActionHandler? onSettingsAction;
+  final ToolchainBootstrapActionHandler? onInstallerAction;
+  final ToolchainBootstrapActionHandler? onProjectAction;
+
+  Future<ToolchainBootstrapActionDispatchResult> dispatch(
+    ToolchainBootstrapExecutionPlan plan,
+    String actionId,
+  ) async {
+    if (plan.ready) {
+      return ToolchainBootstrapActionDispatchResult.alreadyReady(actionId);
+    }
+
+    ToolchainBootstrapActionStep? matchedStep;
+    for (final step in plan.steps) {
+      if (step.actionId == actionId) {
+        matchedStep = step;
+        break;
+      }
+    }
+
+    if (matchedStep == null) {
+      return ToolchainBootstrapActionDispatchResult.unknownAction(actionId);
+    }
+
+    final handler = switch (matchedStep.surface) {
+      ToolchainBootstrapActionSurface.settings => onSettingsAction,
+      ToolchainBootstrapActionSurface.installer => onInstallerAction,
+      ToolchainBootstrapActionSurface.project => onProjectAction,
+    };
+
+    if (handler == null) {
+      return ToolchainBootstrapActionDispatchResult.missingHandler(matchedStep);
+    }
+
+    return handler(matchedStep);
+  }
+}
+
+class ToolchainBootstrapExecutionResult {
+  const ToolchainBootstrapExecutionResult({
+    required this.plan,
+    required this.dispatches,
+  });
+
+  final ToolchainBootstrapExecutionPlan plan;
+  final List<ToolchainBootstrapActionDispatchResult> dispatches;
+
+  bool get completed {
+    return plan.ready ||
+        (dispatches.isNotEmpty &&
+            dispatches.every(
+              (dispatch) =>
+                  dispatch.status ==
+                      ToolchainBootstrapActionDispatchStatus.dispatched ||
+                  dispatch.status ==
+                      ToolchainBootstrapActionDispatchStatus.alreadyReady,
+            ));
+  }
+
+  bool get blocked {
+    return dispatches.any(
+      (dispatch) =>
+          dispatch.status == ToolchainBootstrapActionDispatchStatus.blocked ||
+          dispatch.status ==
+              ToolchainBootstrapActionDispatchStatus.missingHandler ||
+          dispatch.status ==
+              ToolchainBootstrapActionDispatchStatus.unknownAction,
+    );
+  }
+
+  int get dispatchedCount {
+    return dispatches
+        .where(
+          (dispatch) =>
+              dispatch.status ==
+              ToolchainBootstrapActionDispatchStatus.dispatched,
+        )
+        .length;
+  }
+
+  List<String> get blockedActionIds {
+    return dispatches
+        .where(
+          (dispatch) =>
+              dispatch.status ==
+                  ToolchainBootstrapActionDispatchStatus.blocked ||
+              dispatch.status ==
+                  ToolchainBootstrapActionDispatchStatus.missingHandler ||
+              dispatch.status ==
+                  ToolchainBootstrapActionDispatchStatus.unknownAction,
+        )
+        .map((dispatch) => dispatch.actionId)
+        .toList(growable: false);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'completed': completed,
+      'blocked': blocked,
+      'dispatchedCount': dispatchedCount,
+      'blockedActionIds': blockedActionIds,
+      'dispatches': dispatches
+          .map((dispatch) => dispatch.toJson())
+          .toList(growable: false),
+      'plan': plan.toJson(),
+    };
+  }
+}
+
+class ToolchainBootstrapExecutionBridge {
+  const ToolchainBootstrapExecutionBridge({
+    required this.router,
+    this.stopOnBlocked = true,
+  });
+
+  final ToolchainBootstrapActionRouter router;
+  final bool stopOnBlocked;
+
+  Future<ToolchainBootstrapExecutionResult> execute(
+    ToolchainBootstrapExecutionPlan plan, {
+    bool requiredOnly = true,
+    Iterable<String> actionIds = const <String>[],
+  }) async {
+    final filter = actionIds
+        .map((actionId) => actionId.trim())
+        .where((actionId) => actionId.isNotEmpty)
+        .toSet();
+    final dispatches = <ToolchainBootstrapActionDispatchResult>[];
+    for (final step in plan.steps) {
+      if (requiredOnly && !step.required) {
+        continue;
+      }
+      if (filter.isNotEmpty && !filter.contains(step.actionId)) {
+        continue;
+      }
+      final dispatch = await router.dispatch(plan, step.actionId);
+      dispatches.add(dispatch);
+      if (stopOnBlocked && !dispatch.dispatched) {
+        break;
+      }
+    }
+    return ToolchainBootstrapExecutionResult(
+      plan: plan,
+      dispatches: List<ToolchainBootstrapActionDispatchResult>.unmodifiable(
+        dispatches,
+      ),
+    );
+  }
+}
+
+enum ToolchainManagerRuntimeExecutionStatus { executed, blocked, wrongRoute }
+
+extension ToolchainManagerRuntimeExecutionStatusX
+    on ToolchainManagerRuntimeExecutionStatus {
+  String get wireValue => switch (this) {
+    ToolchainManagerRuntimeExecutionStatus.executed => 'executed',
+    ToolchainManagerRuntimeExecutionStatus.blocked => 'blocked',
+    ToolchainManagerRuntimeExecutionStatus.wrongRoute => 'wrong-route',
+  };
+}
+
+class ToolchainManagerRuntimeExecutionResult {
+  const ToolchainManagerRuntimeExecutionResult({
+    required this.binding,
+    required this.status,
+    required this.outputEvents,
+    this.runtimeResult,
+  });
+
+  final RuntimeExecutionHandoffBinding binding;
+  final ToolchainManagerRuntimeExecutionStatus status;
+  final List<RuntimeOutputEvent> outputEvents;
+  final ToolchainRuntimeResult? runtimeResult;
+
+  bool get executed =>
+      status == ToolchainManagerRuntimeExecutionStatus.executed;
+  bool get succeeded => runtimeResult?.succeeded ?? false;
+  RuntimeProcessHandleIdentity? get processHandle {
+    final metadata = runtimeResult?.metadata ?? const <String, Object?>{};
+    return RuntimeProcessHandleIdentity.tryFromMetadata(
+      metadata,
+      managerId: binding.managerId,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final handle = processHandle;
+    return <String, Object?>{
+      'status': status.wireValue,
+      'executed': executed,
+      'succeeded': succeeded,
+      'binding': binding.toJson(),
+      'outputEvents': outputEvents
+          .map((event) => event.toJson())
+          .toList(growable: false),
+      if (runtimeResult != null) 'runtimeResult': runtimeResult!.toJson(),
+      if (handle != null) 'processHandle': handle.toJson(),
+    };
+  }
+}
+
+class ToolchainManagerRuntimeExecutionAdapter {
+  ToolchainManagerRuntimeExecutionAdapter({
+    required this.toolchainManager,
+    RuntimeTaskClock? clock,
+  }) : _clock = clock ?? DateTime.now().toUtc;
+
+  final ToolchainManager toolchainManager;
+  final RuntimeTaskClock _clock;
+
+  Future<ToolchainManagerRuntimeExecutionResult> executeHandoff({
+    required RuntimeExecutionHandoffBinding binding,
+    required RuntimeOutputLiveBuffer buffer,
+    ToolchainKind? kind,
+    ToolchainRequirement? requirement,
+    Iterable<EnvironmentVariableOverlay> environmentOverlays =
+        const <EnvironmentVariableOverlay>[],
+    Duration? timeout,
+    String? standardInput,
+  }) async {
+    if (binding.managerId != 'toolchain-manager') {
+      return _controlResult(
+        binding: binding,
+        buffer: buffer,
+        status: ToolchainManagerRuntimeExecutionStatus.wrongRoute,
+        message:
+            'Runtime toolchain execution ignored non-toolchain route ${binding.managerId}.',
+      );
+    }
+    if (!binding.ready) {
+      return _controlResult(
+        binding: binding,
+        buffer: buffer,
+        status: ToolchainManagerRuntimeExecutionStatus.blocked,
+        message: 'Runtime toolchain execution blocked before process start.',
+      );
+    }
+
+    final runtimeResult = await toolchainManager.run(
+      kind: kind ?? _toolchainKindForBinding(binding),
+      requirement: requirement,
+      arguments: binding.handoff.arguments,
+      environment: binding.handoff.environment,
+      environmentOverlays: environmentOverlays,
+      workingDirectory: binding.handoff.workingDirectory,
+      timeout: timeout,
+      standardInput: standardInput,
+    );
+    final outputEvents = _eventsForResult(
+      binding: binding,
+      runtimeResult: runtimeResult,
+    );
+    for (final event in outputEvents) {
+      buffer.addEvent(event, now: event.timestamp);
+    }
+    return ToolchainManagerRuntimeExecutionResult(
+      binding: binding,
+      status: ToolchainManagerRuntimeExecutionStatus.executed,
+      outputEvents: List<RuntimeOutputEvent>.unmodifiable(outputEvents),
+      runtimeResult: runtimeResult,
+    );
+  }
+
+  ToolchainManagerRuntimeExecutionResult _controlResult({
+    required RuntimeExecutionHandoffBinding binding,
+    required RuntimeOutputLiveBuffer buffer,
+    required ToolchainManagerRuntimeExecutionStatus status,
+    required String message,
+  }) {
+    final outputEvent = binding.outputEvent(
+      message: message,
+      timestamp: _clock(),
+      kind: RuntimeOutputChannelKind.runtimeEvents,
+      metadata: <String, Object?>{
+        'runtimeToolchainExecutionStatus': status.wireValue,
+      },
+    );
+    buffer.addEvent(outputEvent, now: outputEvent.timestamp);
+    return ToolchainManagerRuntimeExecutionResult(
+      binding: binding,
+      status: status,
+      outputEvents: <RuntimeOutputEvent>[outputEvent],
+    );
+  }
+
+  List<RuntimeOutputEvent> _eventsForResult({
+    required RuntimeExecutionHandoffBinding binding,
+    required ToolchainRuntimeResult runtimeResult,
+  }) {
+    final timestamp = _clock();
+    final events = <RuntimeOutputEvent>[
+      binding.outputEvent(
+        message:
+            runtimeResult.message ??
+            (runtimeResult.succeeded
+                ? 'Runtime toolchain handoff ${binding.handoff.taskId} completed.'
+                : 'Runtime toolchain handoff ${binding.handoff.taskId} failed.'),
+        timestamp: timestamp,
+        kind: RuntimeOutputChannelKind.nativeTools,
+        metadata: <String, Object?>{
+          'runtimeToolchainExecutionStatus':
+              ToolchainManagerRuntimeExecutionStatus.executed.wireValue,
+          'toolchainRuntimeStatus': runtimeResult.status.name,
+          'toolchainId': runtimeResult.toolchainId,
+          'succeeded': runtimeResult.succeeded,
+          if (runtimeResult.exitCode != null)
+            'exitCode': runtimeResult.exitCode,
+          ...runtimeResult.metadata,
+        },
+      ),
+    ];
+    events.addAll(
+      _streamEvents(
+        binding: binding,
+        stream: 'stdout',
+        kind: RuntimeOutputChannelKind.stdout,
+        output: runtimeResult.stdout,
+        timestamp: timestamp,
+        metadata: runtimeResult.metadata,
+      ),
+    );
+    events.addAll(
+      _streamEvents(
+        binding: binding,
+        stream: 'stderr',
+        kind: RuntimeOutputChannelKind.stderr,
+        output: runtimeResult.stderr,
+        timestamp: timestamp,
+        metadata: runtimeResult.metadata,
+      ),
+    );
+    return events;
+  }
+
+  List<RuntimeOutputEvent> _streamEvents({
+    required RuntimeExecutionHandoffBinding binding,
+    required String stream,
+    required RuntimeOutputChannelKind kind,
+    required String output,
+    required DateTime timestamp,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    final chunks = _outputChunks(output);
+    return <RuntimeOutputEvent>[
+      for (var index = 0; index < chunks.length; index += 1)
+        RuntimeOutputEvent(
+          channelId: '${binding.outputChannel.id}.$stream',
+          label: '${binding.outputChannel.label} $stream',
+          kind: kind,
+          message: chunks[index],
+          timestamp: timestamp,
+          metadata: <String, Object?>{
+            'taskId': binding.handoff.taskId,
+            'managerId': binding.managerId,
+            'routeKind': binding.routeKind,
+            'runtimeToolchainExecutionStatus':
+                ToolchainManagerRuntimeExecutionStatus.executed.wireValue,
+            'stream': stream,
+            'chunkIndex': index,
+            'chunkCount': chunks.length,
+            ...metadata,
+          },
+        ),
+    ];
+  }
+}
+
 enum ToolchainSelectionStatus { selected, cleared, missing }
 
 enum ToolchainRegistrationStatus { registered, duplicate, invalid }
@@ -354,6 +1054,30 @@ class ToolchainManager {
 
   Future<bool> clearCatalog() {
     return _configurationStore.deleteCatalog(
+      workspaceId: workspaceId,
+      targetId: _targetId,
+    );
+  }
+
+  Future<void> saveClangCppVersionPreference(
+    ClangCppVersionPreference preference,
+  ) {
+    return _configurationStore.saveClangCppVersionPreference(
+      preference,
+      workspaceId: workspaceId,
+      targetId: _targetId,
+    );
+  }
+
+  Future<ClangCppVersionPreference?> loadClangCppVersionPreference() {
+    return _configurationStore.loadClangCppVersionPreference(
+      workspaceId: workspaceId,
+      targetId: _targetId,
+    );
+  }
+
+  Future<bool> clearClangCppVersionPreference() {
+    return _configurationStore.deleteClangCppVersionPreference(
       workspaceId: workspaceId,
       targetId: _targetId,
     );
@@ -852,7 +1576,7 @@ class ToolchainManager {
     final catalog = await loadCatalog();
     final effectiveRequirement =
         requirement ?? ToolchainRequirement(kind: kind);
-    final snapshot = await this.snapshot(kind: kind);
+    final snapshot = await this.snapshot();
     final installHistory = await _configurationStore.loadInstallHistory(
       workspaceId: workspaceId,
       targetId: _targetId,
@@ -931,6 +1655,23 @@ class ToolchainManager {
       installHistory: installHistory,
       health: health,
       message: health.message,
+    );
+  }
+
+  Future<ToolchainManagerBootstrapSummary> bootstrapSummary({
+    ToolchainKind kind = ToolchainKind.languageService,
+    ToolchainRequirement? requirement,
+    List<StyioToolchainRole> requiredStyioRoles =
+        StyioToolchainLifecycleManager.defaultRequiredRoles,
+  }) async {
+    final report = await statusReport(kind: kind, requirement: requirement);
+    final catalog = await loadCatalog();
+    final lifecycle = StyioToolchainLifecycleManager(
+      catalog: catalog,
+    ).inspect(requiredRoles: requiredStyioRoles);
+    return ToolchainManagerBootstrapSummary.fromReports(
+      managerReport: report,
+      styioLifecycle: lifecycle,
     );
   }
 
@@ -1089,6 +1830,35 @@ class ToolchainManager {
       timeout: timeout,
     );
   }
+}
+
+ToolchainKind _toolchainKindForBinding(RuntimeExecutionHandoffBinding binding) {
+  final metadata = binding.handoff.plan.definition.metadata;
+  final explicitKind = metadata['toolchainKind'] ?? metadata['toolchain.kind'];
+  if (explicitKind is String && explicitKind.trim().isNotEmpty) {
+    return toolchainKindFromWireValue(explicitKind);
+  }
+  return switch (binding.handoff.plan.definition.kind) {
+    RuntimeTaskKind.build => ToolchainKind.buildTool,
+    RuntimeTaskKind.test => ToolchainKind.testRunner,
+    RuntimeTaskKind.debug => ToolchainKind.debugger,
+    RuntimeTaskKind.shell => ToolchainKind.terminal,
+    RuntimeTaskKind.run ||
+    RuntimeTaskKind.agent ||
+    RuntimeTaskKind.toolchain => ToolchainKind.runner,
+  };
+}
+
+List<String> _outputChunks(String output) {
+  if (output.isEmpty) {
+    return const <String>[];
+  }
+  final normalized = output.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+  final lines = normalized.split('\n');
+  if (lines.isNotEmpty && lines.last.isEmpty) {
+    lines.removeLast();
+  }
+  return lines.isEmpty ? <String>[output] : lines;
 }
 
 class _ToolchainInstallRollbackResult {

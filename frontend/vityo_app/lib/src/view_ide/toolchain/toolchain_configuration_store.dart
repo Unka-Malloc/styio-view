@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import '../environment/configuration/configuration.dart';
+import 'clang_cpp_version_configuration.dart';
+import 'toolchain_catalog_change.dart';
 import 'toolchain_catalog.dart';
 
 typedef ToolchainCatalogUpdater =
@@ -169,6 +171,50 @@ class ToolchainConfigurationStore {
     );
   }
 
+  Future<void> saveClangCppVersionPreference(
+    ClangCppVersionPreference preference, {
+    String? workspaceId,
+    String? targetId,
+  }) async {
+    await _configurationStore.write(
+      ConfigurationSettingRecord(
+        key: _clangCppVersionPreferenceKey(
+          workspaceId: workspaceId,
+          targetId: targetId,
+        ),
+        value: preference.toJson(),
+      ),
+    );
+  }
+
+  Future<ClangCppVersionPreference?> loadClangCppVersionPreference({
+    String? workspaceId,
+    String? targetId,
+  }) async {
+    final record = await _configurationStore.read(
+      _clangCppVersionPreferenceKey(
+        workspaceId: workspaceId,
+        targetId: targetId,
+      ),
+    );
+    if (record == null) {
+      return null;
+    }
+    return ClangCppVersionPreference.fromJson(record.value);
+  }
+
+  Future<bool> deleteClangCppVersionPreference({
+    String? workspaceId,
+    String? targetId,
+  }) {
+    return _configurationStore.delete(
+      _clangCppVersionPreferenceKey(
+        workspaceId: workspaceId,
+        targetId: targetId,
+      ),
+    );
+  }
+
   Future<ToolchainCatalog?> updateCatalog(
     ToolchainCatalogUpdater update, {
     String? workspaceId,
@@ -236,20 +282,20 @@ class ToolchainConfigurationStore {
     return _configurationStore
         .watch(_catalogKey(workspaceId: workspaceId, targetId: targetId))
         .map((change) {
-        final catalog = ToolchainCatalog();
-        if (change.record != null) {
-          catalog.restore(
-            ToolchainCatalogSnapshot.fromJson(change.record!.value),
+          final catalog = ToolchainCatalog();
+          if (change.record != null) {
+            catalog.restore(
+              ToolchainCatalogSnapshot.fromJson(change.record!.value),
+            );
+          }
+          return ToolchainCatalogConfigurationChange(
+            kind: change.kind,
+            workspaceId: workspaceId,
+            targetId: targetId,
+            catalog: change.record == null ? null : catalog,
+            emittedAt: change.emittedAt,
           );
-        }
-        return ToolchainCatalogConfigurationChange(
-          kind: change.kind,
-          workspaceId: workspaceId,
-          targetId: targetId,
-          catalog: change.record == null ? null : catalog,
-          emittedAt: change.emittedAt,
-        );
-      });
+        });
   }
 
   Future<ToolchainInstallHistorySnapshot> loadInstallHistory({
@@ -307,6 +353,17 @@ class ToolchainConfigurationStore {
     );
   }
 
+  ConfigurationSettingKey _clangCppVersionPreferenceKey({
+    String? workspaceId,
+    String? targetId,
+  }) {
+    return ConfigurationSettingKey(
+      namespace: 'toolchain',
+      name: _targetScopedName('clang-cpp-version-preference', targetId),
+      workspaceId: workspaceId,
+    );
+  }
+
   String _targetScopedName(String baseName, String? targetId) {
     if (targetId == null || targetId.isEmpty) {
       return baseName;
@@ -315,7 +372,7 @@ class ToolchainConfigurationStore {
   }
 }
 
-class ToolchainCatalogConfigurationChange {
+class ToolchainCatalogConfigurationChange implements ToolchainCatalogChange {
   const ToolchainCatalogConfigurationChange({
     required this.kind,
     required this.workspaceId,
@@ -327,9 +384,11 @@ class ToolchainCatalogConfigurationChange {
   final ConfigurationSettingChangeKind kind;
   final String? workspaceId;
   final String? targetId;
+  @override
   final ToolchainCatalog? catalog;
   final DateTime emittedAt;
 
+  @override
   bool get deleted => kind == ConfigurationSettingChangeKind.deleted;
 
   Map<String, Object?> toJson() {

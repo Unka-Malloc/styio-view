@@ -14,9 +14,12 @@ Future<ProcessManager> createPlatformProcessManager({
   ProcessProber? prober,
   PlatformContextSnapshot? platformContext,
 }) async {
-  final adapter = platformContext == null ? null : PlatformAdapter(platformContext);
+  final adapter = platformContext == null
+      ? null
+      : PlatformAdapter(platformContext);
   final facts =
-      adapter?.context.process ?? await (prober ?? const LocalProcessProber()).probe();
+      adapter?.context.process ??
+      await (prober ?? const LocalProcessProber()).probe();
   return LocalProcessManager(facts: facts, adapter: adapter?.processAdapter);
 }
 
@@ -25,7 +28,8 @@ class LocalProcessManager implements ProcessManager {
     : _adapter = adapter ?? ProcessAdapter(facts),
       compatibility = (adapter ?? ProcessAdapter(facts)).adapt();
 
-  factory LocalProcessManager.linuxDebianArmForTest() => LocalProcessManager(facts: ProcessFacts.linuxDebianArm());
+  factory LocalProcessManager.linuxDebianArmForTest() =>
+      LocalProcessManager(facts: ProcessFacts.linuxDebianArm());
 
   final ProcessAdapter _adapter;
   @override
@@ -41,11 +45,7 @@ class LocalProcessManager implements ProcessManager {
   }) {
     return const ProcessFailureClassifier(
       sourceManager: 'LocalProcessManager',
-    ).classify(
-      result,
-      operation: operation,
-      recoveryHint: recoveryHint,
-    );
+    ).classify(result, operation: operation, recoveryHint: recoveryHint);
   }
 
   @override
@@ -78,6 +78,7 @@ class LocalProcessManager implements ProcessManager {
         final stdout = process.stdout.transform(utf8.decoder).join();
         final stderr = process.stderr.transform(utf8.decoder).join();
         final exitCode = await process.exitCode.timeout(plan.timeout);
+        final pid = process.pid;
         stopwatch.stop();
         return ProcessCommandResult(
           status: exitCode == 0
@@ -89,6 +90,11 @@ class LocalProcessManager implements ProcessManager {
           stdout: await stdout,
           stderr: await stderr,
           duration: stopwatch.elapsed,
+          metadata: <String, Object?>{
+            'pid': pid,
+            'processHandleId': '$pid',
+            'processHandleSource': 'LocalProcessManager',
+          },
         );
       }
       final result = await io.Process.run(
@@ -99,7 +105,9 @@ class LocalProcessManager implements ProcessManager {
       ).timeout(plan.timeout);
       stopwatch.stop();
       return ProcessCommandResult(
-        status: result.exitCode == 0 ? ProcessCommandStatus.succeeded : ProcessCommandStatus.failed,
+        status: result.exitCode == 0
+            ? ProcessCommandStatus.succeeded
+            : ProcessCommandStatus.failed,
         executablePath: plan.executablePath,
         arguments: plan.arguments,
         exitCode: result.exitCode,
@@ -119,6 +127,11 @@ class LocalProcessManager implements ProcessManager {
         stderr: '',
         duration: stopwatch.elapsed,
         message: 'Process timed out after ${plan.timeout}.',
+        metadata: <String, Object?>{
+          if (process != null) 'pid': process.pid,
+          if (process != null) 'processHandleId': '${process.pid}',
+          if (process != null) 'processHandleSource': 'LocalProcessManager',
+        },
       );
     } on Object catch (error) {
       stopwatch.stop();

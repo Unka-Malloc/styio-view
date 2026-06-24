@@ -244,6 +244,7 @@ VIEW_IDE_EDITOR_SUBMODULES = (
     "controller",
     "transactions",
     "render_plan",
+    "performance",
     "actions",
     "session",
 )
@@ -257,6 +258,7 @@ VIEW_IDE_EDITOR_BARREL = (
     "export 'actions/actions.dart';",
     "export 'controller/controller.dart';",
     "export 'document/document.dart';",
+    "export 'performance/performance.dart';",
     "export 'render_plan/render_plan.dart';",
     "export 'selection/selection.dart';",
     "export 'session/session.dart';",
@@ -287,6 +289,7 @@ VIEW_IDE_LANGUAGE_BARREL = (
     "export 'service/styio_service_capability.dart';",
     "export 'service/styio_service_capability_detector.dart';",
     "export 'service/styio_service_connector.dart';",
+    "export 'service/styio_service_manager_connector.dart';",
     "export 'service/styio_service_project_document_rule_provider.dart';",
     "export 'service/styio_service_runtime.dart';",
     "export 'service/styio_language_service.dart';",

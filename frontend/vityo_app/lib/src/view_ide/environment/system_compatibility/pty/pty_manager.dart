@@ -1,20 +1,13 @@
 import 'pty_adapter.dart';
 import 'pty_facts.dart';
 
-enum PtySessionState {
-  starting,
-  running,
-  exited,
-  closed,
-  failed,
-  unsupported,
-}
+enum PtySessionState { starting, running, exited, closed, failed, unsupported }
 
-enum PtyResizeStatus {
-  applied,
-  unsupported,
-  failed,
-}
+enum PtyResizeStatus { applied, unsupported, failed }
+
+enum PtySignal { interrupt, terminate, kill, eof }
+
+enum PtySignalStatus { sent, unsupported, failed }
 
 enum PtyFailureKind {
   unsupported,
@@ -88,6 +81,172 @@ class PtyResizeResult {
   bool get applied => status == PtyResizeStatus.applied;
 }
 
+class PtySignalResult {
+  const PtySignalResult({
+    required this.signal,
+    required this.status,
+    this.message,
+  });
+
+  final PtySignal signal;
+  final PtySignalStatus status;
+  final String? message;
+
+  bool get sent => status == PtySignalStatus.sent;
+}
+
+class PtyNativeResizeRequest {
+  const PtyNativeResizeRequest({
+    required this.sessionId,
+    required this.rows,
+    required this.cols,
+    this.processId,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String sessionId;
+  final int rows;
+  final int cols;
+  final int? processId;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'sessionId': sessionId,
+      'rows': rows,
+      'cols': cols,
+      if (processId != null) 'processId': processId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class PtyNativeSignalRequest {
+  const PtyNativeSignalRequest({
+    required this.sessionId,
+    required this.signal,
+    this.processId,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String sessionId;
+  final PtySignal signal;
+  final int? processId;
+  final Map<String, Object?> metadata;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'sessionId': sessionId,
+      'signal': signal.name,
+      if (processId != null) 'processId': processId,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+typedef PtyNativeResizeHandler =
+    Future<PtyResizeResult> Function(PtyNativeResizeRequest request);
+
+typedef PtyNativeSignalHandler =
+    Future<PtySignalResult> Function(PtyNativeSignalRequest request);
+
+class PtyNativeOperationBackend {
+  const PtyNativeOperationBackend({
+    required this.backendId,
+    required this.label,
+    this.resize,
+    this.signal,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String backendId;
+  final String label;
+  final PtyNativeResizeHandler? resize;
+  final PtyNativeSignalHandler? signal;
+  final Map<String, Object?> metadata;
+
+  bool get supportsResize => resize != null;
+  bool get supportsSignal => signal != null;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'backendId': backendId,
+      'label': label,
+      'supportsResize': supportsResize,
+      'supportsSignal': supportsSignal,
+      if (metadata.isNotEmpty) 'metadata': metadata,
+    };
+  }
+}
+
+class PtyNativeOperationBackendRegistry {
+  PtyNativeOperationBackendRegistry({
+    Iterable<PtyNativeOperationBackend> backends =
+        const <PtyNativeOperationBackend>[],
+  }) : _backends = List<PtyNativeOperationBackend>.of(backends);
+
+  final List<PtyNativeOperationBackend> _backends;
+
+  List<PtyNativeOperationBackend> get backends {
+    return List<PtyNativeOperationBackend>.unmodifiable(_backends);
+  }
+
+  void register(PtyNativeOperationBackend backend) {
+    _backends.removeWhere(
+      (candidate) => candidate.backendId == backend.backendId,
+    );
+    _backends.add(backend);
+  }
+
+  Future<PtyResizeResult?> resize(PtyNativeResizeRequest request) async {
+    for (final backend in _backends) {
+      final handler = backend.resize;
+      if (handler == null) {
+        continue;
+      }
+      try {
+        return await handler(request);
+      } on Object catch (error) {
+        return PtyResizeResult(
+          status: PtyResizeStatus.failed,
+          rows: request.rows,
+          cols: request.cols,
+          message: 'PTY resize backend ${backend.backendId} failed: $error',
+        );
+      }
+    }
+    return null;
+  }
+
+  Future<PtySignalResult?> sendSignal(PtyNativeSignalRequest request) async {
+    for (final backend in _backends) {
+      final handler = backend.signal;
+      if (handler == null) {
+        continue;
+      }
+      try {
+        return await handler(request);
+      } on Object catch (error) {
+        return PtySignalResult(
+          signal: request.signal,
+          status: PtySignalStatus.failed,
+          message: 'PTY signal backend ${backend.backendId} failed: $error',
+        );
+      }
+    }
+    return null;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'backendCount': _backends.length,
+      'backends': _backends
+          .map((backend) => backend.toJson())
+          .toList(growable: false),
+    };
+  }
+}
+
 class PtyFailureClassifier {
   const PtyFailureClassifier({required this.sourceManager});
 
@@ -151,6 +310,8 @@ abstract class PtySession {
   Future<void> write(String input);
 
   Future<PtyResizeResult> resize({required int rows, required int cols});
+
+  Future<PtySignalResult> sendSignal(PtySignal signal);
 
   Future<int?> close({bool force = false});
 
@@ -257,6 +418,15 @@ class UnsupportedPtySession implements PtySession {
       rows: rows,
       cols: cols,
       message: 'PTY resize is not available.',
+    );
+  }
+
+  @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async {
+    return PtySignalResult(
+      signal: signal,
+      status: PtySignalStatus.unsupported,
+      message: 'PTY signals are not available.',
     );
   }
 

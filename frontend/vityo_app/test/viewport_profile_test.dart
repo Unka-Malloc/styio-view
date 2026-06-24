@@ -12,6 +12,7 @@ void main() {
 
     expect(profile.isDesktop, isTrue);
     expect(profile.label, 'Desktop');
+    expect(profile.platformTarget, PlatformTarget.macos);
   });
 
   test('mobile platforms always resolve to mobile viewport family', () {
@@ -39,5 +40,6 @@ void main() {
 
     expect(desktopWeb.isDesktop, isTrue);
     expect(mobileWeb.isMobile, isTrue);
+    expect(desktopWeb.platformTarget, PlatformTarget.web);
   });
 }

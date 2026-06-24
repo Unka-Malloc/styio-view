@@ -1,19 +1,100 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/theme/vityo_theme.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_configuration_store.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
+import 'package:vityo_app/src/view_ide/toolchain/styio_toolchain_lifecycle.dart';
 import 'package:vityo_app/src/view_render/platform/platform.dart';
 import 'package:vityo_app/src/view_render/settings/settings_surface.dart';
 
 void main() {
+  testWidgets('settings surface saves persisted theme accent override', (
+    tester,
+  ) async {
+    VityoThemeOverride? savedOverride;
+    CommandPaletteDisplayPreferences? savedCommandPalettePreferences;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            toolchainStatus: const ToolchainStatusSurface(
+              source: 'project',
+              severity: ToolchainStatusSeverity.ready,
+              title: 'Toolchain ready',
+              message: 'Ready.',
+              recoveryActions: <ToolchainRecoveryAction>[],
+            ),
+            commandPalettePreferences: const CommandPaletteDisplayPreferences(
+              workspaceId: 'demo',
+              defaultCategory: AppCommandCategory.navigation,
+            ),
+            onSaveCommandPalettePreferences: (preferences) async {
+              savedCommandPalettePreferences = preferences;
+            },
+            onSaveThemeOverride: (override) async {
+              savedOverride = override;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('settings-theme-card')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-command-palette-card')),
+      findsOneWidget,
+    );
+    expect(find.text('default navigation'), findsOneWidget);
+    final showRecentSwitch = find.byKey(
+      const ValueKey('settings-command-palette-show-recent'),
+    );
+    await tester.ensureVisible(showRecentSwitch);
+    await tester.tap(showRecentSwitch);
+    await tester.pump();
+    final saveCommandPaletteButton = find.byKey(
+      const ValueKey('settings-command-palette-save'),
+    );
+    await tester.ensureVisible(saveCommandPaletteButton);
+    await tester.tap(saveCommandPaletteButton);
+    await tester.pump();
+
+    expect(savedCommandPalettePreferences?.workspaceId, 'demo');
+    expect(
+      savedCommandPalettePreferences?.defaultCategory,
+      AppCommandCategory.navigation,
+    );
+    expect(savedCommandPalettePreferences?.showRecentCommands, isFalse);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-theme-accent-input')),
+      '#00A878',
+    );
+    final saveThemeButton = find.byKey(
+      const ValueKey('settings-theme-save-button'),
+    );
+    await tester.ensureVisible(saveThemeButton);
+    await tester.tap(saveThemeButton);
+    await tester.pump();
+
+    expect(savedOverride?.accent, const Color(0xFF00A878));
+  });
+
   testWidgets('settings surface renders manager-backed toolchain status', (
     tester,
   ) async {
     final handledActions = <String>[];
+    final handledBootstrapActions = <String>[];
     final selectedToolchains = <String>[];
     final clearedToolchains = <ToolchainKind>[];
     var executeInstallPlanCount = 0;
@@ -119,9 +200,75 @@ void main() {
               kind: 'language-service',
               succeeded: false,
               message: 'Select an existing toolchain executable.',
+              recoveryActions: <ToolchainRecoveryAction>[
+                ToolchainRecoveryAction(
+                  id: 'select-existing-toolchain',
+                  label: 'Select existing toolchain',
+                  description:
+                      'Choose a local executable and register it manually.',
+                ),
+              ],
             ),
+            toolchainBootstrapSummary: const ToolchainManagerBootstrapSummary(
+              managerReport: ToolchainManagerStatusReport(
+                status: ToolchainManagerStatus.unresolved,
+                snapshot: ToolchainStateSnapshot(
+                  targetId: 'settings-test',
+                  workspaceId: 'demo',
+                  entries: <ToolchainStateEntry>[],
+                ),
+                requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+                resolution: ToolchainResolution(
+                  status: ToolchainResolutionStatus.missingKind,
+                  requirement: ToolchainRequirement(
+                    kind: ToolchainKind.compiler,
+                  ),
+                  message: 'No compiler descriptor.',
+                ),
+                recoveryState: ToolchainRecoveryState(
+                  kind: ToolchainRecoveryStateKind.needsSelection,
+                  actionIds: <String>['select-styio-compiler'],
+                ),
+              ),
+              styioLifecycle: StyioToolchainLifecycleReport(
+                state: StyioToolchainLifecycleState.selectable,
+                requiredRoles: <StyioToolchainRole>[
+                  StyioToolchainRole.compiler,
+                ],
+                roles: <StyioToolchainRoleStatus>[
+                  StyioToolchainRoleStatus(
+                    role: StyioToolchainRole.compiler,
+                    state: StyioToolchainRoleState.available,
+                    required: true,
+                    candidates: <ToolchainDescriptor>[
+                      ToolchainDescriptor(
+                        id: 'styio-compiler',
+                        kind: ToolchainKind.compiler,
+                        displayName: 'Styio Compiler',
+                        executablePath: '/opt/styio/bin/styio',
+                      ),
+                    ],
+                    message: 'Select Styio compiler.',
+                  ),
+                ],
+                message: 'Select a Styio compiler before project bootstrap.',
+              ),
+              settingsActionIds: <String>['select-styio-compiler'],
+              installerActionIds: <String>['install-managed-styio-toolchain'],
+              projectBootstrapActionIds: <String>['open-toolchain-settings'],
+            ),
+            toolchainBootstrapActionDispatch:
+                const ToolchainBootstrapActionDispatchResult(
+                  status: ToolchainBootstrapActionDispatchStatus.dispatched,
+                  actionId: 'install-managed-styio-toolchain',
+                  message:
+                      'Managed install plan prepared for language-service.',
+                ),
             onToolchainRecoveryAction: (action) async {
               handledActions.add(action.id);
+            },
+            onToolchainBootstrapAction: (actionId) async {
+              handledBootstrapActions.add(actionId);
             },
             onSelectToolchain: (id) async {
               selectedToolchains.add(id);
@@ -138,6 +285,18 @@ void main() {
     );
 
     expect(find.byKey(const ValueKey('settings-surface')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('settings-ide-capability-framework')),
+      findsOneWidget,
+    );
+    expect(find.text('IDE Capability Framework'), findsOneWidget);
+    expect(
+      find.text('version vityo-ide-capability-framework-v1'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('required '), findsOneWidget);
+    expect(find.text('Missing Required Capabilities'), findsNothing);
+    expect(find.text('TODO Follow-ups'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('settings-toolchain-status-card')),
       findsOneWidget,
@@ -184,6 +343,41 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('execution requiresUserAction'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('settings-toolchain-install-execution-recovery'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Install Recovery'), findsOneWidget);
+    expect(find.text('Select existing toolchain'), findsOneWidget);
+    expect(
+      find.text('Choose a local executable and register it manually.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('settings-toolchain-bootstrap-summary')),
+      findsOneWidget,
+    );
+    expect(find.text('Toolchain Bootstrap'), findsOneWidget);
+    expect(find.text('manager unresolved'), findsOneWidget);
+    expect(find.text('styio selectable'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('settings-toolchain-bootstrap-dispatch-result'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Last dispatch: dispatched · install-managed-styio-toolchain',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Managed install plan prepared for language-service.'),
+      findsOneWidget,
+    );
 
     final executeInstallPlanButton = find.byKey(
       const ValueKey('settings-toolchain-execute-install-plan'),
@@ -194,6 +388,28 @@ void main() {
 
     expect(executeInstallPlanCount, 1);
 
+    final executionRecoveryButton = find.byKey(
+      const ValueKey(
+        'settings-toolchain-install-execution-recovery-select-existing-toolchain',
+      ),
+    );
+    await tester.ensureVisible(executionRecoveryButton);
+    await tester.tap(executionRecoveryButton);
+    await tester.pump();
+
+    expect(handledActions, <String>['select-existing-toolchain']);
+
+    final bootstrapSettingsButton = find.byKey(
+      const ValueKey(
+        'settings-toolchain-bootstrap-settings-select-styio-compiler',
+      ),
+    );
+    await tester.ensureVisible(bootstrapSettingsButton);
+    await tester.tap(bootstrapSettingsButton);
+    await tester.pump();
+
+    expect(handledBootstrapActions, <String>['select-styio-compiler']);
+
     expect(find.text('Select an existing toolchain executable.'), findsWidgets);
 
     final installRecoveryButton = find.byKey(
@@ -203,7 +419,10 @@ void main() {
     await tester.tap(installRecoveryButton);
     await tester.pump();
 
-    expect(handledActions, <String>['install-managed-toolchain']);
+    expect(
+      handledActions,
+      <String>['select-existing-toolchain', 'install-managed-toolchain'],
+    );
 
     final selectServiceButton = find.byTooltip('Select Styio Service');
     await tester.ensureVisible(selectServiceButton);
@@ -218,5 +437,130 @@ void main() {
     await tester.pump();
 
     expect(clearedToolchains, <ToolchainKind>[ToolchainKind.runner]);
+  });
+
+  testWidgets('settings surface renders Clang C++ version manager', (
+    tester,
+  ) async {
+    final selectedClangCppVersions = <String>[];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SettingsSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.macos,
+              width: 1200,
+              height: 800,
+            ),
+            toolchainStatus: const ToolchainStatusSurface(
+              source: 'manager-report',
+              severity: ToolchainStatusSeverity.ready,
+              title: 'Toolchain ready',
+              message: 'Ready.',
+              recoveryActions: <ToolchainRecoveryAction>[],
+            ),
+            toolchainSettings: ToolchainSettingsSurface.fromManagerStatusReport(
+              const ToolchainManagerStatusReport(
+                status: ToolchainManagerStatus.ready,
+                snapshot: ToolchainStateSnapshot(
+                  targetId: 'settings-test',
+                  workspaceId: 'demo',
+                  entries: <ToolchainStateEntry>[
+                    ToolchainStateEntry(
+                      id: 'clang-17',
+                      kind: ToolchainKind.compiler,
+                      displayName: 'Clang 17',
+                      executablePath: '/opt/clang-17/bin/clang++',
+                      active: true,
+                      version: '17.0.6',
+                      metadata: <String, Object?>{
+                        'compilerFamily': 'clang',
+                        'cCompilerPath': '/opt/clang-17/bin/clang',
+                        'cxxCompilerPath': '/opt/clang-17/bin/clang++',
+                        'clangVendor': 'llvm',
+                        'source': 'system',
+                      },
+                    ),
+                    ToolchainStateEntry(
+                      id: 'clang-18',
+                      kind: ToolchainKind.compiler,
+                      displayName: 'Clang 18',
+                      executablePath: '/opt/clang-18/bin/clang++',
+                      active: false,
+                      version: '18.1.8',
+                      metadata: <String, Object?>{
+                        'compilerFamily': 'clang',
+                        'cCompilerPath': '/opt/clang-18/bin/clang',
+                        'cxxCompilerPath': '/opt/clang-18/bin/clang++',
+                        'clangVendor': 'apple',
+                        'source': 'manual',
+                      },
+                    ),
+                    ToolchainStateEntry(
+                      id: 'cmake',
+                      kind: ToolchainKind.buildTool,
+                      displayName: 'CMake',
+                      executablePath: '/usr/bin/cmake',
+                      active: true,
+                      metadata: <String, Object?>{'toolFamily': 'cmake'},
+                    ),
+                    ToolchainStateEntry(
+                      id: 'ninja',
+                      kind: ToolchainKind.buildTool,
+                      displayName: 'Ninja',
+                      executablePath: '/usr/bin/ninja',
+                      active: false,
+                      metadata: <String, Object?>{'toolFamily': 'ninja'},
+                    ),
+                  ],
+                ),
+                requirement: ToolchainRequirement(kind: ToolchainKind.compiler),
+                resolution: ToolchainResolution(
+                  status: ToolchainResolutionStatus.resolved,
+                  requirement: ToolchainRequirement(
+                    kind: ToolchainKind.compiler,
+                  ),
+                ),
+              ),
+            ),
+            onSelectClangCppVersion: (versionId, cppStandard) async {
+              selectedClangCppVersions.add('$versionId:$cppStandard');
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('settings-clang-cpp-version-manager')),
+      findsOneWidget,
+    );
+    expect(find.text('preference activeDefault'), findsOneWidget);
+    expect(find.text('standard c++20'), findsOneWidget);
+    expect(find.text('flag -std=c++20'), findsOneWidget);
+    expect(find.text('handoff cmake+ninja'), findsOneWidget);
+    expect(
+      find.text('active clang Clang 17 17.0.6 llvm system'),
+      findsOneWidget,
+    );
+    expect(find.text('clang Clang 18 18.1.8 apple manual'), findsOneWidget);
+
+    final selectCpp23Button = find.byKey(
+      const ValueKey('settings-clang-cpp-standard-23'),
+    );
+    await tester.ensureVisible(selectCpp23Button);
+    await tester.tap(selectCpp23Button);
+    await tester.pump();
+
+    final selectClang18Button = find.descendant(
+      of: find.byKey(const ValueKey('settings-clang-cpp-version-clang-18')),
+      matching: find.byTooltip('Select Clang 18'),
+    );
+    await tester.ensureVisible(selectClang18Button);
+    await tester.tap(selectClang18Button);
+    await tester.pump();
+
+    expect(selectedClangCppVersions, <String>['clang-17:23', 'clang-18:20']);
   });
 }

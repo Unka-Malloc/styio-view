@@ -32,7 +32,127 @@ class JitRouteSummary {
   final bool blocked;
 }
 
+class ExecutionRouteGate {
+  const ExecutionRouteGate({
+    required this.summary,
+    required this.allowed,
+    required this.blockedReason,
+  });
+
+  final ExecutionRouteSummary summary;
+  final bool allowed;
+  final String? blockedReason;
+}
+
 enum ExecutionRouteIntent { workflow, jit }
+
+enum BackendExecutionRouteKind { localCli, ffi, hosted, blocked }
+
+extension BackendExecutionRouteKindX on BackendExecutionRouteKind {
+  String get wireValue {
+    return switch (this) {
+      BackendExecutionRouteKind.localCli => 'local-cli',
+      BackendExecutionRouteKind.ffi => 'ffi',
+      BackendExecutionRouteKind.hosted => 'hosted',
+      BackendExecutionRouteKind.blocked => 'blocked',
+    };
+  }
+}
+
+class BackendExecutionRouteSelection {
+  const BackendExecutionRouteSelection({
+    required this.routeKind,
+    required this.intent,
+    required this.adapterKind,
+    required this.allowed,
+    required this.previewOnly,
+    required this.title,
+    required this.detail,
+    this.blockedReason,
+  });
+
+  final BackendExecutionRouteKind routeKind;
+  final ExecutionRouteIntent intent;
+  final AdapterKind adapterKind;
+  final bool allowed;
+  final bool previewOnly;
+  final String title;
+  final String detail;
+  final String? blockedReason;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'routeKind': routeKind.wireValue,
+      'intent': intent.name,
+      'adapterKind': adapterKind.wireValue,
+      'allowed': allowed,
+      'previewOnly': previewOnly,
+      'title': title,
+      'detail': detail,
+      if (blockedReason != null) 'blockedReason': blockedReason,
+    };
+  }
+}
+
+BackendExecutionRouteSelection selectBackendExecutionRoute({
+  required PlatformTarget platformTarget,
+  required ProjectGraphSnapshot projectGraph,
+  required List<AdapterCapabilitySnapshot> adapterCapabilities,
+  ExecutionRouteIntent routeIntent = ExecutionRouteIntent.workflow,
+}) {
+  final gate = evaluateExecutionRouteGate(
+    platformTarget: platformTarget,
+    projectGraph: projectGraph,
+    adapterCapabilities: adapterCapabilities,
+    routeIntent: routeIntent,
+  );
+  return BackendExecutionRouteSelection(
+    routeKind: gate.allowed
+        ? _routeKindForAdapter(gate.summary.primaryAdapterKind)
+        : BackendExecutionRouteKind.blocked,
+    intent: routeIntent,
+    adapterKind: gate.summary.primaryAdapterKind,
+    allowed: gate.allowed,
+    previewOnly: gate.summary.previewOnly,
+    title: gate.summary.title,
+    detail: gate.summary.body,
+    blockedReason: gate.blockedReason,
+  );
+}
+
+ExecutionRouteGate evaluateExecutionRouteGate({
+  required PlatformTarget platformTarget,
+  required ProjectGraphSnapshot projectGraph,
+  required List<AdapterCapabilitySnapshot> adapterCapabilities,
+  ExecutionRouteIntent routeIntent = ExecutionRouteIntent.workflow,
+}) {
+  final summary = summarizeExecutionRoute(
+    platformTarget: platformTarget,
+    projectGraph: projectGraph,
+    adapterCapabilities: adapterCapabilities,
+    routeIntent: routeIntent,
+  );
+  if (!summary.previewOnly) {
+    return ExecutionRouteGate(
+      summary: summary,
+      allowed: true,
+      blockedReason: null,
+    );
+  }
+  return ExecutionRouteGate(
+    summary: summary,
+    allowed: false,
+    blockedReason: '${summary.title}. ${summary.body}',
+  );
+}
+
+BackendExecutionRouteKind _routeKindForAdapter(AdapterKind adapterKind) {
+  return switch (adapterKind) {
+    AdapterKind.cli => BackendExecutionRouteKind.localCli,
+    AdapterKind.ffi => BackendExecutionRouteKind.ffi,
+    AdapterKind.cloud => BackendExecutionRouteKind.hosted,
+  };
+}
 
 ExecutionRouteSummary summarizeExecutionRoute({
   required PlatformTarget platformTarget,
@@ -118,13 +238,25 @@ ExecutionRouteSummary summarizeExecutionRoute({
     );
   }
 
-  if (projectGraph.compilePlanConsumerAdvertised) {
+  if (projectGraph.compilePlanConsumerAdvertised &&
+      cli.execution.level != AdapterCapabilityLevel.unavailable) {
     return ExecutionRouteSummary(
       title: 'Project route live through spio',
       body:
           'The active compiler advertises compile-plan support, so project build/run/test can execute through spio with a live published handoff.',
       primaryAdapterKind: AdapterKind.cli,
       previewOnly: false,
+      jitRoute: jitRoute,
+    );
+  }
+
+  if (projectGraph.compilePlanConsumerAdvertised) {
+    return ExecutionRouteSummary(
+      title: 'Project route blocked by adapter',
+      body:
+          'The active compiler advertises compile-plan support, but no CLI execution adapter is available for the current route snapshot.',
+      primaryAdapterKind: AdapterKind.cli,
+      previewOnly: true,
       jitRoute: jitRoute,
     );
   }

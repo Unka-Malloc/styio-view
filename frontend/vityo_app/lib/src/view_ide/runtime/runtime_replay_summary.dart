@@ -2,6 +2,24 @@ import '../backend_toolchain/execution_adapter.dart';
 
 enum RuntimeAccent { failed, completed, active, observed, thread, test, log }
 
+const Set<String> _knownRuntimeEventKinds = <String>{
+  'compile.started',
+  'compile.finished',
+  'compile.failed',
+  'diagnostic.emitted',
+  'log.emitted',
+  'run.started',
+  'run.finished',
+  'run.failed',
+  'state.changed',
+  'thread.spawned',
+  'transition.fired',
+  'unit.entered',
+  'unit.exited',
+  'unit.test.started',
+  'unit.test.finished',
+};
+
 class RuntimeReplaySummary {
   const RuntimeReplaySummary({
     required this.events,
@@ -175,6 +193,9 @@ class RuntimeDebugLaneCheckpoint {
 }
 
 String runtimeEventFamily(String eventKind) {
+  if (!isKnownRuntimeEventKind(eventKind)) {
+    return 'unsupported';
+  }
   if (eventKind.startsWith('unit.test.')) {
     return 'unit.test';
   }
@@ -183,6 +204,10 @@ String runtimeEventFamily(String eventKind) {
     return eventKind;
   }
   return eventKind.substring(0, separator);
+}
+
+bool isKnownRuntimeEventKind(String eventKind) {
+  return _knownRuntimeEventKinds.contains(eventKind);
 }
 
 RuntimeReplaySummary summarizeRuntimeReplay(
@@ -260,7 +285,7 @@ RuntimeLaneSummary summarizeRuntimeLane(
     statusLabel: statusLabel,
     windowLabel:
         '${formatRuntimeClock(events.first.timestamp)} -> ${formatRuntimeClock(latest.timestamp)}',
-    detailLabel: runtimePayloadSummary(latest.payload),
+    detailLabel: runtimeEventDetailLabel(latest),
     accent: accent,
   );
 }
@@ -404,7 +429,7 @@ RuntimeGraphSummary summarizeRuntimeGraph(
       continue;
     }
 
-    appendObservedNode(runtimePayloadSummary(payload));
+    appendObservedNode(runtimeEventDetailLabel(event));
   }
 
   final routeNodes = <String>[
@@ -710,9 +735,21 @@ String formatRuntimeClock(DateTime timestamp) {
 }
 
 String formatRuntimeEvent(RuntimeEventEnvelope event) {
-  final payloadSummary = runtimePayloadSummary(event.payload);
-  final suffix = payloadSummary == null ? '' : ' · $payloadSummary';
+  final detailLabel = runtimeEventDetailLabel(event);
+  final suffix = detailLabel == null ? '' : ' · $detailLabel';
   return '[runtime #${event.sequence}] ${formatRuntimeClock(event.timestamp)} ${event.eventKind} · ${event.origin}$suffix';
+}
+
+String? runtimeEventDetailLabel(RuntimeEventEnvelope event) {
+  final payloadSummary = runtimePayloadSummary(event.payload);
+  if (isKnownRuntimeEventKind(event.eventKind)) {
+    return payloadSummary;
+  }
+  final unsupported = 'unsupported event kind ${event.eventKind}';
+  if (payloadSummary == null || payloadSummary.isEmpty) {
+    return unsupported;
+  }
+  return '$unsupported · $payloadSummary';
 }
 
 String runtimePayloadSuffix(Map<String, Object?> payload) {

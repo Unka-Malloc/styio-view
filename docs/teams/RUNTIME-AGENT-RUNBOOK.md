@@ -67,3 +67,5 @@ Record:
 2. 当前依赖的 adapter 能力快照和 fallback 路径。
 3. 已更新的 schema 或测试目录条目。
 4. 下一个阻塞点、回滚点与 history 链接。
+
+<!-- codex merge: agent provider/tool/session runtime assets imported -->

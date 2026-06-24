@@ -80,7 +80,7 @@ run_container() {
     --name "$CONTAINER_NAME" \
     -u "$(id -u):$(id -g)" \
     -e HOME=/tmp/styio-home \
-    -e STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html \
+    -e STYIO_EDITOR_URL=http://127.0.0.1:4180/editor \
     -e VITYO_ANDROID_PROFILES="$ANDROID_PROFILES" \
     -e VITYO_ANDROID_DEFAULT_PROFILE="$ANDROID_DEFAULT_PROFILE" \
     -v "$ROOT:/workspace/vityo-nightly" \

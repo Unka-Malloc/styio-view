@@ -54,7 +54,7 @@
 
 ## 2026-04-12 / Round 7
 
-1. 新增独立的 focused editor 页面：`editor.html`，保留原 `index.html` 不动。
+1. 新增独立的 focused editor 页面：`editor.html`。
 2. 新页面只保留一个编辑面，不再做 `raw source buffer + render projection` 双栏对照。
 3. 文本输入、glyph 替换和函数块背景都发生在同一块编辑区域里，改成更接近真实编辑器的 overlay 结构。
 4. `->` 和 `|>` 会在编辑区内直接渲染成 inline glyph，不再单独放到另一块预览面板。
@@ -84,3 +84,10 @@
 3. 侧边栏顶部改成 Tab 结构：`目录树` 和 `设置`。
 4. 原先主页面上的文件切换、glyph 开关、保存按钮、状态信息都迁进了右侧抽屉。
 5. 主页当前只留下编辑器本体和一个最小标题区，视觉重心完全回到编辑面本身。
+
+## 2026-05-18 / Route Cleanup
+
+1. 默认入口统一为 `/editor`。
+2. `/editor` 只绑定 focused editor 页面，不再展示原型画廊或引导页。
+3. 旧引导页从静态入口、manifest 和治理分类中移除。
+4. 删除旧引导页依赖的 `app.js` / `styles.css`，避免 `/editor` 之外残留可访问入口。

@@ -5,6 +5,7 @@ export 'execution_adapter.dart';
 export 'execution_route_summary.dart';
 export 'hosted_control_plane.dart';
 export 'hosted_execution_codec.dart';
+export 'hosted_runtime_execution_adapter.dart';
 export 'hosted_payload_codec.dart';
 export 'project_graph_adapter.dart';
 export 'project_graph_contract.dart';

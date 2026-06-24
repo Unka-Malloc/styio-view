@@ -297,6 +297,20 @@ void main() {
           scenario.expectCloudPrimary ? AdapterKind.cloud : AdapterKind.cli,
           reason: scenario.label,
         );
+        final routeSelection = selectBackendExecutionRoute(
+          platformTarget: scenario.platformTarget,
+          projectGraph: shell.workspaceController.activeProject,
+          adapterCapabilities: shell.adapterCapabilities,
+        );
+        expect(
+          routeSelection.routeKind,
+          scenario.expectCloudPrimary
+              ? BackendExecutionRouteKind.hosted
+              : BackendExecutionRouteKind.localCli,
+          reason: scenario.label,
+        );
+        expect(routeSelection.allowed, isTrue, reason: scenario.label);
+        expect(routeSelection.previewOnly, isFalse, reason: scenario.label);
         _emitHostedScenarioReport(
           scenario: scenario,
           scenarioName: 'hosted-core-workflow',

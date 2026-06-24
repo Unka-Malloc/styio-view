@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_connector.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 void main() {
@@ -1176,6 +1178,36 @@ REMOVE_ME=from-file
     expect(result.stdout, 'toolchain-manager-stdin');
   });
 
+  test('toolchain manager persists Clang C++ version preference', () async {
+    final tempRoot = await Directory.systemTemp.createTemp(
+      'vityo_toolchain_manager_clang_cpp_preference_test_',
+    );
+    addTearDown(() => tempRoot.delete(recursive: true));
+    final configurationStore = await createConfigurationStore(tempRoot);
+    final toolchainStore = ToolchainConfigurationStore(
+      configurationStore: configurationStore,
+    );
+    final platformManagers = await createDetectedPlatformManagerBundle();
+    final manager = ToolchainManager(
+      configurationStore: toolchainStore,
+      platformManagers: platformManagers,
+      workspaceId: 'workspace-a',
+    );
+
+    await manager.saveClangCppVersionPreference(
+      const ClangCppVersionPreference(
+        versionId: 'clang-18',
+        cppStandard: CppLanguageStandard.cpp23,
+      ),
+    );
+
+    final loaded = await manager.loadClangCppVersionPreference();
+    expect(loaded?.versionId, 'clang-18');
+    expect(loaded?.cppStandard, CppLanguageStandard.cpp23);
+    expect(await manager.clearClangCppVersionPreference(), isTrue);
+    expect(await manager.loadClangCppVersionPreference(), isNull);
+  });
+
   test('toolchain runtime exposes health preflight', () async {
     final catalog = ToolchainCatalog()
       ..register(
@@ -2293,6 +2325,14 @@ REMOVE_ME=from-file
       expect(missingStatusReport.status, ToolchainManagerStatus.unresolved);
       expect(missingStatusReport.ready, isFalse);
       expect(
+        missingStatusReport.snapshot.active(ToolchainKind.runner)?.id,
+        'printf',
+      );
+      expect(
+        missingStatusReport.capability(ToolchainKind.runner)?.state,
+        ToolchainCapabilityState.active,
+      );
+      expect(
         missingStatusReport.capability(ToolchainKind.languageService)?.state,
         ToolchainCapabilityState.unresolved,
       );
@@ -2448,13 +2488,14 @@ REMOVE_ME=from-file
         ),
         pty: PtyFacts.linuxDebianArm(targetId: 'toolchain-manager-install'),
       );
+      final platformManagers = await createPlatformManagerBundle(
+        platformContext: context,
+      );
       final manager = ToolchainManager(
         configurationStore: ToolchainConfigurationStore(
           configurationStore: configurationStore,
         ),
-        platformManagers: await createPlatformManagerBundle(
-          platformContext: context,
-        ),
+        platformManagers: platformManagers,
         workspaceId: 'demo',
         environmentBuilder: const ToolchainEnvironmentBuilder(
           inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
@@ -2493,6 +2534,37 @@ REMOVE_ME=from-file
         ToolchainInstallMode.externalCommand.name,
       );
       expect(historyReport.installHistory?.entries.single.succeeded, isTrue);
+
+      final runtimePlan = ToolchainInstallRuntimeExecutionPlan.fromInstallPlan(
+        plan,
+      );
+      final runtimeBuffer = RuntimeOutputLiveBuffer();
+      final runtimeResult =
+          await ToolchainInstallRuntimeExecutionAdapter(
+            executor: ToolchainInstallExecutor(
+              platformManagers: platformManagers,
+              environmentBuilder: const ToolchainEnvironmentBuilder(
+                inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
+              ),
+            ),
+            clock: () => DateTime.utc(2026, 5, 20, 18),
+          ).executePlan(
+            runtimePlan,
+            buffer: runtimeBuffer,
+            environment: const <String, String>{'VITYO_RUNTIME_INSTALL': 'ok'},
+          );
+
+      expect(runtimePlan.ready, isTrue);
+      expect(runtimeResult.executed, isTrue);
+      expect(runtimeResult.succeeded, isTrue);
+      expect(
+        runtimeResult.dispatchResult.status,
+        RuntimeExecutionDispatchStatus.dispatched,
+      );
+      expect(
+        runtimeResult.outputEvents.map((event) => event.message),
+        contains('VITYO_RUNTIME_INSTALL=ok'),
+      );
     },
   );
 
@@ -3360,6 +3432,65 @@ REMOVE_ME=from-file
   );
 
   test(
+    'native compiler discovery registers clang and clang++ as one compiler toolchain',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_native_compiler_discovery_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final context = PlatformContextSnapshot.compose(
+        targetId: 'native-compiler-discovery',
+        fileSystem: FileSystemFacts.linuxDebianArm(
+          targetId: 'native-compiler-discovery',
+        ),
+        shell: ShellFacts.linuxDebianArm(
+          targetId: 'native-compiler-discovery',
+          defaultShellPath: '/bin/sh',
+        ),
+      );
+      final platformManagers = await createPlatformManagerBundle(
+        platformContext: context,
+      );
+      final clangPath = platformManagers.fileSystem.joinPath(<String>[
+        tempRoot.path,
+        'clang',
+      ]);
+      final clangxxPath = platformManagers.fileSystem.joinPath(<String>[
+        tempRoot.path,
+        'clang++',
+      ]);
+      await platformManagers.fileSystem.writeText(clangPath, '#!/bin/sh\n');
+      await platformManagers.fileSystem.writeText(clangxxPath, '#!/bin/sh\n');
+      await platformManagers.fileSystem.setExecutable(clangPath);
+      await platformManagers.fileSystem.setExecutable(clangxxPath);
+
+      final catalog = await createPlatformNativeCompilerToolchainCatalog(
+        platformManagers: platformManagers,
+        environment: const <String, String>{},
+        cCompilerCandidatePaths: <String>[clangPath],
+        cxxCompilerCandidatePaths: <String>[clangxxPath],
+        clangVersionOutputProbe: (_) async =>
+            'Ubuntu clang version 18.1.3 (1ubuntu1)\n'
+            'Target: aarch64-unknown-linux-gnu\n',
+      );
+      final active = catalog.active(ToolchainKind.compiler);
+
+      expect(active, isNotNull);
+      expect(active!.id, 'native-clang-cpp-compiler');
+      expect(active.executablePath, clangxxPath);
+      expect(active.version, '18.1.3');
+      expect(active.metadata['compilerFamily'], 'clang');
+      expect(active.metadata['clangVersion'], '18.1.3');
+      expect(active.metadata['clangVendor'], 'ubuntu');
+      expect(active.metadata['clangVersionSource'], 'clang++ --version');
+      expect(active.metadata['cCompilerPath'], clangPath);
+      expect(active.metadata['cxxCompilerPath'], clangxxPath);
+      expect(active.metadata['languages'], <String>['c', 'cpp']);
+      expect(active.metadata['defaultForNativeCode'], isTrue);
+    },
+  );
+
+  test(
     'terminal runtime derives PATH list separator from platform context',
     () async {
       final terminal = TerminalRuntime.fromPlatformContext(
@@ -3445,6 +3576,134 @@ REMOVE_ME=from-file
     expect(exitCode, 0);
     expect(output, contains('terminal-ok:profile:nightly:runtime'));
   });
+
+  test(
+    'native compiler discovery exposes CMake Ninja and clangd toolchain facts',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_native_cpp_tools_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      Future<String> fakeTool(String name) async {
+        final file = File('${tempRoot.path}/$name');
+        await file.writeAsString('fake $name');
+        return file.path;
+      }
+
+      final clang = await fakeTool('clang');
+      final clangxx = await fakeTool('clang++');
+      final cmake = await fakeTool('cmake');
+      final ninja = await fakeTool('ninja');
+      final clangd = await fakeTool('clangd');
+      final catalog = await createPlatformNativeCompilerToolchainCatalog(
+        environment: <String, String>{
+          'VITYO_CLANG_BIN': clang,
+          'VITYO_CLANGXX_BIN': clangxx,
+          'VITYO_CMAKE_BIN': cmake,
+          'VITYO_NINJA_BIN': ninja,
+          'VITYO_CLANGD_BIN': clangd,
+        },
+        cCompilerCandidatePaths: const <String>[],
+        cxxCompilerCandidatePaths: const <String>[],
+        cmakeCandidatePaths: const <String>[],
+        ninjaCandidatePaths: const <String>[],
+        clangdCandidatePaths: const <String>[],
+      );
+
+      final compiler = catalog.active(ToolchainKind.compiler)!;
+      final cmakeDescriptor = catalog.lookup('native-cmake-build-tool')!;
+      final ninjaDescriptor = catalog.lookup('native-ninja-build-tool')!;
+      final clangdDescriptor = catalog.lookup(
+        'native-clangd-language-service',
+      )!;
+
+      expect(compiler.metadata['compilerFamily'], 'clang');
+      expect(compiler.metadata['cCompilerPath'], clang);
+      expect(compiler.metadata['cxxCompilerPath'], clangxx);
+      expect(cmakeDescriptor.kind, ToolchainKind.buildTool);
+      expect(cmakeDescriptor.executablePath, cmake);
+      expect(cmakeDescriptor.metadata['projectModel'], 'cmake');
+      expect(cmakeDescriptor.metadata['supportsPresets'], isTrue);
+      expect(ninjaDescriptor.kind, ToolchainKind.buildTool);
+      expect(ninjaDescriptor.executablePath, ninja);
+      expect(ninjaDescriptor.metadata['buildSystem'], 'ninja');
+      expect(clangdDescriptor.kind, ToolchainKind.languageService);
+      expect(clangdDescriptor.executablePath, clangd);
+      expect(clangdDescriptor.metadata['consumesCompileCommands'], isTrue);
+    },
+  );
+
+  test(
+    'native C++ developer tools expose debugger formatter analyzer and test runner facts',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_native_cpp_dev_tools_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      Future<String> fakeTool(String name) async {
+        final file = File('${tempRoot.path}/$name');
+        await file.writeAsString('fake $name');
+        return file.path;
+      }
+
+      final lldb = await fakeTool('lldb');
+      final gdb = await fakeTool('gdb');
+      final clangFormat = await fakeTool('clang-format');
+      final clangTidy = await fakeTool('clang-tidy');
+      final ctest = await fakeTool('ctest');
+      final catalog = await createPlatformNativeCompilerToolchainCatalog(
+        environment: <String, String>{
+          'VITYO_LLDB_BIN': lldb,
+          'VITYO_GDB_BIN': gdb,
+          'VITYO_CLANG_FORMAT_BIN': clangFormat,
+          'VITYO_CLANG_TIDY_BIN': clangTidy,
+          'VITYO_CTEST_BIN': ctest,
+        },
+        cCompilerCandidatePaths: const <String>[],
+        cxxCompilerCandidatePaths: const <String>[],
+        cmakeCandidatePaths: const <String>[],
+        ninjaCandidatePaths: const <String>[],
+        clangdCandidatePaths: const <String>[],
+        lldbCandidatePaths: const <String>[],
+        gdbCandidatePaths: const <String>[],
+        clangFormatCandidatePaths: const <String>[],
+        clangTidyCandidatePaths: const <String>[],
+        ctestCandidatePaths: const <String>[],
+      );
+
+      final lldbDescriptor = catalog.lookup('native-lldb-debugger')!;
+      final gdbDescriptor = catalog.lookup('native-gdb-debugger')!;
+      final clangFormatDescriptor = catalog.lookup(
+        'native-clang-format-formatter',
+      )!;
+      final clangTidyDescriptor = catalog.lookup(
+        'native-clang-tidy-static-analyzer',
+      )!;
+      final ctestDescriptor = catalog.lookup('native-ctest-test-runner')!;
+
+      expect(lldbDescriptor.kind, ToolchainKind.debugger);
+      expect(lldbDescriptor.executablePath, lldb);
+      expect(lldbDescriptor.metadata['debuggerKind'], 'lldb');
+      expect(gdbDescriptor.kind, ToolchainKind.debugger);
+      expect(gdbDescriptor.executablePath, gdb);
+      expect(gdbDescriptor.metadata['debuggerKind'], 'gdb');
+      expect(clangFormatDescriptor.kind, ToolchainKind.formatter);
+      expect(clangFormatDescriptor.executablePath, clangFormat);
+      expect(clangFormatDescriptor.metadata['toolRole'], 'formatter');
+      expect(clangFormatDescriptor.metadata['configurationFiles'], <String>[
+        '.clang-format',
+        '_clang-format',
+      ]);
+      expect(clangTidyDescriptor.kind, ToolchainKind.staticAnalyzer);
+      expect(clangTidyDescriptor.executablePath, clangTidy);
+      expect(clangTidyDescriptor.metadata['toolRole'], 'static-analysis');
+      expect(clangTidyDescriptor.metadata['consumesCompileCommands'], isTrue);
+      expect(ctestDescriptor.kind, ToolchainKind.testRunner);
+      expect(ctestDescriptor.executablePath, ctest);
+      expect(ctestDescriptor.metadata['toolRole'], 'test-runner');
+      expect(ctestDescriptor.metadata['projectModel'], 'cmake');
+    },
+  );
 }
 
 List<int> createTarArchive(Map<String, List<int>> files) {

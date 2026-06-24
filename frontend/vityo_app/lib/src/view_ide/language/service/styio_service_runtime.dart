@@ -4,6 +4,7 @@ import '../../editor/document_state.dart';
 import '../../environment/configuration/language_service_configuration.dart';
 import '../../environment/system_compatibility/platform_manager/platform_manager.dart';
 import '../../foundation/foundation.dart';
+import '../../runtime/runtime.dart';
 import '../../toolchain/toolchain.dart';
 import 'capability_routed_styio_language_service.dart';
 import 'language_service_foundation.dart';
@@ -14,6 +15,7 @@ import 'project_styio_language_service.dart';
 import 'styio_language_service.dart';
 import 'styio_service_capability_detector.dart';
 import 'styio_service_connector.dart';
+import 'styio_service_manager_connector.dart';
 import 'styio_service_project_document_rule_provider.dart';
 
 enum StyioServiceRuntimeSessionState {
@@ -30,6 +32,7 @@ class StyioServiceRuntimeStatusSnapshot {
     required this.disposed,
     required this.providerManifest,
     this.capabilitySnapshot,
+    this.cacheSnapshot,
     this.allowLocalFallback = true,
     this.primaryCapabilities = const <StyioServiceCapability>[
       StyioServiceCapability.diagnostics,
@@ -45,6 +48,7 @@ class StyioServiceRuntimeStatusSnapshot {
   final bool disposed;
   final LanguageProviderRegistryManifest providerManifest;
   final StyioServiceCapabilitySnapshot? capabilitySnapshot;
+  final StyioServiceResultCacheSnapshot? cacheSnapshot;
   final bool allowLocalFallback;
   final Iterable<StyioServiceCapability> primaryCapabilities;
 
@@ -79,6 +83,24 @@ class StyioServiceRuntimeStatusSnapshot {
         .length;
   }
 
+  String get capabilityHealth {
+    return capabilitySnapshot?.healthSummary.health.wireValue ??
+        StyioServiceCapabilityHealth.unavailable.wireValue;
+  }
+
+  int get missingCapabilityCount {
+    return capabilitySnapshot?.healthSummary.missingCapabilities.length ?? 0;
+  }
+
+  int get blockedCapabilityCount {
+    return capabilitySnapshot?.healthSummary.blockedCapabilities.length ?? 0;
+  }
+
+  int get cacheLookupHits => cacheSnapshot?.lookupHits ?? 0;
+  int get cacheLookupMisses => cacheSnapshot?.lookupMisses ?? 0;
+  int get cacheLookupCount => cacheSnapshot?.lookupCount ?? 0;
+  double get cacheLookupHitRate => cacheSnapshot?.lookupHitRate ?? 0;
+
   Map<String, String> get primaryCapabilityStates {
     return <String, String>{
       for (final capability in primaryCapabilities)
@@ -93,10 +115,111 @@ class StyioServiceRuntimeStatusSnapshot {
       'allowLocalFallback': allowLocalFallback,
       'usableCapabilityCount': usableCapabilityCount,
       'freshCapabilityCount': freshCapabilityCount,
+      'capabilityHealth': capabilityHealth,
+      'missingCapabilityCount': missingCapabilityCount,
+      'blockedCapabilityCount': blockedCapabilityCount,
+      'cacheLookupHits': cacheLookupHits,
+      'cacheLookupMisses': cacheLookupMisses,
+      'cacheLookupCount': cacheLookupCount,
+      'cacheLookupHitRate': cacheLookupHitRate,
       'primaryCapabilityStates': primaryCapabilityStates,
       'providerManifest': providerManifest.toJson(),
       if (capabilitySnapshot != null)
         'capabilitySnapshot': capabilitySnapshot!.toJson(),
+      if (cacheSnapshot != null) 'cacheSnapshot': cacheSnapshot!.toJson(),
+    };
+  }
+}
+
+class StyioServiceRuntimeOutputBinding {
+  const StyioServiceRuntimeOutputBinding({required this.snapshot});
+
+  final StyioServiceRuntimeStatusSnapshot snapshot;
+
+  List<RuntimeOutputEvent> runtimeOutputEvents({
+    DateTime? timestamp,
+    String channelId = 'language-service.styio',
+    String label = 'Styio Language Service',
+  }) {
+    final resolvedTimestamp = timestamp ?? DateTime.now().toUtc();
+    return <RuntimeOutputEvent>[
+      RuntimeOutputEvent(
+        channelId: channelId,
+        label: label,
+        kind: RuntimeOutputChannelKind.languageService,
+        message:
+            'StyioService ${snapshot.state.name}: ${snapshot.usableCapabilityCount} usable primary capability/capabilities; health ${snapshot.capabilityHealth}.',
+        timestamp: resolvedTimestamp,
+        metadata: <String, Object?>{
+          'state': snapshot.state.name,
+          'disposed': snapshot.disposed,
+          'allowLocalFallback': snapshot.allowLocalFallback,
+          'usableCapabilityCount': snapshot.usableCapabilityCount,
+          'freshCapabilityCount': snapshot.freshCapabilityCount,
+          'capabilityHealth': snapshot.capabilityHealth,
+          'missingCapabilityCount': snapshot.missingCapabilityCount,
+          'blockedCapabilityCount': snapshot.blockedCapabilityCount,
+          'cacheLookupHits': snapshot.cacheLookupHits,
+          'cacheLookupMisses': snapshot.cacheLookupMisses,
+          'cacheLookupCount': snapshot.cacheLookupCount,
+          'cacheLookupHitRate': snapshot.cacheLookupHitRate,
+          'providerCount': snapshot.providerManifest.entries.length,
+        },
+      ),
+      for (final entry in snapshot.primaryCapabilityStates.entries)
+        RuntimeOutputEvent(
+          channelId: '$channelId.${entry.key}',
+          label: '$label ${entry.key}',
+          kind: RuntimeOutputChannelKind.languageService,
+          message: '${entry.key} ${entry.value}',
+          timestamp: resolvedTimestamp,
+          metadata: <String, Object?>{
+            'state': snapshot.state.name,
+            'capability': entry.key,
+            'capabilityState': entry.value,
+            'usable': _isUsableState(
+              StyioServiceCapabilityState.values.firstWhere(
+                (state) => state.name == entry.value,
+                orElse: () => StyioServiceCapabilityState.empty,
+              ),
+            ),
+          },
+        ),
+    ];
+  }
+
+  RuntimeOutputPanelSnapshot outputPanelSnapshot({
+    DateTime? timestamp,
+    String channelId = 'language-service.styio',
+    String label = 'Styio Language Service',
+    RuntimeOutputChannelFilterState filter =
+        const RuntimeOutputChannelFilterState(),
+  }) {
+    return RuntimeOutputPanelSnapshot(
+      events: runtimeOutputEvents(
+        timestamp: timestamp,
+        channelId: channelId,
+        label: label,
+      ),
+      filter: filter,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    final outputSnapshot = outputPanelSnapshot();
+    return <String, Object?>{
+      'state': snapshot.state.name,
+      'usableCapabilityCount': snapshot.usableCapabilityCount,
+      'freshCapabilityCount': snapshot.freshCapabilityCount,
+      'capabilityHealth': snapshot.capabilityHealth,
+      'missingCapabilityCount': snapshot.missingCapabilityCount,
+      'blockedCapabilityCount': snapshot.blockedCapabilityCount,
+      'cacheLookupHits': snapshot.cacheLookupHits,
+      'cacheLookupMisses': snapshot.cacheLookupMisses,
+      'cacheLookupCount': snapshot.cacheLookupCount,
+      'cacheLookupHitRate': snapshot.cacheLookupHitRate,
+      'outputEventCount': outputSnapshot.events.length,
+      'outputSnapshot': outputSnapshot.toJson(),
     };
   }
 }
@@ -193,6 +316,7 @@ class StyioServiceRuntimeSession<T> {
       capabilitySnapshot: result == null
           ? null
           : const StyioServiceCapabilityDetector().detectReport(result.report),
+      cacheSnapshot: result?.report.cacheSnapshot,
     );
   }
 

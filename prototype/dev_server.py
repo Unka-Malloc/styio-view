@@ -15,8 +15,8 @@ from urllib.parse import parse_qs, unquote, urlparse, urlsplit
 ROOT = Path(__file__).resolve().parent
 DEFAULT_WORKSPACE = ROOT / "workspace"
 WORKSPACE_CONFIG = ROOT / ".workspace-root"
-HOST = "127.0.0.1"
-PORT = 4180
+HOST = os.environ.get("STYIO_DEV_SERVER_HOST", "127.0.0.1")
+PORT = int(os.environ.get("STYIO_DEV_SERVER_PORT", "4180"))
 SESSION_COOKIE_NAME = "styio_dev_server_session"
 SESSION_TOKEN_HEADER = "X-Styio-Dev-Server-Token"
 SESSION_TOKEN_ENV = "STYIO_DEV_SERVER_TOKEN"
@@ -447,7 +447,16 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         if not self.enforce_host_boundary():
             return
 
+        parsed = urlparse(self.path)
         self._issue_session_cookie = not self.is_api_request()
+        if parsed.path == "/":
+            self.redirect_to_editor()
+            return
+        if parsed.path in ("/index", "/index.html"):
+            self.reject_removed_entrypoint()
+            return
+        if parsed.path in ("/editor", "/editor/"):
+            self.path = "/editor.html"
         super().do_HEAD()
 
     def do_GET(self) -> None:
@@ -459,6 +468,18 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             return
 
         self._issue_session_cookie = not parsed.path.startswith("/api/")
+        if parsed.path == "/":
+            self.redirect_to_editor()
+            return
+
+        if parsed.path in ("/index", "/index.html"):
+            self.reject_removed_entrypoint()
+            return
+
+        if parsed.path in ("/editor", "/editor/"):
+            self.path = "/editor.html"
+            super().do_GET()
+            return
 
         if parsed.path == "/api/workspace":
             self.end_json(workspace_snapshot())
@@ -528,6 +549,15 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
             return
 
         super().do_GET()
+
+    def redirect_to_editor(self) -> None:
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", "/editor")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def reject_removed_entrypoint(self) -> None:
+        self.send_error(HTTPStatus.NOT_FOUND, "Not found")
 
     def do_POST(self) -> None:
         if not self.enforce_host_boundary():

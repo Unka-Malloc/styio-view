@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 
 export '../../view_ide/commands/app_commands.dart';
 export '../../view_ide/commands/command_palette.dart';
+export '../../view_ide/commands/command_keybinding_profile.dart';
 
 import '../../view_ide/commands/app_commands.dart';
 
@@ -51,6 +52,14 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.enter;
       case 'f2':
         return LogicalKeyboardKey.f2;
+      case 'f5':
+        return LogicalKeyboardKey.f5;
+      case 'f8':
+        return LogicalKeyboardKey.f8;
+      case 'f9':
+        return LogicalKeyboardKey.f9;
+      case 'f10':
+        return LogicalKeyboardKey.f10;
       case 'f12':
         return LogicalKeyboardKey.f12;
       case 'keyB':

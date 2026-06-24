@@ -1,11 +1,7 @@
 import '../datastore/datastore.dart';
 import '../resource_coordinator/resource_coordinator.dart';
 
-enum FoundationRegistryEntryState {
-  registered,
-  active,
-  disabled,
-}
+enum FoundationRegistryEntryState { registered, active, disabled }
 
 enum FoundationRegistrationCategory {
   schema,
@@ -16,8 +12,7 @@ enum FoundationRegistrationCategory {
   policy,
 }
 
-extension FoundationRegistrationCategoryWire
-    on FoundationRegistrationCategory {
+extension FoundationRegistrationCategoryWire on FoundationRegistrationCategory {
   String get wireValue {
     return switch (this) {
       FoundationRegistrationCategory.schema => 'schema',
@@ -112,7 +107,8 @@ class FoundationRegistryManifestEntry {
           : metadata is Map
           ? Map<String, Object?>.unmodifiable(
               metadata.map(
-                (key, value) => MapEntry<String, Object?>(key.toString(), value),
+                (key, value) =>
+                    MapEntry<String, Object?>(key.toString(), value),
               ),
             )
           : const <String, Object?>{},
@@ -136,16 +132,16 @@ class FoundationRegistryManifest {
     return FoundationRegistryManifest(
       entries: entries is Iterable
           ? entries
-              .whereType<Map>()
-              .map(
-                (entry) => FoundationRegistryManifestEntry.fromJson(
-                  entry.map(
-                    (key, value) =>
-                        MapEntry<String, Object?>(key.toString(), value),
+                .whereType<Map>()
+                .map(
+                  (entry) => FoundationRegistryManifestEntry.fromJson(
+                    entry.map(
+                      (key, value) =>
+                          MapEntry<String, Object?>(key.toString(), value),
+                    ),
                   ),
-                ),
-              )
-              .toList(growable: false)
+                )
+                .toList(growable: false)
           : const <FoundationRegistryManifestEntry>[],
     );
   }
@@ -208,6 +204,162 @@ class FoundationRegistryManifestStore {
   }
 }
 
+class FoundationProviderRegistration<T> {
+  const FoundationProviderRegistration({
+    required this.id,
+    required this.owner,
+    required this.provider,
+    this.layer = '',
+    this.priority = 0,
+    this.capabilities = const <String>[],
+    this.state = FoundationRegistryEntryState.registered,
+    this.metadata = const <String, Object?>{},
+    this.todo = '',
+  });
+
+  final String id;
+  final String owner;
+  final T provider;
+  final String layer;
+  final int priority;
+  final List<String> capabilities;
+  final FoundationRegistryEntryState state;
+  final Map<String, Object?> metadata;
+  final String todo;
+
+  FoundationRegistryEntry<T> toRegistryEntry() {
+    return FoundationRegistryEntry<T>(
+      id: id,
+      kind: FoundationRegistrationCategory.provider.wireValue,
+      owner: owner,
+      value: provider,
+      state: state,
+      metadata: Map<String, Object?>.unmodifiable(<String, Object?>{
+        ...metadata,
+        if (layer.isNotEmpty) 'layer': layer,
+        'priority': priority,
+        if (capabilities.isNotEmpty)
+          'capabilities': List<String>.unmodifiable(capabilities),
+        if (todo.isNotEmpty) 'todo': todo,
+      }),
+    );
+  }
+}
+
+class FoundationProviderRegistry<T> {
+  FoundationProviderRegistry({FoundationRegistry<T>? registry})
+    : _registry = registry ?? FoundationRegistry<T>();
+
+  final FoundationRegistry<T> _registry;
+
+  void register(FoundationProviderRegistration<T> registration) {
+    _registry.register(registration.toRegistryEntry());
+  }
+
+  bool unregister(String id) {
+    return _registry.unregister(id);
+  }
+
+  FoundationRegistryEntry<T>? lookup(String id) {
+    final entry = _registry.lookup(id);
+    if (entry == null ||
+        entry.kind != FoundationRegistrationCategory.provider.wireValue) {
+      return null;
+    }
+    return entry;
+  }
+
+  FoundationRegistryEntry<T> requireProvider(String id) {
+    final entry = lookup(id);
+    if (entry == null) {
+      throw StateError('Provider $id is not registered.');
+    }
+    return entry;
+  }
+
+  List<FoundationRegistryEntry<T>> list({
+    String? owner,
+    FoundationRegistryEntryState? state,
+  }) {
+    return _sortByPriority(
+      _registry.list(
+        kind: FoundationRegistrationCategory.provider.wireValue,
+        owner: owner,
+        state: state,
+      ),
+    );
+  }
+
+  List<FoundationRegistryEntry<T>> providersForCapability(
+    String capability, {
+    String? owner,
+    FoundationRegistryEntryState? state,
+  }) {
+    return _sortByPriority(
+      list(owner: owner, state: state)
+          .where((entry) => _capabilities(entry).contains(capability))
+          .toList(growable: false),
+    );
+  }
+
+  FoundationRegistryEntry<T>? resolve({
+    required String capability,
+    String? owner,
+    bool activeOnly = true,
+  }) {
+    final state = activeOnly ? FoundationRegistryEntryState.active : null;
+    final candidates = providersForCapability(
+      capability,
+      owner: owner,
+      state: state,
+    );
+    return candidates.isEmpty ? null : candidates.first;
+  }
+
+  FoundationRegistryManifest manifest({
+    String? owner,
+    FoundationRegistryEntryState? state,
+  }) {
+    return _registry.manifest(
+      kind: FoundationRegistrationCategory.provider.wireValue,
+      owner: owner,
+      state: state,
+    );
+  }
+
+  void setState(String id, FoundationRegistryEntryState state) {
+    requireProvider(id);
+    _registry.setState(id, state);
+  }
+}
+
+List<FoundationRegistryEntry<T>> _sortByPriority<T>(
+  List<FoundationRegistryEntry<T>> entries,
+) {
+  final sorted = entries.toList(growable: false);
+  sorted.sort((left, right) {
+    final priorityOrder = _priority(right).compareTo(_priority(left));
+    if (priorityOrder != 0) {
+      return priorityOrder;
+    }
+    return left.id.compareTo(right.id);
+  });
+  return sorted;
+}
+
+int _priority<T>(FoundationRegistryEntry<T> entry) {
+  final priority = entry.metadata['priority'];
+  return priority is int ? priority : 0;
+}
+
+Set<String> _capabilities<T>(FoundationRegistryEntry<T> entry) {
+  final capabilities = entry.metadata['capabilities'];
+  if (capabilities is Iterable) {
+    return capabilities.map((capability) => capability.toString()).toSet();
+  }
+  return const <String>{};
+}
+
 class FoundationRegistryRegistrar<T> {
   const FoundationRegistryRegistrar({
     required FoundationRegistry<T> registry,
@@ -224,7 +376,8 @@ class FoundationRegistryRegistrar<T> {
   void register({
     required String id,
     required T value,
-    FoundationRegistryEntryState state = FoundationRegistryEntryState.registered,
+    FoundationRegistryEntryState state =
+        FoundationRegistryEntryState.registered,
     Map<String, Object?> metadata = const <String, Object?>{},
   }) {
     _registry.register(
@@ -261,15 +414,11 @@ class FoundationRegistryRegistrar<T> {
     return entry;
   }
 
-  List<FoundationRegistryEntry<T>> list({
-    FoundationRegistryEntryState? state,
-  }) {
+  List<FoundationRegistryEntry<T>> list({FoundationRegistryEntryState? state}) {
     return _registry.list(kind: kind, owner: owner, state: state);
   }
 
-  FoundationRegistryManifest manifest({
-    FoundationRegistryEntryState? state,
-  }) {
+  FoundationRegistryManifest manifest({FoundationRegistryEntryState? state}) {
     return _registry.manifest(kind: kind, owner: owner, state: state);
   }
 
@@ -327,11 +476,13 @@ class FoundationRegistry<T> {
     String? owner,
     FoundationRegistryEntryState? state,
   }) {
-    final entries = _entries.values.where((entry) {
-      return (kind == null || entry.kind == kind) &&
-          (owner == null || entry.owner == owner) &&
-          (state == null || entry.state == state);
-    }).toList(growable: false);
+    final entries = _entries.values
+        .where((entry) {
+          return (kind == null || entry.kind == kind) &&
+              (owner == null || entry.owner == owner) &&
+              (state == null || entry.state == state);
+        })
+        .toList(growable: false);
     entries.sort((left, right) => left.id.compareTo(right.id));
     return entries;
   }
@@ -342,9 +493,11 @@ class FoundationRegistry<T> {
     FoundationRegistryEntryState? state,
   }) {
     return FoundationRegistryManifest(
-      entries: list(kind: kind, owner: owner, state: state)
-          .map((entry) => entry.toManifestEntry())
-          .toList(growable: false),
+      entries: list(
+        kind: kind,
+        owner: owner,
+        state: state,
+      ).map((entry) => entry.toManifestEntry()).toList(growable: false),
     );
   }
 
@@ -361,21 +514,23 @@ class FoundationRegistry<T> {
     final entry = requireEntry(id);
     _entries[id] = entry.copyWith(
       metadata: Map<String, Object?>.unmodifiable(
-        merge
-            ? <String, Object?>{...entry.metadata, ...metadata}
-            : metadata,
+        merge ? <String, Object?>{...entry.metadata, ...metadata} : metadata,
       ),
     );
   }
 
   List<String> kinds({String? owner}) {
-    final values = list(owner: owner).map((entry) => entry.kind).toSet().toList();
+    final values = list(
+      owner: owner,
+    ).map((entry) => entry.kind).toSet().toList();
     values.sort();
     return values;
   }
 
   List<String> owners({String? kind}) {
-    final values = list(kind: kind).map((entry) => entry.owner).toSet().toList();
+    final values = list(
+      kind: kind,
+    ).map((entry) => entry.owner).toSet().toList();
     values.sort();
     return values;
   }
@@ -388,7 +543,11 @@ class FoundationRegistry<T> {
 
   void _validateSegment(String field, String value) {
     if (value.trim().isEmpty) {
-      throw ArgumentError.value(value, field, 'Registry entry $field is empty.');
+      throw ArgumentError.value(
+        value,
+        field,
+        'Registry entry $field is empty.',
+      );
     }
   }
 }

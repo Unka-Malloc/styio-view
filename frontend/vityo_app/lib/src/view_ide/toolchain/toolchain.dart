@@ -1,8 +1,15 @@
 export 'toolchain_codec.dart';
 export 'toolchain_environment.dart';
+export 'extension_toolchain_contributions.dart';
+export 'clang_cpp_version_configuration.dart';
+export 'clang_cpp_version_manager.dart';
+export 'clang_cpp_version_parser.dart';
 export 'styio_toolchain_discovery.dart';
+export 'styio_toolchain_lifecycle.dart';
+export 'native_compiler_toolchain_discovery.dart';
 export 'terminal_runtime.dart';
 export 'toolchain_catalog.dart';
+export 'toolchain_catalog_change.dart';
 export 'toolchain_archive_extractor.dart';
 export 'toolchain_configuration_store.dart';
 export 'toolchain_health_check.dart';

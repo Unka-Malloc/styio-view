@@ -18,6 +18,8 @@ class ProjectStyioLanguageService {
   final StyioProjectAnalysisCache? _analysisCache;
   final bool allowLocalProjectFallback;
 
+  StyioLanguageService get documentService => _documentService;
+
   StyioProjectAnalysis analyzeProject(List<DocumentState> documents) {
     final documentsById = {
       for (final document in documents) document.documentId: document,
@@ -775,14 +777,18 @@ class ProjectStyioLanguageService {
         right.range.start < left.range.end;
   }
 
+  List<DiagnosticQuickFix> quickFixesForDiagnostic(
+    DocumentState document,
+    Diagnostic diagnostic,
+  ) {
+    return _documentService.quickFixesForDiagnostic(document, diagnostic);
+  }
+
   List<DiagnosticQuickFix> _documentQuickFixesForProjectDiagnostic(
     DocumentState document,
     StyioProjectDiagnostic diagnostic,
   ) {
-    return _documentService.quickFixesForDiagnostic(
-      document,
-      diagnostic.diagnostic,
-    );
+    return quickFixesForDiagnostic(document, diagnostic.diagnostic);
   }
 
   List<DiagnosticQuickFix> _dedupeQuickFixes(
@@ -4925,7 +4931,7 @@ class StyioProjectSymbolSnapshot {
     StyioProjectSymbolDefinition definition,
   ) {
     final references = <StyioProjectSymbolReference>[];
-    for (final documentId in _functionsByDocument.keys) {
+    for (final documentId in _sourceByDocument.keys) {
       if (!_definitionVisibleFromDocument(
         documentId: documentId,
         definition: definition,

@@ -212,6 +212,31 @@ void main() {
       expect(snapshot.toJson()['targetId'], 'runtime-platform');
       expect(snapshot.toJson()['managerKeys'], contains('fileSystem'));
       expect(snapshot.toJson()['managerKeys'], contains('pty'));
+      final health = bundle.probeHealthSnapshot(
+        probes: <PlatformManagerHealthProbe>[
+          PlatformManagerHealthProbe(
+            managerKey: 'shell',
+            ready: (_) => false,
+            message: (_, _) => 'Shell probe is blocked.',
+            recoveryActions: const <PlatformManagerRecoveryAction>[
+              PlatformManagerRecoveryAction(
+                id: 'platform.shell.open-settings',
+                label: 'Open shell settings',
+                managerKey: 'shell',
+                message: 'Review shell configuration.',
+              ),
+            ],
+          ),
+        ],
+      );
+      final routes = const PlatformManagerRecoveryActionRouter().routesFor(
+        health,
+      );
+
+      expect(routes.single.route, contains('settings://platform/shell'));
+      expect(routes.single.route, contains('platform.shell.open-settings'));
+      expect(routes.single.toJson()['managerKey'], 'shell');
+      expect(routes.single.toJson()['settingsSectionId'], 'shell');
     },
   );
 

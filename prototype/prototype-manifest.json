@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_updated": "2026-05-02",
+  "last_updated": "2026-05-18",
   "canonical_entry": "editor.html",
   "entries": [
     {
@@ -9,13 +9,6 @@
       "owner": "Shell / Editor",
       "validation": "npm run selftest:editor",
       "notes": "Current focused Web Editor surface. Product-facing prototype behavior starts here."
-    },
-    {
-      "path": "index.html",
-      "status": "gallery-index",
-      "owner": "Shell / Editor",
-      "validation": "manual visual review",
-      "notes": "Design gallery index and legacy composite preview. Do not treat as the canonical editor workflow."
     },
     {
       "path": "styio-bauhaus.html",

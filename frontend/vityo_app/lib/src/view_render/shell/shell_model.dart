@@ -133,6 +133,7 @@ class ShellModel extends ShellRuntimeModel {
         appendLog('Settings surface opened.');
         return;
       case AppCommandId.openFile:
+      case AppCommandId.reloadFile:
       case AppCommandId.commandPalette:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.commands);

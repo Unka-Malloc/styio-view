@@ -759,7 +759,7 @@ String _bottomTabTitle(BottomSurfaceTab tab) {
   return switch (tab) {
     BottomSurfaceTab.runtime => 'Runtime',
     BottomSurfaceTab.terminal => 'Terminal',
-    BottomSurfaceTab.commandPalette => 'Command Palette',
+    BottomSurfaceTab.commands => 'Command Palette',
     BottomSurfaceTab.agent => 'Agent',
     BottomSurfaceTab.sourceControl => 'Source Control',
     BottomSurfaceTab.search => 'Search',
@@ -775,7 +775,7 @@ String _bottomTabSurfaceId(BottomSurfaceTab tab) {
   return switch (tab) {
     BottomSurfaceTab.runtime => 'runtime.output',
     BottomSurfaceTab.terminal => 'terminal.session',
-    BottomSurfaceTab.commandPalette => 'commands.palette',
+    BottomSurfaceTab.commands => 'commands.palette',
     BottomSurfaceTab.agent => 'agent.activity',
     BottomSurfaceTab.sourceControl => 'source-control.changes',
     BottomSurfaceTab.search => 'workspace.search',
@@ -794,7 +794,7 @@ List<String> _bottomTabCapabilities(BottomSurfaceTab tab) {
       'task-activity',
     ],
     BottomSurfaceTab.terminal => const <String>['terminal', 'pty-session'],
-    BottomSurfaceTab.commandPalette => const <String>[
+    BottomSurfaceTab.commands => const <String>[
       'command-search',
       'command-execution',
     ],

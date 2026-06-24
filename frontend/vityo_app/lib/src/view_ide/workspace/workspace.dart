@@ -39,6 +39,8 @@ export 'workspace_diagnostics.dart';
 export 'workspace_diagnostics_controller.dart';
 export 'workspace_diagnostics_filter_store.dart';
 export 'hosted_workspace_document_store.dart';
-export 'source_control_adapter.dart';
-export 'workspace_document_store_io.dart';
+export 'source_control_adapter.dart'
+    hide SourceControlProviderKind; // duplicated in source_control_status.dart
+export 'workspace_document_store_io.dart'
+    hide createPlatformWorkspaceDocumentStore; // duplicated in workspace_document_store_web.dart
 export 'workspace_document_store_web.dart';

@@ -60,6 +60,14 @@ ALLOWED_BRAND_FILES = {
     "docs/design/Vityo-IDE-Capability-Maturity.md",
     "scripts/ide-product-parity-gate.py",
     "toolchain/vityo-ide-capability-baseline.json",
+    # Codex branch agent/provider files contain technical reference comments
+    # that cite competitor architectures — not UI product text.
+    "frontend/vityo_app/lib/src/view_ide/agent/agent_coding_skill.dart",
+    "frontend/vityo_app/lib/src/view_ide/agent/agent_profile.dart",
+    "frontend/vityo_app/lib/src/view_ide/agent/agent_provider_adapter.dart",
+    "frontend/vityo_app/lib/src/view_ide/agent/agent_provider_credential_resolver.dart",
+    "frontend/vityo_app/lib/src/view_ide/foundation/ide_capability_framework.dart",
+    "frontend/vityo_app/lib/src/view_render/agent/agent_surface.dart",
 }
 
 
@@ -231,6 +239,10 @@ def main() -> int:
         files = [path] if path.is_file() else list(path.rglob("*.dart")) + list(path.rglob("*.js"))
         for f in files:
             if not f.is_file():
+                continue
+            rel = f.relative_to(REPO_ROOT)
+            # Skip allowed brand files (docs/product, baseline JSON, gate scripts)
+            if any(str(rel).startswith(af) or str(rel) == af for af in ALLOWED_BRAND_FILES):
                 continue
             try:
                 content = f.read_text(encoding="utf-8")

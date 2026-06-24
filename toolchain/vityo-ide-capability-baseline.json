@@ -1,0 +1,280 @@
+{
+  "schema": 1,
+  "project": "Vityo",
+  "description": "Machine-verifiable IDE capability baseline. Every domain anchors to real repo paths. This file is a product engineering artifact, not a scorecard.",
+  "last_updated": "2026-06-24",
+  "benchmark_peers": [
+    { "id": "vscode", "description": "VSCode — lightweight workbench, LSP, DAP, command palette, extension model" },
+    { "id": "intellij-community", "description": "IntelliJ IDEA Community — deep semantic project model, inspections, safe refactoring" },
+    { "id": "codex", "description": "Codex — agentic coding with sandbox, permission, audit trail, patch-first workflow" },
+    { "id": "opencode", "description": "OpenCode — terminal-native agentic workflow, command catalog, LSP/diagnostics awareness" }
+  ],
+  "domains": {
+    "workbench": {
+      "target": "Styio IDE shell with command palette, quick open, surface routing, capability-aware command availability, and keyboard-navigable workbench areas.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L3 — Product Workflow (command palette, quick open, navigation, surface routing all wired through shell)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/commands/app_commands.dart",
+        "frontend/vityo_app/lib/src/view_ide/commands/command_palette.dart",
+        "frontend/vityo_app/lib/src/view_render/shell/"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/app_commands_test.dart",
+        "frontend/vityo_app/test/command_palette_test.dart"
+      ],
+      "knownGaps": [
+        "Agent-visible command filtering newly added (needs integration test)",
+        "Keyboard navigation in palette UI needs widget test",
+        "No chord keybinding support yet"
+      ],
+      "nextMilestone": "L4 — cross-platform keyboard navigation verified; agent command filtering integration-tested"
+    },
+    "editor_engine": {
+      "target": "Styio Source Buffer with visual substitution, semantic block surface, undo/redo, cursor/selection, large-file degradation policy, and multi-cursor support.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L3 — Product Workflow (document model, selection, undo/redo, keyboard editing, visual substitution toggle exist; large-file policy documented)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/editor/document/",
+        "frontend/vityo_app/lib/src/view_ide/editor/selection/",
+        "frontend/vityo_app/lib/src/view_ide/editor/controller/",
+        "frontend/vityo_app/lib/src/view_ide/editor/render_plan/",
+        "prototype/editor-modules/glyph-presets.js"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/editor_controller_editing_test.dart"
+      ],
+      "knownGaps": [
+        "Multi-cursor not implemented",
+        "Large-file (>10K lines) degradation policy documented but not tested",
+        "IME composition not verified on CJK platforms"
+      ],
+      "nextMilestone": "L4 — large-file perf test; CJK IME verification on at least one platform"
+    },
+    "language_intelligence": {
+      "target": "Token/semantic highlighting, diagnostics, hover, completion, formatting, go-to-definition, find-references, rename, code actions, workspace symbols — all through LanguageServiceAdapter contract with stale-result rejection and capability-gap safety.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L2-L3 — Contract-backed diagnostics, stale-revision rejection, capability gap model; workspace features exist with upstream-blocked status for rename/code-actions/formatting",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/language/language_contract.dart",
+        "frontend/vityo_app/lib/src/view_ide/language/diagnostic_revision_gate.dart",
+        "frontend/vityo_app/lib/src/view_ide/language/styio_syntax_highlighter.dart",
+        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_problems.dart",
+        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_code_actions.dart",
+        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_rename.dart",
+        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_reference_search.dart",
+        "docs/contracts/LanguageServiceAdapter.md"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/diagnostic_revision_gate_test.dart",
+        "frontend/vityo_app/test/workspace_problems_test.dart",
+        "frontend/vityo_app/test/styio_language_service_smoke_test.dart",
+        "frontend/vityo_app/test/styio_syntax_diagnostic_feature_test.dart"
+      ],
+      "knownGaps": [
+        "Rename safety blocked on upstream StyioService",
+        "Code actions (intentions) blocked on upstream StyioService",
+        "Formatting provider blocked on upstream StyioService",
+        "Hover/completion providers blocked on upstream StyioService",
+        "Inlay hints not yet designed"
+      ],
+      "nextMilestone": "L3 — consume real StyioService diagnostics; wire code action preview/apply through workspace edit transaction"
+    },
+    "project_model": {
+      "target": "Styio project graph as first-class product model: workspace members, packages, dependencies, targets, toolchain, lock/vendor/build state, with canonical-file vs machine-payload source marking and Agent-context serialization.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L2-L3 — Contract-backed project graph snapshot, canonical file inference, four-layer workspace display; Agent-context serialization newly added",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart",
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_adapter.dart",
+        "frontend/vityo_app/lib/src/view_ide/workspace/",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+        "docs/contracts/ProjectGraphAdapter.md"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/project_graph_adapter_test.dart",
+        "frontend/vityo_app/test/agent_context_test.dart"
+      ],
+      "knownGaps": [
+        "Canonical-file vs hosted-payload source marking not per-field",
+        "Machine payload consumption waiting on spio formal contract",
+        "Package target ambiguity shows generic blocked reason"
+      ],
+      "nextMilestone": "L3 — per-field source marking; consume spio published project graph payload"
+    },
+    "run_debug_runtime": {
+      "target": "Runtime surface as first-class product: run target selector, minimal compilable unit run, workflow lane summaries, stdout/stderr/diagnostic event stream, runtime graph, event replay, route trace. Breakpoint/run-configuration model as preview-only until Styio backend supports them.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L3 — Product Workflow (execution adapter, runtime event adapter, four workflow lanes, replay summary, lane summaries wired through shell)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter.dart",
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart",
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/execution_route_summary.dart",
+        "frontend/vityo_app/lib/src/view_ide/runtime/runtime_replay_summary.dart",
+        "frontend/vityo_app/lib/src/view_ide/shell_runtime/shell_runtime_model.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+        "docs/contracts/ExecutionAdapter.md",
+        "docs/contracts/RuntimeEventAdapter.md"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/execution_adapter_test.dart",
+        "frontend/vityo_app/test/execution_route_summary_test.dart",
+        "frontend/vityo_app/test/runtime_surfaces_test.dart",
+        "frontend/vityo_app/test/runtime_replay_summary_test.dart",
+        "frontend/vityo_app/test/agent_context_test.dart"
+      ],
+      "knownGaps": [
+        "Structured blocked reasons for ambiguous/missing target implicit in execution adapter",
+        "Breakpoint model not yet defined",
+        "Run configuration model not yet formalized",
+        "Live event streaming (currently compile-plan artifact replay)",
+        "Debug step/stack/variable introspection blocked on upstream Styio runtime"
+      ],
+      "nextMilestone": "L4 — breakpoint/run-config model; structured blocked reasons; live streaming when upstream supports it"
+    },
+    "agent_workflow": {
+      "target": "IDE-native agent panel: context pack (workspace/document/selection/diagnostics/project/runtime/commands/capabilities), permission model (readOnly/proposePatch/proposeCommand/executeWithApproval), patch preview/apply/rollback, audit trail, local-only mode, provider-missing state, OpenAI-compatible endpoint as optional adapter route.",
+      "benchmarkPeers": ["codex", "opencode"],
+      "currentStatus": "L2 — Contract-backed (AgentContextSnapshot, AgentContextScope, AgentRedactionPolicy, AgentActionPlan, AgentWorkspaceEditApplication, AgentSettings with local-only/provider-missing modes; no real provider call)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_settings.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_session.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_profile.dart"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/agent_context_test.dart",
+        "frontend/vityo_app/test/agent_settings_test.dart",
+        "frontend/vityo_app/test/agent_profile_test.dart",
+        "frontend/vityo_app/test/agent_session_test.dart"
+      ],
+      "knownGaps": [
+        "Real AI provider HTTP call not implemented",
+        "AgentContextPack (richer task model) not yet formalized",
+        "AgentTask/AgentTaskState lifecycle not yet defined",
+        "Provider secret injection not implemented"
+      ],
+      "nextMilestone": "L3 — AgentTask lifecycle; provider HTTP call with structured errors; richer context pack"
+    },
+    "module_system": {
+      "target": "Core/optional module lifecycle with manifest, capability matrix, staged update, install/uninstall/disable, platform-aware entry hiding, and data reclamation policy.",
+      "benchmarkPeers": ["vscode"],
+      "currentStatus": "L2-L3 — Contract-backed module lifecycle, manifest, registry, capability matrix exist; real package download/staging/activation not yet implemented",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/module_host/module_lifecycle.dart",
+        "frontend/vityo_app/lib/src/view_ide/module_host/module_manifest.dart",
+        "frontend/vityo_app/lib/src/view_ide/module_host/module_registry.dart",
+        "frontend/vityo_app/lib/src/view_ide/module_host/module_capability_matrix.dart"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/module_lifecycle_test.dart"
+      ],
+      "knownGaps": [
+        "Real package download/staging/activation path not implemented",
+        "Platform file deletion and resource reclaim not implemented"
+      ],
+      "nextMilestone": "L3 — real package download and staged activation"
+    },
+    "source_control": {
+      "target": "Source control adapter contract: SourceControlSnapshot, SourceControlChange, SourceControlProviderKind, LocalHistorySnapshot. Desktop may express local git candidate; Web/iOS default blocked or hosted-controlled. No real destructive git operations.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L1 — Local Model (adapter contract, snapshot model, capability-gap-safe; no real git execution)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/workspace/source_control_adapter.dart"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/source_control_adapter_test.dart"
+      ],
+      "knownGaps": [
+        "No real git integration (by design — requires permission model and approval flow)",
+        "LocalHistorySnapshot not yet persisted",
+        "Hosted route source control state not yet modeled"
+      ],
+      "nextMilestone": "L2 — real git status read (not write); local history persistence"
+    },
+    "settings_keymap_profile": {
+      "target": "Schema-owned settings with migration, local-first profile, sync-optional, secret redaction, Agent-safe projection. Theme covering IDE shell, editor, semantic blocks, glyph, diagnostics, runtime, agent, focus/selection.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L2 — Contract-backed (VityoSettingsSchema with migration, EditorSettings with visualSubstitutionEnabled toggle, AgentSettings with local-only/provider-missing modes, VityoProfileSnapshot with local-first support, secret redaction)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_settings.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_profile.dart",
+        "frontend/vityo_app/lib/src/view_render/theme/",
+        "prototype/editor-modules/theme-presets.js"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/agent_settings_test.dart",
+        "frontend/vityo_app/test/agent_profile_test.dart",
+        "frontend/vityo_app/test/settings_surface_test.dart",
+        "frontend/vityo_app/test/vityo_theme_test.dart"
+      ],
+      "knownGaps": [
+        "Theme editor UI not implemented",
+        "Keybinding configuration store not implemented",
+        "Cross-session profile sync not implemented (optional)"
+      ],
+      "nextMilestone": "L3 — theme editor UI; keybinding configuration store"
+    },
+    "security_trust": {
+      "target": "Permission model for agent actions, toolchain operations, and workspace edits. Audit trail for all agent-initiated changes. Secret redaction in all display/context projections. Local-only mode fully functional.",
+      "benchmarkPeers": ["codex", "opencode"],
+      "currentStatus": "L2 — Contract-backed (AgentRedactionPolicy, AgentPermissionLevel via PermissionRequestScope, AgentAuditEvent, secret redaction in AgentSettings.toDisplayJson and VityoProfileSnapshot.toAgentSafeJson)",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_settings.dart",
+        "frontend/vityo_app/lib/src/view_ide/agent/agent_session.dart"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/agent_context_test.dart",
+        "frontend/vityo_app/test/agent_settings_test.dart",
+        "frontend/vityo_app/test/agent_session_test.dart"
+      ],
+      "knownGaps": [
+        "Real provider secret injection not implemented",
+        "Workspace trust model not yet formalized",
+        "Toolchain execution sandboxing not implemented"
+      ],
+      "nextMilestone": "L3 — workspace trust model; toolchain execution permission gating"
+    },
+    "cross_platform_hosted_workspace": {
+      "target": "Desktop (local-first), Android (local-first with cloud fallback), iOS (cloud-only), Web (hosted workspace). Each platform exposes only compatible capabilities. Hosted workspace has retention/export lifecycle.",
+      "benchmarkPeers": ["vscode"],
+      "currentStatus": "L2-L3 — Contract-backed platform target model, hosted workspace record, hosted control plane client, cloud adapter routes exist; cross-platform matrix validation incomplete",
+      "implementationAnchors": [
+        "frontend/vityo_app/lib/src/view_ide/platform/platform_target.dart",
+        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart",
+        "frontend/vityo_app/lib/src/view_ide/workspace/hosted_workspace_document_store.dart"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/hosted_control_plane_client_test.dart",
+        "frontend/vityo_app/test/viewport_profile_test.dart"
+      ],
+      "knownGaps": [
+        "Cross-platform matrix validation incomplete",
+        "Hosted workspace retention/export UX not validated",
+        "Mobile interaction matrix not tested"
+      ],
+      "nextMilestone": "L4 — cross-platform matrix test; hosted workspace lifecycle UX validated"
+    },
+    "performance_accessibility": {
+      "target": "Editor input <16ms latency, keyboard-navigable all surfaces, screen-reader semantics, contrast ≥4.5:1 for editor text, no-overflow layout rule, narrow viewport adaptation, telemetry-free local metrics only.",
+      "benchmarkPeers": ["vscode", "intellij-community"],
+      "currentStatus": "L1-L2 — Local Model (interaction quality bar documented; no automated overflow detection; no latency measurement baseline; no screen-reader verification)",
+      "implementationAnchors": [
+        "docs/design/Vityo-IDE-Interaction-Quality-Bar.md",
+        "frontend/vityo_app/lib/src/view_render/platform/",
+        "frontend/vityo_app/lib/src/view_render/shell/"
+      ],
+      "tests": [
+        "frontend/vityo_app/test/viewport_profile_test.dart"
+      ],
+      "knownGaps": [
+        "No automated overflow detection widget test",
+        "No keyboard-navigation-only integration test",
+        "No contrast ratio automation",
+        "No large-file performance test"
+      ],
+      "nextMilestone": "L2 — automated overflow test; keyboard navigation integration test; contrast check script"
+    }
+  }
+}

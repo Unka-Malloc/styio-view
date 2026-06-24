@@ -56,6 +56,8 @@ Key SSOTs:
 8. `IDE 标杆能力矩阵 -> ../design/Vityo-IDE-Benchmark-Matrix.md`
 9. `IDE 能力成熟度模型 -> ../design/Vityo-IDE-Capability-Maturity.md`
 10. `IDE 交互质量基线 -> ../design/Vityo-IDE-Interaction-Quality-Bar.md`
+11. `IDE 能力基线 JSON -> ../../toolchain/vityo-ide-capability-baseline.json`
+12. `IDE 产品对标门禁 -> ../../scripts/ide-product-parity-gate.py`
 
 ## Daily Workflow
 

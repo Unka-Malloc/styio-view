@@ -9,4 +9,5 @@ export 'service/semantic_snapshot_event_bridge.dart'
         SemanticSnapshotPanelEventTarget,
         SemanticSnapshotPanelEventState,
         SemanticSnapshotTelemetryEventKind,
+        SemanticSnapshotTelemetryEventKindX,
         SemanticSnapshotPanelEventHandler;

@@ -426,6 +426,7 @@ class CommandPaletteService {
       AppCommandId.openFile ||
       AppCommandId.reloadFile ||
       AppCommandId.acceptExternalChange => 'Editor',
+      _ => 'Other',
     };
   }
 

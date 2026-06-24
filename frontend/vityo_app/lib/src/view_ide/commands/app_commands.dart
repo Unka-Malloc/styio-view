@@ -270,6 +270,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.debugTestConfiguration => AppCommandCategory.testing,
       AppCommandId.refreshModules => AppCommandCategory.module,
       AppCommandId.openSettings => AppCommandCategory.settings,
+      _ => AppCommandCategory.surface,
     };
   }
 }

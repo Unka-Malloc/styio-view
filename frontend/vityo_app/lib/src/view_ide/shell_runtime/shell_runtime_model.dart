@@ -4702,6 +4702,10 @@ class ShellRuntimeModel extends ChangeNotifier {
         appendLog(message);
         notifyListeners();
         return commandResult;
+      case AppCommandId.openFile:
+      case AppCommandId.reloadFile:
+      case AppCommandId.acceptExternalChange:
+        break;
     }
   }
 
@@ -4779,6 +4783,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshModules:
       case AppCommandId.openSettings:
         return const <String, Object?>{};
+      case AppCommandId.openFile:
+      case AppCommandId.reloadFile:
+      case AppCommandId.acceptExternalChange:
+        break;
     }
   }
 
@@ -7816,6 +7824,10 @@ class ShellRuntimeModel extends ChangeNotifier {
           '${StyioCommandRegistry.descriptorFor(commandId).label} requires a File Explorer dialog route.',
         );
         return;
+      case AppCommandId.openFile:
+      case AppCommandId.reloadFile:
+      case AppCommandId.acceptExternalChange:
+        break;
     }
   }
 
@@ -7940,6 +7952,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.debugFailedTests:
         await executeCommand(commandId);
         return;
+      case AppCommandId.openFile:
+      case AppCommandId.reloadFile:
+      case AppCommandId.acceptExternalChange:
+        break;
     }
   }
 
@@ -8177,6 +8193,10 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.openSettings:
         return null;
+      case AppCommandId.openFile:
+      case AppCommandId.reloadFile:
+      case AppCommandId.acceptExternalChange:
+        break;
     }
   }
 

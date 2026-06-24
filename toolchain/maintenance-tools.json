@@ -27,6 +27,14 @@
       "scope": ["product", "ide-quality", "checkpoint"]
     },
     {
+      "id": "ide-product-parity-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/ide-product-parity-gate.py",
+      "command": "python3 scripts/ide-product-parity-gate.py",
+      "scope": ["product", "ide-quality", "parity"]
+    },
+    {
       "id": "delivery-gate",
       "kind": "gate",
       "status": "current",
@@ -245,7 +253,8 @@
         "project-coverage-gate",
         "project-coverage-workflow",
         "release-readiness-gate",
-        "vityo-ide-product-gate"
+        "vityo-ide-product-gate",
+        "ide-product-parity-gate"
       ]
     },
     {

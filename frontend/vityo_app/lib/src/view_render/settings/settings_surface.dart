@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/foundation/foundation.dart';
+import '../../view_ide/environment/configuration/vityo_theme_override.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
 import '../../view_ide/toolchain/toolchain_manager.dart';
 import '../platform/viewport_profile.dart';

@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `spio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-06-25
 
 ## Mission
 
@@ -13,6 +13,12 @@
 Primary paths:
 
 1. `frontend/vityo_app/lib/src/backend_toolchain/`
+   - `graph_algorithm.dart` — graph DAG, topological sort, Tarjan SCC algorithms
+   - `graph_hash.dart` — incremental graph hash computation
+   - `toolchain_provenance_guard.dart` — SHA-256 verification, signature policy, endpoint allowlist
+   - `workspace_graph_adapter.dart` — workspace graph adapter contract
+   - `workspace_graph_builder.dart` — immutable workspace graph builder
+   - `workspace_graph_snapshot.dart` — immutable workspace graph snapshot model
 2. `frontend/vityo_app/lib/src/integration/`
 3. `docs/contracts/`
 4. `docs/external/for-styio/`

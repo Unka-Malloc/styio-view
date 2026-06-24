@@ -11,7 +11,7 @@ permissions:
 jobs:
   hygiene:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 8
     env:
       STYIO_PYTHON_VERSION: "3.13.5"
 
@@ -64,6 +64,18 @@ jobs:
       - name: Check tracked tree
         working-directory: vityo-nightly
         run: python3 scripts/repo-hygiene-gate.py --mode tracked
+
+      - name: Dependency policy gate
+        working-directory: vityo-nightly
+        run: python3 scripts/dependency-policy-gate.py
+
+      - name: GitHub Actions pin gate (audit)
+        working-directory: vityo-nightly
+        run: python3 scripts/github-actions-pin-gate.py --mode audit
+
+      - name: Import boundary gate
+        working-directory: vityo-nightly
+        run: python3 scripts/import-boundary-gate.py
 
       - name: Check ecosystem CLI doc consistency
         working-directory: vityo-nightly

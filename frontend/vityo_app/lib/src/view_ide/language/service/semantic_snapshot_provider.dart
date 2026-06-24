@@ -524,6 +524,19 @@ class SemanticSnapshotProvider {
       document: document,
       analysis: serviceAnalysis,
     );
+
+    // Verify snapshot identity consistency.
+    if (serviceSnapshot.documentId != document.documentId) {
+      throw ArgumentError(
+        'Snapshot documentId mismatch: ${serviceSnapshot.documentId} vs ${document.documentId}',
+      );
+    }
+    if (serviceSnapshot.revision != document.revision) {
+      throw ArgumentError(
+        'Snapshot revision mismatch: ${serviceSnapshot.revision} vs ${document.revision}',
+      );
+    }
+
     final codeActionFactCount = _codeActionFactCount(
       document: document,
       diagnostics: serviceAnalysis.diagnostics,

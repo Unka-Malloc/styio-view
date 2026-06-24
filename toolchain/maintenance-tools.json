@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "project": "Vityo",
-  "last_updated": "2026-06-24",
+  "last_updated": "2026-06-25",
   "release_gate": "scripts/release-readiness-gate.py",
   "policy": {
     "current_state": "current-only",
@@ -257,6 +257,38 @@
       "path": "scripts/verify-apple-device.sh",
       "command": "./scripts/verify-apple-device.sh",
       "scope": ["ios", "macos", "device"]
+    },
+    {
+      "id": "dependency-policy-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/dependency-policy-gate.py",
+      "command": "python3 scripts/dependency-policy-gate.py",
+      "scope": ["dependency", "security", "policy"]
+    },
+    {
+      "id": "github-actions-pin-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/github-actions-pin-gate.py",
+      "command": "python3 scripts/github-actions-pin-gate.py --mode audit",
+      "scope": ["ci", "security", "supply-chain"]
+    },
+    {
+      "id": "import-boundary-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/import-boundary-gate.py",
+      "command": "python3 scripts/import-boundary-gate.py",
+      "scope": ["architecture", "boundary", "imports"]
+    },
+    {
+      "id": "performance-gate",
+      "kind": "gate",
+      "status": "current",
+      "path": "scripts/performance-gate.py",
+      "command": "python3 scripts/performance-gate.py",
+      "scope": ["performance", "benchmark", "regression"]
     }
   ],
   "skills": [
@@ -272,7 +304,10 @@
         "vityo-ide-product-gate",
         "ide-product-parity-gate",
         "architecture-boundary-gate",
-        "public-contract-schema-gate"
+        "import-boundary-gate",
+        "public-contract-schema-gate",
+        "dependency-policy-gate",
+        "github-actions-pin-gate"
       ]
     },
     {
@@ -341,7 +376,10 @@
       "backing_tools": [
         "repo-hygiene-gate",
         "python-coverage-gate",
-        "release-readiness-gate"
+        "release-readiness-gate",
+        "dependency-policy-gate",
+        "github-actions-pin-gate",
+        "performance-gate"
       ]
     }
   ],
@@ -368,7 +406,11 @@
         "repo-hygiene-gate",
         "project-coverage-gate",
         "project-coverage-workflow",
-        "python-coverage-gate"
+        "python-coverage-gate",
+        "dependency-policy-gate",
+        "github-actions-pin-gate",
+        "import-boundary-gate",
+        "performance-gate"
       ],
       "skills": ["docs-delivery-maintenance", "repository-policy-maintenance"]
     },
@@ -446,7 +488,8 @@
       "maintenance_tools": [
         "ecosystem-cli-doc-gate",
         "repo-hygiene-gate",
-        "flutter-test"
+        "flutter-test",
+        "import-boundary-gate"
       ],
       "skills": ["docs-delivery-maintenance", "repository-policy-maintenance"]
     },

@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
 
 ## Mission
 
@@ -15,7 +15,7 @@ Primary paths:
 1. `README.md`
 2. `docs/`
 3. `docs/external/`
-4. `scripts/repo-hygiene-gate.py`
+4. `scripts/repo-hygiene-gate.py` — updated 2026-06-25: added `cache` language submodule, registered `cache/cache.dart` in canonical language barrel
 5. `scripts/docs-index.py`
 6. `scripts/docs-lifecycle.py`
 7. `scripts/docs-audit.py`

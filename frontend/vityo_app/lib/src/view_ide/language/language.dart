@@ -1,3 +1,4 @@
+export 'cache/cache.dart';
 export 'contract/language_contract.dart';
 export 'diagnostic_revision_gate.dart';
 export 'semantic_snapshot_panel.dart';

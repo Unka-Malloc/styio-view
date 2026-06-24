@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
 
 ## Mission
 
@@ -14,9 +14,13 @@ Primary paths:
 
 1. `frontend/vityo_app/lib/src/view_ide/runtime/`
 2. `frontend/vityo_app/lib/src/view_ide/agent/`
+   - `agent_execution_mode.dart` — agent execution mode (plan-only, build-capable)
+   - `agent_provider_access_control.dart` — provider allowlist/denylist
+   - `agent_tool_sandbox_router.dart` — sandboxed tool execution router
 3. `frontend/vityo_app/lib/src/view_render/runtime/`
 4. `frontend/vityo_app/lib/src/view_render/agent/`
 5. `frontend/vityo_app/lib/src/runtime/`
+   - `runtime_event_log.dart` — append-only runtime event log with ring buffer projection
 6. `frontend/vityo_app/lib/src/agent/` — `agent_session.dart` 保持 façade 再导出到 `view_ide/agent/agent_session.dart`
 7. `docs/specs/AGENT-PROVIDER-ADAPTER-SCHEMA.md`
 8. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`

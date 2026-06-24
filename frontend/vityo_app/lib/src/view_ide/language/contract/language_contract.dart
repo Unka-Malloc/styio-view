@@ -1,3 +1,5 @@
+import '../../editor/document/document_state.dart';
+
 enum TokenKind {
   keyword,
   identifier,
@@ -159,6 +161,61 @@ bool isFormattingEditValidForDocument({
       edit.range.end <= documentLength;
 }
 
+class DocumentTransaction {
+  const DocumentTransaction({
+    required this.documentId,
+    required this.baseRevision,
+    required this.edits,
+    required this.label,
+    required this.timestamp,
+    required this.undoEdits,
+  });
+
+  final String documentId;
+  final int baseRevision;
+  final List<FormattingEdit> edits;
+  final String label;
+  final DateTime timestamp;
+  final List<FormattingEdit> undoEdits;
+
+  bool isStaleFor(DocumentState document) {
+    return document.documentId != documentId ||
+        document.revision != baseRevision;
+  }
+}
+
+List<FormattingEdit> computeUndoEdits({
+  required String originalText,
+  required List<FormattingEdit> appliedEdits,
+}) {
+  if (appliedEdits.isEmpty) return const <FormattingEdit>[];
+
+  final sorted = List<FormattingEdit>.of(appliedEdits)
+    ..sort((a, b) => a.range.start.compareTo(b.range.start));
+
+  final undos = <FormattingEdit>[];
+  var cumulativeShift = 0;
+
+  for (final edit in sorted) {
+    final originalSegment =
+        originalText.substring(edit.range.start, edit.range.end);
+    final adjustedStart = edit.range.start + cumulativeShift;
+    final newEnd = adjustedStart + edit.newText.length;
+
+    undos.add(
+      FormattingEdit(
+        range: SourceRange(start: adjustedStart, end: newEnd),
+        newText: originalSegment,
+      ),
+    );
+
+    cumulativeShift +=
+        edit.newText.length - (edit.range.end - edit.range.start);
+  }
+
+  return undos.reversed.toList(growable: false);
+}
+
 class DiagnosticQuickFix {
   const DiagnosticQuickFix({
     required this.label,
@@ -169,6 +226,24 @@ class DiagnosticQuickFix {
   final String label;
   final List<FormattingEdit> edits;
   final String detail;
+}
+
+class CodeActionIntent {
+  const CodeActionIntent({
+    required this.id,
+    required this.label,
+    required this.kind,
+    required this.edits,
+    this.diagnosticCode,
+    this.isPreferred = false,
+  });
+
+  final String id;
+  final String label;
+  final String kind;
+  final List<FormattingEdit> edits;
+  final String? diagnosticCode;
+  final bool isPreferred;
 }
 
 class CompletionItem {
@@ -301,6 +376,24 @@ class RenamePlan {
   final List<RenameConflict> conflicts;
 
   bool get hasConflicts => conflicts.isNotEmpty;
+}
+
+class RenamePreview {
+  const RenamePreview({
+    required this.oldName,
+    required this.newName,
+    required this.editCount,
+    required this.affectedDocumentIds,
+    this.conflict,
+  });
+
+  final String oldName;
+  final String newName;
+  final int editCount;
+  final List<String> affectedDocumentIds;
+  final String? conflict;
+
+  bool get hasConflict => conflict != null;
 }
 
 class SafeDeleteConflict {

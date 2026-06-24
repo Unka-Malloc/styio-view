@@ -237,6 +237,7 @@ VIEW_IDE_LANGUAGE_SUBMODULES = (
     "service",
     "features",
     "syntax_validation",
+    "cache",
 )
 VIEW_IDE_EDITOR_SUBMODULES = (
     "document",
@@ -274,6 +275,7 @@ VIEW_IDE_LANGUAGE_FACADES = {
     "local_styio_language_service.dart": "service/local_styio_language_service.dart",
 }
 VIEW_IDE_LANGUAGE_BARREL = (
+    "export 'cache/cache.dart';",
     "export 'contract/language_contract.dart';",
     "export 'diagnostic_revision_gate.dart';",
     "export 'semantic_snapshot_panel.dart';",

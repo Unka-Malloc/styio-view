@@ -80,7 +80,9 @@ resolve_styio() {
 
 STYIO_BIN="$(resolve_styio)"
 if [[ -z "$STYIO_BIN" || ! -x "$STYIO_BIN" ]]; then
-  echo "Styio executable not found; pass --styio-bin or set STYIO." >&2
+  # Machine-readable JSON for parser-unavailable (requirement: parser unavailable reason)
+  echo '{"gatePassed":false,"blocked":true,"reason":"Parser unavailable: Styio executable not found. Pass --styio-bin or set STYIO.","summary":{"total":0,"passed":0,"failed":0,"truePositive":0,"trueNegative":0,"falsePositive":0,"falseNegative":0,"unlabeled":0}}'
+  echo "Language fixture gate: blocked (parser unavailable — Styio executable not found)" >&2
   exit 2
 fi
 

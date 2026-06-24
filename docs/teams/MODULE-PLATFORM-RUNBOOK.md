@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 module host、platform capability、六端 runner 与分发路径的日常维护入口。
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
 
 ## Mission
 
@@ -14,6 +14,10 @@ Primary paths:
 
 1. `frontend/vityo_app/lib/src/module_host/`
 2. `frontend/vityo_app/lib/src/platform/`
+   - `browser_virtual_file_system_provider.dart` — browser virtual FS provider (Web target)
+   - `file_system_operation_result.dart` — structured file system operation result type
+   - `file_system_provider.dart` — file system provider abstract contract
+   - `memory_file_system_provider.dart` — in-memory FS provider for testing
 3. `frontend/vityo_app/assets/module_manifests/`
 4. `frontend/vityo_app/assets/capability_matrices/`
 5. `frontend/vityo_app/android/`

@@ -48,6 +48,20 @@ class ResolvedReference {
   final bool isDeclaration;
 }
 
+class CapabilityGap {
+  const CapabilityGap({
+    required this.capabilityId,
+    required this.reason,
+    this.detail = '',
+    this.resolution = '',
+  });
+
+  final String capabilityId;
+  final String reason;
+  final String detail;
+  final String resolution;
+}
+
 class SemanticSnapshot {
   const SemanticSnapshot({
     required this.documentId,
@@ -55,13 +69,44 @@ class SemanticSnapshot {
     required this.tokens,
     required this.elements,
     required this.references,
+    this.workspaceGraphHash = '',
+    this.toolchainId = '',
+    this.providerId = '',
+    this.protocolVersion = '',
+    this.semanticPayloadVersion = '',
+    this.producedAt,
+    this.freshness = 'unknown',
+    this.source = 'unknown',
+    this.partialReason = '',
+    this.capabilityGaps = const [],
   });
 
   final String documentId;
   final int revision;
+  final String workspaceGraphHash;
+  final String toolchainId;
+  final String providerId;
+  final String protocolVersion;
+  final String semanticPayloadVersion;
+  final DateTime? producedAt;
+  final String freshness;
+  final String source;
+  final String partialReason;
   final List<TokenSpan> tokens;
   final List<ResolvedElement> elements;
   final List<ResolvedReference> references;
+  final List<CapabilityGap> capabilityGaps;
+
+  DateTime get effectiveProducedAt => producedAt ?? DateTime.now();
+
+  String get cacheKey =>
+      '$documentId:$revision:$workspaceGraphHash:$toolchainId:$providerId:$protocolVersion:$semanticPayloadVersion';
+
+  bool get isFresh => freshness == 'fresh';
+
+  bool get isStale => freshness == 'stale';
+
+  bool get isPartial => partialReason.isNotEmpty;
 
   factory SemanticSnapshot.fromAnalysis({
     required DocumentState document,
@@ -146,11 +191,24 @@ class SemanticSnapshot {
       ),
       elements: List.unmodifiable(elements),
       references: List.unmodifiable(references),
+      workspaceGraphHash: '',
+      toolchainId: '',
+      providerId: '',
+      protocolVersion: '',
+      semanticPayloadVersion: '',
+      producedAt: DateTime.now(),
+      freshness: 'fresh',
+      source: 'service',
+      partialReason: '',
+      capabilityGaps: const [],
     );
   }
 
-  bool isStaleFor(DocumentState document) {
-    return document.documentId != documentId || document.revision != revision;
+  bool isStaleFor(DocumentState document, {String? currentWorkspaceGraphHash, String? currentToolchainId}) {
+    if (document.documentId != documentId || document.revision != revision) return true;
+    if (currentWorkspaceGraphHash != null && workspaceGraphHash.isNotEmpty && workspaceGraphHash != currentWorkspaceGraphHash) return true;
+    if (currentToolchainId != null && toolchainId.isNotEmpty && toolchainId != currentToolchainId) return true;
+    return false;
   }
 
   ResolvedElement? elementAt(int offset) {
@@ -203,6 +261,29 @@ class SemanticSnapshot {
   }
 }
 
+class SemanticSnapshotCacheKey {
+  const SemanticSnapshotCacheKey({
+    required this.documentId,
+    required this.revision,
+    required this.workspaceGraphHash,
+    required this.toolchainId,
+    required this.providerId,
+    required this.protocolVersion,
+    required this.semanticPayloadVersion,
+  });
+
+  final String documentId;
+  final int revision;
+  final String workspaceGraphHash;
+  final String toolchainId;
+  final String providerId;
+  final String protocolVersion;
+  final String semanticPayloadVersion;
+
+  String get compositeKey =>
+      '$documentId:$revision:$workspaceGraphHash:$toolchainId:$providerId:$protocolVersion:$semanticPayloadVersion';
+}
+
 SourceRange _analysisReferenceRange(
   ReferenceSpan span,
   ResolvedElement target,
@@ -241,6 +322,16 @@ class SemanticSnapshotBuilder {
       tokens: List.unmodifiable(tokens),
       elements: List.unmodifiable(elements),
       references: List.unmodifiable(references),
+      workspaceGraphHash: '',
+      toolchainId: '',
+      providerId: 'local-fallback',
+      protocolVersion: '',
+      semanticPayloadVersion: '',
+      producedAt: DateTime.now(),
+      freshness: 'fresh',
+      source: 'fallback',
+      partialReason: '',
+      capabilityGaps: const [],
     );
   }
 

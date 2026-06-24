@@ -422,7 +422,8 @@ class CommandPaletteService {
       AppCommandId.save ||
       AppCommandId.saveAll ||
       AppCommandId.openFile ||
-      AppCommandId.reloadFile => 'Editor',
+      AppCommandId.reloadFile ||
+      AppCommandId.acceptExternalChange => 'Editor',
     };
   }
 

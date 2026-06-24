@@ -211,6 +211,7 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.commandPalette ||
       AppCommandId.quickOpen ||
       AppCommandId.navigateBack ||
+      AppCommandId.navigateForward ||
       AppCommandId.toggleVisualSubstitution => AppCommandCategory.surface,
       AppCommandId.nextDiagnostic ||
       AppCommandId.previousDiagnostic ||

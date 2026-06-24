@@ -67,8 +67,17 @@ class PythonCoverageGateTest(unittest.TestCase):
                 self.assertEqual(self.gate.run_gate(97), 0)
 
         self.assertEqual(commands[0], [sys.executable, "-m", "coverage", "erase"])
-        self.assertEqual(commands[1][:7], [sys.executable, "-m", "coverage", "run", "--source", self.gate.SOURCE_SCOPE, "-m"])
-        self.assertIn("prototype.test_dev_server_security", commands[1])
+        # coverage run command may include --omit flags for gate infrastructure scripts
+        run_cmd = commands[1]
+        self.assertEqual(run_cmd[0], sys.executable)
+        self.assertIn("-m", run_cmd)
+        self.assertIn("coverage", run_cmd)
+        self.assertIn("run", run_cmd)
+        self.assertIn("--source", run_cmd)
+        self.assertIn(self.gate.SOURCE_SCOPE, run_cmd)
+        self.assertIn("-m", run_cmd[run_cmd.index("--source") + 2:])  # -m unittest after source+scope
+        self.assertIn("unittest", run_cmd)
+        self.assertIn("prototype.test_dev_server_security", run_cmd)
         self.assertEqual(commands[2][-2:], ["--fail-under", "97"])
 
     def test_run_gate_stops_on_first_failing_command(self) -> None:

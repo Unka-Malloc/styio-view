@@ -9,17 +9,17 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 void main() {
   test('theme override round-trips user layer colors', () {
     const override = VityoThemeOverride(
-      canvas: Color(0xFF101820),
-      panel: Color(0xFFFAFAFA),
-      accent: Color(0xFF00A878),
+      canvas: 0xFF101820,
+      panel: 0xFFFAFAFA,
+      accent: 0xFF00A878,
     );
 
     final decoded = VityoThemeOverride.fromJson(override.toJson());
     final theme = VityoTheme.light(overrides: decoded);
 
-    expect(decoded.canvas, const Color(0xFF101820));
-    expect(decoded.panel, const Color(0xFFFAFAFA));
-    expect(decoded.accent, const Color(0xFF00A878));
+    expect(decoded.canvas, 0xFF101820);
+    expect(decoded.panel, 0xFFFAFAFA);
+    expect(decoded.accent, 0xFF00A878);
     expect(theme.scaffoldBackgroundColor, const Color(0xFF101820));
     expect(theme.cardColor, const Color(0xFFFAFAFA));
     expect(theme.colorScheme.primary, const Color(0xFF00A878));
@@ -27,14 +27,14 @@ void main() {
 
   test('theme override copyWith updates persisted accent only', () {
     const base = VityoThemeOverride(
-      canvas: Color(0xFF101820),
-      accent: Color(0xFF5668A6),
+      canvas: 0xFF101820,
+      accent: 0xFF5668A6,
     );
 
-    final updated = base.copyWith(accent: const Color(0xFF00A878));
+    final updated = base.copyWith(accent: 0xFF00A878);
 
-    expect(updated.canvas, const Color(0xFF101820));
-    expect(updated.accent, const Color(0xFF00A878));
+    expect(updated.canvas, 0xFF101820);
+    expect(updated.accent, 0xFF00A878);
   });
 
 
@@ -86,15 +86,15 @@ void main() {
     );
     final store = VityoThemeOverrideStore.fromDataStore(dataStore: dataStore);
     const override = VityoThemeOverride(
-      canvas: Color(0xFF101820),
-      accent: Color(0xFF00A878),
+      canvas: 0xFF101820,
+      accent: 0xFF00A878,
     );
 
     await store.saveOverride(workspaceId: 'demo', override: override);
     final restored = await store.readOverride(workspaceId: 'demo');
 
-    expect(restored?.canvas, const Color(0xFF101820));
-    expect(restored?.accent, const Color(0xFF00A878));
+    expect(restored?.canvas, 0xFF101820);
+    expect(restored?.accent, 0xFF00A878);
     expect(await store.deleteOverride(workspaceId: 'demo'), isTrue);
     expect(await store.readOverride(workspaceId: 'demo'), isNull);
   });

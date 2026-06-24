@@ -79,6 +79,8 @@ class RunConfigurationTarget {
   final String filePath;
   final String unitRange;
 
+  static const RunConfigurationTarget defaultTarget = RunConfigurationTarget();
+
   Map<String, Object?> toJson() => <String, Object?>{
         'targetName': targetName,
         'targetKind': targetKind,

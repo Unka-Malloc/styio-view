@@ -9,9 +9,11 @@ import 'package:vityo_app/src/runtime/debug_console_surface.dart';
 import 'package:vityo_app/src/runtime/runtime_surface.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
-import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
+import 'package:vityo_app/src/view_ide/runtime/runtime.dart'
+    hide DebugSessionSnapshot, DebugSessionStatus;
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart'
     hide DebugSessionSnapshot, DebugSessionStatus;
+import 'package:vityo_app/src/view_ide/runtime/debug_workbench_contract.dart';
 
 void main() {
   testWidgets('runtime surface renders live output buffer events', (

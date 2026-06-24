@@ -73,14 +73,14 @@ class IdeCapabilityRegistry {
           .length,
       blockedCount: blocked.length,
       byDomain: {
-        for (final domain in IdeCapabilityDomain.values)
-          domain.wireValue: (CapabilityDomainSummary(
-            domain: domain,
-            total: domain(domain).length,
-            available: domain(domain)
+        for (final d in IdeCapabilityDomain.values)
+          d.wireValue: (CapabilityDomainSummary(
+            domain: d,
+            total: domain(d).length,
+            available: domain(d)
                 .where((c) => c.isAvailable)
                 .length,
-            blocked: domain(domain).where((c) => c.isBlocked).length,
+            blocked: domain(d).where((c) => c.isBlocked).length,
           )).toJson(),
       },
       generatedAtIso8601: DateTime.now().toUtc().toIso8601String(),

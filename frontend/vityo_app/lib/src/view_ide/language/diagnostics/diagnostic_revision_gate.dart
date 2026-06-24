@@ -46,7 +46,15 @@ class RevisionBoundDiagnostic {
 
   Map<String, Object?> toJson() => <String, Object?>{
         'schemaVersion': schemaVersion,
-        'diagnostic': diagnostic.toJson(),
+        'diagnostic': <String, Object?>{
+          'severity': diagnostic.severity.name,
+          'code': diagnostic.code,
+          'message': diagnostic.message,
+          'range': <String, int>{
+            'start': diagnostic.range.start,
+            'end': diagnostic.range.end,
+          },
+        },
         'documentId': documentId,
         'revision': revision,
         'source': source.name,
@@ -55,9 +63,19 @@ class RevisionBoundDiagnostic {
       };
 
   factory RevisionBoundDiagnostic.fromJson(Map<String, Object?> json) {
+    final diagMap =
+        Map<String, Object?>.from(json['diagnostic'] as Map? ?? const {});
+    final rangeMap =
+        Map<String, int>.from(diagMap['range'] as Map? ?? const {});
     return RevisionBoundDiagnostic(
-      diagnostic: Diagnostic.fromJson(
-        Map<String, Object?>.from(json['diagnostic'] as Map? ?? const {}),
+      diagnostic: Diagnostic(
+        severity: _parseSeverity(diagMap['severity'] as String?),
+        code: diagMap['code'] as String? ?? '',
+        message: diagMap['message'] as String? ?? '',
+        range: SourceRange(
+          start: rangeMap['start'] ?? 0,
+          end: rangeMap['end'] ?? 0,
+        ),
       ),
       documentId: json['documentId'] as String? ?? '',
       revision: json['revision'] as int? ?? -1,
@@ -65,6 +83,13 @@ class RevisionBoundDiagnostic {
       confidence: _parseConfidence(json['confidence'] as String?),
       schemaVersion: json['schemaVersion'] as int? ?? 1,
       extensions: _collectUnknown(json),
+    );
+  }
+
+  static DiagnosticSeverity _parseSeverity(String? raw) {
+    return DiagnosticSeverity.values.firstWhere(
+      (s) => s.name == raw,
+      orElse: () => DiagnosticSeverity.error,
     );
   }
 

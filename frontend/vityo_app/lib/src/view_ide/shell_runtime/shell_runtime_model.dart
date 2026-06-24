@@ -33,7 +33,7 @@ import '../toolchain/toolchain_manager.dart';
 import '../toolchain/toolchain_resolver.dart';
 import '../toolchain/toolchain_runtime.dart';
 import '../testing/testing.dart';
-import '../workspace/workspace.dart';
+import '../workspace/workspace.dart' hide WorkspaceEditSource;
 import '../environment/configuration/vityo_theme_override.dart';
 
 const int _maxNativeToolResultRecords = 24;

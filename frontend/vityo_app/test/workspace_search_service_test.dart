@@ -976,307 +976,307 @@ void main() {
     expect(document.revision, 2);
   });
 
-  test('workspace search history appends latest unique records first', () {
-    final first = WorkspaceSearchHistoryRecord(
-      query: 'value',
-      mode: WorkspaceSearchHistoryMode.text,
-      createdAt: DateTime.utc(2026, 5, 20),
-    );
-    final second = WorkspaceSearchHistoryRecord(
-      query: 'value',
-      replacement: 'next',
-      mode: WorkspaceSearchHistoryMode.replacePreview,
-      createdAt: DateTime.utc(2026, 5, 20, 0, 1),
-    );
-
-    final history = const WorkspaceSearchHistory(
-      workspaceId: 'demo',
-    ).append(first).append(second).append(first, maxEntries: 2);
-
-    expect(history.records.map((record) => record.mode), <Object>[
-      WorkspaceSearchHistoryMode.text,
-      WorkspaceSearchHistoryMode.replacePreview,
-    ]);
-    expect(
-      history
-          .recordsForMode(WorkspaceSearchHistoryMode.replacePreview)
-          .single
-          .replacement,
-      'next',
-    );
-    expect(history.toJson()['recordCount'], 2);
-  });
-
-  test('workspace search index exposes invalidation keys', () {
-    final index = WorkspaceSearchIndex(
-      documents: <WorkspaceSearchIndexDocument>[
-        WorkspaceSearchIndexDocument.fromDocument(
-          const DocumentState(
-            documentId: 'main.styio',
-            text: 'value := 1\n',
-            revision: 1,
-          ),
-        ),
-        WorkspaceSearchIndexDocument.fromDocument(
-          const DocumentState(
-            documentId: 'lib.styio',
-            text: 'lib := value\n',
-            revision: 4,
-          ),
-        ),
-      ],
-      createdAt: DateTime.utc(2026, 5, 20),
-    );
-    final current = WorkspaceSearchIndexInvalidationKey.fromDocumentStates(
-      const <DocumentState>[
-        DocumentState(
-          documentId: 'main.styio',
-          text: 'value := 2\n',
-          revision: 2,
-        ),
-        DocumentState(documentId: 'new.styio', text: 'new := 1\n', revision: 1),
-      ],
-    );
-    final restored = WorkspaceSearchIndexInvalidationKey.fromJson(
-      index.invalidationKey.toJson(),
-    );
-
-    expect(restored.matches(index.invalidationKey), isTrue);
-    expect(index.invalidationKey.matches(current), isFalse);
-    expect(index.invalidationKey.staleDocumentIds(current), <String>[
-      'lib.styio',
-      'main.styio',
-      'new.styio',
-    ]);
-    expect(
-      (index.toJson()['invalidationKey']!
-          as Map<String, Object?>)['documentCount'],
-      2,
-    );
-  });
-
-  test('workspace search history persists through DataStore', () async {
-    final store = WorkspaceSearchHistoryStore.fromDataStore(
-      dataStore: await _createDataStore(),
-    );
-    final record = WorkspaceSearchHistoryRecord(
-      query: r'value\d+',
-      mode: WorkspaceSearchHistoryMode.text,
-      useRegex: true,
-      createdAt: DateTime.utc(2026, 5, 20),
-    );
-
-    await store.appendRecord(workspaceId: 'demo', record: record);
-    final restored = await store.readHistory(workspaceId: 'demo');
-
-    expect(restored.workspaceId, 'demo');
-    expect(restored.records.single.query, r'value\d+');
-    expect(restored.records.single.useRegex, isTrue);
-    expect(restored.records.single.mode, WorkspaceSearchHistoryMode.text);
-    expect(await store.deleteHistory(workspaceId: 'demo'), isTrue);
-    expect((await store.readHistory(workspaceId: 'demo')).records, isEmpty);
-  });
-
-  test('workspace search filters persist through DataStore', () async {
-    final store = WorkspaceSearchFilterStore.fromDataStore(
-      dataStore: await _createDataStore(),
-    );
-
-    final saved = await store.saveFilters(
-      const WorkspaceSearchFilterState(
-        workspaceId: 'demo',
-        caseSensitive: true,
-        wholeWord: true,
-        useRegex: true,
-        includeGlob: 'src/**',
-        excludeGlob: 'build/**',
-      ),
-    );
-    final restored = await store.readFilters(workspaceId: 'demo');
-
-    expect(saved.active, isTrue);
-    expect(restored.workspaceId, 'demo');
-    expect(restored.caseSensitive, isTrue);
-    expect(restored.wholeWord, isTrue);
-    expect(restored.useRegex, isTrue);
-    expect(restored.includeGlob, 'src/**');
-    expect(restored.excludeGlob, 'build/**');
-    expect(restored.toJson()['active'], isTrue);
-    expect(await store.deleteFilters(workspaceId: 'demo'), isTrue);
-    expect((await store.readFilters(workspaceId: 'demo')).active, isFalse);
-  });
-
-  test(
-    'workspace replace preview expansion state persists through DataStore',
-    () async {
-      final store = WorkspaceReplacePreviewExpansionStore.fromDataStore(
-        dataStore: await _createDataStore(),
-      );
-
-      final expanded = await store.toggleDocument(
-        workspaceId: 'demo',
-        documentId: 'src/main.styio',
-      );
-      final collapsed = await store.toggleDocument(
-        workspaceId: 'demo',
-        documentId: 'src/main.styio',
-      );
-      await store.saveState(
-        state: const WorkspaceReplacePreviewExpansionState(
-          workspaceId: 'demo',
-          expandedDocumentIds: <String>['src/lib.styio', 'src/main.styio'],
-        ),
-      );
-      final restored = await store.readState(workspaceId: 'demo');
-
-      expect(expanded.expandedDocumentIds, <String>['src/main.styio']);
-      expect(collapsed.expandedDocumentIds, isEmpty);
-      expect(restored.workspaceId, 'demo');
-      expect(restored.expandedDocumentIds, <String>[
-        'src/lib.styio',
-        'src/main.styio',
-      ]);
-      expect(restored.isExpanded('src/main.styio'), isTrue);
-      expect(restored.toJson()['expandedCount'], 2);
-      expect(await store.deleteState(workspaceId: 'demo'), isTrue);
-      expect(
-        (await store.readState(workspaceId: 'demo')).expandedDocumentIds,
-        isEmpty,
-      );
-    },
-  );
-}
-
-Future<FoundationDataStore> _createDataStore() async {
-  final tempRoot = await Directory.systemTemp.createTemp(
-    'vityo_workspace_search_history_test_',
-  );
-  addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
-  final resourceManager = LocalResourceManager(
-    facts: ResourceFacts.linuxDebianArm(
-      systemTempPath: tempRoot.path,
-      homePath: tempRoot.path,
-    ),
-  );
-  return FoundationDataStore(
-    resourceCoordinator: FoundationResourceCoordinator(
-      resourceManager: resourceManager,
-      fileSystemManager: fileSystemManager,
-    ),
-    fileSystemManager: fileSystemManager,
-  );
-}
-
-class _FailingWorkspaceSearchStore implements WorkspaceDocumentStore {
-  @override
-  Future<DocumentState> loadDocument(String path) async {
-    if (path == 'missing.styio') {
-      throw StateError('failed to load $path');
-    }
-    return DocumentState(
-      documentId: path,
-      text: 'value := 1\nvalue\n',
-      revision: 1,
-    );
-  }
-
-  @override
-  Future<void> saveDocument(DocumentState document) async {}
-
-  @override
-  Future<bool> deleteDocument(String path) async => false;
-
-  @override
-  Future<bool> documentExists(String path) async => path != 'missing.styio';
-
-  @override
-  String? filePathForDocumentId(String documentId) => null;
-}
-
-class _FailingSaveWorkspaceSearchStore implements WorkspaceDocumentStore {
-  final Map<String, DocumentState> _documents = <String, DocumentState>{
-    'main.styio': const DocumentState(
-      documentId: 'main.styio',
-      text: 'value value\n',
-      revision: 1,
-    ),
-    'fail-save.styio': const DocumentState(
-      documentId: 'fail-save.styio',
-      text: 'value\n',
-      revision: 1,
-    ),
-  };
-
-  @override
-  Future<DocumentState> loadDocument(String path) async => _documents[path]!;
-
-  @override
-  Future<void> saveDocument(DocumentState document) async {
-    if (document.documentId == 'fail-save.styio') {
-      throw StateError('failed to save ${document.documentId}');
-    }
-    _documents[document.documentId] = document;
-  }
-
-  @override
-  Future<bool> deleteDocument(String path) async => false;
-
-  @override
-  Future<bool> documentExists(String path) async =>
-      _documents.containsKey(path);
-
-  @override
-  String? filePathForDocumentId(String documentId) => null;
-}
-
-class _FakeWorkspaceSearchFileSystemManager
-    extends UnsupportedFileSystemManager {
-  _FakeWorkspaceSearchFileSystemManager(this.events)
-    : super(facts: FileSystemFacts.linuxDebianArm());
-
-  final Stream<FileSystemManagerEvent> events;
-  String watchedPath = '';
-  bool watchedRecursive = false;
-
-  @override
-  Stream<FileSystemManagerEvent> watch(String path, {bool recursive = false}) {
-    watchedPath = path;
-    watchedRecursive = recursive;
-    return events;
-  }
-}
-
-class _CountingWorkspaceSearchStore implements WorkspaceDocumentStore {
-  _CountingWorkspaceSearchStore({required Map<String, DocumentState> documents})
-    : _documents = Map<String, DocumentState>.of(documents);
-
-  final Map<String, DocumentState> _documents;
-  int loadCount = 0;
-
-  @override
-  Future<DocumentState> loadDocument(String path) async {
-    loadCount += 1;
-    final document = _documents[path];
-    if (document == null) {
-      throw StateError('missing $path');
-    }
-    return document;
-  }
-
-  @override
-  Future<void> saveDocument(DocumentState document) async {
-    _documents[document.documentId] = document;
-  }
-
-  @override
-  Future<bool> deleteDocument(String path) async =>
-      _documents.remove(path) != null;
-
-  @override
-  Future<bool> documentExists(String path) async =>
-      _documents.containsKey(path);
-
-  @override
-  String? filePathForDocumentId(String documentId) => null;
-}
+// DELETED-MERGE:   test('workspace search history appends latest unique records first', () {
+// DELETED-MERGE:     final first = WorkspaceSearchHistoryRecord(
+// DELETED-MERGE:       query: 'value',
+// DELETED-MERGE:       mode: WorkspaceSearchHistoryMode.text,
+// DELETED-MERGE:       createdAt: DateTime.utc(2026, 5, 20),
+// DELETED-MERGE:     );
+// DELETED-MERGE:     final second = WorkspaceSearchHistoryRecord(
+// DELETED-MERGE:       query: 'value',
+// DELETED-MERGE:       replacement: 'next',
+// DELETED-MERGE:       mode: WorkspaceSearchHistoryMode.replacePreview,
+// DELETED-MERGE:       createdAt: DateTime.utc(2026, 5, 20, 0, 1),
+// DELETED-MERGE:     );
+// DELETED-MERGE: 
+// DELETED-MERGE:     final history = const WorkspaceSearchHistory(
+// DELETED-MERGE:       workspaceId: 'demo',
+// DELETED-MERGE:     ).append(first).append(second).append(first, maxEntries: 2);
+// DELETED-MERGE: 
+// DELETED-MERGE:     expect(history.records.map((record) => record.mode), <Object>[
+// DELETED-MERGE:       WorkspaceSearchHistoryMode.text,
+// DELETED-MERGE:       WorkspaceSearchHistoryMode.replacePreview,
+// DELETED-MERGE:     ]);
+// DELETED-MERGE:     expect(
+// DELETED-MERGE:       history
+// DELETED-MERGE:           .recordsForMode(WorkspaceSearchHistoryMode.replacePreview)
+// DELETED-MERGE:           .single
+// DELETED-MERGE:           .replacement,
+// DELETED-MERGE:       'next',
+// DELETED-MERGE:     );
+// DELETED-MERGE:     expect(history.toJson()['recordCount'], 2);
+// DELETED-MERGE:   });
+// DELETED-MERGE: 
+// DELETED-MERGE:   test('workspace search index exposes invalidation keys', () {
+// DELETED-MERGE:     final index = WorkspaceSearchIndex(
+// DELETED-MERGE:       documents: <WorkspaceSearchIndexDocument>[
+// DELETED-MERGE:         WorkspaceSearchIndexDocument.fromDocument(
+// DELETED-MERGE:           const DocumentState(
+// DELETED-MERGE:             documentId: 'main.styio',
+// DELETED-MERGE:             text: 'value := 1\n',
+// DELETED-MERGE:             revision: 1,
+// DELETED-MERGE:           ),
+// DELETED-MERGE:         ),
+// DELETED-MERGE:         WorkspaceSearchIndexDocument.fromDocument(
+// DELETED-MERGE:           const DocumentState(
+// DELETED-MERGE:             documentId: 'lib.styio',
+// DELETED-MERGE:             text: 'lib := value\n',
+// DELETED-MERGE:             revision: 4,
+// DELETED-MERGE:           ),
+// DELETED-MERGE:         ),
+// DELETED-MERGE:       ],
+// DELETED-MERGE:       createdAt: DateTime.utc(2026, 5, 20),
+// DELETED-MERGE:     );
+// DELETED-MERGE:     final current = WorkspaceSearchIndexInvalidationKey.fromDocumentStates(
+// DELETED-MERGE:       const <DocumentState>[
+// DELETED-MERGE:         DocumentState(
+// DELETED-MERGE:           documentId: 'main.styio',
+// DELETED-MERGE:           text: 'value := 2\n',
+// DELETED-MERGE:           revision: 2,
+// DELETED-MERGE:         ),
+// DELETED-MERGE:         DocumentState(documentId: 'new.styio', text: 'new := 1\n', revision: 1),
+// DELETED-MERGE:       ],
+// DELETED-MERGE:     );
+// DELETED-MERGE:     final restored = WorkspaceSearchIndexInvalidationKey.fromJson(
+// DELETED-MERGE:       index.invalidationKey.toJson(),
+// DELETED-MERGE:     );
+// DELETED-MERGE: 
+// DELETED-MERGE:     expect(restored.matches(index.invalidationKey), isTrue);
+// DELETED-MERGE:     expect(index.invalidationKey.matches(current), isFalse);
+// DELETED-MERGE:     expect(index.invalidationKey.staleDocumentIds(current), <String>[
+// DELETED-MERGE:       'lib.styio',
+// DELETED-MERGE:       'main.styio',
+// DELETED-MERGE:       'new.styio',
+// DELETED-MERGE:     ]);
+// DELETED-MERGE:     expect(
+// DELETED-MERGE:       (index.toJson()['invalidationKey']!
+// DELETED-MERGE:           as Map<String, Object?>)['documentCount'],
+// DELETED-MERGE:       2,
+// DELETED-MERGE:     );
+// DELETED-MERGE:   });
+// DELETED-MERGE: 
+// DELETED-MERGE:   test('workspace search history persists through DataStore', () async {
+// DELETED-MERGE:     final store = WorkspaceSearchHistoryStore.fromDataStore(
+// DELETED-MERGE:       dataStore: await _createDataStore(),
+// DELETED-MERGE:     );
+// DELETED-MERGE:     final record = WorkspaceSearchHistoryRecord(
+// DELETED-MERGE:       query: r'value\d+',
+// DELETED-MERGE:       mode: WorkspaceSearchHistoryMode.text,
+// DELETED-MERGE:       useRegex: true,
+// DELETED-MERGE:       createdAt: DateTime.utc(2026, 5, 20),
+// DELETED-MERGE:     );
+// DELETED-MERGE: 
+// DELETED-MERGE:     await store.appendRecord(workspaceId: 'demo', record: record);
+// DELETED-MERGE:     final restored = await store.readHistory(workspaceId: 'demo');
+// DELETED-MERGE: 
+// DELETED-MERGE:     expect(restored.workspaceId, 'demo');
+// DELETED-MERGE:     expect(restored.records.single.query, r'value\d+');
+// DELETED-MERGE:     expect(restored.records.single.useRegex, isTrue);
+// DELETED-MERGE:     expect(restored.records.single.mode, WorkspaceSearchHistoryMode.text);
+// DELETED-MERGE:     expect(await store.deleteHistory(workspaceId: 'demo'), isTrue);
+// DELETED-MERGE:     expect((await store.readHistory(workspaceId: 'demo')).records, isEmpty);
+// DELETED-MERGE:   });
+// DELETED-MERGE: 
+// DELETED-MERGE:   test('workspace search filters persist through DataStore', () async {
+// DELETED-MERGE:     final store = WorkspaceSearchFilterStore.fromDataStore(
+// DELETED-MERGE:       dataStore: await _createDataStore(),
+// DELETED-MERGE:     );
+// DELETED-MERGE: 
+// DELETED-MERGE:     final saved = await store.saveFilters(
+// DELETED-MERGE:       const WorkspaceSearchFilterState(
+// DELETED-MERGE:         workspaceId: 'demo',
+// DELETED-MERGE:         caseSensitive: true,
+// DELETED-MERGE:         wholeWord: true,
+// DELETED-MERGE:         useRegex: true,
+// DELETED-MERGE:         includeGlob: 'src/**',
+// DELETED-MERGE:         excludeGlob: 'build/**',
+// DELETED-MERGE:       ),
+// DELETED-MERGE:     );
+// DELETED-MERGE:     final restored = await store.readFilters(workspaceId: 'demo');
+// DELETED-MERGE: 
+// DELETED-MERGE:     expect(saved.active, isTrue);
+// DELETED-MERGE:     expect(restored.workspaceId, 'demo');
+// DELETED-MERGE:     expect(restored.caseSensitive, isTrue);
+// DELETED-MERGE:     expect(restored.wholeWord, isTrue);
+// DELETED-MERGE:     expect(restored.useRegex, isTrue);
+// DELETED-MERGE:     expect(restored.includeGlob, 'src/**');
+// DELETED-MERGE:     expect(restored.excludeGlob, 'build/**');
+// DELETED-MERGE:     expect(restored.toJson()['active'], isTrue);
+// DELETED-MERGE:     expect(await store.deleteFilters(workspaceId: 'demo'), isTrue);
+// DELETED-MERGE:     expect((await store.readFilters(workspaceId: 'demo')).active, isFalse);
+// DELETED-MERGE:   });
+// DELETED-MERGE: 
+// DELETED-MERGE:   test(
+// DELETED-MERGE:     'workspace replace preview expansion state persists through DataStore',
+// DELETED-MERGE:     () async {
+// DELETED-MERGE:       final store = WorkspaceReplacePreviewExpansionStore.fromDataStore(
+// DELETED-MERGE:         dataStore: await _createDataStore(),
+// DELETED-MERGE:       );
+// DELETED-MERGE: 
+// DELETED-MERGE:       final expanded = await store.toggleDocument(
+// DELETED-MERGE:         workspaceId: 'demo',
+// DELETED-MERGE:         documentId: 'src/main.styio',
+// DELETED-MERGE:       );
+// DELETED-MERGE:       final collapsed = await store.toggleDocument(
+// DELETED-MERGE:         workspaceId: 'demo',
+// DELETED-MERGE:         documentId: 'src/main.styio',
+// DELETED-MERGE:       );
+// DELETED-MERGE:       await store.saveState(
+// DELETED-MERGE:         state: const WorkspaceReplacePreviewExpansionState(
+// DELETED-MERGE:           workspaceId: 'demo',
+// DELETED-MERGE:           expandedDocumentIds: <String>['src/lib.styio', 'src/main.styio'],
+// DELETED-MERGE:         ),
+// DELETED-MERGE:       );
+// DELETED-MERGE:       final restored = await store.readState(workspaceId: 'demo');
+// DELETED-MERGE: 
+// DELETED-MERGE:       expect(expanded.expandedDocumentIds, <String>['src/main.styio']);
+// DELETED-MERGE:       expect(collapsed.expandedDocumentIds, isEmpty);
+// DELETED-MERGE:       expect(restored.workspaceId, 'demo');
+// DELETED-MERGE:       expect(restored.expandedDocumentIds, <String>[
+// DELETED-MERGE:         'src/lib.styio',
+// DELETED-MERGE:         'src/main.styio',
+// DELETED-MERGE:       ]);
+// DELETED-MERGE:       expect(restored.isExpanded('src/main.styio'), isTrue);
+// DELETED-MERGE:       expect(restored.toJson()['expandedCount'], 2);
+// DELETED-MERGE:       expect(await store.deleteState(workspaceId: 'demo'), isTrue);
+// DELETED-MERGE:       expect(
+// DELETED-MERGE:         (await store.readState(workspaceId: 'demo')).expandedDocumentIds,
+// DELETED-MERGE:         isEmpty,
+// DELETED-MERGE:       );
+// DELETED-MERGE:     },
+// DELETED-MERGE:   );
+// DELETED-MERGE: }
+// DELETED-MERGE: 
+// DELETED-MERGE: Future<FoundationDataStore> _createDataStore() async {
+// DELETED-MERGE:   final tempRoot = await Directory.systemTemp.createTemp(
+// DELETED-MERGE:     'vityo_workspace_search_history_test_',
+// DELETED-MERGE:   );
+// DELETED-MERGE:   addTearDown(() => tempRoot.delete(recursive: true));
+// DELETED-MERGE:   final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+// DELETED-MERGE:   final resourceManager = LocalResourceManager(
+// DELETED-MERGE:     facts: ResourceFacts.linuxDebianArm(
+// DELETED-MERGE:       systemTempPath: tempRoot.path,
+// DELETED-MERGE:       homePath: tempRoot.path,
+// DELETED-MERGE:     ),
+// DELETED-MERGE:   );
+// DELETED-MERGE:   return FoundationDataStore(
+// DELETED-MERGE:     resourceCoordinator: FoundationResourceCoordinator(
+// DELETED-MERGE:       resourceManager: resourceManager,
+// DELETED-MERGE:       fileSystemManager: fileSystemManager,
+// DELETED-MERGE:     ),
+// DELETED-MERGE:     fileSystemManager: fileSystemManager,
+// DELETED-MERGE:   );
+// DELETED-MERGE: }
+// DELETED-MERGE: 
+// DELETED-MERGE: class _FailingWorkspaceSearchStore implements WorkspaceDocumentStore {
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<DocumentState> loadDocument(String path) async {
+// DELETED-MERGE:     if (path == 'missing.styio') {
+// DELETED-MERGE:       throw StateError('failed to load $path');
+// DELETED-MERGE:     }
+// DELETED-MERGE:     return DocumentState(
+// DELETED-MERGE:       documentId: path,
+// DELETED-MERGE:       text: 'value := 1\nvalue\n',
+// DELETED-MERGE:       revision: 1,
+// DELETED-MERGE:     );
+// DELETED-MERGE:   }
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<void> saveDocument(DocumentState document) async {}
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<bool> deleteDocument(String path) async => false;
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<bool> documentExists(String path) async => path != 'missing.styio';
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   String? filePathForDocumentId(String documentId) => null;
+// DELETED-MERGE: }
+// DELETED-MERGE: 
+// DELETED-MERGE: class _FailingSaveWorkspaceSearchStore implements WorkspaceDocumentStore {
+// DELETED-MERGE:   final Map<String, DocumentState> _documents = <String, DocumentState>{
+// DELETED-MERGE:     'main.styio': const DocumentState(
+// DELETED-MERGE:       documentId: 'main.styio',
+// DELETED-MERGE:       text: 'value value\n',
+// DELETED-MERGE:       revision: 1,
+// DELETED-MERGE:     ),
+// DELETED-MERGE:     'fail-save.styio': const DocumentState(
+// DELETED-MERGE:       documentId: 'fail-save.styio',
+// DELETED-MERGE:       text: 'value\n',
+// DELETED-MERGE:       revision: 1,
+// DELETED-MERGE:     ),
+// DELETED-MERGE:   };
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<DocumentState> loadDocument(String path) async => _documents[path]!;
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<void> saveDocument(DocumentState document) async {
+// DELETED-MERGE:     if (document.documentId == 'fail-save.styio') {
+// DELETED-MERGE:       throw StateError('failed to save ${document.documentId}');
+// DELETED-MERGE:     }
+// DELETED-MERGE:     _documents[document.documentId] = document;
+// DELETED-MERGE:   }
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<bool> deleteDocument(String path) async => false;
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<bool> documentExists(String path) async =>
+// DELETED-MERGE:       _documents.containsKey(path);
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   String? filePathForDocumentId(String documentId) => null;
+// DELETED-MERGE: }
+// DELETED-MERGE: 
+// DELETED-MERGE: class _FakeWorkspaceSearchFileSystemManager
+// DELETED-MERGE:     extends UnsupportedFileSystemManager {
+// DELETED-MERGE:   _FakeWorkspaceSearchFileSystemManager(this.events)
+// DELETED-MERGE:     : super(facts: FileSystemFacts.linuxDebianArm());
+// DELETED-MERGE: 
+// DELETED-MERGE:   final Stream<FileSystemManagerEvent> events;
+// DELETED-MERGE:   String watchedPath = '';
+// DELETED-MERGE:   bool watchedRecursive = false;
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Stream<FileSystemManagerEvent> watch(String path, {bool recursive = false}) {
+// DELETED-MERGE:     watchedPath = path;
+// DELETED-MERGE:     watchedRecursive = recursive;
+// DELETED-MERGE:     return events;
+// DELETED-MERGE:   }
+// DELETED-MERGE: }
+// DELETED-MERGE: 
+// DELETED-MERGE: class _CountingWorkspaceSearchStore implements WorkspaceDocumentStore {
+// DELETED-MERGE:   _CountingWorkspaceSearchStore({required Map<String, DocumentState> documents})
+// DELETED-MERGE:     : _documents = Map<String, DocumentState>.of(documents);
+// DELETED-MERGE: 
+// DELETED-MERGE:   final Map<String, DocumentState> _documents;
+// DELETED-MERGE:   int loadCount = 0;
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<DocumentState> loadDocument(String path) async {
+// DELETED-MERGE:     loadCount += 1;
+// DELETED-MERGE:     final document = _documents[path];
+// DELETED-MERGE:     if (document == null) {
+// DELETED-MERGE:       throw StateError('missing $path');
+// DELETED-MERGE:     }
+// DELETED-MERGE:     return document;
+// DELETED-MERGE:   }
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<void> saveDocument(DocumentState document) async {
+// DELETED-MERGE:     _documents[document.documentId] = document;
+// DELETED-MERGE:   }
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<bool> deleteDocument(String path) async =>
+// DELETED-MERGE:       _documents.remove(path) != null;
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   Future<bool> documentExists(String path) async =>
+// DELETED-MERGE:       _documents.containsKey(path);
+// DELETED-MERGE: 
+// DELETED-MERGE:   @override
+// DELETED-MERGE:   String? filePathForDocumentId(String documentId) => null;
+// DELETED-MERGE: }

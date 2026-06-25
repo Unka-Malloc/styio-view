@@ -1,2 +1,0 @@
-> ba263a6f (origin/feature/vityo-ide-capability-upgrade, feature/vityo-ide-capability-upgrade) feat: IDE capability baseline, workbench registry, source control adapter, debug/runtime contract, parity gate
-> c71f73e0 feat: Vityo IDE capability upgrade — benchmark matrix, maturity model, command registry, agent context, diagnostics, settings, product gate

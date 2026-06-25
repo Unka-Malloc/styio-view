@@ -9,6 +9,8 @@ import 'package:vityo_app/src/backend_toolchain/project_graph_adapter_io.dart'
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
+import 'fake_spio_cli.dart';
+
 void main() {
   test('project graph adapter discovers canonical spio package files', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
@@ -371,11 +373,9 @@ implicit-std = true
 name = "demo"
 path = "src/main.styio"
 ''');
-      final spioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-      );
-      spioBinary.createSync(recursive: true);
-      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+      await writeFakeSpioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -596,8 +596,8 @@ if len(sys.argv) >= 3 and sys.argv[1] == 'tool' and sys.argv[2] == 'status':
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+      );
 
       Directory.current = tempRoot;
 
@@ -677,11 +677,9 @@ path = "src/main.styio"
       Directory(
         '${tempRoot.path}${Platform.pathSeparator}src',
       ).createSync(recursive: true);
-      final spioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-      );
-      spioBinary.createSync(recursive: true);
-      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+      await writeFakeSpioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -718,8 +716,8 @@ if len(args) >= 3 and args[0] == 'tool' and args[1] == 'status':
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+      );
 
       Directory.current = tempRoot;
 
@@ -780,11 +778,9 @@ channel = "stable"
 name = "demo"
 path = "src/main.styio"
 ''');
-      final spioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-      );
-      spioBinary.createSync(recursive: true);
-      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+      await writeFakeSpioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -858,8 +854,8 @@ if len(args) >= 3 and args[0] == 'tool' and args[1] == 'status':
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+      );
 
       Directory.current = tempRoot;
 
@@ -926,11 +922,12 @@ name = "demo"
 path = "src/main.styio"
 ''');
 
-      final styioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}toolchains${Platform.pathSeparator}override-styio',
-      );
-      styioBinary.createSync(recursive: true);
-      styioBinary.writeAsStringSync('''#!/usr/bin/env python3
+      final styioBinary = await writeFakePythonCli(
+        directory: Directory(
+          '${tempRoot.path}${Platform.pathSeparator}toolchains',
+        ),
+        executableName: 'override-styio',
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['--machine-info=json']:
@@ -948,14 +945,12 @@ if sys.argv[1:] == ['--machine-info=json']:
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', styioBinary.path]);
-
-      final spioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+''',
       );
-      spioBinary.createSync(recursive: true);
-      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+
+      await writeFakeSpioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 override = ${jsonEncode(styioBinary.path)}
@@ -1075,8 +1070,8 @@ if len(args) >= 3 and args[0] == 'tool' and args[1] == 'status':
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+      );
 
       debugOverrideProjectGraphEnvironment(
         Map<String, String>.from(Platform.environment)
@@ -1132,11 +1127,9 @@ path = "src/main.styio"
         '${tempRoot.path}${Platform.pathSeparator}src',
       ).createSync(recursive: true);
 
-      final spioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-      );
-      spioBinary.createSync(recursive: true);
-      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+      await writeFakeSpioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -1184,8 +1177,8 @@ if len(args) >= 3 and args[0] == 'tool' and args[1] == 'status':
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+      );
 
       Directory.current = tempRoot;
 
@@ -1242,11 +1235,9 @@ path = "src/main.styio"
           '${tempRoot.path}${Platform.pathSeparator}src',
         ).createSync(recursive: true);
 
-        final spioBinary = File(
-          '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-        );
-        spioBinary.createSync(recursive: true);
-        spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+        await writeFakeSpioCli(
+          workspaceRoot: tempRoot,
+          pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -1261,8 +1252,8 @@ if len(args) >= 2 and args[0] == 'project-graph' and args[1] == '--json':
 $projectGraphBody
 
 raise SystemExit(64)
-''');
-        Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+        );
         Directory.current = tempRoot;
 
         final adapter = await createProjectGraphAdapter(
@@ -1335,11 +1326,9 @@ path = "src/main.styio"
         '${tempRoot.path}${Platform.pathSeparator}src',
       ).createSync(recursive: true);
 
-      final spioBinary = File(
-        '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-      );
-      spioBinary.createSync(recursive: true);
-      spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+      await writeFakeSpioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -1433,8 +1422,8 @@ if len(args) >= 2 and args[0] == 'project-graph' and args[1] == '--json':
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-      Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+      );
       Directory.current = tempRoot;
 
       final adapter = await createProjectGraphAdapter(

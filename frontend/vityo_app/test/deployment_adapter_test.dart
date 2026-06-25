@@ -5,6 +5,8 @@ import 'package:vityo_app/src/backend_toolchain/deployment_adapter.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
+import 'fake_spio_cli.dart';
+
 void main() {
   test('deployment adapter executes published spio pack', () async {
     final tempRoot = await _createWorkspaceFixture();
@@ -168,11 +170,9 @@ Future<Directory> _createWorkspaceFixture() async {
     ..createSync(recursive: true)
     ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
 
-  final spioBinary = File(
-    '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-  );
-  spioBinary.createSync(recursive: true);
-  spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+  await writeFakeSpioCli(
+    workspaceRoot: tempRoot,
+    pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 args = sys.argv[1:]
@@ -212,8 +212,8 @@ print(json.dumps({
     'args': args,
 }), file=sys.stderr)
 raise SystemExit(64)
-''');
-  Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+  );
   return tempRoot;
 }
 

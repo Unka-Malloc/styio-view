@@ -159,3 +159,71 @@ jobs:
             vityo-nightly/.coverage
             vityo-nightly/frontend/vityo_app/coverage/lcov.info
           if-no-files-found: ignore
+
+  windows-native:
+    name: windows-native
+    runs-on: windows-latest
+    timeout-minutes: 75
+    env:
+      STYIO_PYTHON_VERSION: "3.13.5"
+      STYIO_NODE_VERSION: "24.15.0"
+      STYIO_FLUTTER_VERSION: "3.41.7"
+
+    steps:
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          path: vityo-nightly
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Set up standardized Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.STYIO_NODE_VERSION }}
+
+      - name: Set up standardized Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+
+      - name: Verify standardized Windows toolchain
+        shell: pwsh
+        run: |
+          python --version
+          node --version
+          npm --version
+          flutter --version
+          flutter config --enable-web --enable-windows-desktop
+
+      - name: Bootstrap Windows workspace light
+        shell: pwsh
+        working-directory: vityo-nightly
+        run: >
+          powershell -NoProfile -ExecutionPolicy Bypass -File
+          .\scripts\bootstrap-workspace.ps1
+          -Platforms web,windows
+
+      - name: Restore Flutter packages on Windows
+        shell: pwsh
+        working-directory: vityo-nightly\frontend\vityo_app
+        run: flutter pub get
+
+      - name: Analyze Flutter app on Windows
+        shell: pwsh
+        working-directory: vityo-nightly\frontend\vityo_app
+        run: flutter analyze
+
+      - name: Test Flutter app on Windows
+        shell: pwsh
+        working-directory: vityo-nightly\frontend\vityo_app
+        run: flutter test
+
+      - name: Build native Windows debug target
+        shell: pwsh
+        working-directory: vityo-nightly\frontend\vityo_app
+        run: flutter build windows --debug

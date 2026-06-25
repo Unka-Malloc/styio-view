@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 
+import '../host_platform_io.dart';
 import 'process_facts.dart';
 import 'process_prober.dart';
 
@@ -22,9 +22,17 @@ class LocalProcessProber implements ProcessProber {
   @override
   Future<ProcessFacts> probe() async {
     final detectedAt = (clock ?? DateTime.now)().toUtc();
-    final os = (operatingSystem ?? Platform.operatingSystem).toLowerCase();
-    final release = await _readOsRelease();
-    final architecture = (await _readArchitecture()) ?? 'unknown';
+    final os = localOperatingSystem(operatingSystem);
+    final release = await readHostOsRelease(
+      operatingSystem: operatingSystem,
+      osReleaseReader: osReleaseReader,
+    );
+    final architecture =
+        (await readHostArchitecture(
+          operatingSystem: operatingSystem,
+          architectureReader: architectureReader,
+        )) ??
+        'unknown';
     final distributionId = release['ID']?.toLowerCase() ?? 'unknown';
     final distributionName = release['PRETTY_NAME'] ?? distributionId;
     final supportsSpawn = os == 'linux' || os == 'macos' || os == 'windows';
@@ -59,43 +67,4 @@ class LocalProcessProber implements ProcessProber {
     );
   }
 
-  Future<String?> _readArchitecture() async {
-    final reader = architectureReader;
-    if (reader != null) return reader();
-    try {
-      final result = await Process.run('uname', const <String>['-m']).timeout(const Duration(milliseconds: 500));
-      if (result.exitCode == 0) return result.stdout.toString().trim().toLowerCase();
-    } on Object {
-      return null;
-    }
-    return null;
-  }
-
-  Future<Map<String, String>> _readOsRelease() async {
-    final reader = osReleaseReader;
-    if (reader != null) return reader();
-    final file = File('/etc/os-release');
-    if (!await file.exists()) return const <String, String>{};
-    try {
-      return _parseOsRelease(await file.readAsString());
-    } on Object {
-      return const <String, String>{};
-    }
-  }
-
-  Map<String, String> _parseOsRelease(String text) {
-    final result = <String, String>{};
-    for (final rawLine in text.split('\n')) {
-      final line = rawLine.trim();
-      if (line.isEmpty || line.startsWith('#') || !line.contains('=')) continue;
-      final separator = line.indexOf('=');
-      final key = line.substring(0, separator).trim();
-      var value = line.substring(separator + 1).trim();
-      if (value.length >= 2 && ((value[0] == '"' && value[value.length - 1] == '"') || (value[0] == "'" && value[value.length - 1] == "'"))) {
-        value = value.substring(1, value.length - 1);
-      }
-      result[key] = value;
-    }
-    return result;
-  }
 }

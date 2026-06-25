@@ -171,6 +171,9 @@ class PtyFacts {
     if (operatingSystem == 'linux') {
       return 'linux-generic';
     }
+    if (operatingSystem == 'windows') {
+      return 'windows-generic';
+    }
     return 'unsupported';
   }
 

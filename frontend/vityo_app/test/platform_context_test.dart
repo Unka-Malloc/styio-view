@@ -596,7 +596,7 @@ void main() {
     );
     expect(result.succeeded, isTrue);
     expect(result.stdout, 'platform-context');
-  });
+  }, skip: Platform.isWindows ? 'POSIX shell fixture.' : false);
 
   test(
     'platform manager bundle composes all managers from one context',
@@ -645,6 +645,7 @@ void main() {
       expect(result.succeeded, isTrue);
       expect(result.stdout, 'manager-bundle');
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test(

@@ -1491,6 +1491,15 @@ Future<Directory> _createTempRoot(String prefix) async {
 }
 
 Future<File> _writeExecutable(File file, String contents) async {
+  if (Platform.isWindows) {
+    final script = File('${file.path}.py');
+    await script.create(recursive: true);
+    await script.writeAsString(contents);
+    final launcher = File('${file.path}.cmd');
+    await launcher.writeAsString('@echo off\r\npython "%~dp0${script.uri.pathSegments.last}" %*\r\n');
+    return launcher;
+  }
+
   await file.create(recursive: true);
   await file.writeAsString(contents);
   Process.runSync('chmod', <String>['+x', file.path]);

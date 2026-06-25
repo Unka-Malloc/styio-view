@@ -70,6 +70,7 @@ void main() {
       expect(output, contains('tty-ok'));
       expect(output, isNot(contains('no-tty')));
     },
+    skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false,
   );
 
   test('pty manager exposes structured resize degradation', () async {
@@ -93,7 +94,7 @@ void main() {
     expect(resizeFailure!.kind, PtyFailureKind.resizeUnsupported);
     expect(exitCode, 0);
     expect(output, contains('resize-test'));
-  });
+  }, skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false);
 
   test('pty manager delegates native resize and signal backends', () async {
     final resizeRequests = <PtyNativeResizeRequest>[];
@@ -147,7 +148,7 @@ void main() {
     expect(signalRequests.single.processId, isNotNull);
     expect(exitCode, 0);
     expect(output, contains('native-ops'));
-  });
+  }, skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false);
 
   test(
     'pty manager merges backend stdout and stderr into terminal output',
@@ -187,6 +188,7 @@ printf "fake-stderr\\n" >&2
       expect(output, contains('fake-stdout'));
       expect(output, contains('fake-stderr'));
     },
+    skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false,
   );
 
   test('pty manager classifies unsupported sessions structurally', () async {
@@ -210,6 +212,10 @@ printf "fake-stderr\\n" >&2
   });
 
   test('local host remains debian arm for pty prober target', () async {
+    if (!Platform.isLinux) {
+      return;
+    }
+
     final machine = await Process.run('uname', const <String>['-m']);
     final osRelease = await File('/etc/os-release').readAsString();
     final isDebianArmHost =

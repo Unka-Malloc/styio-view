@@ -1,5 +1,14 @@
 import 'dart:io';
 
+void appendSpioExecutableCandidates(List<String> candidates, String path) {
+  if (Platform.isWindows && !_hasExecutableExtension(path)) {
+    candidates.add('$path.cmd');
+    candidates.add('$path.exe');
+    candidates.add('$path.bat');
+  }
+  candidates.add(path);
+}
+
 String joinPath(String left, String right) {
   if (left.isEmpty) {
     return right;
@@ -22,19 +31,29 @@ Future<String?> resolveSpioBinary({required String workspaceRoot}) async {
   final seen = <String>{};
   final explicit = Platform.environment['VITYO_SPIO_BIN'];
   if (explicit != null && explicit.isNotEmpty) {
-    candidates.add(explicit);
+    appendSpioExecutableCandidates(candidates, explicit);
   }
   final fromEnv = Platform.environment['SPIO_BIN'];
   if (fromEnv != null && fromEnv.isNotEmpty) {
-    candidates.add(fromEnv);
+    appendSpioExecutableCandidates(candidates, fromEnv);
   }
 
   var current = Directory(workspaceRoot).absolute;
   while (true) {
-    candidates.add(joinPath(current.path, '.spio/bin/spio'));
-    candidates.add(joinPath(current.path, 'scripts/spio'));
-    candidates.add(joinPath(current.path, '../styio-spio/scripts/spio'));
-    candidates.add(
+    appendSpioExecutableCandidates(
+      candidates,
+      joinPath(current.path, '.spio/bin/spio'),
+    );
+    appendSpioExecutableCandidates(
+      candidates,
+      joinPath(current.path, 'scripts/spio'),
+    );
+    appendSpioExecutableCandidates(
+      candidates,
+      joinPath(current.path, '../styio-spio/scripts/spio'),
+    );
+    appendSpioExecutableCandidates(
+      candidates,
       joinPath(current.path, '../../Unka-Malloc/styio-spio/scripts/spio'),
     );
     final parent = current.parent;
@@ -55,12 +74,24 @@ Future<String?> resolveSpioBinary({required String workspaceRoot}) async {
   }
 
   try {
-    final result = await Process.run('spio', const <String>['--version']);
-    if (result.exitCode == 0) {
-      return 'spio';
+    final pathCandidates = <String>[];
+    appendSpioExecutableCandidates(pathCandidates, 'spio');
+    for (final candidate in pathCandidates) {
+      try {
+        final result = await Process.run(candidate, const <String>['--version']);
+        if (result.exitCode == 0) {
+          return candidate;
+        }
+      } on ProcessException {
+        continue;
+      }
     }
   } on ProcessException {
     // Fall through to null when the binary is unavailable.
   }
   return null;
+}
+
+bool _hasExecutableExtension(String path) {
+  return RegExp(r'\.(bat|cmd|com|exe)$', caseSensitive: false).hasMatch(path);
 }

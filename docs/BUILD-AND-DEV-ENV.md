@@ -2,13 +2,14 @@
 
 **Purpose:** Provide the repository-level entry point for bootstrapping a fresh machine, installing shared GUI toolchains, and routing contributors to the correct implementation surface.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-26
 
 ## Who This Is For
 
 1. Contributors bringing up `Vityo` on a fresh Debian/Ubuntu VM or container.
 2. Contributors working on the Flutter shell in `frontend/vityo_app/`.
 3. Contributors working on the handwritten web prototype in `prototype/`.
+4. Contributors bringing up the native Windows desktop target without WSL or Docker.
 
 ## Fresh Machine Bootstrap
 
@@ -41,7 +42,7 @@ For editor-integrated devcontainers, open [../.devcontainer/devcontainer.json](.
 | macOS | `macos` desktop + `web` | `macos+ios`, `macos+android`, `macos+ios+android` | `./scripts/bootstrap-dev-env-macos.sh [--with-ios] [--with-android]` |
 | Windows | `windows` desktop + `web` | `windows+android` | `powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1 [-WithAndroid]` |
 
-All host scripts install the standardized toolchain, then call the shared workspace bootstrap entrypoint to restore `npm` / `flutter pub` dependencies and generate the selected Flutter runners.
+All host scripts install the standardized toolchain, then call the shared workspace bootstrap entrypoint to restore `npm` / `flutter pub` dependencies and generate the selected Flutter runners. On Windows, `bootstrap-workspace.ps1` resolves `flutter.bat` / `npm.cmd` from `VITYO_FLUTTER_BIN`, `VITYO_FLUTTER_HOME`, `VITYO_NPM_BIN`, or `PATH`.
 
 Device verification stays host-driven:
 
@@ -62,16 +63,17 @@ Device verification stays host-driven:
 6. Chromium standard for web verification: `147.0.7727.116`.
 7. Android combo add-on standard is profile-driven on Linux, macOS, and Windows: command-line tools `14742923`, shared `platform-tools`, and the standardized profile set `android-35`, `android-36`, each with its own pinned platform/build-tools/NDK tuple from [../toolchain/android-sdk-profiles.csv](../toolchain/android-sdk-profiles.csv).
 8. Apple build profiles on macOS are standardized in [../toolchain/apple-platform-profiles.csv](../toolchain/apple-platform-profiles.csv). These profiles pin iOS/macOS deployment targets and optionally select a specific `DEVELOPER_DIR` / Xcode installation.
-9. CI mirror: GitHub Actions on `ubuntu-24.04`, plus exact Python, Node.js, Flutter, and Chromium version pins before validation steps.
+9. CI mirror: GitHub Actions on `ubuntu-24.04` for the existing Linux/Web gates and `windows-latest` for PowerShell bootstrap, analyze, test, and native Windows build coverage, with exact Python, Node.js, Flutter, and Chromium version pins before validation steps.
 
 ## Required Toolchains
 
-1. Flutter `3.41.7` with Dart `3.11.5` and the Linux, Web, and Android targets enabled.
+1. Flutter `3.41.7` with Dart `3.11.5` and the host desktop, Web, and optional Android targets enabled.
 2. Android SDK command-line tools, platform tools, build tools, and NDK.
 3. Chromium `147.0.7727.116` for local web verification.
 4. Node.js `v24.15.0` LTS and npm for the handwritten prototype.
 5. Python `3.13.5` for docs and repository hygiene scripts.
 6. On macOS, full iOS add-on support also requires Xcode. The script can validate and wire it, but Apple-controlled Xcode installation may still require App Store or Apple developer authentication.
+7. On Windows, native desktop builds require Visual Studio 2022 Build Tools with the C++ desktop workload. `bootstrap-dev-env-windows.ps1` installs this through `winget`; hosted `windows-latest` CI already includes the required build environment.
 
 ## Typical Build And Test Commands
 
@@ -81,12 +83,28 @@ Shared workspace bootstrap after the toolchain is present:
 ./scripts/bootstrap-workspace.sh --platforms web,linux
 ```
 
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-workspace.ps1 -Platforms web,windows
+```
+
 Example combinations:
 
 ```bash
 ./scripts/bootstrap-workspace.sh --platforms web,linux,android
 ./scripts/bootstrap-workspace.sh --platforms web,macos,ios
 ./scripts/bootstrap-workspace.sh --platforms web,macos,android
+```
+
+Windows native desktop validation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-workspace.ps1 -Platforms web,windows
+Set-Location frontend\vityo_app
+flutter pub get
+flutter analyze
+flutter test
+flutter build windows --debug
 ```
 
 Linux Android SDK profile management:
@@ -152,6 +170,16 @@ cd frontend/vityo_app
 flutter analyze
 flutter test
 flutter build web
+```
+
+Windows Flutter shell:
+
+```powershell
+Set-Location frontend\vityo_app
+flutter pub get
+flutter analyze
+flutter test
+flutter build windows --debug
 ```
 
 Focused editor local preview:

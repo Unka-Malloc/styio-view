@@ -50,23 +50,31 @@ String? _discoverLocalStyioExecutablePath({
   required Map<String, String> environment,
   required Iterable<String> candidatePaths,
 }) {
+  final isWindows = io.Platform.isWindows;
   final override = environment['VITYO_STYIO_BIN'];
-  if (_isExecutableFile(override)) {
-    return override;
-  }
-
-  for (final candidate in candidatePaths) {
+  for (final candidate in _styioExecutableCandidates(override, isWindows)) {
     if (_isExecutableFile(candidate)) {
       return candidate;
     }
   }
 
+  for (final candidate in candidatePaths) {
+    for (final executable in _styioExecutableCandidates(candidate, isWindows)) {
+      if (_isExecutableFile(executable)) {
+        return executable;
+      }
+    }
+  }
+
   try {
-    final result = io.Process.runSync('which', const <String>['styio']);
+    final lookupExecutable = isWindows ? 'where.exe' : 'which';
+    final result = io.Process.runSync(lookupExecutable, const <String>['styio']);
     if (result.exitCode == 0) {
-      final path = result.stdout.toString().trim();
-      if (_isExecutableFile(path)) {
-        return path;
+      for (final line in result.stdout.toString().split(RegExp(r'\r?\n'))) {
+        final path = line.trim();
+        if (_isExecutableFile(path)) {
+          return path;
+        }
       }
     }
   } on Object {
@@ -81,22 +89,25 @@ Future<String?> _discoverManagedStyioExecutablePath(
   required Map<String, String> environment,
   required Iterable<String> candidatePaths,
 }) async {
+  final isWindows =
+      platformManagers.context.fileSystem.operatingSystem.toLowerCase() ==
+      'windows';
   final override = environment['VITYO_STYIO_BIN'];
-  if (await _isExecutablePath(platformManagers, override)) {
-    return override;
-  }
-
-  for (final candidate in candidatePaths) {
+  for (final candidate in _styioExecutableCandidates(override, isWindows)) {
     if (await _isExecutablePath(platformManagers, candidate)) {
       return candidate;
     }
   }
 
-  final lookupExecutable =
-      platformManagers.context.fileSystem.operatingSystem.toLowerCase() ==
-          'windows'
-      ? 'where'
-      : 'which';
+  for (final candidate in candidatePaths) {
+    for (final executable in _styioExecutableCandidates(candidate, isWindows)) {
+      if (await _isExecutablePath(platformManagers, executable)) {
+        return executable;
+      }
+    }
+  }
+
+  final lookupExecutable = isWindows ? 'where.exe' : 'which';
   final lookup = await platformManagers.process.run(
     ProcessCommandRequest(
       executablePath: lookupExecutable,
@@ -114,6 +125,25 @@ Future<String?> _discoverManagedStyioExecutablePath(
     }
   }
   return null;
+}
+
+Iterable<String> _styioExecutableCandidates(
+  String? path,
+  bool isWindows,
+) sync* {
+  if (path == null || path.isEmpty) {
+    return;
+  }
+  if (isWindows && !_hasWindowsExecutableExtension(path)) {
+    yield '$path.exe';
+    yield '$path.cmd';
+    yield '$path.bat';
+  }
+  yield path;
+}
+
+bool _hasWindowsExecutableExtension(String path) {
+  return RegExp(r'\.(bat|cmd|com|exe)$', caseSensitive: false).hasMatch(path);
 }
 
 Future<bool> _isExecutablePath(

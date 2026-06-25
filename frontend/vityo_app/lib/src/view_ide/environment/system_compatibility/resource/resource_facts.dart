@@ -68,6 +68,12 @@ class ResourceFacts {
   String get compatibilityTarget {
     if (supportsLinuxDebianArmTarget) return 'linux-debian-arm';
     if (operatingSystem == 'linux') return 'linux-generic';
+    if (operatingSystem == 'windows') {
+      final arch = architecture.toLowerCase();
+      if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') return 'windows-x64';
+      if (arch == 'arm64' || arch == 'aarch64') return 'windows-arm64';
+      return 'windows-generic';
+    }
     return 'unsupported';
   }
 

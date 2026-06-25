@@ -7,6 +7,8 @@ import 'package:vityo_app/src/backend_toolchain/spio_cli_support.dart';
 import 'package:vityo_app/src/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
+import 'fake_spio_cli.dart';
+
 void main() {
   setUp(() {
     debugOverrideHostedEnvironment(const <String, String>{});
@@ -25,11 +27,9 @@ void main() {
     File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
       ..createSync(recursive: true)
       ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
-    final spioBinary = File(
-      '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-    );
-    spioBinary.createSync(recursive: true);
-    spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+    await writeFakeSpioCli(
+      workspaceRoot: tempRoot,
+      pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['--json', 'tool', 'use', '--version', '0.0.5', '--channel', 'stable']:
@@ -42,8 +42,8 @@ if sys.argv[1:] == ['--json', 'tool', 'use', '--version', '0.0.5', '--channel', 
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-    Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+    );
 
     final adapter = await createToolchainManagementAdapter(
       platformTarget: PlatformTarget.macos,
@@ -112,11 +112,9 @@ raise SystemExit(64)
     File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
       ..createSync(recursive: true)
       ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
-    final spioBinary = File(
-      '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-    );
-    spioBinary.createSync(recursive: true);
-    spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+    await writeFakeSpioCli(
+      workspaceRoot: tempRoot,
+      pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 args = sys.argv[1:]
@@ -146,8 +144,8 @@ if args[:3] == ['--json', 'tool', 'pin']:
 
 print('unsupported invocation', file=sys.stderr)
 raise SystemExit(64)
-''');
-    Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+    );
 
     final graph = _projectGraphFor(tempRoot.path);
     final adapter = await createToolchainManagementAdapter(

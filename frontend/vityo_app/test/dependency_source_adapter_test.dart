@@ -5,6 +5,8 @@ import 'package:vityo_app/src/backend_toolchain/dependency_source_adapter.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
+import 'fake_spio_cli.dart';
+
 void main() {
   test('dependency source adapter executes published spio fetch', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
@@ -15,11 +17,9 @@ void main() {
     File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
       ..createSync(recursive: true)
       ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
-    final spioBinary = File(
-      '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
-    );
-    spioBinary.createSync(recursive: true);
-    spioBinary.writeAsStringSync('''#!/usr/bin/env python3
+    await writeFakeSpioCli(
+      workspaceRoot: tempRoot,
+      pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['--json', 'fetch', '--manifest-path', '${tempRoot.path}${Platform.pathSeparator}spio.toml', '--locked', '--offline']:
@@ -35,8 +35,8 @@ if sys.argv[1:] == ['--json', 'fetch', '--manifest-path', '${tempRoot.path}${Pla
     raise SystemExit(0)
 
 raise SystemExit(64)
-''');
-    Process.runSync('chmod', <String>['+x', spioBinary.path]);
+''',
+    );
 
     final adapter = await createDependencySourceAdapter(
       platformTarget: PlatformTarget.macos,

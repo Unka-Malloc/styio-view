@@ -7,6 +7,7 @@ import 'hosted_control_plane.dart';
 import 'hosted_payload_codec.dart';
 import 'project_graph_adapter.dart';
 import 'project_graph_contract.dart';
+import 'spio_cli_discovery.dart' show appendSpioExecutableCandidates;
 
 Map<String, String> Function() _environmentProvider = () =>
     Platform.environment;
@@ -750,45 +751,65 @@ Future<CompilerHandshakeSnapshot?> _probeCompiler({
   final seenCandidates = <String>{};
   final explicit = _styioBinaryOverrideFromEnvironment();
   if (explicit != null) {
-    candidates.add(explicit);
+    _addStyioExecutableCandidates(candidates, explicit);
   }
   final spioManaged = _environmentValue('SPIO_STYIO_BIN');
   if (spioManaged != null) {
-    candidates.add(spioManaged);
+    _addStyioExecutableCandidates(candidates, spioManaged);
   }
   final spioHome = _environmentValue('SPIO_HOME');
   if (spioHome != null) {
-    candidates.add(_joinPath(spioHome, 'tools/styio/current/bin/styio'));
+    _addStyioExecutableCandidates(
+      candidates,
+      _joinPath(spioHome, 'tools/styio/current/bin/styio'),
+    );
   }
   final home = _environmentValue('HOME');
   if (home != null) {
-    candidates.add(_joinPath(home, '.spio/tools/styio/current/bin/styio'));
+    _addStyioExecutableCandidates(
+      candidates,
+      _joinPath(home, '.spio/tools/styio/current/bin/styio'),
+    );
   }
 
   var current = startDirectory.absolute;
   while (true) {
-    candidates.add(_joinPath(current.path, '../styio-nightly/build/bin/styio'));
-    candidates.add(
+    _addStyioExecutableCandidates(
+      candidates,
+      _joinPath(current.path, '../styio-nightly/build/bin/styio'),
+    );
+    _addStyioExecutableCandidates(
+      candidates,
       _joinPath(current.path, '../styio-nightly/build-codex/bin/styio'),
     );
-    candidates.add(_joinPath(current.path, '../styio/build/bin/styio'));
-    candidates.add(_joinPath(current.path, '../styio/build-codex/bin/styio'));
-    candidates.add(
+    _addStyioExecutableCandidates(
+      candidates,
+      _joinPath(current.path, '../styio/build/bin/styio'),
+    );
+    _addStyioExecutableCandidates(
+      candidates,
+      _joinPath(current.path, '../styio/build-codex/bin/styio'),
+    );
+    _addStyioExecutableCandidates(
+      candidates,
       _joinPath(
         current.path,
         '../../Unka-Malloc/styio-nightly/build/bin/styio',
       ),
     );
-    candidates.add(
+    _addStyioExecutableCandidates(
+      candidates,
       _joinPath(
         current.path,
         '../../Unka-Malloc/styio-nightly/build-codex/bin/styio',
       ),
     );
-    candidates.add(
+    _addStyioExecutableCandidates(
+      candidates,
       _joinPath(current.path, '../../Unka-Malloc/styio/build/bin/styio'),
     );
-    candidates.add(
+    _addStyioExecutableCandidates(
+      candidates,
       _joinPath(current.path, '../../Unka-Malloc/styio/build-codex/bin/styio'),
     );
     final parent = current.parent;
@@ -861,6 +882,19 @@ Future<CompilerHandshakeSnapshot?> _probeCompiler({
   return null;
 }
 
+void _addStyioExecutableCandidates(List<String> candidates, String path) {
+  if (Platform.isWindows && !_hasWindowsExecutableExtension(path)) {
+    candidates.add('$path.exe');
+    candidates.add('$path.cmd');
+    candidates.add('$path.bat');
+  }
+  candidates.add(path);
+}
+
+bool _hasWindowsExecutableExtension(String path) {
+  return RegExp(r'\.(bat|cmd|com|exe)$', caseSensitive: false).hasMatch(path);
+}
+
 Future<_SpioProjectGraphSupport> _probeSpioProjectGraphSupport({
   required Directory startDirectory,
 }) async {
@@ -868,18 +902,25 @@ Future<_SpioProjectGraphSupport> _probeSpioProjectGraphSupport({
   final seenCandidates = <String>{};
   final explicit = _environmentValue('VITYO_SPIO_BIN');
   if (explicit != null) {
-    candidates.add(explicit);
+    appendSpioExecutableCandidates(candidates, explicit);
   }
   final envBinary = _environmentValue('SPIO_BIN');
   if (envBinary != null) {
-    candidates.add(envBinary);
+    appendSpioExecutableCandidates(candidates, envBinary);
   }
-  candidates.add(
+  appendSpioExecutableCandidates(
+    candidates,
     _joinPath(_joinPath(startDirectory.path, '.spio'), 'bin/spio'),
   );
-  candidates.add(_joinPath(startDirectory.path, 'spio'));
-  candidates.add(_joinPath(_joinPath(startDirectory.path, 'scripts'), 'spio'));
-  candidates.add('spio');
+  appendSpioExecutableCandidates(
+    candidates,
+    _joinPath(startDirectory.path, 'spio'),
+  );
+  appendSpioExecutableCandidates(
+    candidates,
+    _joinPath(_joinPath(startDirectory.path, 'scripts'), 'spio'),
+  );
+  appendSpioExecutableCandidates(candidates, 'spio');
 
   for (final candidate in candidates) {
     if (!seenCandidates.add(candidate)) {

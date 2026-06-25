@@ -779,6 +779,7 @@ REMOVE_ME=from-file
       expect(result.redactedEnvironment['STYIO_TOKEN'], '<redacted>');
       expect(result.toJson().toString(), isNot(contains('raw-token')));
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test(
@@ -940,6 +941,7 @@ REMOVE_ME=from-file
       expect(result.stdout, 'toolchain-ok');
       expect(result.toJson()['status'], 'succeeded');
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test(
@@ -995,6 +997,7 @@ REMOVE_ME=from-file
       expect(result.succeeded, isTrue);
       expect(result.stdout, 'toolchain-platform-ok');
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test('toolchain resolver selects matching version and channel', () async {
@@ -1110,7 +1113,7 @@ REMOVE_ME=from-file
     expect(report.status, ToolchainHealthStatus.healthy);
     expect(report.processResult?.stdout, 'toolchain-healthy');
     expect(report.toJson()['processResult'], isA<Map<String, Object?>>());
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test(
     'toolchain runtime forwards standard input to process manager',
@@ -1138,6 +1141,7 @@ REMOVE_ME=from-file
       expect(result.succeeded, isTrue);
       expect(result.stdout, 'toolchain-stdin');
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test('toolchain manager forwards standard input to runtime', () async {
@@ -1176,7 +1180,7 @@ REMOVE_ME=from-file
 
     expect(result.succeeded, isTrue);
     expect(result.stdout, 'toolchain-manager-stdin');
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test('toolchain manager persists Clang C++ version preference', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
@@ -1231,7 +1235,7 @@ REMOVE_ME=from-file
 
     expect(report.healthy, isTrue);
     expect(report.processResult?.stdout, 'runtime-health');
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test('toolchain install policy plans trusted managed downloads', () {
     const requirement = ToolchainRequirement(
@@ -1489,6 +1493,7 @@ REMOVE_ME=from-file
       expect(failed.platformFailure!['kind'], 'nonZeroExit');
       expect(failed.toJson()['platformFailure'], isA<Map<String, Object?>>());
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test(
@@ -2098,7 +2103,7 @@ REMOVE_ME=from-file
     expect(result.succeeded, isTrue);
     expect(result.stdout, contains('STYIO_MODE=runtime'));
     expect(result.stdout, contains('PATH=/opt/styio/bin:/usr/bin'));
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test(
     'toolchain environment derives PATH list separator from platform context',
@@ -2365,6 +2370,7 @@ REMOVE_ME=from-file
         ],
       );
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test('toolchain manager scopes state by platform target', () async {
@@ -2566,6 +2572,7 @@ REMOVE_ME=from-file
         contains('VITYO_RUNTIME_INSTALL=ok'),
       );
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test('toolchain manager reports install and recovery edge states', () async {
@@ -2678,7 +2685,7 @@ REMOVE_ME=from-file
     );
     expect(manifestMissing.rolledBack, isTrue);
     expect(cleared, isTrue);
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test('toolchain manager registers staged managed artifact', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
@@ -3296,6 +3303,7 @@ REMOVE_ME=from-file
       expect(response.toolchainId, 'printf-styio');
       expect(response.stdout, contains('--parser-engine'));
     },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
 
   test(
@@ -3374,6 +3382,7 @@ REMOVE_ME=from-file
       expect(health.healthy, isTrue);
       expect(health.processResult?.stdout, 'runtime:nightly:${tempRoot.path}');
     },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
   );
 
   test(
@@ -3533,49 +3542,55 @@ REMOVE_ME=from-file
     },
   );
 
-  test('terminal runtime starts configured shell through pty manager', () async {
-    final ptyFacts = await const LocalPtyProber().probe();
-    final terminal = TerminalRuntime(
-      ptyManager: LocalPtyManager(facts: ptyFacts),
-      shellConfiguration: const ShellConfiguration(
-        defaultProfileId: 'sh',
-        environmentOverlay: <String, String>{'STYIO_MODE': 'config'},
-        profiles: <ShellProfileConfiguration>[
-          ShellProfileConfiguration(
-            id: 'sh',
-            executablePath: '/bin/sh',
-            family: ShellFamily.sh,
-            arguments: <String>[
-              '-c',
-              r'test -t 1 && printf "terminal-ok:$STYIO_MODE:$STYIO_CHANNEL:$RUNTIME_FLAG"',
-            ],
-            environment: <String, String>{'STYIO_MODE': 'profile'},
+  test(
+    'terminal runtime starts configured shell through pty manager',
+    () async {
+      final ptyFacts = await const LocalPtyProber().probe();
+      final terminal = TerminalRuntime(
+        ptyManager: LocalPtyManager(facts: ptyFacts),
+        shellConfiguration: const ShellConfiguration(
+          defaultProfileId: 'sh',
+          environmentOverlay: <String, String>{'STYIO_MODE': 'config'},
+          profiles: <ShellProfileConfiguration>[
+            ShellProfileConfiguration(
+              id: 'sh',
+              executablePath: '/bin/sh',
+              family: ShellFamily.sh,
+              arguments: <String>[
+                '-c',
+                r'test -t 1 && printf "terminal-ok:$STYIO_MODE:$STYIO_CHANNEL:$RUNTIME_FLAG"',
+              ],
+              environment: <String, String>{'STYIO_MODE': 'profile'},
+            ),
+          ],
+        ),
+      );
+
+      final session = await terminal.start(
+        envFileVariables: const <Map<String, String?>>[
+          <String, String?>{'STYIO_CHANNEL': 'nightly'},
+        ],
+        environmentOverlays: const <EnvironmentVariableOverlay>[
+          EnvironmentVariableOverlay(
+            id: 'workspace-terminal',
+            scope: EnvironmentVariableOverlayScope.workspace,
+            target: 'terminal',
+            variables: <String, String?>{'STYIO_MODE': 'overlay'},
           ),
         ],
-      ),
-    );
+        environment: const <String, String>{'RUNTIME_FLAG': 'runtime'},
+      );
+      final outputFuture = session.output.join();
+      final exitCode = await session.exitCode.timeout(
+        const Duration(seconds: 5),
+      );
+      final output = await outputFuture.timeout(const Duration(seconds: 5));
 
-    final session = await terminal.start(
-      envFileVariables: const <Map<String, String?>>[
-        <String, String?>{'STYIO_CHANNEL': 'nightly'},
-      ],
-      environmentOverlays: const <EnvironmentVariableOverlay>[
-        EnvironmentVariableOverlay(
-          id: 'workspace-terminal',
-          scope: EnvironmentVariableOverlayScope.workspace,
-          target: 'terminal',
-          variables: <String, String?>{'STYIO_MODE': 'overlay'},
-        ),
-      ],
-      environment: const <String, String>{'RUNTIME_FLAG': 'runtime'},
-    );
-    final outputFuture = session.output.join();
-    final exitCode = await session.exitCode.timeout(const Duration(seconds: 5));
-    final output = await outputFuture.timeout(const Duration(seconds: 5));
-
-    expect(exitCode, 0);
-    expect(output, contains('terminal-ok:profile:nightly:runtime'));
-  });
+      expect(exitCode, 0);
+      expect(output, contains('terminal-ok:profile:nightly:runtime'));
+    },
+    skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false,
+  );
 
   test(
     'native compiler discovery exposes CMake Ninja and clangd toolchain facts',

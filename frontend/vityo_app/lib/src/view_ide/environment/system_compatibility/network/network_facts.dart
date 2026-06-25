@@ -71,5 +71,7 @@ class NetworkFacts {
       ? 'linux-debian-arm'
       : operatingSystem == 'linux'
       ? 'linux-generic'
+      : operatingSystem == 'windows'
+      ? 'windows-generic'
       : 'unsupported';
 }

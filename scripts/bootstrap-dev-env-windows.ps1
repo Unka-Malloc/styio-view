@@ -54,6 +54,13 @@ function Ensure-Directory {
     }
 }
 
+function Get-NodeWindowsArchitecture {
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
+        return "arm64"
+    }
+    return "x64"
+}
+
 function Add-ToUserPath {
     param([string]$Entry)
 
@@ -110,7 +117,8 @@ function Install-WingetPackages {
 }
 
 function Install-Node {
-    $nodeRoot = Join-Path $NodeInstallRoot "node-v$NodeStandardVersion-win-x64"
+    $nodeArch = Get-NodeWindowsArchitecture
+    $nodeRoot = Join-Path $NodeInstallRoot "node-v$NodeStandardVersion-win-$nodeArch"
     $nodeExe = Join-Path $nodeRoot "node.exe"
     if ((Test-Path $nodeExe) -and ((& $nodeExe --version) -eq "v$NodeStandardVersion")) {
         Write-Log "Node.js already matches standardized version v$NodeStandardVersion"
@@ -118,7 +126,7 @@ function Install-Node {
     }
 
     Ensure-Directory $NodeInstallRoot
-    $archive = "node-v$NodeStandardVersion-win-x64.zip"
+    $archive = "node-v$NodeStandardVersion-win-$nodeArch.zip"
     $url = "https://nodejs.org/dist/v$NodeStandardVersion/$archive"
     $tmp = Join-Path $env:TEMP $archive
     Write-Log "Installing Node.js v$NodeStandardVersion"
@@ -193,7 +201,8 @@ function Install-AndroidSdk {
 
     $env:JAVA_HOME = (Get-ChildItem "C:\Program Files\Microsoft\jdk-21*" -Directory | Select-Object -First 1).FullName
     $env:ANDROID_HOME = $AndroidSdkRoot
-    $env:Path = "$ToolVenv\Scripts;$NodeInstallRoot\node-v$NodeStandardVersion-win-x64;$FlutterHome\bin;$AndroidSdkRoot\cmdline-tools\latest\bin;$AndroidSdkRoot\platform-tools;$env:Path"
+    $nodeArch = Get-NodeWindowsArchitecture
+    $env:Path = "$ToolVenv\Scripts;$NodeInstallRoot\node-v$NodeStandardVersion-win-$nodeArch;$FlutterHome\bin;$AndroidSdkRoot\cmdline-tools\latest\bin;$AndroidSdkRoot\platform-tools;$env:Path"
 
     & "$FlutterHome\bin\flutter.bat" config --android-sdk $AndroidSdkRoot --enable-web --enable-windows-desktop --enable-android
     & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root "scripts\android-sdk-profile.ps1") install --profiles $AndroidProfiles --sdk-root $AndroidSdkRoot
@@ -201,6 +210,7 @@ function Install-AndroidSdk {
 
 function Write-UserEnv {
     $chromePath = Join-Path $BrowserHome "chrome-win64\\chrome.exe"
+    $nodeArch = Get-NodeWindowsArchitecture
     [Environment]::SetEnvironmentVariable("FLUTTER_HOME", $FlutterHome, "User")
     [Environment]::SetEnvironmentVariable("ANDROID_SDK_ROOT", $AndroidSdkRoot, "User")
     [Environment]::SetEnvironmentVariable("ANDROID_HOME", $AndroidSdkRoot, "User")
@@ -211,7 +221,7 @@ function Write-UserEnv {
     [Environment]::SetEnvironmentVariable("VITYO_ANDROID_DEFAULT_PROFILE", $AndroidDefaultProfile, "User")
 
     Add-ToUserPath (Join-Path $ToolVenv "Scripts")
-    Add-ToUserPath (Join-Path $NodeInstallRoot "node-v$NodeStandardVersion-win-x64")
+    Add-ToUserPath (Join-Path $NodeInstallRoot "node-v$NodeStandardVersion-win-$nodeArch")
     Add-ToUserPath (Join-Path $FlutterHome "bin")
     if ($WithAndroid) {
         Add-ToUserPath (Join-Path $AndroidSdkRoot "cmdline-tools\\latest\\bin")
@@ -221,12 +231,15 @@ function Write-UserEnv {
 
 function Bootstrap-Workspace {
     Push-Location $Root
-    if ($WithAndroid) {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\bootstrap-workspace.ps1" -Platforms "web,windows,android"
-    } else {
-        & powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\bootstrap-workspace.ps1" -Platforms "web,windows"
+    try {
+        if ($WithAndroid) {
+            & powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\bootstrap-workspace.ps1" -Platforms "web,windows,android"
+        } else {
+            & powershell -NoProfile -ExecutionPolicy Bypass -File ".\scripts\bootstrap-workspace.ps1" -Platforms "web,windows"
+        }
+    } finally {
+        Pop-Location
     }
-    Pop-Location
 }
 
 Require-Windows

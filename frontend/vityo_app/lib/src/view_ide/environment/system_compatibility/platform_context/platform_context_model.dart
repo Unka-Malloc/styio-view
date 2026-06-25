@@ -777,58 +777,173 @@ class PlatformContextSnapshot {
   }
 
   static ProcessFacts _defaultProcessFacts(FileSystemFacts host) {
-    return ProcessFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return ProcessFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        detectedAt: host.detectedAt,
+      );
+    }
+    final supportsSpawn =
+        host.operatingSystem == 'windows' || host.operatingSystem == 'macos';
+    return ProcessFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
+      distributionName: host.distributionName,
       architecture: host.architecture,
+      providerKind: ProcessProviderKind.local,
+      supportsSpawn: supportsSpawn,
+      supportsSignals: host.operatingSystem == 'macos',
+      supportsProcessGroups: host.operatingSystem == 'macos',
+      supportsEnvironmentOverlay: supportsSpawn,
+      supportsWorkingDirectory: supportsSpawn,
       detectedAt: host.detectedAt,
     );
   }
 
   static ResourceFacts _defaultResourceFacts(FileSystemFacts host) {
-    return ResourceFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return ResourceFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        detectedAt: host.detectedAt,
+      );
+    }
+    return ResourceFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
       architecture: host.architecture,
+      providerKind: ResourceProviderKind.local,
+      processorCount: 1,
+      systemTempPath: host.pathStyle == FileSystemPathStyle.windows
+          ? r'C:\Windows\Temp'
+          : '/tmp',
+      supportsTempDirectory: true,
+      supportsHomeDirectory: false,
+      supportsStorageProbe: true,
       detectedAt: host.detectedAt,
     );
   }
 
   static NetworkFacts _defaultNetworkFacts(FileSystemFacts host) {
-    return NetworkFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return NetworkFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        detectedAt: host.detectedAt,
+      );
+    }
+    return NetworkFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
       architecture: host.architecture,
+      providerKind: NetworkProviderKind.local,
+      supportsHttpClient: true,
+      supportsLoopback: true,
+      proxyEnvironment: const <String, String>{},
       detectedAt: host.detectedAt,
     );
   }
 
   static ClipboardFacts _defaultClipboardFacts(FileSystemFacts host) {
-    return ClipboardFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return ClipboardFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        detectedAt: host.detectedAt,
+      );
+    }
+    final supportsSystemClipboard = host.operatingSystem == 'windows' ||
+        host.operatingSystem == 'macos';
+    return ClipboardFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
       architecture: host.architecture,
+      providerKind: supportsSystemClipboard
+          ? ClipboardProviderKind.system
+          : ClipboardProviderKind.memoryFallback,
+      supportsText: true,
+      supportsSystemClipboard: supportsSystemClipboard,
+      supportsMemoryFallback: true,
       detectedAt: host.detectedAt,
     );
   }
 
   static NotificationFacts _defaultNotificationFacts(FileSystemFacts host) {
-    return NotificationFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return NotificationFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        detectedAt: host.detectedAt,
+      );
+    }
+    final supportsDesktopNotifications = host.operatingSystem == 'windows' ||
+        host.operatingSystem == 'macos';
+    return NotificationFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
       architecture: host.architecture,
+      providerKind: supportsDesktopNotifications
+          ? NotificationProviderKind.desktop
+          : NotificationProviderKind.inAppFallback,
+      supportsDesktopNotifications: supportsDesktopNotifications,
+      supportsInAppFallback: true,
       detectedAt: host.detectedAt,
     );
   }
 
   static LocalServiceFacts _defaultLocalServiceFacts(FileSystemFacts host) {
-    return LocalServiceFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return LocalServiceFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        detectedAt: host.detectedAt,
+      );
+    }
+    return LocalServiceFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
       architecture: host.architecture,
+      providerKind: LocalServiceProviderKind.loopback,
+      supportsLoopbackHttpServer: true,
+      supportsEphemeralPort: true,
       detectedAt: host.detectedAt,
     );
   }
 
   static PtyFacts _defaultPtyFacts(FileSystemFacts host, ShellFacts shell) {
-    return PtyFacts.linuxDebianArm(
+    if (host.operatingSystem == 'linux') {
+      return PtyFacts.linuxDebianArm(
+        targetId: host.targetId,
+        architecture: host.architecture,
+        scriptUtilityPath: shell.supportsPty ? '/usr/bin/script' : null,
+        detectedAt: host.detectedAt,
+      );
+    }
+    final supportsConPty = host.operatingSystem == 'windows' && shell.supportsPty;
+    return PtyFacts(
       targetId: host.targetId,
+      operatingSystem: host.operatingSystem,
+      distributionId: host.distributionId,
+      distributionName: host.distributionName,
       architecture: host.architecture,
-      scriptUtilityPath: shell.supportsPty ? '/usr/bin/script' : null,
+      providerKind: supportsConPty
+          ? PtyProviderKind.conPty
+          : PtyProviderKind.unsupported,
+      supportsPty: supportsConPty,
+      supportsResize: supportsConPty,
+      supportsRawMode: supportsConPty,
+      supportsSignals: false,
+      supportsProcessGroup: false,
+      supportsConPty: supportsConPty,
+      supportsForkPty: false,
+      supportsScriptUtility: false,
       detectedAt: host.detectedAt,
     );
   }

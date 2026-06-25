@@ -5454,7 +5454,7 @@ void main() {
 
     expect(report.healthy, isTrue);
     expect(report.processResult?.stdout, 'styio-health');
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test(
     'toolchain connector runs real Styio CLI when available',

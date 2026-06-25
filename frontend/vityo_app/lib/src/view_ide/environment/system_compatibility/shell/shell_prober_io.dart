@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../host_platform_io.dart';
 import 'shell_facts.dart';
 import 'shell_prober.dart';
 
@@ -27,13 +28,39 @@ class LocalShellProber implements ShellProber {
   Future<ShellFacts> probe() async {
     final detectedAt = (clock ?? DateTime.now)().toUtc();
     final env = environment ?? Platform.environment;
-    final os = (operatingSystem ?? Platform.operatingSystem).toLowerCase();
-    final osRelease = await _readOsRelease();
-    final architecture = (await _readArchitecture()) ?? 'unknown';
+    final os = localOperatingSystem(operatingSystem);
+    final osRelease = await readHostOsRelease(
+      operatingSystem: operatingSystem,
+      osReleaseReader: osReleaseReader,
+    );
+    final architecture =
+        (await readHostArchitecture(
+          operatingSystem: operatingSystem,
+          architectureReader: architectureReader,
+          environment: env,
+        )) ??
+        'unknown';
     final distributionId = osRelease['ID']?.toLowerCase() ?? 'unknown';
     final distributionName = osRelease['PRETTY_NAME'] ?? distributionId;
-    final defaultShellPath = env['SHELL'];
-    final availableShells = await _detectAvailableShells(defaultShellPath);
+    final preferredShellPath = env['SHELL'];
+    final availableShells = await _detectAvailableShells(
+      preferredShellPath,
+      os,
+      env,
+    );
+    final defaultShellPath = preferredShellPath?.isNotEmpty == true
+        ? preferredShellPath
+        : availableShells.isEmpty
+        ? null
+        : availableShells.first.path;
+    final scriptExtension =
+        availableShells.isNotEmpty &&
+            availableShells.first.path == defaultShellPath &&
+            availableShells.first.family == ShellFamily.powershell
+        ? '.ps1'
+        : os == 'windows'
+        ? '.cmd'
+        : '.sh';
 
     return ShellFacts(
       targetId: targetId,
@@ -47,7 +74,7 @@ class LocalShellProber implements ShellProber {
       supportsPty: os == 'linux' || os == 'macos',
       supportsLoginShell: os == 'linux' || os == 'macos',
       supportsInteractiveShell: availableShells.isNotEmpty,
-      scriptExtension: os == 'windows' ? '.cmd' : '.sh',
+      scriptExtension: scriptExtension,
       detectedAt: detectedAt,
       entries: ShellFacts.buildEntries(
         targetId: targetId,
@@ -61,7 +88,7 @@ class LocalShellProber implements ShellProber {
         supportsPty: os == 'linux' || os == 'macos',
         supportsLoginShell: os == 'linux' || os == 'macos',
         supportsInteractiveShell: availableShells.isNotEmpty,
-        scriptExtension: os == 'windows' ? '.cmd' : '.sh',
+        scriptExtension: scriptExtension,
         source: 'prober',
         detectedAt: detectedAt,
       ),
@@ -70,48 +97,119 @@ class LocalShellProber implements ShellProber {
 
   Future<List<ShellExecutableFact>> _detectAvailableShells(
     String? defaultShellPath,
+    String operatingSystem,
+    Map<String, String> environment,
   ) async {
-    final candidates = <String>[
-      if (defaultShellPath != null && defaultShellPath.isNotEmpty)
-        defaultShellPath,
-      '/bin/bash',
-      '/usr/bin/bash',
-      '/bin/sh',
-      '/usr/bin/sh',
-      '/bin/zsh',
-      '/usr/bin/zsh',
-      '/usr/bin/fish',
-    ];
+    final candidates = operatingSystem == 'windows'
+        ? _windowsShellCandidates(defaultShellPath, environment)
+        : <String>[
+            if (defaultShellPath != null && defaultShellPath.isNotEmpty)
+              defaultShellPath,
+            '/bin/bash',
+            '/usr/bin/bash',
+            '/bin/sh',
+            '/usr/bin/sh',
+            '/bin/zsh',
+            '/usr/bin/zsh',
+            '/usr/bin/fish',
+          ];
     final seen = <String>{};
     final shells = <ShellExecutableFact>[];
     for (final path in candidates) {
-      if (!seen.add(path)) {
+      if (path.isEmpty || !seen.add(path.toLowerCase())) {
         continue;
       }
-      if (!await _exists(path)) {
+      final resolvedPath = await _resolveExecutable(path, operatingSystem, environment);
+      if (resolvedPath == null) {
         continue;
       }
       shells.add(
         ShellExecutableFact(
-          path: path,
-          family: _familyForPath(path),
-          isDefault: path == defaultShellPath,
+          path: resolvedPath,
+          family: _familyForPath(resolvedPath),
+          isDefault: resolvedPath == defaultShellPath,
         ),
       );
     }
     return shells;
   }
 
-  Future<bool> _exists(String path) async {
+  List<String> _windowsShellCandidates(
+    String? defaultShellPath,
+    Map<String, String> environment,
+  ) {
+    final systemRoot = environment['SystemRoot'] ?? environment['WINDIR'];
+    return <String>[
+      if (defaultShellPath != null && defaultShellPath.isNotEmpty)
+        defaultShellPath,
+      if (systemRoot != null)
+        '$systemRoot\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+      r'C:\Program Files\PowerShell\7\pwsh.exe',
+      'pwsh.exe',
+      'powershell.exe',
+      if (environment['ComSpec']?.isNotEmpty == true) environment['ComSpec']!,
+      if (systemRoot != null) '$systemRoot\\System32\\cmd.exe',
+      'cmd.exe',
+    ];
+  }
+
+  Future<String?> _resolveExecutable(
+    String path,
+    String operatingSystem,
+    Map<String, String> environment,
+  ) async {
     final checker = executableExists;
     if (checker != null) {
-      return checker(path);
+      return await checker(path) ? path : null;
     }
-    return File(path).exists();
+    if (await File(path).exists()) {
+      return path;
+    }
+    if (operatingSystem != 'windows' || _isQualifiedPath(path)) {
+      return null;
+    }
+    for (final candidate in _pathSearchCandidates(path, environment)) {
+      if (await File(candidate).exists()) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  bool _isQualifiedPath(String path) {
+    return path.contains('/') ||
+        path.contains(r'\') ||
+        RegExp(r'^[A-Za-z]:').hasMatch(path);
+  }
+
+  Iterable<String> _pathSearchCandidates(
+    String executableName,
+    Map<String, String> environment,
+  ) sync* {
+    final pathValue = environment['Path'] ?? environment['PATH'] ?? '';
+    final extensions = <String>[
+      '',
+      ...((environment['PATHEXT'] ?? '.COM;.EXE;.BAT;.CMD')
+          .split(';')
+          .where((value) => value.isNotEmpty)),
+    ];
+    final hasExtension = RegExp(r'\.[A-Za-z0-9]+$').hasMatch(executableName);
+    for (final directory in pathValue.split(';')) {
+      if (directory.isEmpty) {
+        continue;
+      }
+      if (hasExtension) {
+        yield '$directory\\$executableName';
+      } else {
+        for (final extension in extensions) {
+          yield '$directory\\$executableName$extension';
+        }
+      }
+    }
   }
 
   ShellFamily _familyForPath(String path) {
-    final name = path.split('/').last.toLowerCase();
+    final name = path.split(RegExp(r'[\\/]')).last.toLowerCase();
     if (name.contains('bash')) {
       return ShellFamily.bash;
     }
@@ -124,7 +222,7 @@ class LocalShellProber implements ShellProber {
     if (name.contains('fish')) {
       return ShellFamily.fish;
     }
-    if (name.contains('powershell') || name == 'pwsh') {
+    if (name.contains('powershell') || name == 'pwsh' || name == 'pwsh.exe') {
       return ShellFamily.powershell;
     }
     if (name == 'cmd.exe' || name == 'cmd') {
@@ -133,64 +231,4 @@ class LocalShellProber implements ShellProber {
     return ShellFamily.unknown;
   }
 
-  Future<String?> _readArchitecture() async {
-    final reader = architectureReader;
-    if (reader != null) {
-      return reader();
-    }
-    try {
-      final result = await Process.run(
-        'uname',
-        const <String>['-m'],
-      ).timeout(const Duration(milliseconds: 500));
-      if (result.exitCode == 0) {
-        return result.stdout.toString().trim().toLowerCase();
-      }
-    } on Object {
-      return null;
-    }
-    return null;
-  }
-
-  Future<Map<String, String>> _readOsRelease() async {
-    final reader = osReleaseReader;
-    if (reader != null) {
-      return reader();
-    }
-    final file = File('/etc/os-release');
-    if (!await file.exists()) {
-      return const <String, String>{};
-    }
-    try {
-      return _parseOsRelease(await file.readAsString());
-    } on Object {
-      return const <String, String>{};
-    }
-  }
-
-  Map<String, String> _parseOsRelease(String text) {
-    final result = <String, String>{};
-    for (final rawLine in text.split('\n')) {
-      final line = rawLine.trim();
-      if (line.isEmpty || line.startsWith('#') || !line.contains('=')) {
-        continue;
-      }
-      final separator = line.indexOf('=');
-      final key = line.substring(0, separator).trim();
-      final value = line.substring(separator + 1).trim();
-      result[key] = _stripQuotes(value);
-    }
-    return result;
-  }
-
-  String _stripQuotes(String value) {
-    if (value.length >= 2) {
-      final first = value[0];
-      final last = value[value.length - 1];
-      if ((first == '"' && last == '"') || (first == "'" && last == "'")) {
-        return value.substring(1, value.length - 1);
-      }
-    }
-    return value;
-  }
 }

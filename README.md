@@ -69,10 +69,25 @@ powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1 -WithAndroid
 ```
 
+Windows native desktop validation:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-workspace.ps1 -Platforms web,windows
+Set-Location frontend\vityo_app
+flutter pub get
+flutter analyze
+flutter test
+flutter build windows --debug
+```
+
 这套脚本会把 `Vityo` 的桌面 / Web 主线环境拉起，并按需附加 `linux+android`、`macos+ios`、`macos+android`、`windows+android` 组合开发工具链。共享 workspace 初始化入口是：
 
 ```bash
 ./scripts/bootstrap-workspace.sh --platforms web,linux
+```
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-workspace.ps1 -Platforms web,windows
 ```
 
 更完整的构建、测试、profile 切换和真实设备验证入口见 [docs/BUILD-AND-DEV-ENV.md](docs/BUILD-AND-DEV-ENV.md)。

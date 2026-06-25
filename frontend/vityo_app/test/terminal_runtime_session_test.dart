@@ -465,6 +465,7 @@ void main() {
       );
       expect(execution.toJson()['eventCount'], 2);
     },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
   );
 
   test(
@@ -519,6 +520,7 @@ void main() {
         'executed',
       );
     },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
   );
 
   test(
@@ -665,6 +667,7 @@ void main() {
       );
       expect(buffer.snapshot.visibleEvents.last.metadata['stream'], 'stdout');
     },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
   );
 
   test(

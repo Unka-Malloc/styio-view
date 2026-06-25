@@ -27,30 +27,64 @@ void main() {
     expect(offenders, isEmpty);
   });
 
-  test('process manager follows prober facts adapter manager route', () async {
-    final facts = await LocalProcessProber(
-      operatingSystem: 'linux',
-      architectureReader: () async => 'aarch64',
-      osReleaseReader: () async => const <String, String>{
-        'ID': 'debian',
-        'PRETTY_NAME': 'Debian GNU/Linux',
-      },
-      clock: () => DateTime.utc(2026, 5, 16),
+  test(
+    'process manager follows prober facts adapter manager route',
+    () async {
+      final facts = await LocalProcessProber(
+        operatingSystem: 'linux',
+        architectureReader: () async => 'aarch64',
+        osReleaseReader: () async => const <String, String>{
+          'ID': 'debian',
+          'PRETTY_NAME': 'Debian GNU/Linux',
+        },
+        clock: () => DateTime.utc(2026, 5, 16),
+      ).probe();
+      final compatibility = ProcessAdapter(facts).adapt();
+      final manager = LocalProcessManager(facts: facts);
+
+      final result = await manager.run(
+        const ProcessCommandRequest(
+          executablePath: '/usr/bin/printf',
+          arguments: <String>['process-ok'],
+        ),
+      );
+
+      expect(facts.supportsLinuxDebianArmTarget, isTrue);
+      expect(compatibility.isLinuxDebianArm, isTrue);
+      expect(result.succeeded, isTrue);
+      expect(result.stdout, 'process-ok');
+    },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
+  );
+
+  test('Windows probers expose native host capabilities', () async {
+    final process = await LocalProcessProber(
+      operatingSystem: 'windows',
+      architectureReader: () async => 'x64',
+      clock: () => DateTime.utc(2026, 6, 26),
     ).probe();
-    final compatibility = ProcessAdapter(facts).adapt();
-    final manager = LocalProcessManager(facts: facts);
+    final resource = await LocalResourceProber(
+      operatingSystem: 'windows',
+      architectureReader: () async => 'x64',
+      environment: const <String, String>{'USERPROFILE': r'C:\Users\Vityo'},
+      clock: () => DateTime.utc(2026, 6, 26),
+    ).probe();
+    final localService = await LocalLoopbackServiceProber(
+      operatingSystem: 'windows',
+      architectureReader: () async => 'x64',
+      clock: () => DateTime.utc(2026, 6, 26),
+    ).probe();
 
-    final result = await manager.run(
-      const ProcessCommandRequest(
-        executablePath: '/usr/bin/printf',
-        arguments: <String>['process-ok'],
-      ),
-    );
-
-    expect(facts.supportsLinuxDebianArmTarget, isTrue);
-    expect(compatibility.isLinuxDebianArm, isTrue);
-    expect(result.succeeded, isTrue);
-    expect(result.stdout, 'process-ok');
+    expect(process.compatibilityTarget, 'windows-x64');
+    expect(process.supportsSpawn, isTrue);
+    expect(process.supportsEnvironmentOverlay, isTrue);
+    expect(process.supportsWorkingDirectory, isTrue);
+    expect(resource.compatibilityTarget, 'windows-x64');
+    expect(resource.homePath, r'C:\Users\Vityo');
+    expect(resource.supportsTempDirectory, isTrue);
+    expect(localService.compatibilityTarget, 'windows-generic');
+    expect(localService.supportsLoopbackHttpServer, isTrue);
+    expect(localService.supportsEphemeralPort, isTrue);
   });
 
   test('process manager writes standard input to commands', () async {
@@ -65,7 +99,7 @@ void main() {
 
     expect(result.succeeded, isTrue);
     expect(result.stdout, 'process-stdin');
-  });
+  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
 
   test('process manager classifies command failures structurally', () async {
     final manager = LocalProcessManager.linuxDebianArmForTest();
@@ -100,6 +134,7 @@ void main() {
 
   test('resource manager follows prober facts adapter manager route', () async {
     final facts = await LocalResourceProber(
+      operatingSystem: 'linux',
       architectureReader: () async => 'aarch64',
       osReleaseReader: () async => const <String, String>{'ID': 'debian'},
       clock: () => DateTime.utc(2026, 5, 16),
@@ -244,6 +279,7 @@ void main() {
     'network manager reaches local service manager loopback service',
     () async {
       final localServiceFacts = await LocalLoopbackServiceProber(
+        operatingSystem: 'linux',
         architectureReader: () async => 'aarch64',
         osReleaseReader: () async => const <String, String>{'ID': 'debian'},
         clock: () => DateTime.utc(2026, 5, 16),
@@ -255,6 +291,7 @@ void main() {
         facts: localServiceFacts,
       );
       final networkFacts = await LocalNetworkProber(
+        operatingSystem: 'linux',
         architectureReader: () async => 'aarch64',
         osReleaseReader: () async => const <String, String>{'ID': 'debian'},
         clock: () => DateTime.utc(2026, 5, 16),
@@ -407,6 +444,7 @@ void main() {
     'clipboard manager follows prober facts adapter manager route',
     () async {
       final facts = await LocalClipboardProber(
+        operatingSystem: 'linux',
         environment: const <String, String>{},
         architectureReader: () async => 'aarch64',
         osReleaseReader: () async => const <String, String>{'ID': 'debian'},
@@ -448,6 +486,7 @@ void main() {
     'notification manager follows prober facts adapter manager route',
     () async {
       final facts = await LocalNotificationProber(
+        operatingSystem: 'linux',
         architectureReader: () async => 'aarch64',
         osReleaseReader: () async => const <String, String>{'ID': 'debian'},
         clock: () => DateTime.utc(2026, 5, 16),
@@ -485,6 +524,10 @@ void main() {
   );
 
   test('local host remains debian arm for manager prober target', () async {
+    if (!Platform.isLinux) {
+      return;
+    }
+
     final machine = await Process.run('uname', const <String>['-m']);
     final osRelease = await File('/etc/os-release').readAsString();
     final isDebianArmHost =

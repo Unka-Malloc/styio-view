@@ -28,6 +28,10 @@ void main() {
   });
 
   test('local shell prober recognizes this host when it is debian arm', () async {
+    if (!Platform.isLinux) {
+      return;
+    }
+
     final facts = await const LocalShellProber().probe();
     final machine = await Process.run('uname', const <String>['-m']);
     final osRelease = await File('/etc/os-release').readAsString();
@@ -41,6 +45,32 @@ void main() {
       expect(facts.compatibilityTarget, 'linux-debian-arm');
       expect(facts.availableShells, isNotEmpty);
     }
+  });
+
+  test('shell prober recognizes Windows PowerShell and cmd shells', () async {
+    final facts = await LocalShellProber(
+      operatingSystem: 'windows',
+      environment: const <String, String>{
+        'SystemRoot': r'C:\Windows',
+        'ComSpec': r'C:\Windows\System32\cmd.exe',
+        'PROCESSOR_ARCHITECTURE': 'AMD64',
+      },
+      executableExists: (path) async =>
+          path.endsWith(r'WindowsPowerShell\v1.0\powershell.exe') ||
+          path.endsWith(r'System32\cmd.exe'),
+      clock: () => DateTime.utc(2026, 6, 26),
+    ).probe();
+
+    expect(facts.operatingSystem, 'windows');
+    expect(facts.distributionId, 'windows');
+    expect(facts.architecture, 'x64');
+    expect(facts.compatibilityTarget, 'windows-x64');
+    expect(facts.defaultShell?.family, ShellFamily.powershell);
+    expect(facts.scriptExtension, '.ps1');
+    expect(
+      facts.availableShells.map((shell) => shell.family),
+      containsAll(<ShellFamily>[ShellFamily.powershell, ShellFamily.cmd]),
+    );
   });
 
   test('shell configuration selects default profile from facts', () {
@@ -183,7 +213,9 @@ void main() {
   });
 
   test('local shell manager executes command through shell adapter', () async {
-    final manager = LocalShellManager.linuxDebianArmForTest(shellPath: '/bin/sh');
+    final manager = LocalShellManager.linuxDebianArmForTest(
+      shellPath: '/bin/sh',
+    );
 
     final result = await manager.run(
       const ShellCommandRequest(command: 'printf vityo-shell'),
@@ -192,7 +224,7 @@ void main() {
     expect(result.succeeded, isTrue);
     expect(result.stdout, 'vityo-shell');
     expect(result.executablePath, '/bin/sh');
-  });
+  }, skip: Platform.isWindows ? 'POSIX shell fixture.' : false);
 
   test('shell manager classifies command failures structurally', () async {
     final manager = LocalShellManager.linuxDebianArmForTest(shellPath: '/bin/sh');
@@ -225,21 +257,27 @@ void main() {
     expect(blockedFailure.sourceManager, 'UnsupportedShellManager');
   });
 
-  test('toolchain shell runtime provides upper-level shell abstraction', () async {
-    final runtime = ToolchainShellRuntime(
-      shellManager: LocalShellManager.linuxDebianArmForTest(shellPath: '/bin/sh'),
-      configuration: ShellConfiguration.fromFacts(
-        ShellFacts.linuxDebianArm(defaultShellPath: '/bin/sh'),
-      ),
-    );
+  test(
+    'toolchain shell runtime provides upper-level shell abstraction',
+    () async {
+      final runtime = ToolchainShellRuntime(
+        shellManager: LocalShellManager.linuxDebianArmForTest(
+          shellPath: '/bin/sh',
+        ),
+        configuration: ShellConfiguration.fromFacts(
+          ShellFacts.linuxDebianArm(defaultShellPath: '/bin/sh'),
+        ),
+      );
 
-    final result = await runtime.run(
-      'printf',
-      arguments: const <String>['runtime-ok'],
-    );
+      final result = await runtime.run(
+        'printf',
+        arguments: const <String>['runtime-ok'],
+      );
 
-    expect(runtime.compatibility.isLinuxDebianArm, isTrue);
-    expect(result.succeeded, isTrue);
-    expect(result.stdout, 'runtime-ok');
-  });
+      expect(runtime.compatibility.isLinuxDebianArm, isTrue);
+      expect(result.succeeded, isTrue);
+      expect(result.stdout, 'runtime-ok');
+    },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
+  );
 }

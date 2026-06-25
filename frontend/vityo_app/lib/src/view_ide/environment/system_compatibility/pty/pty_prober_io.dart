@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../host_platform_io.dart';
 import 'pty_facts.dart';
 import 'pty_prober.dart';
 
@@ -24,9 +25,17 @@ class LocalPtyProber implements PtyProber {
   @override
   Future<PtyFacts> probe() async {
     final detectedAt = (clock ?? DateTime.now)().toUtc();
-    final os = (operatingSystem ?? Platform.operatingSystem).toLowerCase();
-    final osRelease = await _readOsRelease();
-    final architecture = (await _readArchitecture()) ?? 'unknown';
+    final os = localOperatingSystem(operatingSystem);
+    final osRelease = await readHostOsRelease(
+      operatingSystem: operatingSystem,
+      osReleaseReader: osReleaseReader,
+    );
+    final architecture =
+        (await readHostArchitecture(
+          operatingSystem: operatingSystem,
+          architectureReader: architectureReader,
+        )) ??
+        'unknown';
     final distributionId = osRelease['ID']?.toLowerCase() ?? 'unknown';
     final distributionName = osRelease['PRETTY_NAME'] ?? distributionId;
     final scriptPath = os == 'linux' ? await _readScriptPath() : null;
@@ -94,58 +103,4 @@ class LocalPtyProber implements PtyProber {
     return null;
   }
 
-  Future<String?> _readArchitecture() async {
-    final reader = architectureReader;
-    if (reader != null) {
-      return reader();
-    }
-    try {
-      final result = await Process.run(
-        'uname',
-        const <String>['-m'],
-      ).timeout(const Duration(milliseconds: 500));
-      if (result.exitCode == 0) {
-        return result.stdout.toString().trim().toLowerCase();
-      }
-    } on Object {
-      return null;
-    }
-    return null;
-  }
-
-  Future<Map<String, String>> _readOsRelease() async {
-    final reader = osReleaseReader;
-    if (reader != null) {
-      return reader();
-    }
-    final file = File('/etc/os-release');
-    if (!await file.exists()) {
-      return const <String, String>{};
-    }
-    try {
-      return _parseOsRelease(await file.readAsString());
-    } on Object {
-      return const <String, String>{};
-    }
-  }
-
-  Map<String, String> _parseOsRelease(String text) {
-    final result = <String, String>{};
-    for (final rawLine in text.split('\n')) {
-      final line = rawLine.trim();
-      if (line.isEmpty || line.startsWith('#') || !line.contains('=')) {
-        continue;
-      }
-      final separator = line.indexOf('=');
-      final key = line.substring(0, separator).trim();
-      var value = line.substring(separator + 1).trim();
-      if (value.length >= 2 &&
-          ((value[0] == '"' && value[value.length - 1] == '"') ||
-              (value[0] == "'" && value[value.length - 1] == "'"))) {
-        value = value.substring(1, value.length - 1);
-      }
-      result[key] = value;
-    }
-    return result;
-  }
 }

@@ -345,7 +345,7 @@ The CLI connector must receive a real file path. For Vityo-owned workspace docum
 
 The test fixture naming rule applies here: parser-expected fixtures use `.true.styio` or `.false.styio`, and `.true.styio` fixtures must pass the real Styio parser command used by the connector.
 
-Platform discovery currently checks `VITYO_STYIO_BIN`, common local binary paths such as `/usr/local/bin/styio`, and `which styio` on IO platforms. Non-IO platforms return an empty toolchain catalog and keep the local fallback service active.
+Platform discovery currently checks `VITYO_STYIO_BIN`, common local binary paths such as `/usr/local/bin/styio`, Windows executable extensions such as `styio.exe`, and host lookup through `which styio` or `where.exe styio` on IO platforms. Non-IO platforms return an empty toolchain catalog and keep the local fallback service active.
 
 ## 4. Non-Responsibilities
 

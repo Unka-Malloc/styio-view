@@ -27,6 +27,10 @@ void main() {
   });
 
   test('local file system prober recognizes this host when it is debian arm', () async {
+    if (!Platform.isLinux) {
+      return;
+    }
+
     final facts = await const LocalFileSystemProber().probe();
     final machine = await Process.run('uname', const <String>['-m']);
     final osRelease = await File('/etc/os-release').readAsString();
@@ -67,6 +71,23 @@ void main() {
       compatibility.isWithin('/tmp/vityo-other/main.styio', '/tmp/vityo'),
       isFalse,
     );
+  });
+
+  test('file system prober classifies Windows host facts', () async {
+    final facts = await LocalFileSystemProber(
+      operatingSystem: 'windows',
+      architectureReader: () async => 'x64',
+      clock: () => DateTime.utc(2026, 6, 26),
+    ).probe();
+
+    expect(facts.operatingSystem, 'windows');
+    expect(facts.distributionId, 'windows');
+    expect(facts.compatibilityTarget, 'windows-x64');
+    expect(facts.pathStyle, FileSystemPathStyle.windows);
+    expect(facts.pathSeparator, r'\');
+    expect(facts.watchSupport, FileSystemWatchSupport.recursive);
+    expect(facts.caseSensitive, isFalse);
+    expect(facts.supportsAtomicWrite, isTrue);
   });
 
   test('file system compatibility handles windows paths and uri support', () {

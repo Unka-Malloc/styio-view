@@ -128,4 +128,6 @@ Record:
 
 2026-06-25: Vityo-Implementation-Gaps.md 校正 — HostedWorkspaceFileSystemProvider 已从 Closed 降为 Partially implemented；Cache Contract 从 Closed 降为 Partially implemented（CacheStore<K,V> 接口未发布、Level 2 持久化未实现）。Vityo-System-Architecture.md、Vityo-Product-Spec.md、CURRENT-STATE.md 日期更新至 2026-06-25。contracts/README.md 新增 CacheContract 为第九条已发布合同。CURRENT-STATE.md 补充 VITYO_PRODUCT_GATE=1 前置条件与已知文档偏差说明。
 
+2026-06-25: Architecture mainstream alignment package merged — added ADR-0010, four architecture/design SSOTs, API compatibility and security/supply-chain governance docs, architecture alignment rollup, and Agent Runtime / Architecture / Extension Module team runbooks. Regenerated docs indexes and refreshed DOC-STATS.md so the new owner documents are represented in docs delivery tracking.
+
 <!-- codex merge: docs/build/scripts assets imported -->

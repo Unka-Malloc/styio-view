@@ -1,0 +1,102 @@
+# Vityo CODEOWNERS
+# Architecture domain owners with owned paths and required gates.
+# Last updated: 2026-06-24
+
+# ── Architecture Domains ─────────────────────────────────────────────
+
+# Architecture owner: overall architecture governance
+/docs/design/Vityo-Mainstream-Architecture-Alignment.md                    @architecture-owner
+/docs/design/Vityo-System-Architecture.md                                  @architecture-owner
+/docs/adr/                                                                 @architecture-owner
+/docs/teams/ARCHITECTURE-RUNBOOK.md                                        @architecture-owner
+/scripts/architecture_boundary_gate_test.py                                @architecture-owner
+
+# Agent domain: agent core, provider routing, tool permission, patch workflow
+/frontend/vityo_app/lib/src/view_ide/agent/                                @agent-owner
+/frontend/vityo_app/lib/src/agent/                                         @agent-owner
+/frontend/vityo_app/lib/src/view_render/agent/                             @agent-owner
+/docs/design/Vityo-Agent-Runtime-Architecture.md                           @agent-owner
+/docs/teams/AGENT-RUNTIME-RUNBOOK.md                                       @agent-owner
+
+# Module host / extension domain: extension manifest, activation, isolation
+/frontend/vityo_app/lib/src/view_ide/module_host/                          @module-owner
+/frontend/vityo_app/assets/module_manifests/                               @module-owner
+/docs/design/Vityo-Extension-And-Contribution-Model.md                     @module-owner
+/docs/teams/EXTENSION-MODULE-RUNBOOK.md                                    @module-owner
+
+# Adapter contracts domain: backend toolchain, integration, protocol contracts
+/frontend/vityo_app/lib/src/view_ide/backend_toolchain/                    @adapter-owner
+/frontend/vityo_app/lib/src/view_ide/language/contract/                    @adapter-owner
+/docs/contracts/                                                            @adapter-owner
+/docs/design/Vityo-Protocol-And-Capability-Negotiation.md                  @adapter-owner
+/docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md                                   @adapter-owner
+
+# Editor / shell domain: editor core, shell scaffolding, prototype
+/frontend/vityo_app/lib/src/view_ide/editor/                               @editor-owner
+/frontend/vityo_app/lib/src/view_render/editor/                            @editor-owner
+/frontend/vityo_app/lib/src/view_render/shell/                             @editor-owner
+/prototype/                                                                 @editor-owner
+/docs/teams/SHELL-EDITOR-RUNBOOK.md                                        @editor-owner
+
+# Workspace domain: workspace model, document store, search, source control
+/frontend/vityo_app/lib/src/view_ide/workspace/                            @workspace-owner
+/docs/teams/COORDINATION-RUNBOOK.md                                        @workspace-owner
+
+# Workbench domain: IDE capability registry, surface registry, context keys
+/frontend/vityo_app/lib/src/view_ide/workbench/                            @workbench-owner
+/toolchain/vityo-ide-capability-baseline.json                               @workbench-owner
+/scripts/ide-product-parity-gate.py                                         @workbench-owner
+/scripts/vityo-ide-product-gate.py                                          @workbench-owner
+
+# Theme / UX domain: theme system, platform viewport, visual design
+/frontend/vityo_app/lib/src/view_render/theme/                             @theme-owner
+/frontend/vityo_app/lib/src/view_render/platform/                          @theme-owner
+/docs/teams/THEME-UX-RUNBOOK.md                                            @theme-owner
+
+# Foundation / environment domain: datastore, system compat, bootstrap
+/frontend/vityo_app/lib/src/view_ide/foundation/                           @foundation-owner
+/frontend/vityo_app/lib/src/view_ide/environment/                          @foundation-owner
+/docs/teams/DOCS-DELIVERY-RUNBOOK.md                                       @foundation-owner
+
+# Governance: API compatibility, security, supply chain
+/docs/governance/                                                           @governance-owner
+/scripts/release-readiness-gate.py                                          @governance-owner
+/scripts/repo-hygiene-gate.py                                               @governance-owner
+
+# ── Gate and tooling owners ──────────────────────────────────────────
+
+# CI / automation
+/.github/workflows/                                                         @ci-owner
+/scripts/*gate*                                                             @ci-owner
+/toolchain/maintenance-tools.json                                           @ci-owner
+
+# Docs tooling
+/scripts/docs-*                                                             @docs-owner
+/tests/test_docs_*                                                          @docs-owner
+/tests/test_ecosystem_*                                                     @docs-owner
+
+# ── Review Checklist Per Domain ───────────────────────────────────────
+
+# @architecture-owner:
+#  - New public model/contract has test anchor
+#  - Adapter payload has schemaVersion and compatibility note
+#  - view_ide does not import Flutter presentation
+#  - Competitor names do not enter UI
+#  - Architecture docs stay aligned with code structure
+
+# @agent-owner:
+#  - New agent tool has permission test, redaction test, journal test
+#  - No raw API key storage
+#  - Context snapshots are redacted before display
+#  - Tool calls are journaled with permission level
+
+# @module-owner:
+#  - New module contribution has manifest schema test
+#  - Extension isolation level is appropriate
+#  - Staged update lifecycle is tested
+
+# @adapter-owner:
+#  - New adapter payload has schemaVersion
+#  - Unknown field tolerance is verified
+#  - Blocked reasons use standard codes
+#  - Stale revision detection is tested

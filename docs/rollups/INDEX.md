@@ -10,6 +10,7 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
+| `architecture-mainstream-alignment-report-20260624.md` | [Vityo Architecture Mainstream Alignment Report](./architecture-mainstream-alignment-report-20260624.md) | Record the 2026-06-24 architecture alignment sprint outcomes, audit findings, gap closure status, and remaining work. |
 | `CURRENT-STATE.md` | [Current State](./CURRENT-STATE.md) | 提供 Vityo 当前治理和产品主线的压缩入口；优先给出当前文件治理状态、主线推进状态和下一个治理 checkpoint。 |
 | `downstream-implementation-session-report.md` | [Vityo Downstream Implementation Session Report](./downstream-implementation-session-report.md) | Summarize the recent downstream Vityo implementation session, separate real product progress from preview-only support, and state how far the project remains from a genuinely usable IDE. |
 | `NEXT-STAGE-GAP-LEDGER.md` | [Next Stage Gap Ledger](./NEXT-STAGE-GAP-LEDGER.md) | 压缩记录 Vityo 仍与三仓统一文件治理基线存在的活跃缺口，确保治理债务能以 checkpoint 大小推进，而不是继续靠人工兜底。 |

@@ -2,7 +2,9 @@
 
 **Purpose:** Track unfinished Vityo implementation and integration gaps after retiring `docs/plans/` as an active documentation area.
 
-**Last updated:** 2026-06-25 (audit run 02:00–02:30 UTC)
+**Last updated:** 2026-06-25
+
+**Latest audit run:** 2026-06-25 02:00–02:30 UTC
 
 **Status:** Active gap register
 

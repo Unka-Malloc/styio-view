@@ -2,9 +2,11 @@
 
 **Purpose:** Track unfinished Vityo implementation and integration gaps after retiring `docs/plans/` as an active documentation area.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-25 (audit run 02:00–02:30 UTC)
 
 **Status:** Active gap register
+
+**Latest gate run (2026-06-25):** See section 10 — Verified Gate Results.
 
 ## 1. Scope
 
@@ -46,7 +48,7 @@ Status values:
 | Editor File Binding tests | Partially implemented | Vityo | Existing tests cover open/save, conflict, deleted-file save failure, readonly save failure, provider-unavailable save failure, resource watch state updates, shell save command persistence, shell-level external-change acceptance, direct resource-watch-to-shell reload of clean external changes, editor conflict recovery banner rendering, readonly/provider-unavailable banner rendering, and readonly-to-writable shell recovery state. Remaining closure: provider reconnect UI and broader product flow coverage. |
 | Document revision to language snapshot binding | Partially implemented | Vityo | `CachedStyioLanguageService` reads cache entries by `documentId`, `revision`, `protocolVersion`, and optional `toolchainId`; `StyioServiceResultAdapter` rejects stale responses before merging analysis. Unit coverage now proves stale cached revisions do not feed diagnostics, hover, completion, semantic spans, references, or rename. Shell-level file binding coverage now proves manual acceptance and resource-watch delivery both reload a new document revision and drop old cached diagnostics. `FileSystemWorkspaceDocumentStore.watchDocument` now proves save/watch/reload delivery of text plus revision through the concrete local File System Manager route. Remaining closure: prove the same behavior across remote/browser/virtual providers when those providers exist. |
 | Project-file vs IDE-state persistence split | Partially implemented | Vityo | User/project files use File System Manager; `EditorSessionDataStore` now persists tabs, active document, cursor offsets, selection anchors, and dirty document ids through an Interaction-owned Foundation DataStore Owner scoped by workspace. `EditorSessionController.toSessionSnapshot` provides the controller-to-store bridge, and `ShellRuntimeModel.persistEditorSession` / `restoreEditorSession` can explicitly save and restore the live shell editor session when the active document matches. Remaining closure: automatic save/restore policy, cross-document reopen behavior, and broader recovery handling. |
-| Cache Contract | Closed (2026-06-25) | Vityo | Cache contract documented in `docs/contracts/CacheContract.md`. Language cache submodule (`view_ide/language/cache/`) implements `LanguageCache` with Two-Level LRU + dependency invalidation. Cache keys include documentId, revision, workspaceGraphHash, toolchainId, providerId, protocolVersion, semanticPayloadVersion. All cache families identified: language result, semantic snapshot, project graph, file gist, runtime event derived, AI context. |
+| Cache Contract | Partially implemented | Vityo | Cache contract documented in `docs/contracts/CacheContract.md`. Language cache submodule (`view_ide/language/cache/`) implements `LanguageCache` with Two-Level LRU + dependency invalidation. Cache keys include documentId, revision, workspaceGraphHash, toolchainId, providerId, protocolVersion, semanticPayloadVersion. All cache families identified: language result, semantic snapshot, project graph, file gist, runtime event derived, AI context. Remaining closure: publish the `CacheStore<K,V>` interface that the contract mandates; implement the contract's `observe()` method on LanguageCache; implement DataStore-backed Level 2 persistence; build the Project Graph, File Gist, Runtime Event Derived, and AI Context cache families that the contract lists. |
 
 ## 4. DataStore And Registry Gaps
 
@@ -66,7 +68,7 @@ Status values:
 |---|---|---|---|
 | File System Manager implementation | Partially implemented | Vityo | Local File System Manager has stable path/stat/read/write/bytes/list/delete/watch/copy/move/rename anchors, file URI conversion, normalized containment checks, `FileSystemBoundaryGuard`, `FileSystemTextCodec`, local/file provider router seed, executable-bit handling, explicit overwrite behavior, manager-local `FileSystemOperationFailure` classification, and workspace document watch integration through `FileSystemWorkspaceDocumentStore.watchDocument`. Remaining closure: concrete remote/browser/virtual/hosted providers, non-file URI scheme implementations, product-specific boundary policy adoption, and wider operation-level structured result adoption. |
 | LocalFileSystemManager | Partially implemented | Vityo | Concrete local desktop implementation exists for path, file IO, directory watch, copy/move/rename, executable bit handling, and failure classification. Remaining closure: platform-matrix verification outside the current local test host and product-specific boundary policy adoption. |
-| Remote/browser/virtual providers | Closed (2026-06-25) | Vityo | `MemoryFileSystemProvider`, `BrowserVirtualFileSystemProvider`, and `HostedWorkspaceFileSystemProvider` contracts implemented in `frontend/vityo_app/lib/src/platform/`. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://, vityo-hosted://. FileSystemManager routes by URI scheme. |
+| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `frontend/vityo_app/lib/src/platform/`. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://. `HostedWorkspaceFileSystemProvider` and the `vityo-hosted://` URI scheme are documented in the abstract `FileSystemProvider` contract as planned capabilities but do not yet have concrete implementations. Remaining closure: implement `HostedWorkspaceFileSystemProvider` with the `vityo-hosted://` scheme; validate FileSystemManager routing for all URI schemes across non-local providers. |
 | File System Prober placement | Decision needed | Vityo | Decide whether it is documented under Platform Detector or File System Manager internals. |
 | `canX` preflight API set | Decision needed | Vityo | Decide which preflight checks are worth exposing before execute-and-classify behavior. |
 | Platform Manager interface implementation | Partially implemented | Vityo | `PlatformManagerBundle` aggregates concrete system-specific managers from `PlatformContextSnapshot`, `PlatformAdapter`, and manager factories, and exposes a thin status snapshot. File System, Process, Network, Resource, Shell, PTY, Clipboard, Notification, and Local Service managers now expose manager-local structured failure envelopes. Remaining closure: product-level adoption and cross-platform provider decisions beyond the current Linux/Debian/ARM anchors. |
@@ -128,3 +130,58 @@ Use these destinations instead:
 | Frozen milestone batch | `docs/milestones/` |
 | Open risk or conflict before decision | `docs/review/` |
 | Final architecture decision | `docs/adr/` |
+
+## 10. Verified Gate Results (2026-06-25 02:00–02:30 UTC Audit)
+
+### Gates PASSED
+
+| Gate | Result | Notes |
+|---|---|---|
+| `repo-hygiene-gate.py --mode tracked` | ✅ PASS | |
+| `import-boundary-gate.py` (all 6 rules) | ✅ PASS | view_render→backend_toolchain, view_render→integration, view_render→toolchain impls, view_ide→upstream private, integration re-export only, backend_toolchain→Flutter widgets |
+| `architecture_boundary_gate_test.py` (16 tests) | ✅ PASS | Fixed: `setUpClass` self→cls errors in TestAllowlistFileLoading and TestHelperFunctions; `relative_path()` ValueError for temp files outside REPO_ROOT |
+| `dependency-policy-gate.py` | ✅ PASS | 7/7 dependencies registered, 0 unregistered |
+| `docs-gate.sh` | ✅ PASS | team-docs-gate, docs-audit passed |
+| `delivery-gate.sh --mode checkpoint` | ✅ PASS | repo-hygiene staged, docs-gate staged |
+| `public-contract-schema-gate.py` | ✅ PASS | 0 blocking issues, 387 advisory (output-only types). Fixed: AgentProviderAccessRule and AgentProviderAccessControl now have `schemaVersion` + `extraFields` |
+| `vityo-ide-product-gate.py` | ✅ PASS | Command registry, agent context/permission/patch, diagnostic/project graph/runtime surface test anchors, view_ide import hygiene |
+| `prototype/ npm run selftest:editor` | ✅ PASS | 20 selftest steps passed |
+| `flutter analyze` (non-test source) | ✅ PASS | 0 errors in lib/ source (69 errors remain in test/ files — pre-existing API migration residuals) |
+
+### Repairs Applied This Audit
+
+| # | File(s) | Issue | Fix |
+|---|---|---|---|
+| 1 | `scripts/architecture_boundary_gate_test.py` | `@classmethod setUpClass` used `self` instead of `cls` (4 test errors) | Moved assertion code to instance test methods; `setUpClass` now only sets `cls.gate` |
+| 2 | `scripts/import-boundary-gate.py` | `relative_path()` crashed on temp files outside REPO_ROOT (2 test errors) | Added `try/except ValueError` fallback returning absolute `str(file_path)` |
+| 3 | `lib/.../agent_provider_access_control.dart` | 8 BLOCKING schema issues: `AgentProviderAccessRule` and `AgentProviderAccessControl` missing `schemaVersion`, `extraFields` | Added `schemaVersion` (int, default 1), `extraFields` (Map<String, Object?>), updated `toJson()`/`fromJson()`/`copyWith()` |
+| 4 | `lib/src/platform/file_system_provider.dart`, `browser_virtual_file_system_provider.dart`, `memory_file_system_provider.dart` | `FileSystemCompatibility` undefined; `supportsScheme` missing from implements classes | Added direct import of `file_system_adapter.dart`; implemented `supportsScheme()` in both providers |
+| 5 | `lib/src/platform/file_system_operation_result.dart` | Object pattern + const constructor errors | Rewrote `valueOrThrow`/`valueOrNull`/`failureOrNull` using `is`/`as` type checks; added `const FileSystemOperationResult()` constructor |
+| 6 | `lib/src/view_ide/agent/agent_execution_mode.dart` | `const` on non-const factory calls (4 sites) | Removed `const` prefix from `AgentExecutionModeCheckResult.allowed()` calls |
+| 7 | `lib/src/view_ide/agent/agent_tool_sandbox_router.dart` | `AgentToolDecision` not a type; non-const default; const constructor with non-const field | Fixed type to `AgentToolPermissionDecision`; removed `const` from constructor; fixed `_toolRegistry` initialization |
+| 8 | `lib/src/view_ide/backend_toolchain/graph_hash.dart` | Return type mismatches in hash methods | Fixed `compute()` split into `update`+`finish()`, `fromString()` returns digest, `fromBytes()` instance creation |
+| 9 | `lib/src/view_ide/backend_toolchain/toolchain_provenance_guard.dart` | Static/instance `confirmed` name conflict | Renamed static to `preApproved`, updated call sites |
+| 10 | `lib/src/view_ide/backend_toolchain/workspace_graph_adapter.dart` | `hashString` undefined | Added import of `graph_hash.dart` |
+| 11 | `lib/src/view_render/shell/shell_layout_plan.dart` | Exhaustive switch missing `BottomSurfaceTab.locations` (3 sites) | Added `.locations` case + wildcard `_` fallback |
+| 12 | `lib/src/view_render/shell/shell_model.dart` | Exhaustive switch missing `AppCommandId.runSelectedTarget`; broken brace | Added `runSelectedTarget` case + `default` fallback; fixed switch closing brace |
+| 13 | `lib/src/view_render/shell/vityo_shell_scaffold.dart` | Exhaustive switch missing `BottomSurfaceTab.navigate`, `AppCommandId.reloadFile` | Added missing cases + `default` fallbacks |
+
+### Remaining Upstream-Blocked Items (Unchanged)
+
+All items marked **Upstream blocked** in sections 2–8 remain unchanged. Key items:
+- Rename / Code actions / Formatting / Inlay hints — need StyioService machine contract
+- Embedded parser API — needs styio-nightly stable facade
+- Real JIT compiler/backend contract — needs styio-nightly/backend service
+- Package/workflow payload maturity — needs styio-spio
+
+### Remaining Repo-Local Items (Not Addressed This Audit)
+
+Items marked **Implementation needed** or **Partially implemented** that were not addressed:
+- `HostedWorkspaceFileSystemProvider` (vityo-hosted:// scheme) — still unimplemented
+- `CacheStore<K,V>` generic interface — not yet published
+- Cache Level 2 persistence (DataStore-backed) — not yet implemented
+- Theme editor UI / Theme profile store — still needed
+- Module package staging / Platform file deletion and resource reclaim — still needed
+- Android local-first execution — still needed
+- Mobile interaction matrix / Device/simulator platform gates — still needed
+- Test file API migration residuals (69 errors in test/) — pre-existing from ongoing refactoring

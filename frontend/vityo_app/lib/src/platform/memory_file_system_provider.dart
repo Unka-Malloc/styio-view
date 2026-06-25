@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:collection';
 
+import '../view_ide/environment/system_compatibility/file_system/file_system_adapter.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_facts.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_manager.dart';
 import '../view_ide/foundation/lock_service/lock_service.dart';
@@ -71,6 +72,9 @@ class MemoryFileSystemProvider implements FileSystemProvider {
 
   @override
   FileSystemCompatibility get compatibility => _compatibility;
+
+  @override
+  bool supportsScheme(String scheme) => supportedSchemes.contains(scheme);
 
   // -- Entry point used by the router to resolve a memory:// URI to a path --
   String _path(Uri uri) {

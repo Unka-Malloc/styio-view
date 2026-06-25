@@ -28,6 +28,8 @@ class AgentProviderAccessRule {
     required this.action,
     this.reason = '',
     this.targetField = 'providerId',
+    this.schemaVersion = 1,
+    this.extraFields = const <String, Object?>{},
   });
 
   /// Pattern to match. Supports exact match or suffix "*" wildcard.
@@ -42,6 +44,12 @@ class AgentProviderAccessRule {
 
   /// Which field to match against: 'providerId', 'adapterId', 'kind', 'model', or 'endpoint'.
   final String targetField;
+
+  /// Schema version for forward compatibility.
+  final int schemaVersion;
+
+  /// Extra fields for forward compatibility.
+  final Map<String, Object?> extraFields;
 
   bool matchesProviderField(String fieldValue) {
     final normalizedValue = fieldValue.trim().toLowerCase();
@@ -68,19 +76,32 @@ class AgentProviderAccessRule {
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'pattern': pattern,
       'action': action.wireValue,
       'targetField': targetField,
       if (reason.isNotEmpty) 'reason': reason,
+      ...extraFields,
     };
   }
 
   factory AgentProviderAccessRule.fromJson(Map<String, Object?> json) {
+    const knownKeys = {
+      'schemaVersion', 'pattern', 'action', 'targetField', 'reason',
+    };
+    final extraFields = <String, Object?>{};
+    for (final entry in json.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        extraFields[entry.key] = entry.value;
+      }
+    }
     return AgentProviderAccessRule(
       pattern: json['pattern'] as String? ?? '',
       action: _accessActionFromString(json['action'] as String?),
       reason: json['reason'] as String? ?? '',
       targetField: json['targetField'] as String? ?? 'providerId',
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extraFields: extraFields,
     );
   }
 }
@@ -173,6 +194,8 @@ class AgentProviderAccessControl {
   const AgentProviderAccessControl({
     this.allowlist = const <AgentProviderAccessRule>[],
     this.denylist = const <AgentProviderAccessRule>[],
+    this.schemaVersion = 1,
+    this.extraFields = const <String, Object?>{},
   });
 
   /// If non-empty, ONLY providers matching at least one allowlist rule are usable.
@@ -180,6 +203,12 @@ class AgentProviderAccessControl {
 
   /// Providers matching any denylist rule are blocked (always takes precedence).
   final List<AgentProviderAccessRule> denylist;
+
+  /// Schema version for forward compatibility.
+  final int schemaVersion;
+
+  /// Extra fields for forward compatibility.
+  final Map<String, Object?> extraFields;
 
   bool get hasAllowlist => allowlist.isNotEmpty;
 
@@ -254,15 +283,20 @@ class AgentProviderAccessControl {
   AgentProviderAccessControl copyWith({
     List<AgentProviderAccessRule>? allowlist,
     List<AgentProviderAccessRule>? denylist,
+    int? schemaVersion,
+    Map<String, Object?>? extraFields,
   }) {
     return AgentProviderAccessControl(
       allowlist: allowlist ?? this.allowlist,
       denylist: denylist ?? this.denylist,
+      schemaVersion: schemaVersion ?? this.schemaVersion,
+      extraFields: extraFields ?? this.extraFields,
     );
   }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
+      'schemaVersion': schemaVersion,
       'hasAllowlist': hasAllowlist,
       'hasDenylist': hasDenylist,
       'hasRules': hasRules,
@@ -274,10 +308,21 @@ class AgentProviderAccessControl {
         'denylist': denylist
             .map((rule) => rule.toJson())
             .toList(growable: false),
+      ...extraFields,
     };
   }
 
   factory AgentProviderAccessControl.fromJson(Map<String, Object?> json) {
+    const knownKeys = {
+      'schemaVersion', 'hasAllowlist', 'hasDenylist', 'hasRules',
+      'allowlist', 'denylist',
+    };
+    final extraFields = <String, Object?>{};
+    for (final entry in json.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        extraFields[entry.key] = entry.value;
+      }
+    }
     final allowlistRaw = json['allowlist'];
     final denylistRaw = json['denylist'];
     return AgentProviderAccessControl(
@@ -291,6 +336,8 @@ class AgentProviderAccessControl {
               .map(_agentProviderAccessRuleFromJson)
               .toList(growable: false)
           : const <AgentProviderAccessRule>[],
+      schemaVersion: json['schemaVersion'] as int? ?? 1,
+      extraFields: extraFields,
     );
   }
 

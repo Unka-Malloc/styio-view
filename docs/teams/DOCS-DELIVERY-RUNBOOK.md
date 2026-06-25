@@ -126,4 +126,6 @@ Record:
 3. 这批交付影响了哪些 team runbook。
 4. 下一个恢复点和需要继续确认的 owner 团队。
 
+2026-06-25: Vityo-Implementation-Gaps.md 校正 — HostedWorkspaceFileSystemProvider 已从 Closed 降为 Partially implemented；Cache Contract 从 Closed 降为 Partially implemented（CacheStore<K,V> 接口未发布、Level 2 持久化未实现）。Vityo-System-Architecture.md、Vityo-Product-Spec.md、CURRENT-STATE.md 日期更新至 2026-06-25。contracts/README.md 新增 CacheContract 为第九条已发布合同。CURRENT-STATE.md 补充 VITYO_PRODUCT_GATE=1 前置条件与已知文档偏差说明。
+
 <!-- codex merge: docs/build/scripts assets imported -->

@@ -2,23 +2,26 @@ import '../view_ide/environment/system_compatibility/file_system/file_system_man
 
 /// Structured outcome for file system operations.
 sealed class FileSystemOperationResult<T> {
+  const FileSystemOperationResult();
+
   T get valueOrThrow {
-    return switch (this) {
-      FileSystemOperationSuccess<T>(:final value) => value,
-      FileSystemOperationFailureResult<T>(:final failure) =>
-        throw FileSystemBoundaryException(failure),
-    };
+    if (this is FileSystemOperationSuccess<T>) {
+      return (this as FileSystemOperationSuccess<T>).value;
+    }
+    throw FileSystemBoundaryException(
+      (this as FileSystemOperationFailureResult<T>).failure,
+    );
   }
 
-  T? get valueOrNull => switch (this) {
-    FileSystemOperationSuccess<T>(:final value) => value,
-    FileSystemOperationFailureResult<T>(_) => null,
-  };
+  T? get valueOrNull =>
+      this is FileSystemOperationSuccess<T>
+          ? (this as FileSystemOperationSuccess<T>).value
+          : null;
 
-  FileSystemOperationFailure? get failureOrNull => switch (this) {
-    FileSystemOperationSuccess<T>(_) => null,
-    FileSystemOperationFailureResult<T>(:final failure) => failure,
-  };
+  FileSystemOperationFailure? get failureOrNull =>
+      this is FileSystemOperationFailureResult<T>
+          ? (this as FileSystemOperationFailureResult<T>).failure
+          : null;
 
   bool get isSuccess => this is FileSystemOperationSuccess<T>;
   bool get isFailure => this is FileSystemOperationFailureResult<T>;

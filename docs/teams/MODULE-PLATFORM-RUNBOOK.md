@@ -74,3 +74,9 @@ Record:
 2. 更新过的 manifest、matrix 和 schema。
 3. 已确认的 iOS-safe / non-iOS-only 路径。
 4. 下一个平台验证步骤与回滚点。
+
+### 2026-06-25 — Compilation fixes (architecture alignment audit)
+
+- `file_system_provider.dart`, `browser_virtual_file_system_provider.dart`, `memory_file_system_provider.dart`: Added direct import of `file_system_adapter.dart` (`FileSystemCompatibility` not available through transitive import); implemented `supportsScheme()` override required by `implements FileSystemProvider`.
+- `file_system_operation_result.dart`: Rewrote sealed-class object patterns to `is`/`as` type checks for Dart SDK compatibility; added explicit `const` constructor for sealed superclass.
+- No behavioral changes. All existing API contracts preserved.

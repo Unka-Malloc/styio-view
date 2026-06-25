@@ -279,6 +279,8 @@ class TestAllowlistFileLoading(unittest.TestCase):
     def setUpClass(cls):
         """Import the gate module once."""
         cls.gate = _load_gate_module()
+
+    def test_load_allowlist_file(self):
         """Verify loading allowlist from a file."""
         gate = self.gate
         with tempfile.NamedTemporaryFile(
@@ -319,6 +321,8 @@ class TestHelperFunctions(unittest.TestCase):
     def setUpClass(cls):
         """Import the gate module once."""
         cls.gate = _load_gate_module()
+
+    def test_contains_concrete_implementation(self):
         """Verify concrete implementation detection."""
         gate = self.gate
         self.assertTrue(gate.contains_concrete_implementation("execution_adapter_io.dart"))

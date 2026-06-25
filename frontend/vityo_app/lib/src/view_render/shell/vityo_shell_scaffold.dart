@@ -434,6 +434,10 @@ class VityoShellScaffold extends StatelessWidget {
           onSaveCommandPalettePreferences: shell.saveCommandPalettePreferences,
           onSaveThemeOverride: shell.saveThemeOverride,
         );
+      case BottomSurfaceTab.navigate:
+      case BottomSurfaceTab.locations:
+      default:
+        return const SizedBox.shrink();
     }
   }
 }
@@ -2306,8 +2310,12 @@ IconData _commandIcon(AppCommandId commandId) {
       return Icons.merge_type_rounded;
     case AppCommandId.openFile:
       return Icons.folder_open_rounded;
+    case AppCommandId.reloadFile:
+      return Icons.refresh_rounded;
     case AppCommandId.openSettings:
       return Icons.settings_outlined;
+    default:
+      return Icons.help_outline_rounded;
   }
 }
 

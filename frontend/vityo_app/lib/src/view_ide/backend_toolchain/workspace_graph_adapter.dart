@@ -1,3 +1,4 @@
+import 'graph_hash.dart';
 import 'project_graph_adapter.dart';
 import 'project_graph_contract.dart';
 import 'workspace_graph_builder.dart';

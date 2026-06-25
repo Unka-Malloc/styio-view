@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../view_ide/environment/system_compatibility/file_system/file_system_adapter.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_facts.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_manager.dart';
 import 'file_system_operation_result.dart';
@@ -65,6 +66,9 @@ class BrowserVirtualFileSystemProvider implements FileSystemProvider {
 
   @override
   FileSystemCompatibility get compatibility => _compatibility;
+
+  @override
+  bool supportsScheme(String scheme) => supportedSchemes.contains(scheme);
 
   FileSystemOperationFailure _unsupported(String operation, Uri uri) {
     return FileSystemOperationFailure(

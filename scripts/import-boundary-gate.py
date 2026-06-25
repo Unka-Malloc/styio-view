@@ -140,8 +140,11 @@ def extract_exports(file_path: Path) -> List[str]:
 
 
 def relative_path(file_path: Path) -> str:
-    """Return path relative to REPO_ROOT."""
-    return str(file_path.relative_to(REPO_ROOT))
+    """Return path relative to REPO_ROOT, falling back to absolute path."""
+    try:
+        return str(file_path.relative_to(REPO_ROOT))
+    except ValueError:
+        return str(file_path)
 
 
 def is_allowlisted(

@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart' as crypto;
 
 import 'workspace_graph_snapshot.dart';
 
@@ -61,7 +62,8 @@ class GraphHash {
     // 5. Protocol version.
     hashInput.write('protocol:$protocolVersion');
 
-    return digest.update(hashInput.toString());
+    digest.update(hashInput.toString());
+    return digest.finish();
   }
 
   // ---------------------------------------------------------------------------
@@ -70,12 +72,12 @@ class GraphHash {
 
   /// Hashes a string and returns a hex-encoded digest.
   static String fromString(String input) {
-    return _sha256(input);
+    return _sha256(input).finish();
   }
 
   /// Hashes file content bytes and returns a hex-encoded digest.
   static String fromBytes(List<int> bytes) {
-    return _sha256.fromBytes(bytes);
+    return _sha256().fromBytes(bytes);
   }
 
   /// Creates a package ID string suitable for hashing.
@@ -120,11 +122,7 @@ class GraphHash {
   }
 }
 
-/// Minimal SHA-256 implementation for graph hashing.
-///
-/// Uses Dart's built-in `crypto` library if available, otherwise falls back
-/// to a pure-Dart implementation. The hash format must be stable across
-/// platforms and Dart versions.
+/// Incremental SHA-256 helper for graph hashing.
 class _Sha256Helper {
   _Sha256Helper([String? input]) {
     if (input != null) {
@@ -141,9 +139,7 @@ class _Sha256Helper {
 
   /// Produces a hex-encoded SHA-256 digest of all data fed so far.
   String finish() {
-    // Use Dart's built-in sha256 from dart:convert.
-    final bytes = Uint8List.fromList(_buffer);
-    final digest = _sha256FromBytes(bytes);
+    final digest = _sha256FromBytes(_buffer);
     _buffer.clear();
     return digest;
   }
@@ -160,45 +156,10 @@ class _Sha256Helper {
   }
 }
 
-/// Computes SHA-256 using Dart's built-in crypto primitives.
-///
-/// Uses [sha256] from `dart:convert` which is available in all Dart
-/// environments.
-String _sha256FromBytes(Uint8List bytes) {
-  // We import dart:convert which includes sha256 via Converter binding.
-  // If direct sha256 is not available as a top-level, use the BytesBuilder
-  // approach via List<int>.
-  final hashInput = base64.encode(bytes);
-  // For determinism, we use a simple hash approach that is reproducible.
-  // In a real deployment this should use package:crypto's sha256.
-  // Here we use a well-known deterministic hash.
-  return _deterministicHash(bytes);
-}
+String _sha256FromBytes(List<int> bytes) =>
+    crypto.sha256.convert(bytes).toString();
 
-/// Deterministic hash for graph operations.
-///
-/// NOTE: This uses a non-cryptographic hash for performance in the
-/// development toolchain. In production, replace with proper SHA-256
-/// from `package:crypto`.
-String _deterministicHash(Uint8List bytes) {
-  // FNV-1a 64-bit hash for fast, deterministic content addressing.
-  const fnvOffsetBasis = 0xcbf29ce484222325;
-  const fnvPrime = 0x100000001b3;
-
-  var hash = fnvOffsetBasis;
-  for (final byte in bytes) {
-    hash ^= byte;
-    hash *= fnvPrime;
-    // Truncate to 64 bits.
-    hash &= 0xffffffffffffffff;
-  }
-
-  // Format as 16-character hex string.
-  return hash.toRadixString(16).padLeft(16, '0');
-}
-
-/// Public helper to hash a string to a hex string using FNV-1a.
+/// Public helper to hash a string to a hex-encoded SHA-256 digest.
 String hashString(String input) {
-  final bytes = utf8.encode(input);
-  return _deterministicHash(Uint8List.fromList(bytes));
+  return GraphHash.fromString(input);
 }

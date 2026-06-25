@@ -2,11 +2,11 @@
 
 **Purpose:** 冻结 `Vityo` 产品拥有的 adapter 合同；这些合同定义前端需要什么，而不是上游当前碰巧提供什么。
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-06-25
 
 ## Scope
 
-本目录维护七类主合同与一个公共能力快照：
+本目录维护七类主合同、一个公共能力快照与一个缓存合同：
 
 1. `LanguageServiceAdapter`
 2. `ProjectGraphAdapter`
@@ -16,6 +16,7 @@
 6. `DeploymentAdapter`
 7. `ToolchainManagementAdapter`
 8. `AdapterCapabilitySnapshot`
+9. `CacheContract` — 定义 Vityo 内所有缓存家族的统一接口、键空间、失效规则与分层策略
 
 ## Rules
 

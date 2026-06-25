@@ -77,3 +77,5 @@ Record:
 2. 哪些消费团队已经适配，哪些还未适配。
 3. 已补的 schema、计划、测试目录条目。
 4. 仍待上游确认的缺口与下一步动作。
+
+2026-06-25: contracts/README.md 更新 — CacheContract 正式列为第九份已发布合同。Vityo-Implementation-Gaps.md 中此前误标为 Closed 的 Remote/browser/virtual providers 与 Cache Contract 已校正为 Partially implemented。

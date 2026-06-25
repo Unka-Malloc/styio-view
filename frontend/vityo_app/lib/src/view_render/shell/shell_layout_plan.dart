@@ -769,6 +769,8 @@ String _bottomTabTitle(BottomSurfaceTab tab) {
     BottomSurfaceTab.debug => 'Debug',
     BottomSurfaceTab.navigate => 'Navigate',
     BottomSurfaceTab.settings => 'Settings',
+    BottomSurfaceTab.locations => 'Locations',
+    _ => '',
   };
 }
 
@@ -786,6 +788,8 @@ String _bottomTabSurfaceId(BottomSurfaceTab tab) {
     BottomSurfaceTab.debug => 'debug.console',
     BottomSurfaceTab.navigate => 'navigate.quick',
     BottomSurfaceTab.settings => 'settings.workspace',
+    BottomSurfaceTab.locations => 'locations.list',
+    _ => '',
   };
 }
 
@@ -830,6 +834,11 @@ List<String> _bottomTabCapabilities(BottomSurfaceTab tab) {
       'settings',
       'toolchain-configuration',
     ],
+    BottomSurfaceTab.locations => const <String>[
+      'recent-locations',
+      'location-history',
+    ],
+    _ => const <String>[],
   };
 }
 

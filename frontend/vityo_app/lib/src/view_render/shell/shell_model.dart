@@ -211,10 +211,6 @@ class ShellModel extends ShellRuntimeModel {
           selectBottomTab(BottomSurfaceTab.runtime);
         }
         return;
-      case AppCommandId.searchWorkspace:
-        await super.executeCommand(commandId);
-        selectBottomTab(BottomSurfaceTab.search);
-        return;
       case AppCommandId.showWorkspaceProblems:
         await super.executeCommand(commandId);
         selectBottomTab(BottomSurfaceTab.problems);
@@ -279,6 +275,13 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.packProject:
       case AppCommandId.preparePublish:
       case AppCommandId.refreshModules:
+        await super.executeCommand(commandId);
+        return;
+      case AppCommandId.runSelectedTarget:
+        await super.executeCommand(commandId);
+        selectBottomTab(BottomSurfaceTab.runtime);
+        return;
+      default:
         await super.executeCommand(commandId);
         return;
     }

@@ -15,7 +15,6 @@
 /// - All tool calls are logged for audit.
 
 import 'agent_execution_mode.dart';
-import 'agent_provider_adapter.dart';
 import 'agent_tool_call_lifecycle.dart';
 import 'agent_tool_permission.dart';
 import 'agent_tool_registry.dart';
@@ -103,18 +102,18 @@ typedef SandboxToolExecutor = Future<SandboxedToolResult> Function({
 
 /// Sanboxed tool router that enforces permissions and execution mode constraints.
 class AgentToolSandboxRouter {
-  const AgentToolSandboxRouter({
+  AgentToolSandboxRouter({
     required this.executor,
     this.permissionPolicy = const AgentToolPermissionPlan(
       status: AgentToolPermissionPlanStatus.ready,
-      decisions: <AgentToolDecision>[],
+      decisions: const <AgentToolPermissionDecision>[],
     ),
     this.executionModePolicy = const AgentExecutionModePolicy(),
-    this.toolRegistry = const AgentToolRegistry(),
     this.maxOutputLength = 100000,
     this.sensitiveCapabilities = _defaultSensitiveCapabilities,
     this.auditEnabled = true,
-  });
+    AgentToolRegistry? toolRegistry,
+  }) : _toolRegistry = toolRegistry ?? AgentToolRegistry();
 
   /// The underlying tool executor (NOT direct shell access).
   final SandboxToolExecutor executor;
@@ -126,7 +125,10 @@ class AgentToolSandboxRouter {
   final AgentExecutionModePolicy executionModePolicy;
 
   /// Registry of known tools with their capabilities and schemas.
-  final AgentToolRegistry toolRegistry;
+  final AgentToolRegistry _toolRegistry;
+
+  /// Public accessor for the tool registry.
+  AgentToolRegistry get toolRegistry => _toolRegistry;
 
   /// Maximum output length for any tool call result.
   final int maxOutputLength;

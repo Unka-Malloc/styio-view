@@ -115,7 +115,7 @@ class ToolchainInstallConfirmResult {
   const ToolchainInstallConfirmResult(this.confirmed, this.rejectionReason);
 
   /// Pre-approved confirmation — all checks passed.
-  static const confirmed = ToolchainInstallConfirmResult(true, null);
+  static const preApproved = ToolchainInstallConfirmResult(true, null);
 
   /// Creates a denied confirmation with a human-readable [reason].
   static ToolchainInstallConfirmResult denied(String reason) {
@@ -308,7 +308,7 @@ class ProvenanceEndpointGuard {
       }
     }
 
-    return ToolchainInstallConfirmResult.confirmed;
+    return ToolchainInstallConfirmResult.preApproved;
   }
 
   /// Validates a redirect from [original] to [redirect].
@@ -327,7 +327,7 @@ class ProvenanceEndpointGuard {
             'Redirect from $original to $redirect is not allowed.',
       );
     }
-    return ToolchainInstallConfirmResult.confirmed;
+    return ToolchainInstallConfirmResult.preApproved;
   }
 
   /// Executes [plan] through [executor] with pre-flight validation and

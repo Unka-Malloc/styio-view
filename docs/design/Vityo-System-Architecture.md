@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 `Vityo` 的系统层次、adapter 边界、平台执行后端与主线实现策略；具体产品语义以 [Vityo-Product-Spec.md](./Vityo-Product-Spec.md) 为准。
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-06-25
 
 **Status:** Draft SSOT
 

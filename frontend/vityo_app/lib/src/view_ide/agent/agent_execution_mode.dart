@@ -203,7 +203,7 @@ class AgentExecutionModePolicy {
         reason: AgentExecutionBlockedReason.reviewRequiredBlocksAutoApply,
       );
     }
-    return const AgentExecutionModeCheckResult.allowed();
+    return AgentExecutionModeCheckResult.allowed();
   }
 
   /// Check if an IDE command execution is allowed.
@@ -213,7 +213,7 @@ class AgentExecutionModePolicy {
         reason: AgentExecutionBlockedReason.planOnlyBlocksIdeCommands,
       );
     }
-    return const AgentExecutionModeCheckResult.allowed();
+    return AgentExecutionModeCheckResult.allowed();
   }
 
   /// Check if a tool call with the given tool ID and permissions is allowed.
@@ -225,7 +225,7 @@ class AgentExecutionModePolicy {
     // Plan-only mode: only explicitly allowed tools are permitted.
     if (mode == AgentExecutionMode.planOnly) {
       if (planOnlyAllowedToolIds.contains(toolId)) {
-        return const AgentExecutionModeCheckResult.allowed();
+        return AgentExecutionModeCheckResult.allowed();
       }
       return AgentExecutionModeCheckResult.blocked(
         reason: AgentExecutionBlockedReason.planOnlyBlocksToolExecution,
@@ -251,7 +251,7 @@ class AgentExecutionModePolicy {
       }
     }
 
-    return const AgentExecutionModeCheckResult.allowed();
+    return AgentExecutionModeCheckResult.allowed();
   }
 
   AgentExecutionModePolicy withMode(AgentExecutionMode newMode) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../view_ide/environment/system_compatibility/file_system/file_system_adapter.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_facts.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_manager.dart';
 import 'file_system_operation_result.dart';

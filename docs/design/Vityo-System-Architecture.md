@@ -48,6 +48,29 @@ flowchart TB
 3. Web hosted workspace、iOS cloud-only、Android cloud fallback 都属于后端执行/工具链路线，不属于前端业务逻辑。
 4. 新增后端实现默认进入 `backend_toolchain/`；`integration/` 不得重新生长成第二套逻辑根目录。
 
+## 1.2 IDE Implementation Boundary
+
+当前 Flutter 主线分为三个可审计层：
+
+1. `frontend/vityo_app/lib/src/view_ide/`：domain/application/contracts/state 层，承载 editor document、workspace、language service、agent permission、module host、environment sandbox、commands、registry 和 backend toolchain 合同。该层不得 import Flutter presentation APIs。
+2. `frontend/vityo_app/lib/src/view_render/`：Flutter presentation 层，承载 shell、editor/runtime/agent/debug surfaces、theme 和 viewport profile。该层只能依赖已登记的 `view_ide/` contract/model surface。
+3. `frontend/vityo_app/lib/src/app/`：composition root，负责把 `view_ide` 对象接到 `view_render` widgets。
+
+Legacy roots 只保留迁移兼容：
+
+1. `frontend/vityo_app/lib/src/backend_toolchain/` -> `view_ide/backend_toolchain/`
+2. `frontend/vityo_app/lib/src/editor/` -> `view_ide/editor/` 或 `view_render/editor/`
+3. `frontend/vityo_app/lib/src/language/` -> `view_ide/language/`
+
+这些 legacy 文件只能是一行 `export` façade，不得继续承载 parser、adapter、fallback、security policy 或 UI 逻辑。
+
+本边界由以下命令守住：
+
+```bash
+python3 scripts/check_architecture_boundaries.py
+python3 scripts/check_compat_facades.py
+```
+
 ## 2. 主要层次
 
 ### 2.1 Flutter UI Runtime
@@ -79,6 +102,7 @@ flowchart TB
 1. 当前会话中的已挂载模块保持稳定。
 2. 待更新的 module package 只进入 staged 状态，重启后激活。
 3. iOS 不挂载本地编译模块。
+4. module manifest 安全检查归 `view_ide/module_host/module_manifest_security.dart`，manifest 在 activation 前必须完成 schema、permission 和 capability 信任校验。
 
 ### 2.3 Custom Editor Engine
 
@@ -169,6 +193,7 @@ flowchart TB
 1. scratch file 路径与项目路径可以不同实现，但都落到同一 `ExecutionSession` 合同上。
 2. 当前未发布的执行路径必须明确返回 `blocked`。
 3. iOS 主线只走 cloud execution。
+4. 本地执行路径必须通过 `view_ide/environment/execution/execution_sandbox.dart` 做 argv、权限、timeout、workspace 和 redaction 约束。
 
 正式合同见：
 
@@ -186,6 +211,18 @@ flowchart TB
 
 1. [../contracts/RuntimeEventAdapter.md](../contracts/RuntimeEventAdapter.md)
 2. [../contracts/AdapterCapabilitySnapshot.md](../contracts/AdapterCapabilitySnapshot.md)
+
+### 2.9 Agent And Security Baseline
+
+Agent、sandbox、secret 和 manifest trust 属于 `view_ide` domain/application policy，不属于 Flutter surface：
+
+1. Agent permission model：`frontend/vityo_app/lib/src/view_ide/agent/agent_permission_model.dart`
+2. Execution sandbox：`frontend/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
+3. Secret store：`frontend/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
+4. Log redactor：`frontend/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
+5. Module manifest security：`frontend/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+
+本组安全文件由 `python3 scripts/check_security_baseline.py` 保护。UI 和 agent context 只能消费 redacted projection，不得显示或序列化 raw credential。
 
 ## 3. 平台执行矩阵
 
@@ -207,13 +244,17 @@ flowchart TB
 
 当前已落地的实现入口：
 
-1. `frontend/vityo_app/lib/src/frontend_shell/frontend_shell.dart`
-2. `frontend/vityo_app/lib/src/backend_toolchain/backend_toolchain.dart`
-3. `frontend/vityo_app/lib/src/backend_toolchain/adapter_contracts.dart`
-4. `frontend/vityo_app/lib/src/backend_toolchain/project_graph_contract.dart`
-5. `frontend/vityo_app/lib/src/backend_toolchain/project_graph_adapter.dart`
-6. `frontend/vityo_app/lib/src/backend_toolchain/execution_adapter.dart`
-7. `frontend/vityo_app/lib/src/backend_toolchain/runtime_event_adapter.dart`
-8. `frontend/vityo_app/lib/src/integration/`
-9. `frontend/vityo_app/lib/src/app/app_bootstrap.dart`
-10. `frontend/vityo_app/lib/src/app/layout/vityo_shell_scaffold.dart`
+1. `frontend/vityo_app/lib/src/view_ide/`
+2. `frontend/vityo_app/lib/src/view_ide/backend_toolchain/`
+3. `frontend/vityo_app/lib/src/view_ide/editor/`
+4. `frontend/vityo_app/lib/src/view_ide/language/`
+5. `frontend/vityo_app/lib/src/view_ide/workspace/`
+6. `frontend/vityo_app/lib/src/view_ide/agent/`
+7. `frontend/vityo_app/lib/src/view_ide/module_host/`
+8. `frontend/vityo_app/lib/src/view_ide/environment/`
+9. `frontend/vityo_app/lib/src/view_render/`
+10. `frontend/vityo_app/lib/src/app/`
+11. `frontend/vityo_app/lib/src/backend_toolchain/` compatibility façade
+12. `frontend/vityo_app/lib/src/editor/` compatibility façade for migrated entries
+13. `frontend/vityo_app/lib/src/language/` compatibility façade
+14. `frontend/vityo_app/lib/src/integration/` legacy compatibility exports

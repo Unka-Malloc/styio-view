@@ -11,6 +11,8 @@ import 'package:crypto/crypto.dart';
 
 import '../../language/language_contract.dart';
 import '../document/document_state.dart';
+import '../document/text_buffer/text_buffer.dart';
+import '../selection/selection_state.dart';
 
 enum WorkspaceEditSource {
   userInput,
@@ -181,6 +183,22 @@ class EditorTransaction {
   final WorkspaceEdit edit;
 }
 
+class EditorCommandTransaction {
+  const EditorCommandTransaction({
+    required this.id,
+    required this.commandId,
+    required this.edit,
+    this.selectionAfter,
+    this.label,
+  });
+
+  final String id;
+  final String commandId;
+  final WorkspaceEdit edit;
+  final SelectionState? selectionAfter;
+  final String? label;
+}
+
 class EditorTransactionResult {
   const EditorTransactionResult({
     required this.document,
@@ -195,6 +213,22 @@ class EditorTransactionResult {
   final String contentHash;
 
   bool get isApplied => validation.isValid;
+}
+
+class EditorCommandTransactionResult {
+  const EditorCommandTransactionResult({
+    required this.transaction,
+    required this.result,
+    required this.selectionBefore,
+    required this.selectionAfter,
+  });
+
+  final EditorCommandTransaction transaction;
+  final EditorTransactionResult result;
+  final SelectionState selectionBefore;
+  final SelectionState selectionAfter;
+
+  bool get isApplied => result.isApplied;
 }
 
 class EditorTransactionService {
@@ -284,26 +318,26 @@ class EditorTransactionService {
       );
     }
 
-    var nextText = document.text;
+    var nextBuffer = document.textBuffer;
     final descendingEdits = _sortedEdits(edit.edits).reversed;
     for (final textEdit in descendingEdits) {
-      nextText = nextText.replaceRange(
-        textEdit.range.start,
-        textEdit.range.end,
+      nextBuffer = nextBuffer.replace(
+        TextRange(start: textEdit.range.start, end: textEdit.range.end),
         textEdit.newText,
       );
     }
 
-    final nextDocument = DocumentState(
+    final nextSnapshot = nextBuffer.snapshot();
+    final nextDocument = DocumentState.fromTextBuffer(
       documentId: document.documentId,
-      text: nextText,
+      textBufferSnapshot: nextSnapshot,
       revision: document.revision + 1,
     );
     return EditorTransactionResult(
       document: nextDocument,
       validation: WorkspaceEditValidation.ok,
       appliedEditCount: edit.edits.length,
-      contentHash: DocumentContentHash.compute(nextText),
+      contentHash: DocumentContentHash.compute(nextSnapshot.text),
     );
   }
 

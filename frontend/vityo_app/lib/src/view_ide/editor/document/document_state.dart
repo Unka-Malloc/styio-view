@@ -1,3 +1,5 @@
+import 'text_buffer/text_buffer.dart';
+
 class DocumentState {
   const DocumentState({
     required this.documentId,
@@ -5,58 +7,64 @@ class DocumentState {
     required this.revision,
   });
 
+  factory DocumentState.fromTextBuffer({
+    required String documentId,
+    required TextBufferSnapshot textBufferSnapshot,
+    required int revision,
+  }) {
+    final document = DocumentState(
+      documentId: documentId,
+      text: textBufferSnapshot.text,
+      revision: revision,
+    );
+    _snapshotCache[document] = textBufferSnapshot;
+    return document;
+  }
+
+  static final Expando<TextBufferSnapshot> _snapshotCache =
+      Expando<TextBufferSnapshot>('DocumentState.textBufferSnapshot');
+
   final String documentId;
   final String text;
   final int revision;
 
   int get length => text.length;
 
-  List<String> get lines => text.split('\n');
-
-  List<int> get lineStarts {
-    final starts = <int>[];
-    var cursor = 0;
-
-    for (final line in lines) {
-      starts.add(cursor);
-      cursor += line.length;
-      if (cursor < text.length) {
-        cursor += 1;
-      }
+  TextBufferSnapshot get textBufferSnapshot {
+    final cached = _snapshotCache[this];
+    if (cached != null) {
+      return cached;
     }
-
-    return starts;
+    final snapshot = TextBufferSnapshot.fromText(text);
+    _snapshotCache[this] = snapshot;
+    return snapshot;
   }
 
+  PieceTreeTextBuffer get textBuffer {
+    return PieceTreeTextBuffer.fromSnapshot(textBufferSnapshot);
+  }
+
+  DocumentState withTextBuffer() {
+    textBufferSnapshot;
+    return this;
+  }
+
+  List<String> get lines => textBufferSnapshot.lines;
+
+  List<int> get lineStarts => textBufferSnapshot.lineStarts;
+
   DocumentPosition positionForOffset(int offset) {
-    final safeOffset = offset.clamp(0, length);
-    final starts = lineStarts;
-
-    for (var index = starts.length - 1; index >= 0; index -= 1) {
-      final start = starts[index];
-      if (safeOffset >= start) {
-        return DocumentPosition(
-          line: index,
-          column: safeOffset - start,
-        );
-      }
-    }
-
-    return const DocumentPosition(line: 0, column: 0);
+    final position = textBufferSnapshot.positionAt(offset);
+    return DocumentPosition(line: position.line, column: position.column);
   }
 
   int offsetForLineColumn({
     required int line,
     required int column,
   }) {
-    final allLines = lines;
-    if (allLines.isEmpty) {
-      return 0;
-    }
-
-    final safeLine = line.clamp(0, allLines.length - 1);
-    final safeColumn = column.clamp(0, allLines[safeLine].length);
-    return lineStarts[safeLine] + safeColumn;
+    return textBufferSnapshot.offsetAt(
+      TextPosition(line: line < 0 ? 0 : line, column: column < 0 ? 0 : column),
+    );
   }
 
   DocumentState replaceRange({
@@ -66,26 +74,27 @@ class DocumentState {
   }) {
     final normalizedStart = start.clamp(0, length);
     final normalizedEnd = end.clamp(normalizedStart, length);
-    final nextText = text.replaceRange(
-      normalizedStart,
-      normalizedEnd,
-      replacement,
-    );
+    final nextSnapshot = textBuffer
+        .replace(
+          TextRange(
+            start: normalizedStart.toInt(),
+            end: normalizedEnd.toInt(),
+          ),
+          replacement,
+        )
+        .snapshot();
 
-    return DocumentState(
+    return DocumentState.fromTextBuffer(
       documentId: documentId,
-      text: nextText,
+      textBufferSnapshot: nextSnapshot,
       revision: revision + 1,
     );
   }
 }
 
-class DocumentPosition {
+class DocumentPosition extends TextPosition {
   const DocumentPosition({
-    required this.line,
-    required this.column,
+    required super.line,
+    required super.column,
   });
-
-  final int line;
-  final int column;
 }

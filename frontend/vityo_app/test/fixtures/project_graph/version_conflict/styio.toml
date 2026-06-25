@@ -1,0 +1,3 @@
+[workspace]
+members = ["modules/core", "modules/app"]
+

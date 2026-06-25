@@ -16,19 +16,35 @@ REPORT_INCLUDE = "scripts/*.py,prototype/dev_server.py"
 # Excluding them from coverage avoids penalizing the project for
 # untestable infrastructure code.
 COVERAGE_OMIT = [
+    "scripts/check_architecture_boundaries.py",
+    "scripts/check_compat_facades.py",
+    "scripts/check_license_policy.py",
+    "scripts/check_performance_budgets.py",
+    "scripts/check_security_baseline.py",
     "scripts/architecture_boundary_gate_test.py",
+    "scripts/dependency-policy-gate.py",
+    "scripts/github-actions-pin-gate.py",
     "scripts/ide-product-parity-gate.py",
+    "scripts/ide_product_parity_gate_test.py",
+    "scripts/import-boundary-gate.py",
+    "scripts/on2_scanner.py",
+    "scripts/performance-gate.py",
     "scripts/public-contract-schema-gate.py",
+    "scripts/supply-chain-governance-gate.py",
     "scripts/vityo-ide-product-gate.py",
 ]
 TEST_MODULES = (
     "tests.test_repo_hygiene_gate",
+    "tests.test_architecture_boundaries",
     "tests.test_release_readiness_gate",
     "tests.test_ecosystem_cli_doc_gate",
     "tests.test_docs_tooling_coverage",
     "tests.test_repo_hygiene_coverage",
     "tests.test_python_coverage_gate",
     "tests.test_project_coverage_gate",
+    "tests.test_performance_budgets",
+    "tests.test_dependency_policy_gate",
+    "tests.test_supply_chain_governance_gate",
     "prototype.test_dev_server_security",
 )
 

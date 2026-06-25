@@ -3,7 +3,7 @@
 **Purpose:** Map Vityo's architecture to mainstream IDE/agentic-IDE patterns without cloning any competitor. This document defines where Vityo aligns, where it intentionally diverges, and what governance rules maintain the alignment.
 
 **Owner:** Architecture owner (`CODEOWNERS` → architecture domain)
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
 
 ---
 
@@ -21,7 +21,7 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 │  agent/      │  module_host/                 │  ← Agent core + extension host
 │              │  contribution / activation     │
 ├──────────────┴───────────────────────────────┤
-│  backend_toolchain/  Legacy facade            │  ← Re-export only, no new logic
+│  legacy roots        Compatibility facades    │  ← One-line export only, no new logic
 ├──────────────────────────────────────────────┤
 │  app/        Composition root                │  ← Bootstrap, DI, feature flags
 ├──────────────────────────────────────────────┤
@@ -35,8 +35,8 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 |-------|-----------|-----------------|
 | `view_render/` | `view_ide/`, Flutter Material/Widgets/Cupertino | `agent/` provider core, `module_host/` activation |
 | `view_ide/` | Standard Dart, `backend_toolchain/` (shim only) | Flutter Material, Widgets, Cupertino, `dart:ui` |
-| `agent/` | `view_ide/` models, adapter contracts | `view_render/`, Flutter |
-| `module_host/` | `view_ide/` contracts | `view_render/`, Flutter |
+| `view_ide/agent/` | `view_ide/` models, adapter contracts | `view_render/`, Flutter |
+| `view_ide/module_host/` | `view_ide/` contracts | `view_render/`, Flutter |
 | `app/` | All layers | Nothing restricted (composition root) |
 | `prototype/` | Self-contained | `frontend/vityo_app/` (build artifact boundary) |
 
@@ -102,12 +102,19 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 
 ## 3. Architecture Governance Rules
 
-### 3.1 Import Rules (Enforced by `architecture_boundary_gate_test.py`)
+### 3.1 Import Rules
 
 1. `view_ide/` files MUST NOT import from `package:flutter/material.dart`, `package:flutter/widgets.dart`, or `package:flutter/cupertino.dart`.
 2. `view_render/` files MUST NOT import from `view_ide/agent/`, `view_ide/language/service/`, or `view_ide/module_host/`.
-3. `backend_toolchain/` files MUST NOT add new business logic; only re-exports or compatibility shims allowed.
-4. `agent/` files MUST NOT import from `view_render/`.
+3. Legacy `backend_toolchain/`, `editor/`, and `language/` files MUST NOT add new business logic; only one-line compatibility exports are allowed.
+4. `view_ide/agent/` files MUST NOT import from `view_render/`.
+
+Enforcement:
+
+```bash
+python3 scripts/check_architecture_boundaries.py
+python3 scripts/check_compat_facades.py
+```
 
 ### 3.2 Model Rules
 
@@ -115,6 +122,8 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 2. Every adapter payload must support unknown field tolerance.
 3. Every capability declaration must have `blocked` reason when not `implemented`.
 4. Every agent tool must have a permission level, redaction test, and journal test.
+5. Every sandbox, secret, log redaction, module manifest security, or agent permission change must pass `python3 scripts/check_security_baseline.py`.
+6. Every performance-sensitive editor, language, workspace, runtime, AI context, watcher, or UI virtualization change must keep `python3 scripts/check_performance_budgets.py` passing.
 
 ### 3.3 Naming Rules
 

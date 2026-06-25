@@ -8,7 +8,16 @@
 /// - Secrets and tokens are redacted from context snapshots
 
 import '../commands/app_commands.dart';
+import '../environment/configuration/log_redactor.dart';
 import 'agent_session.dart';
+
+final LogRedactor _agentContextSnapshotRedactor = LogRedactor();
+
+Map<String, Object?> _redactAgentContextSnapshotJson(
+  Map<String, Object?> json,
+) {
+  return _agentContextSnapshotRedactor.redactJson(json);
+}
 
 // ── Context Scope ─────────────────────────────────────────────────
 
@@ -425,8 +434,12 @@ class AgentContextSnapshot {
   /// suitable for rendering in the Agent panel.
   AgentContextSummary toDisplaySummary() {
     return AgentContextSummary(
-      workspace: workspaceContext?.workspaceRoot ?? '',
-      activeFile: documentContext?.filePath ?? '',
+      workspace: _agentContextSnapshotRedactor.redact(
+        workspaceContext?.workspaceRoot ?? '',
+      ),
+      activeFile: _agentContextSnapshotRedactor.redact(
+        documentContext?.filePath ?? '',
+      ),
       hasSelection: hasSelection,
       errorCount: diagnosticsContext?.errorCount ?? 0,
       warningCount: diagnosticsContext?.warningCount ?? 0,
@@ -455,7 +468,7 @@ class AgentContextSnapshot {
     'redactionPolicy',
   };
 
-  Map<String, Object?> toJson() => <String, Object?>{
+  Map<String, Object?> toJson() => _redactAgentContextSnapshotJson(<String, Object?>{
         'schemaVersion': schemaVersion,
         'snapshotId': snapshotId,
         'createdAtIso8601': createdAtIso8601,
@@ -471,7 +484,7 @@ class AgentContextSnapshot {
         'profileId': profileId,
         'redactionPolicy': redactionPolicy.toJson(),
         ...extensions,
-      };
+      });
 
   factory AgentContextSnapshot.fromJson(Map<String, Object?> json) {
     return AgentContextSnapshot(

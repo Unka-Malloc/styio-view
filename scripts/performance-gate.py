@@ -25,6 +25,9 @@ ROOT = Path(__file__).resolve().parent.parent
 BENCHMARK_DIR = ROOT / "frontend" / "vityo_app" / "benchmark"
 BASELINE_FILE = ROOT / "docs" / "review" / "performance-baseline.json"
 FLUTTER_APP_DIR = ROOT / "frontend" / "vityo_app"
+BENCHMARK_RUNNER = BENCHMARK_DIR / "run_all_benchmarks.dart"
+BENCHMARK_RUNNER_RELATIVE = Path("benchmark") / "run_all_benchmarks.dart"
+BENCHMARK_MEASURE_FIELDS = ("p95Ms", "p99Ms", "meanMs", "maxMs")
 
 # ---------------------------------------------------------------------------
 # Discoverable benchmarks
@@ -116,6 +119,126 @@ def _check_flutter_available() -> bool:
         return False
 
 
+def _check_dart_available() -> bool:
+    """Check if `dart` is on PATH."""
+    try:
+        result = subprocess.run(
+            ["dart", "--version"],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def _extract_json_payload(stdout: str) -> object | None:
+    """Return the first JSON object or array embedded in command output."""
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(stdout):
+        if char not in "{[":
+            continue
+        try:
+            payload, _end = decoder.raw_decode(stdout[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, (dict, list)):
+            return payload
+    return None
+
+
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _flatten_benchmark_result_list(results: object) -> dict[str, float]:
+    metrics: dict[str, float] = {}
+    if not isinstance(results, list):
+        return metrics
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+        for field in BENCHMARK_MEASURE_FIELDS:
+            value = item.get(field)
+            if _is_number(value):
+                metrics[f"{name}.{field}"] = float(value)
+    return metrics
+
+
+def _normalize_benchmark_metrics(payload: object) -> dict[str, float]:
+    """Normalize benchmark JSON into numeric metrics for baseline comparison."""
+    if isinstance(payload, list):
+        return _flatten_benchmark_result_list(payload)
+    if not isinstance(payload, dict):
+        return {}
+
+    if "metrics" in payload:
+        metrics = payload.get("metrics")
+        if isinstance(metrics, dict):
+            return {
+                str(name): float(value)
+                for name, value in metrics.items()
+                if _is_number(value)
+            }
+    if "name" in payload:
+        return _flatten_benchmark_result_list([payload])
+
+    normalized = {
+        str(name): float(value)
+        for name, value in payload.items()
+        if _is_number(value)
+    }
+    if normalized:
+        return normalized
+
+    return _flatten_benchmark_result_list(payload.get("results"))
+
+
+def _suite_metrics_by_benchmark(payload: object) -> dict[str, dict[str, float]]:
+    if not isinstance(payload, dict):
+        return {}
+    results = payload.get("results")
+    if not isinstance(results, dict):
+        return {}
+    suite_metrics: dict[str, dict[str, float]] = {}
+    for bench_id, bench_payload in results.items():
+        if not isinstance(bench_id, str):
+            continue
+        metrics = _normalize_benchmark_metrics(bench_payload)
+        if metrics:
+            suite_metrics[bench_id] = metrics
+    return suite_metrics
+
+
+def _run_benchmark_suite() -> dict[str, dict[str, float]] | dict[str, str]:
+    """Run the aggregate benchmark runner and return normalized metrics."""
+    if not BENCHMARK_RUNNER.exists():
+        return {"error": f"Benchmark runner not found: {BENCHMARK_RUNNER}"}
+
+    try:
+        result = subprocess.run(
+            ["dart", "run", str(BENCHMARK_RUNNER_RELATIVE)],
+            capture_output=True, text=True, timeout=300,
+            cwd=str(FLUTTER_APP_DIR),
+        )
+        if result.returncode != 0:
+            return {"error": f"Benchmark runner exited {result.returncode}: {result.stderr[:500]}"}
+
+        payload = _extract_json_payload(result.stdout)
+        if payload is None:
+            return {"error": "No JSON output found", "stdout": result.stdout[:500]}
+        suite_metrics = _suite_metrics_by_benchmark(payload)
+        if not suite_metrics:
+            return {"error": "Benchmark runner JSON did not contain metrics"}
+        return suite_metrics
+    except FileNotFoundError:
+        return {"error": "Dart VM not available"}
+    except subprocess.TimeoutExpired:
+        return {"error": "Benchmark runner timed out (300s)"}
+
+
 def _run_dart_benchmark(benchmark_file: str) -> dict | None:
     """Run a single Dart benchmark file and parse JSON output.
 
@@ -134,14 +257,11 @@ def _run_dart_benchmark(benchmark_file: str) -> dict | None:
         if result.returncode != 0:
             return {"error": f"Benchmark exited {result.returncode}: {result.stderr[:500]}"}
 
-        # Try to parse JSON from stdout
-        for line in result.stdout.strip().splitlines():
-            line = line.strip()
-            if line.startswith("{") and line.endswith("}"):
-                try:
-                    return json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+        payload = _extract_json_payload(result.stdout)
+        if payload is not None:
+            metrics = _normalize_benchmark_metrics(payload)
+            if metrics:
+                return metrics
         return {"error": "No JSON output found", "stdout": result.stdout[:500]}
     except FileNotFoundError:
         return {"error": "Dart VM not available"}
@@ -207,26 +327,35 @@ def run_gate(
     Returns: (passed, regressions, all_results).
     """
     flutter_available = _check_flutter_available()
-    dart_available = False
-
-    if not flutter_available:
-        # Try dart directly
-        try:
-            result = subprocess.run(["dart", "--version"], capture_output=True, text=True, timeout=10)
-            dart_available = result.returncode == 0
-        except FileNotFoundError:
-            pass
-
-    runner_available = flutter_available or dart_available
+    dart_available = _check_dart_available()
+    runner_available = dart_available
 
     all_results = {}
     skipped = []
     errors = []
+    suite_results: dict[str, dict[str, float]] = {}
 
     if not runner_available:
-        print("[performance-gate] WARNING: Neither Flutter nor Dart VM found on PATH.")
-        print("[performance-gate] Running in stub mode — all benchmarks marked as skipped.")
-        print("[performance-gate] Install Flutter SDK to run real benchmarks.")
+        warning_stream = sys.stderr if json_output else sys.stdout
+        print("[performance-gate] WARNING: Dart VM not found on PATH.", file=warning_stream)
+        print(
+            "[performance-gate] Running in stub mode — all benchmarks marked as skipped.",
+            file=warning_stream,
+        )
+        print(
+            "[performance-gate] Install Flutter/Dart SDK to run real benchmarks.",
+            file=warning_stream,
+        )
+    else:
+        suite_result = _run_benchmark_suite()
+        if "error" not in suite_result:
+            suite_results = suite_result  # type: ignore[assignment]
+        else:
+            errors.append({
+                "id": "benchmark_runner",
+                "name": "Benchmark Runner",
+                "error": suite_result.get("error", "Unknown error"),
+            })
 
     for bench in DISCOVERED_BENCHMARKS:
         bench_file = bench["file"]
@@ -258,6 +387,27 @@ def run_gate(
                 "category": bench["category"],
                 "status": "skipped",
                 "reason": "No Dart/Flutter runtime",
+                "metrics": {},
+            }
+            continue
+
+        if bench["id"] in suite_results:
+            all_results[bench["id"]] = {
+                "name": bench["name"],
+                "category": bench["category"],
+                "status": "ok",
+                "metrics": suite_results[bench["id"]],
+            }
+            continue
+
+        if suite_results:
+            err_msg = "Benchmark missing from aggregate runner output"
+            errors.append({"id": bench["id"], "name": bench["name"], "error": err_msg})
+            all_results[bench["id"]] = {
+                "name": bench["name"],
+                "category": bench["category"],
+                "status": "error",
+                "error": err_msg,
                 "metrics": {},
             }
             continue
@@ -296,7 +446,7 @@ def run_gate(
     if save:
         save_baseline(BASELINE_FILE, all_results)
 
-    passed = len(regressions) == 0
+    passed = len(regressions) == 0 and len(errors) == 0
 
     if json_output:
         output = {
@@ -304,6 +454,8 @@ def run_gate(
             "passed": passed,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "runner_available": runner_available,
+            "flutter_available": flutter_available,
+            "dart_available": dart_available,
             "total_benchmarks": len(DISCOVERED_BENCHMARKS),
             "ran": sum(1 for r in all_results.values() if r["status"] == "ok"),
             "skipped": len(skipped),
@@ -320,6 +472,8 @@ def run_gate(
         print("  Vityo Performance Gate")
         print("=" * 60)
         print(f"  Runner available: {runner_available}")
+        print(f"  Flutter available: {flutter_available}")
+        print(f"  Dart available: {dart_available}")
         print(f"  Total benchmarks: {len(DISCOVERED_BENCHMARKS)}")
         print(f"  Ran: {sum(1 for r in all_results.values() if r['status'] == 'ok')}")
         print(f"  Skipped: {len(skipped)}")

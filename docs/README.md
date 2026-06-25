@@ -19,6 +19,7 @@
 11. 与上游 `styio` 的对接边界、接口合同和阻塞项放在 `docs/external/for-styio/`。
 12. 与上游 `spio` 的项目图、toolchain 与 workflow handoff 放在 `docs/external/for-spio/`。
 13. 团队 ownership、review routing、handoff 和 checkpoint 入口放在 `docs/teams/`。
+14. 兼容性、安全、CODEOWNERS 过渡和发布规则放在 `docs/governance/`。
 
 ## Entry Points
 
@@ -37,6 +38,10 @@
 13. `spio` 对接入口：[external/for-spio/INDEX.md](./external/for-spio/INDEX.md)
 14. 手写 Web IDE 工程手册：[specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md](./specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md)
 15. 团队协作入口：[teams/COORDINATION-RUNBOOK.md](./teams/COORDINATION-RUNBOOK.md)
+16. 治理入口：[governance/README.md](./governance/README.md)
+17. API 兼容与废弃策略：[governance/API-COMPATIBILITY.md](./governance/API-COMPATIBILITY.md)
+18. 安全与供应链策略：[governance/SECURITY-AND-SUPPLY-CHAIN.md](./governance/SECURITY-AND-SUPPLY-CHAIN.md)
+19. 发布 checklist：[governance/RELEASE-CHECKLIST.md](./governance/RELEASE-CHECKLIST.md)
 
 ## Maintenance Rules
 
@@ -50,3 +55,4 @@
 8. 若实现边界与上游仓库当前实现冲突，先把 required handoff 记录到 `external/for-styio/` 或 `external/for-spio/`，再在本仓 ADR 中记录适配决策。
 9. 若一次变更改变了团队 owned surface、review 路由或 handoff 路径，同批更新受影响的 `teams/*.md` 和 `teams/COORDINATION-RUNBOOK.md`。
 10. 新增文档必须使用当前产品名 `Vityo`；下游仓库名称使用 `vityo-nightly`，不能再引入旧产品名、旧仓库名或旧路径。
+11. 若变更改变 public API、compat façade、sandbox/security、release gate 或 performance gate，同批更新 `docs/governance/` 和受影响 team runbook。

@@ -495,11 +495,18 @@ def run_release_build(repo_root: Path, flutter_dir: Path) -> CheckResult:
     if not app_dir.is_dir():
         return CheckResult("flutter release build", False, f"missing: {app_dir}")
 
-    proc = subprocess.run(
-        ["flutter", "build", "web", "--release"],
-        cwd=app_dir,
-        check=False,
-    )
+    try:
+        proc = subprocess.run(
+            ["flutter", "build", "web", "--release"],
+            cwd=app_dir,
+            check=False,
+        )
+    except FileNotFoundError:
+        return CheckResult(
+            name="flutter release build",
+            ok=False,
+            detail="flutter executable not found in PATH",
+        )
     return CheckResult(
         name="flutter release build",
         ok=proc.returncode == 0,

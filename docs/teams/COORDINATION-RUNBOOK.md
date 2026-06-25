@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 的日常协调入口；显式维护团队 ownership、review routing、升级路径和 checkpoint 纪律，但不替代产品规格、系统架构或 adapter 合同 SSOT。
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-06-25
 
 ## Mission
 
@@ -56,6 +56,7 @@ flowchart TB
 4. contract、schema、`external/for-styio/`、`external/for-spio/` 变更需要 Adapter / Contracts review；任何消费这些合同的团队都要同步确认。
 5. theme、字体、palette、布局系统或容器约束变更需要 Theme / UX review，并由对应消费团队确认不会破坏交互。
 6. docs 树结构、里程碑、history、review 和 repo hygiene 相关变更需要 Docs / Delivery review；若改动改变了某团队工作流，该团队也要共同 review。
+7. API compatibility、deprecation、security baseline、release checklist、CODEOWNERS 或 PR template 变化需要 Governance / Docs review；若影响 agent、module、adapter 或 architecture owner surface，对应团队必须追加 review。
 
 ## Escalation Rules
 
@@ -84,6 +85,10 @@ flowchart TB
 | adapter / schema / handoff 合同 | 更新 `docs/contracts/`、`docs/external/for-styio/`、`docs/external/for-spio/` 与 `TEST-CATALOG` 对应映射 |
 | module lifecycle / distribution / capability | 更新 manifest、capability matrix、分发 schema 与测试目录条目 |
 | 文档结构或交付边界 | 更新相关 `README.md` / `INDEX.md` 并运行 `python3 scripts/repo-hygiene-gate.py --mode tracked` |
+| IDE architecture / compat façade | `python3 scripts/check_architecture_boundaries.py` 与 `python3 scripts/check_compat_facades.py` |
+| sandbox / agent / module security | `python3 scripts/check_security_baseline.py`，必要时同步安全治理文档 |
+| performance-sensitive IDE path | `python3 scripts/check_performance_budgets.py`，必要时运行 `python3 scripts/performance-gate.py --threshold 1.10` |
+| release / checkpoint rules | 更新 [../governance/RELEASE-CHECKLIST.md](../governance/RELEASE-CHECKLIST.md)，运行 `python3 scripts/release-readiness-gate.py --skip-build` |
 
 ## Handoff / Recovery
 

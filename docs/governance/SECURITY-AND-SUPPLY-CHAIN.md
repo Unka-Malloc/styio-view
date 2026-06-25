@@ -3,7 +3,7 @@
 **Purpose:** Define Vityo's security posture and supply chain integrity rules — credential safety, agent permission boundaries, dependency provenance, SBOM, generated artifact policy, and release readiness.
 
 **Owner:** Governance owner (`CODEOWNERS` → governance domain)
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-25
 
 ---
 
@@ -39,7 +39,7 @@ All UI surfaces that display settings or context MUST redact:
 - Home directory paths → `$HOME/...`
 - User-specific paths → `[USER_PATH]/...`
 
-Reference: `AgentRedactionPolicy` in `agent_context.dart`
+Reference implementations include `log_redactor.dart`, `secret_store.dart`, and the agent context projection code. Any new display surface must use the redacted projection, not raw provider configuration.
 
 ## 2. Agent Permission Boundaries
 
@@ -67,7 +67,28 @@ Permission elevation requires explicit user confirmation with clear reason displ
 - Agent tool calls requiring network must declare `network` scope.
 - Network requests from agent tools are subject to timeout and rate limiting.
 
+### 2.4 Permission Model File
+
+`frontend/vityo_app/lib/src/view_ide/agent/agent_permission_model.dart` is the governed permission model. Changes to permission names, ordering, default behavior, or approval text must be reviewed as compatibility and security changes.
+
+Required evidence:
+
+1. Existing tool declarations still parse.
+2. Unknown or malformed permission values fail closed.
+3. Permission elevation is journaled.
+4. Displayed context is redacted before it reaches the agent surface.
+
 ## 3. Dependency Provenance
+
+### 3.0 Automated Update Coverage
+
+Dependabot is configured in `.github/dependabot.yml` for:
+
+- GitHub Actions workflows at `/`
+- Flutter/Dart `pub` dependencies at `/frontend/vityo_app`
+- npm prototype dependencies at `/prototype`
+
+Dependabot PRs are review inputs, not automatic policy approval. Dependency additions still require `DEPENDENCY-USAGE.md` license/source/usage evidence before merge.
 
 ### 3.1 Flutter/Dart Dependencies
 
@@ -90,7 +111,7 @@ Permission elevation requires explicit user confirmation with clear reason displ
 
 ### 4.1 SBOM Entry Point
 
-The release readiness gate (`scripts/release-readiness-gate.py`) includes SBOM checks:
+`DEPENDENCY-USAGE.md` is the lightweight SBOM evidence surface for the current repository. It records runtime, dev, prototype, CI/toolchain, license, source boundary, and usage boundary evidence. The release readiness gate (`scripts/release-readiness-gate.py`) and supply-chain governance gate (`scripts/supply-chain-governance-gate.py`) validate that this evidence remains present.
 
 - Dependency inventory (Flutter, Node, Python)
 - License inventory (all dependencies must have permissible licenses)
@@ -131,23 +152,73 @@ Before activation, extensions are checked for:
 - License compatibility
 - Permission reasonableness (e.g., a theme extension requesting `network` is suspicious)
 
-## 6. Build and CI Security
+### 5.3 Module Manifest Security Baseline
 
-### 6.1 CI Workflow Security
+`frontend/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart` owns trust checks for module manifests. Manifest security changes must preserve:
+
+1. Schema validation before activation.
+2. Deny-by-default behavior for unknown privileged capabilities.
+3. Explicit permission rationale for network, process, workspace write, and toolchain execution.
+4. A test covering malicious, malformed, or oversized manifest payloads when validation behavior changes.
+
+## 6. Execution Sandbox
+
+### 6.1 Sandbox Contract
+
+`frontend/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart` owns local execution policy. Security-critical execution must:
+
+1. Build commands from argv arrays, not string concatenation.
+2. Avoid shell mode for security-critical paths.
+3. Apply workspace, environment, timeout, and permission scopes before process launch.
+4. Redact command output before it is logged or exposed to agent context.
+5. Return structured denial reasons instead of falling back to unrestricted execution.
+
+### 6.2 Secret Store And Log Redaction
+
+`secret_store.dart` owns credential references and local secret lookup. `log_redactor.dart` owns redaction before logs, diagnostics, runtime output, or agent context are displayed.
+
+No change may move raw credential values into serialized settings, workspace files, test fixtures, module manifests, or agent journals.
+
+## 7. Build and CI Security
+
+### 7.1 CI Workflow Security
 
 - GitHub Actions workflows use pinned action versions with commit hashes.
+- Until every workflow action is SHA-pinned, `scripts/github-actions-pin-gate.py --mode audit` must run in CI and release readiness can promote it to `--mode enforce`.
+- Every workflow must declare top-level minimum permissions. The default baseline is `permissions: contents: read`; write scopes require explicit review.
+- `pull_request_target` is disabled by policy for repository workflows.
 - Secrets are passed via GitHub Secrets, never hardcoded.
 - Build artifacts are scanned before deployment.
 
-### 6.2 Local Development Security
+### 7.2 Executable Governance Gates
+
+CI must keep these checks wired through `.github/workflows/audit.yml` or `.github/workflows/repo-hygiene.yml`:
+
+- `scripts/supply-chain-governance-gate.py` - workflow permissions, Dependabot coverage, SBOM evidence, secret ignore baseline, high-signal secret scan.
+- `scripts/dependency-policy-gate.py` - Flutter/Dart and prototype npm dependency registration in `DEPENDENCY-USAGE.md`.
+- `scripts/github-actions-pin-gate.py` - action SHA-pinning audit/enforcement.
+- `scripts/check_security_baseline.py` - security-critical implementation baseline.
+- `scripts/check_license_policy.py` - package allowlist and forbidden license marker checks.
+
+### 7.3 Local Development Security
 
 - `.env` files and local secrets are in `.gitignore`.
 - Pre-commit hooks enforce credential scanning (`scripts/repo-hygiene-gate.py`).
 - `git secrets` or similar should be configured locally.
 
-## 7. Incident Response
+### 7.4 Security Baseline Gate
 
-### 7.1 Credential Leak
+Run:
+
+```bash
+python3 scripts/check_security_baseline.py
+```
+
+The gate requires the sandbox, log redactor, secret store, module manifest security, and agent permission model files to exist, and rejects known-dangerous patterns such as silent security catches, shell-mode execution in critical paths, string-built subprocess commands, literal authorization headers, and API-key-like literals.
+
+## 8. Incident Response
+
+### 8.1 Credential Leak
 
 If a credential is accidentally committed:
 1. Immediately revoke the credential from the provider.
@@ -155,7 +226,7 @@ If a credential is accidentally committed:
 3. Rotate to a new credential.
 4. Update credential reference in configuration.
 
-### 7.2 Dependency Vulnerability
+### 8.2 Dependency Vulnerability
 
 If a dependency has a known vulnerability:
 1. Assess impact (is Vityo using the vulnerable code path?).
@@ -163,9 +234,10 @@ If a dependency has a known vulnerability:
 3. If no patch, apply workaround or remove dependency.
 4. Document in release notes.
 
-## 8. Cross-Reference
+## 9. Cross-Reference
 
 - [API Compatibility](./API-COMPATIBILITY.md)
+- [Release Checklist](./RELEASE-CHECKLIST.md)
 - [Architecture Runbook](../teams/ARCHITECTURE-RUNBOOK.md)
 - [Agent Runtime Runbook](../teams/AGENT-RUNTIME-RUNBOOK.md)
 - [Vityo Agent Runtime Architecture](../design/Vityo-Agent-Runtime-Architecture.md)

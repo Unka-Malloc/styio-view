@@ -142,7 +142,7 @@ void main() {
 
       // Workspace context serialized
       final ws = json['workspaceContext'] as Map<String, Object?>;
-      expect(ws['workspaceRoot'], '/home/user/project');
+      expect(ws['workspaceRoot'], '<redacted-path>');
     });
 
     test('snapshot roundtrips through JSON', () {

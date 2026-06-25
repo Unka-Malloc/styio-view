@@ -12,6 +12,7 @@ Own the Vityo agent runtime: agent context model, provider routing, tool permiss
 
 Primary paths:
 1. `frontend/vityo_app/lib/src/view_ide/agent/`
+   - `agent_permission_model.dart` - governed permission model for agent tools and sandbox routing
 2. `frontend/vityo_app/lib/src/agent/`
 3. `frontend/vityo_app/lib/src/view_render/agent/`
 4. `docs/design/Vityo-Agent-Runtime-Architecture.md`
@@ -30,6 +31,8 @@ Key SSOTs:
 4. Verify new agent tools declare appropriate permission levels.
 5. Verify patch workflow goes through workspace edit transaction (not direct file writes).
 6. Verify tool calls create journal entries with permission level, timestamp, and outcome.
+7. Verify permission model changes fail closed for unknown values and remain compatible with module-contributed tools.
+8. Verify security-sensitive changes pass the sandbox/security baseline gate.
 
 ## Change Classes
 
@@ -43,6 +46,7 @@ Minimum:
 ```bash
 cd frontend/vityo_app && flutter test test/agent_context_test.dart test/agent_settings_test.dart test/agent_permission_policy_test.dart test/agent_patch_transaction_test.dart
 cd frontend/vityo_app && flutter analyze
+python3 scripts/check_security_baseline.py
 ```
 
 ## Cross-Team Dependencies

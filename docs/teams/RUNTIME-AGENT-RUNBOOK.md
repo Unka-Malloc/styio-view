@@ -17,6 +17,7 @@ Primary paths:
    - `agent_execution_mode.dart` — agent execution mode (plan-only, build-capable)
    - `agent_provider_access_control.dart` — provider allowlist/denylist
    - `agent_tool_sandbox_router.dart` — sandboxed tool execution router
+   - `agent_permission_model.dart` — governed permission model for agent tools, provider routes, and approval journals
 3. `frontend/vityo_app/lib/src/view_render/runtime/`
 4. `frontend/vityo_app/lib/src/view_render/agent/`
 5. `frontend/vityo_app/lib/src/runtime/`
@@ -40,6 +41,8 @@ Key SSOTs:
 5. `agent_profile.dart` 只冻结 provider route、默认 endpoint、profile JSON 和 local-bridge eligibility；本轮不新增真实 AI provider 调用、账号策略或云端 secret 管理。
 6. runtime replay、debug lane 和 hosted execution 摘要必须消费 `backend_toolchain` adapter payload，不得回读 legacy integration façade 或上游 human stderr。
 7. runtime/agent 的纯状态归 `view_ide`，Flutter surface 和 debug/agent panel 呈现归 `view_render`；legacy `src/runtime/` 与 `src/agent/` 只能保留 façade。
+8. agent tool execution must route through the sandbox/permission model; UI surfaces may display only redacted context and journal summaries.
+9. Permission, provider route, or sandbox changes must update [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md) when the policy changes.
 
 ## Change Classes
 
@@ -53,6 +56,7 @@ Minimum:
 
 ```bash
 cd frontend/vityo_app && flutter analyze && flutter test
+python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

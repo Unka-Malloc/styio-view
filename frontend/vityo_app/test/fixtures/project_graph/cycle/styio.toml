@@ -1,0 +1,3 @@
+[workspace]
+members = ["modules/a", "modules/b", "modules/c"]
+

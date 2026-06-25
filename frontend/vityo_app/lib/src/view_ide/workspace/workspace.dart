@@ -30,6 +30,7 @@ export 'workspace_file_operations.dart';
 export 'workspace_file_command_router.dart';
 export 'workspace_file_explorer_controller.dart';
 export 'workspace_file_explorer_state_store.dart';
+export 'vfs.dart';
 export 'source_control_status.dart';
 export 'source_control_status_controller.dart';
 export 'source_control_commit_draft_store.dart';

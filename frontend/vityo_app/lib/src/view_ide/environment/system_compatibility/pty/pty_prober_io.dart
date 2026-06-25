@@ -81,9 +81,8 @@ class LocalPtyProber implements PtyProber {
     }
     try {
       final result = await Process.run(
-        'command',
-        const <String>['-v', 'script'],
-        runInShell: true,
+        'which',
+        const <String>['script'],
       ).timeout(const Duration(milliseconds: 500));
       if (result.exitCode == 0) {
         final value = result.stdout.toString().trim();

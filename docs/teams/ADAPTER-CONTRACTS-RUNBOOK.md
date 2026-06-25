@@ -46,6 +46,7 @@ Key SSOTs:
 8. 对 blocked-result、missing-binary、cloud-only fallback 这类 adapter 返回值，优先收成共享 helper，避免 execution / toolchain / runtime adapters 各自维护一份近似但会漂移的消息和状态。
 9. hosted execution、hosted workspace、project graph、dependency source、deployment 和 toolchain state 都必须通过 published payload / adapter contract 进入前端，不允许读 `spio` 私有目录或解析 human stderr。
 10. `LanguageServiceAdapter` 的 symbol / reference / definition / rename 字段属于编辑器核心合同；本地 token-derived fallback 可以先实现体验，但 adapter handoff 必须保留 declaration range、usage range、declaration-vs-usage 标记、`unresolved-reference` range 和 rename `TextEdit` 计划，不能退化成纯字符串搜索或前端静默改写。
+11. Legacy `backend_toolchain/` façade files must stay one-line exports to `view_ide/backend_toolchain/`; adapter contract changes must update the owner path and keep `python3 scripts/check_compat_facades.py` passing.
 
 ## Change Classes
 
@@ -59,6 +60,7 @@ Minimum:
 
 ```bash
 cd frontend/vityo_app && flutter analyze && flutter test
+python3 scripts/check_compat_facades.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

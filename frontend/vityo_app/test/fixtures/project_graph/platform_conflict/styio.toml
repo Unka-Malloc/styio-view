@@ -1,0 +1,8 @@
+[workspace]
+members = ["modules/native", "modules/web"]
+
+[toolchain]
+channel = "nightly"
+version = "2026.6.25"
+platforms = ["linux"]
+

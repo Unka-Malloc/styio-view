@@ -1,0 +1,4 @@
+channel = "nightly"
+version = "2026.6.25"
+platforms = ["linux", "web"]
+

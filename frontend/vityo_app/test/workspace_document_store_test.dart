@@ -4,7 +4,7 @@ import 'package:vityo_app/src/app/state/workspace_document_store.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 
 void main() {
-  test('shared preferences store persists saved documents', () async {
+  test('shared preferences store persists only non-sensitive document metadata', () async {
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
     final store = SharedPreferencesWorkspaceDocumentStore(preferences);
@@ -18,7 +18,8 @@ void main() {
     await store.saveDocument(document);
     final loaded = await store.loadDocument(document.documentId);
 
-    expect(loaded.text, document.text);
+    expect(preferences.getString('vityo.document.main.styio.text'), isNull);
+    expect(loaded.text, isNot(document.text));
     expect(loaded.revision, document.revision);
   });
 }

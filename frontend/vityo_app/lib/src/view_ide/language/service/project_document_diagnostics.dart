@@ -1,4 +1,5 @@
 import '../../editor/document_state.dart';
+import '../diagnostics/diagnostic_range_index.dart';
 import '../contract/language_contract.dart';
 import '../diagnostics/styio_compiler_diagnostics.dart';
 import '../diagnostics/styio_numeric_diagnostics.dart';
@@ -45,13 +46,18 @@ class ProjectDocumentDiagnostics {
         tokens: tokens,
       ),
     ];
-    diagnostics.addAll(
-      _symbolDiagnostics(document.text, tokens).where(
-        (diagnostic) =>
-            diagnostic.code == 'unresolved-reference' ||
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    final diagnosticGate = DiagnosticRangeGate(
+      diagnostics,
+      revision: document.revision,
     );
+    for (final diagnostic in _symbolDiagnostics(document.text, tokens)) {
+      if (diagnostic.code == 'unresolved-reference') {
+        diagnosticGate.add(diagnostic);
+        continue;
+      }
+      diagnosticGate.addIfNoOverlap(diagnostic);
+    }
+    diagnosticGate.flush();
     return _dedupeDiagnostics(diagnostics);
   }
 
@@ -986,13 +992,6 @@ class ProjectDocumentDiagnostics {
       }
     }
     return deduped;
-  }
-
-  bool _diagnosticsIntersectRange(
-    List<Diagnostic> diagnostics,
-    SourceRange range,
-  ) {
-    return diagnostics.any((diagnostic) => diagnostic.range.intersects(range));
   }
 
   SourceRange _lineRange(String source, int offset) {

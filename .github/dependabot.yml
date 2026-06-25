@@ -1,0 +1,46 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "ci"
+      - "supply-chain"
+    commit-message:
+      prefix: "ci"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "pub"
+    directory: "/frontend/vityo_app"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:30"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "flutter"
+      - "supply-chain"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "npm"
+    directory: "/prototype"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "Asia/Shanghai"
+    labels:
+      - "dependencies"
+      - "prototype"
+      - "supply-chain"
+    commit-message:
+      prefix: "deps"
+    open-pull-requests-limit: 5

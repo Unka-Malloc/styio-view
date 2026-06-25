@@ -8,6 +8,35 @@ class ContextKey<T extends Object> {
   final T defaultValue;
 }
 
+class WorkbenchContextKeys {
+  const WorkbenchContextKeys._();
+
+  static const hasActiveEditor = ContextKey<bool>(
+    id: 'workbench.hasActiveEditor',
+    defaultValue: false,
+  );
+  static const activeEditorId = ContextKey<String>(
+    id: 'workbench.activeEditorId',
+    defaultValue: '',
+  );
+  static const activeLanguageId = ContextKey<String>(
+    id: 'editor.activeLanguageId',
+    defaultValue: '',
+  );
+  static const workspaceTrusted = ContextKey<bool>(
+    id: 'workspace.isTrusted',
+    defaultValue: false,
+  );
+  static const editorHasSelection = ContextKey<bool>(
+    id: 'editor.hasSelection',
+    defaultValue: false,
+  );
+  static const workspaceIndexReady = ContextKey<bool>(
+    id: 'workspace.indexReady',
+    defaultValue: false,
+  );
+}
+
 class ContextKeyExpression {
   const ContextKeyExpression.equals({
     required this.key,
@@ -23,6 +52,14 @@ class ContextKeyExpression {
     } on StateError {
       return false;
     }
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'operator': 'equals',
+      'key': key,
+      'value': value,
+    };
   }
 }
 
@@ -53,6 +90,34 @@ class ContextKeyService {
 
   void setRawValue(String key, Object value) {
     _values[key] = value;
+  }
+
+  void setActiveEditor({
+    required String editorId,
+    required String languageId,
+    bool hasSelection = false,
+  }) {
+    final normalizedEditorId = editorId.trim();
+    _values[WorkbenchContextKeys.hasActiveEditor.id] =
+        normalizedEditorId.isNotEmpty;
+    _values[WorkbenchContextKeys.activeEditorId.id] = normalizedEditorId;
+    _values[WorkbenchContextKeys.activeLanguageId.id] = languageId.trim();
+    _values[WorkbenchContextKeys.editorHasSelection.id] = hasSelection;
+  }
+
+  void clearActiveEditor() {
+    _values[WorkbenchContextKeys.hasActiveEditor.id] = false;
+    _values[WorkbenchContextKeys.activeEditorId.id] = '';
+    _values[WorkbenchContextKeys.activeLanguageId.id] = '';
+    _values[WorkbenchContextKeys.editorHasSelection.id] = false;
+  }
+
+  void setWorkspaceTrust(bool trusted) {
+    _values[WorkbenchContextKeys.workspaceTrusted.id] = trusted;
+  }
+
+  void setWorkspaceIndexReady(bool ready) {
+    _values[WorkbenchContextKeys.workspaceIndexReady.id] = ready;
   }
 
   bool matchesAll(Iterable<ContextKeyExpression> expressions) {

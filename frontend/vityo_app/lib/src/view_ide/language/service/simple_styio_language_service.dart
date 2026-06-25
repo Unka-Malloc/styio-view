@@ -1,5 +1,6 @@
 import '../../editor/document_state.dart';
 import '../contract/language_contract.dart';
+import '../diagnostics/diagnostic_range_index.dart';
 import '../diagnostics/styio_compiler_diagnostics.dart';
 import '../diagnostics/styio_numeric_diagnostics.dart';
 import 'styio_language_service.dart';
@@ -846,54 +847,34 @@ class SimpleStyioLanguageService implements StyioLanguageService {
     final diagnostics = <Diagnostic>[
       ..._compilerDiagnostics.analyze(source: source, tokens: tokens),
     ];
+    final diagnosticGate = DiagnosticRangeGate(diagnostics);
 
-    diagnostics.addAll(
-      _duplicateDeclarationDiagnostics(tokens, symbolSnapshot).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _duplicateDeclarationDiagnostics(tokens, symbolSnapshot),
     );
-    diagnostics.addAll(
-      _parameterShadowingDiagnostics(tokens, symbolSnapshot).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _parameterShadowingDiagnostics(tokens, symbolSnapshot),
     );
-    diagnostics.addAll(_importOptimizationDiagnostics(source));
-    diagnostics.addAll(_todoCommentDiagnostics(tokens));
-    diagnostics.addAll(_constantConditionDiagnostics(source, tokens));
-    diagnostics.addAll(
-      _numericDiagnostics
-          .analyze(source: source, tokens: tokens)
-          .where(
-            (diagnostic) =>
-                !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-          ),
+    diagnosticGate.addAll(_importOptimizationDiagnostics(source));
+    diagnosticGate.addAll(_todoCommentDiagnostics(tokens));
+    diagnosticGate.addAll(_constantConditionDiagnostics(source, tokens));
+    diagnosticGate.addAllIfNoOverlap(
+      _numericDiagnostics.analyze(source: source, tokens: tokens),
     );
-    diagnostics.addAll(_simplifiableBooleanNegationDiagnostics(source, tokens));
-    diagnostics.addAll(
-      _simplifiableBooleanComparisonDiagnostics(source, tokens).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAll(
+      _simplifiableBooleanNegationDiagnostics(source, tokens),
     );
-    diagnostics.addAll(
-      _simplifiableBooleanExpressionDiagnostics(source, tokens).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _simplifiableBooleanComparisonDiagnostics(source, tokens),
     );
-    diagnostics.addAll(
-      _simplifiableNegatedComparisonDiagnostics(source, tokens).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _simplifiableBooleanExpressionDiagnostics(source, tokens),
     );
-    diagnostics.addAll(
-      _simplifiableDeMorganDiagnostics(source, tokens).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _simplifiableNegatedComparisonDiagnostics(source, tokens),
+    );
+    diagnosticGate.addAllIfNoOverlap(
+      _simplifiableDeMorganDiagnostics(source, tokens),
     );
 
     for (var index = 0; index < tokens.length; index += 1) {
@@ -901,7 +882,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       if (token.kind == TokenKind.keyword && token.lexeme == 'let') {
         final lineRange = _lineRangeForToken(tokens, index);
         if (!_lineHasLexeme(tokens, lineRange, '=')) {
-          diagnostics.add(
+          diagnosticGate.add(
             Diagnostic(
               severity: DiagnosticSeverity.warning,
               code: 'missing-assignment',
@@ -912,18 +893,19 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         }
       }
     }
+    diagnosticGate.flush();
 
     for (final symbol in symbolSnapshot.symbols) {
       if (!_shouldReportUnusedLocalSymbol(tokens, symbol) ||
           _hasDuplicateDeclaration(tokens, symbolSnapshot, symbol) ||
-          _diagnosticsIntersectRange(diagnostics, symbol.declarationRange)) {
+          diagnosticGate.intersects(symbol.declarationRange)) {
         continue;
       }
       final references = symbolSnapshot.referencesForTarget(symbol.nameRange);
       if (references.any((reference) => !reference.isDeclaration)) {
         continue;
       }
-      diagnostics.add(
+      diagnosticGate.add(
         Diagnostic(
           severity: DiagnosticSeverity.warning,
           code: 'unused-local-symbol',
@@ -932,18 +914,13 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ),
       );
     }
+    diagnosticGate.flush();
 
-    diagnostics.addAll(
-      _redundantTypeAnnotationDiagnostics(source).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _redundantTypeAnnotationDiagnostics(source),
     );
-    diagnostics.addAll(
-      _redundantParenthesesDiagnostics(source, tokens).where(
-        (diagnostic) =>
-            !_diagnosticsIntersectRange(diagnostics, diagnostic.range),
-      ),
+    diagnosticGate.addAllIfNoOverlap(
+      _redundantParenthesesDiagnostics(source, tokens),
     );
 
     final resolvedRanges = {
@@ -958,7 +935,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         continue;
       }
 
-      diagnostics.add(
+      diagnosticGate.add(
         Diagnostic(
           severity: DiagnosticSeverity.warning,
           code: 'unresolved-reference',
@@ -967,6 +944,7 @@ class SimpleStyioLanguageService implements StyioLanguageService {
         ),
       );
     }
+    diagnosticGate.flush();
 
     return diagnostics;
   }
@@ -3737,13 +3715,6 @@ class SimpleStyioLanguageService implements StyioLanguageService {
       candidate = '$baseName$suffix';
     }
     return candidate;
-  }
-
-  bool _diagnosticsIntersectRange(
-    List<Diagnostic> diagnostics,
-    SourceRange range,
-  ) {
-    return diagnostics.any((diagnostic) => diagnostic.range.intersects(range));
   }
 
   SourceRange _lineRangeForToken(List<TokenSpan> tokens, int tokenIndex) {

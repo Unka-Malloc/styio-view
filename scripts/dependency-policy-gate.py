@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dependency Policy Gate — enforce that every pubspec.yaml dependency is registered in DEPENDENCY-USAGE.md.
+"""Dependency Policy Gate — enforce that dependency manifests are registered in DEPENDENCY-USAGE.md.
 
 Usage:
     python3 scripts/dependency-policy-gate.py              # check mode (default)
@@ -20,6 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PUBSPEC_PATH = ROOT / "frontend" / "vityo_app" / "pubspec.yaml"
+PACKAGE_JSON_PATH = ROOT / "prototype" / "package.json"
 POLICY_PATH = ROOT / "DEPENDENCY-USAGE.md"
 
 # Dependencies that are part of the Flutter/Dart SDK — always allowed without explicit registration.
@@ -118,29 +119,58 @@ def parse_policy_registered_deps(path: Path) -> set[str]:
     return registered
 
 
+def parse_package_json_dependencies(path: Path) -> dict[str, list[str]]:
+    """Parse package.json and return dependency names by npm dependency section."""
+    if not path.exists():
+        return {}
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"ERROR: invalid package.json at {path}: {exc}", file=sys.stderr)
+        sys.exit(2)
+    if not isinstance(payload, dict):
+        print(f"ERROR: package.json root must be an object at {path}", file=sys.stderr)
+        sys.exit(2)
+
+    result: dict[str, list[str]] = {}
+    for section in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
+        raw = payload.get(section, {})
+        if raw is None:
+            continue
+        if not isinstance(raw, dict):
+            print(f"ERROR: package.json `{section}` must be an object at {path}", file=sys.stderr)
+            sys.exit(2)
+        result[section] = sorted(name for name in raw if isinstance(name, str) and name)
+    return result
+
+
 def run_gate(json_output: bool = False) -> tuple[bool, list[str], list[str], list[dict]]:
     """Run the dependency policy gate.
 
     Returns: (passed, registered, unregistered, details_for_json)
     """
     pubspec = parse_pubspec_dependencies(PUBSPEC_PATH)
+    package_json = parse_package_json_dependencies(PACKAGE_JSON_PATH)
     policy = parse_policy_registered_deps(POLICY_PATH)
 
-    all_deps = set(pubspec.get("dependencies", [])) | set(pubspec.get("dev_dependencies", []))
+    dart_deps = set(pubspec.get("dependencies", [])) | set(pubspec.get("dev_dependencies", []))
+    npm_deps = {pkg for names in package_json.values() for pkg in names}
+    all_deps = dart_deps | npm_deps
     registered_deps = sorted(all_deps & policy)
     unregistered_deps = sorted(all_deps - policy - SDK_DEPENDENCIES)
-    sdk_deps_seen = sorted(all_deps & SDK_DEPENDENCIES)
+    sdk_deps_seen = sorted(dart_deps & SDK_DEPENDENCIES)
 
     passed = len(unregistered_deps) == 0
 
     details = [
-        {"status": "registered", "package": p, "section": _find_section(p, pubspec)}
+        {"status": "registered", "package": p, "section": _find_section(p, pubspec, package_json)}
         for p in registered_deps
     ] + [
-        {"status": "unregistered", "package": p, "section": _find_section(p, pubspec)}
+        {"status": "unregistered", "package": p, "section": _find_section(p, pubspec, package_json)}
         for p in unregistered_deps
     ] + [
-        {"status": "sdk_exempt", "package": p, "section": _find_section(p, pubspec)}
+        {"status": "sdk_exempt", "package": p, "section": _find_section(p, pubspec, package_json)}
         for p in sdk_deps_seen
     ]
 
@@ -149,6 +179,7 @@ def run_gate(json_output: bool = False) -> tuple[bool, list[str], list[str], lis
             "gate": "dependency-policy",
             "passed": passed,
             "pubspec_path": str(PUBSPEC_PATH),
+            "package_json_path": str(PACKAGE_JSON_PATH),
             "policy_path": str(POLICY_PATH),
             "total_dependencies": len(all_deps),
             "registered": len(registered_deps),
@@ -159,6 +190,7 @@ def run_gate(json_output: bool = False) -> tuple[bool, list[str], list[str], lis
         print(json.dumps(output, indent=2))
     else:
         print(f"[dependency-policy-gate] pubspec: {PUBSPEC_PATH}")
+        print(f"[dependency-policy-gate] package.json: {PACKAGE_JSON_PATH}")
         print(f"[dependency-policy-gate] policy:  {POLICY_PATH}")
         print(f"[dependency-policy-gate] total dependencies found: {len(all_deps)}")
         print(f"[dependency-policy-gate] registered: {len(registered_deps)}")
@@ -178,11 +210,18 @@ def run_gate(json_output: bool = False) -> tuple[bool, list[str], list[str], lis
     return passed, registered_deps, unregistered_deps, details
 
 
-def _find_section(pkg: str, pubspec: dict[str, list[str]]) -> str:
+def _find_section(
+    pkg: str,
+    pubspec: dict[str, list[str]],
+    package_json: dict[str, list[str]],
+) -> str:
     if pkg in pubspec.get("dependencies", []):
-        return "dependencies"
+        return "pubspec.dependencies"
     if pkg in pubspec.get("dev_dependencies", []):
-        return "dev_dependencies"
+        return "pubspec.dev_dependencies"
+    for section, names in package_json.items():
+        if pkg in names:
+            return f"package.json.{section}"
     return "unknown"
 
 

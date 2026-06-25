@@ -287,6 +287,8 @@ class EnvironmentVariableRedactionPolicy {
       'secret',
       'token',
       'password',
+      'apikey',
+      '_key',
       'privatekey',
       'private_key',
       'credential',

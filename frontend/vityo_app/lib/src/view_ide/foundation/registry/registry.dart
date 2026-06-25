@@ -1,5 +1,6 @@
 import '../datastore/datastore.dart';
 import '../resource_coordinator/resource_coordinator.dart';
+export 'service_registry.dart';
 
 enum FoundationRegistryEntryState { registered, active, disabled }
 

@@ -1,0 +1,13 @@
+[module]
+name = "demo/app"
+version = "1.0.0"
+platforms = ["web"]
+
+[dependencies]
+core = { path = "../core", package = "demo/core", version = "^1.0.0" }
+ui = { path = "../ui", package = "demo/ui", version = "^1.0.0" }
+
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+

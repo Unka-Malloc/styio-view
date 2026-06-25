@@ -341,31 +341,95 @@ class ConfigurationStore {
     );
   }
 
-  void _assertNoSecretLikeValues(Map<String, Object?> value) {
-    for (final entry in value.entries) {
-      final key = entry.key.toLowerCase();
-      if (key.contains('secret') ||
-          key.contains('token') ||
-          key.contains('password') ||
-          key.contains('privatekey')) {
-        throw ArgumentError.value(
-          entry.key,
-          'value',
-          'Configuration values must store CredentialReference instead of raw secrets.',
-        );
+  void _assertNoSecretLikeValues(Object? value, {String path = 'value'}) {
+    if (value is Map) {
+      for (final entry in value.entries) {
+        final key = entry.key.toString();
+        final nestedPath = '$path.$key';
+        if (_isSecretLikeConfigurationKey(key)) {
+          throw ArgumentError.value(
+            key,
+            nestedPath,
+            'Configuration values must store CredentialReference instead of raw secrets.',
+          );
+        }
+        _assertNoSecretLikeValues(entry.value, path: nestedPath);
       }
-      final nested = entry.value;
-      if (nested is Map<String, Object?>) {
-        _assertNoSecretLikeValues(nested);
-      } else if (nested is Map) {
-        _assertNoSecretLikeValues(
-          nested.map(
-            (key, value) => MapEntry<String, Object?>(key.toString(), value),
-          ),
-        );
+      return;
+    }
+    if (value is Iterable) {
+      var index = 0;
+      for (final entry in value) {
+        _assertNoSecretLikeValues(entry, path: '$path[$index]');
+        index += 1;
       }
+      return;
+    }
+    if (value is String && _containsSecretLikeString(value)) {
+      throw ArgumentError.value(
+        '<redacted>',
+        path,
+        'Configuration values must store CredentialReference instead of raw secrets.',
+      );
     }
   }
+
+  bool _isSecretLikeConfigurationKey(String key) {
+    final normalized = key.replaceAll(RegExp(r'[^A-Za-z0-9]'), '').toLowerCase();
+    if (normalized.startsWith('credentialreference') ||
+        normalized == 'credentialref' ||
+        normalized.endsWith('environmentname') ||
+        normalized == 'focustoken' ||
+        normalized == 'semantictoken') {
+      return false;
+    }
+    return normalized == 'authorization' ||
+        normalized == 'apikey' ||
+        normalized.endsWith('apikey') ||
+        normalized == 'token' ||
+        normalized.endsWith('bearertoken') ||
+        normalized.endsWith('accesstoken') ||
+        normalized.endsWith('refreshtoken') ||
+        normalized.endsWith('idtoken') ||
+        normalized.endsWith('authtoken') ||
+        normalized.endsWith('githubtoken') ||
+        normalized.endsWith('registrytoken') ||
+        normalized.endsWith('secret') ||
+        normalized.endsWith('password') ||
+        normalized.endsWith('privatekey') ||
+        normalized.endsWith('cloudsessionid') ||
+        normalized.endsWith('hostedsessionid');
+  }
+
+  bool _containsSecretLikeString(String value) {
+    return _secretLikeStringPatterns.any((pattern) => pattern.hasMatch(value));
+  }
+
+  static final List<RegExp> _secretLikeStringPatterns = <RegExp>[
+    RegExp(
+      r'\bAuthorization\s*[:=]\s*(?:Bearer|Basic)?\s*[A-Za-z0-9._~+/=-]{8,}',
+      caseSensitive: false,
+    ),
+    RegExp(r'\bBearer\s+[A-Za-z0-9._~+/=-]{8,}', caseSensitive: false),
+    RegExp(
+      r'[?&][a-z0-9_.-]*(?:api[_-]?key|apikey|access[_-]?token|'
+      r'refresh[_-]?token|token|secret|password|session[_-]?id)=[^&\s]+',
+      caseSensitive: false,
+    ),
+    RegExp(
+      r'''["']?[a-z0-9_.-]*(?:api[_-]?key|apikey|access[_-]?key|'''
+      r'''secret[_-]?key|private[_-]?key|access[_-]?token|'''
+      r'''refresh[_-]?token|id[_-]?token|bearer[_-]?token|'''
+      r'''github[_-]?token|registry[_-]?token|auth[_-]?token|'''
+      r'''session[_-]?token|token|secret|password|passwd|pwd|'''
+      r'''cloud[_-]?session[_-]?id|hosted[_-]?session[_-]?id)'''
+      r'''["']?\s*[:=]\s*["']?[^"'\s,;}&]+''',
+      caseSensitive: false,
+    ),
+    RegExp(r'\bsk-(?:proj-)?[A-Za-z0-9_-]{8,}\b'),
+    RegExp(r'\bgithub_pat_[A-Za-z0-9_]{20,}\b'),
+    RegExp(r'\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b'),
+  ];
 
   ConfigurationSettingChange _changeFromFoundation(
     FoundationDataStoreChange change,

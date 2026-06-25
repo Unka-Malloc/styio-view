@@ -21,6 +21,9 @@ abstract class WatchableWorkspaceDocumentStore implements WorkspaceDocumentStore
 
 class SharedPreferencesWorkspaceDocumentStore
     implements WorkspaceDocumentStore {
+  /// SharedPreferences is limited to non-sensitive metadata. Document text may
+  /// contain source, credentials, or user data and must use a filesystem or
+  /// hosted workspace store.
   SharedPreferencesWorkspaceDocumentStore(
     this._preferences, {
     this.keyPrefix = 'vityo.document',
@@ -31,19 +34,19 @@ class SharedPreferencesWorkspaceDocumentStore
 
   @override
   Future<DocumentState> loadDocument(String path) async {
-    final text = _preferences.getString(_textKey(path));
     final revision = _preferences.getInt(_revisionKey(path));
+    final seeded = EditorSessionController.seedDocumentForPath(path);
 
-    if (text == null) {
-      return EditorSessionController.seedDocumentForPath(path);
-    }
-
-    return DocumentState(documentId: path, text: text, revision: revision ?? 0);
+    return DocumentState(
+      documentId: path,
+      text: seeded.text,
+      revision: revision ?? seeded.revision,
+    );
   }
 
   @override
   Future<void> saveDocument(DocumentState document) async {
-    await _preferences.setString(_textKey(document.documentId), document.text);
+    await _preferences.remove(_textKey(document.documentId));
     await _preferences.setInt(
       _revisionKey(document.documentId),
       document.revision,
@@ -59,7 +62,7 @@ class SharedPreferencesWorkspaceDocumentStore
 
   @override
   Future<bool> documentExists(String path) async {
-    return _preferences.getString(_textKey(path)) != null;
+    return _preferences.getInt(_revisionKey(path)) != null;
   }
 
   @override

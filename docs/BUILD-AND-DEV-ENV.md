@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the repository-level entry point for bootstrapping a fresh machine, installing shared GUI toolchains, and routing contributors to the correct implementation surface.
 
-**Last updated:** 2026-05-10
+**Last updated:** 2026-06-25
 
 ## Who This Is For
 
@@ -181,8 +181,34 @@ Repository docs and hygiene checks:
 
 ```bash
 ./scripts/docs-gate.sh
+python3 scripts/docs-index.py --write
+python3 -m pytest tests/test_docs_tooling_coverage.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ./scripts/delivery-gate.sh --mode checkpoint --skip-health
+```
+
+IDE architecture, compatibility, sandbox/security, and performance budget checks:
+
+```bash
+python3 scripts/check_architecture_boundaries.py
+python3 scripts/check_compat_facades.py
+python3 scripts/check_security_baseline.py
+python3 scripts/check_performance_budgets.py
+git diff --check
+```
+
+`check_architecture_boundaries.py` enforces `view_ide/` as the Flutter-free domain/application layer and `view_render/` as the presentation layer. `check_compat_facades.py` keeps migrated legacy roots as one-line `export` facades. `check_security_baseline.py` protects sandbox execution, log redaction, secret storage, module manifest security, and agent permission modeling. `check_performance_budgets.py` verifies benchmark coverage for the performance-sensitive IDE paths.
+
+When Dart or Flutter is available and the change touches editor data structures, language cache, workspace graph, runtime events, AI context packing, watchers, or UI virtualization, run the benchmark regression gate:
+
+```bash
+python3 scripts/performance-gate.py --threshold 1.10
+```
+
+Static release readiness without a release build:
+
+```bash
+python3 scripts/release-readiness-gate.py --skip-build
 ```
 
 Full checkpoint delivery floor:
@@ -198,6 +224,8 @@ Full checkpoint delivery floor:
 3. Product and system design: [design/Vityo-System-Architecture.md](./design/Vityo-System-Architecture.md)
 4. Team and review routing: [teams/COORDINATION-RUNBOOK.md](./teams/COORDINATION-RUNBOOK.md)
 5. Host-local Windows workspace bootstrap: [../scripts/bootstrap-workspace.ps1](../scripts/bootstrap-workspace.ps1)
+6. Contribution workflow: [../CONTRIBUTING.md](../CONTRIBUTING.md)
+7. Release checklist: [governance/RELEASE-CHECKLIST.md](./governance/RELEASE-CHECKLIST.md)
 
 ## Related Docs
 

@@ -397,6 +397,7 @@ class CommandShortcutCapturePolicy {
     }
     if (!shortcut.control &&
         !shortcut.meta &&
+        !shortcut.alt &&
         shortcut.key.toLowerCase().startsWith('key')) {
       return CommandShortcutCapturePolicyResult(
         decision: CommandShortcutCaptureDecision.needsModifierHint,
@@ -559,6 +560,7 @@ String commandShortcutSignature(AppCommandShortcutSpec shortcut) {
   final parts = <String>[
     if (shortcut.control) 'ctrl',
     if (shortcut.meta) 'meta',
+    if (shortcut.alt) 'alt',
     if (shortcut.shift) 'shift',
     shortcut.key.trim(),
   ];
@@ -569,6 +571,7 @@ String commandShortcutDisplayLabel(AppCommandShortcutSpec shortcut) {
   final parts = <String>[
     if (shortcut.control) 'Ctrl',
     if (shortcut.meta) 'Cmd',
+    if (shortcut.alt) 'Alt',
     if (shortcut.shift) 'Shift',
     shortcut.key.trim(),
   ];
@@ -583,6 +586,7 @@ AppCommandShortcutSpec? parseCommandShortcutExpression(String expression) {
       .toList(growable: false);
   var control = false;
   var meta = false;
+  var alt = false;
   var shift = false;
   var key = '';
   for (final token in tokens) {
@@ -594,6 +598,9 @@ AppCommandShortcutSpec? parseCommandShortcutExpression(String expression) {
       case 'command':
       case 'meta':
         meta = true;
+      case 'alt':
+      case 'option':
+        alt = true;
       case 'shift':
         shift = true;
       default:
@@ -607,6 +614,7 @@ AppCommandShortcutSpec? parseCommandShortcutExpression(String expression) {
     key,
     control: control,
     meta: meta,
+    alt: alt,
     shift: shift,
   );
 }
@@ -633,6 +641,7 @@ AppCommandShortcutSpec _shortcutFromJson(Map<String, Object?> json) {
     json['key'] as String? ?? '',
     control: json['control'] as bool? ?? false,
     meta: json['meta'] as bool? ?? false,
+    alt: json['alt'] as bool? ?? false,
     shift: json['shift'] as bool? ?? false,
   );
 }

@@ -20,7 +20,8 @@ Primary paths:
 7. `docs/teams/ARCHITECTURE-RUNBOOK.md`
 8. `docs/governance/`
 9. `CODEOWNERS`
-10. `scripts/architecture_boundary_gate_test.py`
+10. `scripts/check_architecture_boundaries.py`
+11. `scripts/check_compat_facades.py`
 
 Key SSOTs:
 1. `架构对齐 -> ../design/Vityo-Mainstream-Architecture-Alignment.md`
@@ -32,11 +33,12 @@ Key SSOTs:
 ## Daily Workflow
 
 1. Review PRs touching architecture-owned paths against the review checklist.
-2. Run `python3 scripts/architecture_boundary_gate_test.py` on any view_ide/view_render changes.
+2. Run `python3 scripts/check_architecture_boundaries.py` on any `view_ide` / `view_render` changes.
 3. Ensure new public models have schemaVersion fields.
 4. Ensure new adapter payloads have capabilities maps and unknown field tolerance.
 5. Verify no competitor brand names enter UI-visible strings.
 6. Create ADRs for significant architectural decisions.
+7. Keep legacy `backend_toolchain/`, `editor/`, and `language/` roots as one-line compatibility facades only.
 
 ## Change Classes
 
@@ -48,7 +50,8 @@ Key SSOTs:
 
 Minimum:
 ```bash
-python3 scripts/architecture_boundary_gate_test.py
+python3 scripts/check_architecture_boundaries.py
+python3 scripts/check_compat_facades.py
 python3 scripts/ide-product-parity-gate.py
 python3 scripts/vityo-ide-product-gate.py --mode checkpoint
 cd frontend/vityo_app && flutter analyze

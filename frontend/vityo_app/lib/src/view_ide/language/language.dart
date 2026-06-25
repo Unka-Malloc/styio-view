@@ -5,6 +5,7 @@ export 'semantic_snapshot_panel.dart';
 export 'diagnostics/diagnostics.dart';
 export 'features/features.dart';
 export 'semantic/styio_symbol_index.dart';
+export 'service/language_analysis_scheduler.dart';
 export 'service/legacy_project_document_rule_provider.dart';
 export 'service/project_document_diagnostics.dart';
 export 'service/project_document_quick_fixes.dart';

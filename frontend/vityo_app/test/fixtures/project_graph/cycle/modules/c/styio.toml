@@ -1,0 +1,7 @@
+[module]
+name = "cycle/c"
+version = "1.0.0"
+
+[dependencies]
+a = { path = "../a", package = "cycle/a", version = "^1.0.0" }
+

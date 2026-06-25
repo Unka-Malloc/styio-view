@@ -1,0 +1,7 @@
+[module]
+name = "missing/app"
+version = "1.0.0"
+
+[dependencies]
+missing = { path = "../missing", package = "missing/lib", version = "^1.0.0" }
+

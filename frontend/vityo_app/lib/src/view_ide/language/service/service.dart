@@ -2,6 +2,7 @@ export 'capability_routed_styio_language_service.dart';
 export 'current_project_document_rule_provider.dart';
 export 'extension_language_contributions.dart';
 export 'legacy_project_document_rule_provider.dart';
+export 'language_analysis_scheduler.dart';
 export 'project_document_diagnostics.dart';
 export 'project_document_quick_fixes.dart';
 export 'project_document_rule_registry.dart';

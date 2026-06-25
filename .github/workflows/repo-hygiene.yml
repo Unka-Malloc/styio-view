@@ -69,9 +69,33 @@ jobs:
         working-directory: vityo-nightly
         run: python3 scripts/dependency-policy-gate.py
 
+      - name: Supply chain governance gate
+        working-directory: vityo-nightly
+        run: python3 scripts/supply-chain-governance-gate.py
+
       - name: GitHub Actions pin gate (audit)
         working-directory: vityo-nightly
         run: python3 scripts/github-actions-pin-gate.py --mode audit
+
+      - name: Architecture boundary gate
+        working-directory: vityo-nightly
+        run: python3 scripts/check_architecture_boundaries.py
+
+      - name: Compatibility facade gate
+        working-directory: vityo-nightly
+        run: python3 scripts/check_compat_facades.py
+
+      - name: Security baseline gate
+        working-directory: vityo-nightly
+        run: python3 scripts/check_security_baseline.py
+
+      - name: Performance budget gate
+        working-directory: vityo-nightly
+        run: python3 scripts/check_performance_budgets.py
+
+      - name: License policy gate
+        working-directory: vityo-nightly
+        run: python3 scripts/check_license_policy.py
 
       - name: Import boundary gate
         working-directory: vityo-nightly

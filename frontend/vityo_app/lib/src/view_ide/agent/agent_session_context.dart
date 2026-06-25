@@ -3,6 +3,7 @@ import '../commands/app_commands.dart';
 import '../debugger/debug_launch_contract.dart';
 import '../editor/document_state.dart';
 import '../editor/selection_state.dart';
+import '../environment/configuration/log_redactor.dart';
 import '../foundation/foundation.dart';
 import '../interaction/language_service_status_surface.dart';
 import '../language/language_contract.dart';
@@ -31,6 +32,12 @@ import 'agent_tool_registry.dart';
 
 const int _maxAgentCommandResultHistory = 12;
 const int _maxAgentPatchApplicationHistory = 12;
+
+final LogRedactor _agentSessionContextRedactor = LogRedactor();
+
+Map<String, Object?> _redactAgentSessionJson(Map<String, Object?> json) {
+  return _agentSessionContextRedactor.redactJson(json);
+}
 
 enum AgentCodingExecutionReadinessStatus {
   ready,
@@ -1528,7 +1535,7 @@ class AgentSessionContext {
   }
 
   Map<String, Object?> toJson() {
-    return <String, Object?>{
+    return _redactAgentSessionJson(<String, Object?>{
       'schemaVersion': schemaVersion,
       'document': document.toJson(),
       'selection': selection.toJson(),
@@ -1549,12 +1556,12 @@ class AgentSessionContext {
       'ideCapabilities': ideCapabilities.toJson(),
       'ideCapabilityClosure': ideCapabilityClosure.toJson(),
       'codingReadiness': codingReadiness.toJson(),
-    };
+    });
   }
 
   Map<String, Object?> toJsonForChannels(Iterable<String> channels) {
     final channelSet = channels.toSet();
-    return <String, Object?>{
+    return _redactAgentSessionJson(<String, Object?>{
       'schemaVersion': schemaVersion,
       if (channelSet.contains('file')) 'document': document.toJson(),
       if (channelSet.contains('selection')) 'selection': selection.toJson(),
@@ -1582,7 +1589,7 @@ class AgentSessionContext {
       if (channelSet.contains('agent') ||
           channelSet.contains('ideCapabilityClosure'))
         'codingReadiness': codingReadiness.toJson(),
-    };
+    });
   }
 
   AgentSessionContext withLastPatchApplication(

@@ -12,8 +12,34 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 2
+    timeout-minutes: 10
 
     steps:
-      - name: Confirm policy workflow handoff
-        run: echo "The released policy audit runs in .github/workflows/styio-audit.yml."
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@v5
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13.5"
+
+      - name: Supply chain governance gate
+        run: python3 scripts/supply-chain-governance-gate.py
+
+      - name: Dependency policy gate
+        run: python3 scripts/dependency-policy-gate.py
+
+      - name: GitHub Actions pin gate (audit)
+        run: python3 scripts/github-actions-pin-gate.py --mode audit
+
+      - name: Security baseline gate
+        run: python3 scripts/check_security_baseline.py
+
+      - name: License policy gate
+        run: python3 scripts/check_license_policy.py
+
+      - name: Architecture boundary gate
+        run: python3 scripts/check_architecture_boundaries.py
+
+      - name: Compatibility facade gate
+        run: python3 scripts/check_compat_facades.py

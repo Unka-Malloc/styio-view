@@ -14,12 +14,14 @@ library;
 
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
-
 import '../lib/src/view_ide/editor/document/document_state.dart';
+import '../lib/src/view_ide/editor/document/text_buffer/text_buffer.dart';
 
 /// Generates a document with [lineCount] lines of text.
-DocumentState generateDocument(int lineCount, {String documentId = 'bench.styio'}) {
+DocumentState generateDocument(
+  int lineCount, {
+  String documentId = 'bench.styio',
+}) {
   final lines = <String>[];
   for (var i = 0; i < lineCount; i++) {
     final lineLength = 40 + (i % 20);
@@ -89,9 +91,21 @@ class BenchmarkRunner {
     durations.sort();
     final total = durations.fold(0.0, (a, b) => a + b);
     final mean = total / durations.length;
-    final p50 = durations[(durations.length * 0.5).round().clamp(0, durations.length - 1)];
-    final p95 = durations[(durations.length * 0.95).round().clamp(0, durations.length - 1)];
-    final p99 = durations[(durations.length * 0.99).round().clamp(0, durations.length - 1)];
+    final p50Index = (durations.length * 0.5)
+        .round()
+        .clamp(0, durations.length - 1)
+        .toInt();
+    final p95Index = (durations.length * 0.95)
+        .round()
+        .clamp(0, durations.length - 1)
+        .toInt();
+    final p99Index = (durations.length * 0.99)
+        .round()
+        .clamp(0, durations.length - 1)
+        .toInt();
+    final p50 = durations[p50Index];
+    final p95 = durations[p95Index];
+    final p99 = durations[p99Index];
     final min = durations.first;
     final max = durations.last;
 
@@ -123,12 +137,15 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
 
   // 2. Random insert operations
   for (final size in [1000, 10000, 100000]) {
-    final doc = generateDocument(size);
+    var buffer = generateDocument(size).textBuffer;
     final rng = Random(42);
     final r = BenchmarkRunner('random_insert_${size}lines').run(100, (_) {
       for (var j = 0; j < 10; j++) {
-        final offset = rng.nextInt(doc.length);
-        doc.replaceRange(start: offset, end: offset, replacement: 'x');
+        final offset = rng.nextInt(buffer.length + 1);
+        buffer = buffer.replace(
+          TextRange(start: offset, end: offset),
+          'x',
+        );
       }
     });
     results.add(r);
@@ -136,12 +153,18 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
 
   // 3. Random delete operations
   for (final size in [1000, 10000, 100000]) {
-    final doc = generateDocument(size);
+    var buffer = generateDocument(size).textBuffer;
     final rng = Random(42);
     final r = BenchmarkRunner('random_delete_${size}lines').run(100, (_) {
       for (var j = 0; j < 10; j++) {
-        final offset = rng.nextInt(doc.length - 1);
-        doc.replaceRange(start: offset, end: offset + 1, replacement: '');
+        if (buffer.length == 0) {
+          continue;
+        }
+        final offset = rng.nextInt(buffer.length);
+        buffer = buffer.replace(
+          TextRange(start: offset, end: offset + 1),
+          '',
+        );
       }
     });
     results.add(r);
@@ -150,23 +173,26 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
   // 4. positionForOffset / offsetForLineColumn performance
   for (final size in [1000, 10000, 100000]) {
     final doc = generateDocument(size);
+    final snapshot = doc.textBufferSnapshot;
     final rng = Random(42);
-    final offsets = List.generate(100, (_) => rng.nextInt(doc.length));
+    final offsets = List.generate(100, (_) => rng.nextInt(snapshot.length));
     final r = BenchmarkRunner('position_for_offset_${size}lines').run(100, (_) {
       for (final offset in offsets) {
-        doc.positionForOffset(offset);
+        snapshot.positionAt(offset);
       }
     });
     results.add(r);
 
-    final lines = doc.lines;
+    final lines = snapshot.lines;
     final lineColumnPairs = List.generate(
       100,
       (_) => (line: rng.nextInt(lines.length), column: rng.nextInt(60)),
     );
-    final r2 = BenchmarkRunner('offset_for_line_column_${size}lines').run(100, (_) {
+    final r2 = BenchmarkRunner(
+      'offset_for_line_column_${size}lines',
+    ).run(100, (_) {
       for (final pair in lineColumnPairs) {
-        doc.offsetForLineColumn(line: pair.line, column: pair.column);
+        snapshot.offsetAt(TextPosition(line: pair.line, column: pair.column));
       }
     });
     results.add(r2);
@@ -175,27 +201,30 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
   // 5. Viewport text extraction (simulate rendering a range)
   for (final size in [1000, 10000, 100000]) {
     final doc = generateDocument(size);
+    final snapshot = doc.textBufferSnapshot;
     final r = BenchmarkRunner('viewport_extraction_${size}lines').run(100, (_) {
       // Simulate extracting 50 lines from the middle of the document
-      final lines = doc.lines;
+      final lines = snapshot.lines;
       final midLine = lines.length ~/ 2;
-      final startLine = midLine.clamp(0, lines.length - 25);
-      final endLine = (startLine + 50).clamp(0, lines.length);
-      final start = doc.offsetForLineColumn(line: startLine, column: 0);
-      final end = doc.offsetForLineColumn(
-        line: endLine - 1,
-        column: lines[endLine - 1].length,
+      final startLine = midLine.clamp(0, lines.length - 25).toInt();
+      final endLine = (startLine + 50).clamp(0, lines.length).toInt();
+      final start = snapshot.offsetAt(
+        TextPosition(line: startLine, column: 0),
       );
-      doc.text.substring(start, end);
+      final end = snapshot.offsetAt(
+        TextPosition(line: endLine - 1, column: lines[endLine - 1].length),
+      );
+      snapshot.getText(TextRange(start: start, end: end));
     });
     results.add(r);
   }
 
-  // 6. lineStarts recomputation (potential O(n^2) hotspot)
+  // 6. cached lineStarts query (guards against repeated split/scan hotspots)
   for (final size in [1000, 10000, 100000]) {
     final doc = generateDocument(size);
-    final r = BenchmarkRunner('line_starts_recompute_${size}lines').run(100, (_) {
-      doc.lineStarts;
+    final snapshot = doc.textBufferSnapshot;
+    final r = BenchmarkRunner('line_starts_cached_${size}lines').run(100, (_) {
+      snapshot.lineStarts;
     });
     results.add(r);
   }

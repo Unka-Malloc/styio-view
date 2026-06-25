@@ -1,0 +1,5 @@
+#computeTotal := (price) => {
+  total = price + 1
+  <| total
+}
+

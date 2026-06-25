@@ -43,10 +43,14 @@ Primary paths:
 29. `toolchain/apple-platform-profiles.csv`
 30. `prototype/README.md`
 31. `frontend/vityo_app/README.md`
-32. `scripts/architecture_boundary_gate_test.py`
+32. `scripts/check_architecture_boundaries.py`
 33. `scripts/public-contract-schema-gate.py`
 34. `docs/governance/CODEOWNERS-POLICY.md`
 35. `docs/rollups/nightly-subbranch-merge-report-20260624.md`
+36. `CONTRIBUTING.md`
+37. `SECURITY.md`
+38. `.github/pull_request_template.md`
+39. `docs/governance/`
 
 Key SSOTs:
 
@@ -62,7 +66,7 @@ Key SSOTs:
 10. `IDE 交互质量基线 -> ../design/Vityo-IDE-Interaction-Quality-Bar.md`
 11. `IDE 能力基线 JSON -> ../../toolchain/vityo-ide-capability-baseline.json`
 12. `IDE 产品对标门禁 -> ../../scripts/ide-product-parity-gate.py`
-13. `架构边界门禁 -> ../../scripts/architecture_boundary_gate_test.py`
+13. `架构边界门禁 -> ../../scripts/check_architecture_boundaries.py`
 14. `公共合同 schema 门禁 -> ../../scripts/public-contract-schema-gate.py`
 15. `CODEOWNERS 治理策略 -> ../../docs/governance/CODEOWNERS-POLICY.md`
 
@@ -91,6 +95,8 @@ Key SSOTs:
 20. Checkpoint health documentation must list every command run by `scripts/checkpoint-health.sh`; when project coverage, prototype governance, or selftest routing changes, update `docs/assets/workflow/CHECKPOINT-HEALTH.md` and the affected owner runbook in the same change.
 21. Language-service ADR or contract updates must refresh both the owning contract runbook and generated docs indexes in the same worktree pass; do not rely on passing Flutter tests as evidence that docs ownership is closed.
 22. Docs tree structure, milestone files, prototype manifest entries, and fixture paths must be organized by content or functional effect. Version strings, dates, and stage numbers may appear as state metadata or external wire values, but must not define repository directories, entry files, task identities, or implementation routing.
+23. Governance docs are part of docs delivery. API compatibility, security, release checklist, CODEOWNERS policy, root contribution/security entries, and PR template changes must keep generated docs indexes current.
+24. When a new docs collection is added, update `scripts/docs-index.py` collection metadata and run `python3 scripts/docs-index.py --write` in the same change.
 
 ## Change Classes
 
@@ -104,6 +110,8 @@ Minimum:
 
 ```bash
 ./scripts/docs-gate.sh
+python3 scripts/docs-index.py --write
+python3 -m pytest tests/test_docs_tooling_coverage.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ./scripts/delivery-gate.sh --mode checkpoint --skip-health
 ```

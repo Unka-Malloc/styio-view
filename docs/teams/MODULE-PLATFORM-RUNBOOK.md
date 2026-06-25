@@ -19,14 +19,15 @@ Primary paths:
    - `file_system_provider.dart` — file system provider abstract contract
    - `memory_file_system_provider.dart` — in-memory FS provider for testing
 3. `frontend/vityo_app/assets/module_manifests/`
-4. `frontend/vityo_app/assets/capability_matrices/`
-5. `frontend/vityo_app/android/`
-6. `frontend/vityo_app/ios/`
-7. `frontend/vityo_app/linux/`
-8. `frontend/vityo_app/macos/`
-9. `frontend/vityo_app/windows/`
-10. `frontend/vityo_app/web/`
-11. `docs/specs/DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md`
+4. `frontend/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+5. `frontend/vityo_app/assets/capability_matrices/`
+6. `frontend/vityo_app/android/`
+7. `frontend/vityo_app/ios/`
+8. `frontend/vityo_app/linux/`
+9. `frontend/vityo_app/macos/`
+10. `frontend/vityo_app/windows/`
+11. `frontend/vityo_app/web/`
+12. `docs/specs/DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md`
 
 Key SSOTs:
 
@@ -43,6 +44,7 @@ Key SSOTs:
 4. 若 distribution 或 install/unmount 语义变化，同时检查 schema、里程碑和测试目录。
 5. `module_lifecycle.dart` 只表达最小 lifecycle plan：mount、leave unmounted、uninstall reclaim 和 blocked core-module uninstall；不要在本轮扩展到真实 staged package update 或远程 module registry。
 6. 平台支持、可见性和默认挂载必须来自 manifest/capability rule，不允许用 UI 层临时判断替代 module rule。
+7. module manifest security 必须在 activation 前完成 schema、permission、capability 和 trust 检查；未知 privileged capability 默认拒绝，不允许由 UI 层临时放行。
 
 ## Change Classes
 
@@ -56,6 +58,7 @@ Minimum:
 
 ```bash
 cd frontend/vityo_app && flutter analyze && flutter test
+python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

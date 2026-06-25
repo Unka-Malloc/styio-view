@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
+import 'package:vityo_app/src/editor/transactions.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 
@@ -2825,6 +2826,160 @@ value -> @stdout
       diagnosticController.diagnosticsAtSelectionToken.map((item) => item.code),
       contains('missing-assignment'),
     );
+  });
+
+  test('applies command transactions as one undoable history entry', () {
+    final controller = EditorSessionFacade(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'alpha beta',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      initialSelection: const SelectionState.collapsed(6),
+    );
+
+    final transaction = controller.createCommandTransaction(
+      commandId: 'editor.replace-token',
+      label: 'Replace token',
+      selectionAfter: const SelectionState.collapsed(11),
+      edit: WorkspaceEdit.singleDocument(
+        document: controller.document,
+        source: WorkspaceEditSource.userInput,
+        label: 'Replace token',
+        edits: <WorkspaceTextEdit>[
+          WorkspaceTextEdit(
+            documentId: controller.document.documentId,
+            range: const SourceRange(start: 6, end: 10),
+            newText: 'gamma',
+          ),
+        ],
+      ),
+    );
+
+    final result = controller.applyCommandTransaction(transaction);
+
+    expect(result.isApplied, isTrue);
+    expect(result.transaction.commandId, 'editor.replace-token');
+    expect(controller.document.text, 'alpha gamma');
+    expect(controller.selection.end, 11);
+    expect(controller.canUndo, isTrue);
+
+    controller.undo();
+    expect(controller.document.text, 'alpha beta');
+    expect(controller.selection.end, 6);
+    expect(controller.canRedo, isTrue);
+
+    controller.redo();
+    expect(controller.document.text, 'alpha gamma');
+    expect(controller.selection.end, 11);
+  });
+
+  test('rejects invalid command transactions without history entries', () {
+    final controller = EditorSessionFacade(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'alpha',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+
+    final transaction = controller.createCommandTransaction(
+      commandId: 'editor.invalid-replace',
+      edit: WorkspaceEdit.singleDocument(
+        document: controller.document,
+        source: WorkspaceEditSource.userInput,
+        edits: <WorkspaceTextEdit>[
+          WorkspaceTextEdit(
+            documentId: controller.document.documentId,
+            range: const SourceRange(start: 0, end: 99),
+            newText: 'beta',
+          ),
+        ],
+      ),
+    );
+
+    final result = controller.applyCommandTransaction(transaction);
+
+    expect(result.isApplied, isFalse);
+    expect(
+      result.result.validation.code,
+      WorkspaceEditValidationCode.invalidRange,
+    );
+    expect(controller.document.text, 'alpha');
+    expect(controller.canUndo, isFalse);
+  });
+
+  test('bounds undo history to the configured controller limit', () {
+    final controller = EditorSessionFacade(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: '',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+      historyLimit: 3,
+    );
+
+    for (var index = 0; index < 5; index += 1) {
+      controller.insertText('x');
+    }
+
+    expect(controller.document.text, 'xxxxx');
+    expect(controller.historyController.undoDepth, 3);
+
+    controller.undo();
+    controller.undo();
+    controller.undo();
+    controller.undo();
+
+    expect(controller.document.text, 'xx');
+    expect(controller.canUndo, isFalse);
+  });
+
+  test('disposes owned controllers and blocks post-dispose mutations', () {
+    final controller = EditorSessionFacade(
+      initialDocument: const DocumentState(
+        documentId: 'sample.styio',
+        text: 'alpha',
+        revision: 0,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
+    var sessionNotifications = 0;
+    var documentNotifications = 0;
+    controller.addListener(() {
+      sessionNotifications += 1;
+    });
+    controller.documentController.addListener(() {
+      documentNotifications += 1;
+    });
+
+    controller.dispose();
+
+    expect(controller.isDisposed, isTrue);
+    expect(controller.documentController.isDisposed, isTrue);
+    expect(controller.selectionController.isDisposed, isTrue);
+    expect(controller.transactionController.isDisposed, isTrue);
+    expect(controller.historyController.isDisposed, isTrue);
+    expect(controller.languageFeatureController.isDisposed, isTrue);
+    expect(controller.diagnosticsStore.isDisposed, isTrue);
+    expect(controller.semanticTokenStore.isDisposed, isTrue);
+    expect(controller.renderPlanController.isDisposed, isTrue);
+    expect(() => controller.insertText('x'), throwsA(isA<StateError>()));
+    expect(
+      () => controller.documentController.loadDocument(
+        const DocumentState(
+          documentId: 'sample.styio',
+          text: 'beta',
+          revision: 0,
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(sessionNotifications, 0);
+    expect(documentNotifications, 0);
   });
 
   test('seeds known cloud documents and fallback documents', () {

@@ -9,6 +9,7 @@
 /docs/design/Vityo-System-Architecture.md                                  @architecture-owner
 /docs/adr/                                                                 @architecture-owner
 /docs/teams/ARCHITECTURE-RUNBOOK.md                                        @architecture-owner
+/scripts/check_architecture_boundaries.py                                  @architecture-owner
 /scripts/architecture_boundary_gate_test.py                                @architecture-owner
 
 # Agent domain: agent core, provider routing, tool permission, patch workflow
@@ -59,7 +60,13 @@
 /docs/teams/DOCS-DELIVERY-RUNBOOK.md                                       @foundation-owner
 
 # Governance: API compatibility, security, supply chain
+/CONTRIBUTING.md                                                            @governance-owner
+/SECURITY.md                                                                @governance-owner
+/.github/pull_request_template.md                                           @governance-owner
 /docs/governance/                                                           @governance-owner
+/scripts/check_compat_facades.py                                            @governance-owner
+/scripts/check_security_baseline.py                                         @governance-owner
+/scripts/check_performance_budgets.py                                       @governance-owner
 /scripts/release-readiness-gate.py                                          @governance-owner
 /scripts/repo-hygiene-gate.py                                               @governance-owner
 

@@ -17,6 +17,7 @@
 | `contracts/` | [Contracts Index](./contracts/INDEX.md) | 冻结 Vityo 产品拥有的 adapter 合同；这些合同定义前端需要什么，而不是上游当前碰巧提供什么。 |
 | `design/` | [Design Index](./design/INDEX.md) | 定义 docs/design/ 作为产品、系统架构、已交付设计基线和活跃缺口登记的 SSOT 范围；具体文件见 INDEX.md。 |
 | `external/` | [External Docs Index](./external/INDEX.md) | 集中维护 Vityo 与外部上游仓库之间的 handoff 文档入口。 |
+| `governance/` | [Governance Index](./governance/INDEX.md) | Define the repository-owned rules for compatibility, security, release readiness, code ownership, and migration discipline. |
 | `history/` | [History Index](./history/INDEX.md) | 定义 docs/history/ 的主题化恢复记录范围；具体主题索引见 INDEX.md。 |
 | `milestones/` | [Milestones Index](./milestones/INDEX.md) | 定义 docs/milestones/ 中按功能主题组织的里程碑文档范围；主题索引见 INDEX.md。 |
 | `plans/` | [Plans Index](./plans/INDEX.md) | Track implementation plans, future work ledgers, and planning-only material that must not be mistaken for delivered product behavior. |

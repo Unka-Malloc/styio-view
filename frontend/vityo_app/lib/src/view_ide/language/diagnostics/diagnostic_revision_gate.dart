@@ -194,6 +194,15 @@ enum CapabilityGapReason {
   /// A provider exists but returned an error or empty result.
   providerError,
 
+  /// The project index is not ready; caller should retry in smart mode.
+  indexUnavailable,
+
+  /// The provider exceeded the latency budget and returned a partial result.
+  timeout,
+
+  /// A newer document revision cancelled this request.
+  cancelled,
+
   /// The current platform does not support this capability.
   platformUnsupported,
 
@@ -237,6 +246,15 @@ class LanguageCapabilityGap {
         break;
       case CapabilityGapReason.providerError:
         buffer.write(': provider error');
+        break;
+      case CapabilityGapReason.indexUnavailable:
+        buffer.write(': index unavailable');
+        break;
+      case CapabilityGapReason.timeout:
+        buffer.write(': timed out');
+        break;
+      case CapabilityGapReason.cancelled:
+        buffer.write(': cancelled by newer revision');
         break;
       case CapabilityGapReason.platformUnsupported:
         buffer.write(': not supported on this platform');
@@ -298,11 +316,12 @@ class LanguageCapabilityGapSnapshot {
 
   /// Get the blocked reason for a specific capability, or null if available.
   LanguageCapabilityGap? gapFor(String capabilityId) {
-    try {
-      return gaps.firstWhere((g) => g.capabilityId == capabilityId);
-    } catch (_) {
-      return null;
+    for (final gap in gaps) {
+      if (gap.capabilityId == capabilityId) {
+        return gap;
+      }
     }
+    return null;
   }
 
   /// Human-readable summary of all blocked capabilities.

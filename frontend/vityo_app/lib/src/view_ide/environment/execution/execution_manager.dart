@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import '../configuration/environment_variable_configuration.dart';
 import '../system_compatibility/platform_context/platform_context_model.dart';
 import '../system_compatibility/platform_manager/platform_manager.dart';
 import '../system_compatibility/process/process_manager.dart';
+import 'execution_sandbox.dart';
 
 enum ExecutionManagerStatus { succeeded, failed, blocked }
 
@@ -15,6 +18,8 @@ class ExecutionRequest {
     this.workingDirectory,
     this.timeout,
     this.operation = 'execution.run',
+    this.requiresWorkspaceWrite = false,
+    this.requiresNetwork = false,
   });
 
   final String executablePath;
@@ -25,6 +30,8 @@ class ExecutionRequest {
   final String? workingDirectory;
   final Duration? timeout;
   final String operation;
+  final bool requiresWorkspaceWrite;
+  final bool requiresNetwork;
 }
 
 class ExecutionResult {
@@ -74,11 +81,13 @@ class ExecutionManager {
         const EnvironmentVariableRedactionPolicy(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
     String pathSeparator = ':',
+    ExecutionSandbox? executionSandbox,
   }) : _processManager = processManager,
        _environmentResolver = environmentResolver,
        _redactionPolicy = redactionPolicy,
        _inheritedEnvironment = inheritedEnvironment,
-       _pathSeparator = pathSeparator;
+       _pathSeparator = pathSeparator,
+       _executionSandbox = executionSandbox;
 
   factory ExecutionManager.fromPlatformContext({
     required PlatformContextSnapshot platformContext,
@@ -88,6 +97,7 @@ class ExecutionManager {
     EnvironmentVariableRedactionPolicy redactionPolicy =
         const EnvironmentVariableRedactionPolicy(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
+    ExecutionSandbox? executionSandbox,
   }) {
     return ExecutionManager(
       processManager: processManager,
@@ -95,6 +105,7 @@ class ExecutionManager {
       redactionPolicy: redactionPolicy,
       inheritedEnvironment: inheritedEnvironment,
       pathSeparator: pathListSeparatorForPlatformContext(platformContext),
+      executionSandbox: executionSandbox,
     );
   }
 
@@ -105,6 +116,7 @@ class ExecutionManager {
     EnvironmentVariableRedactionPolicy redactionPolicy =
         const EnvironmentVariableRedactionPolicy(),
     Map<String, String> inheritedEnvironment = const <String, String>{},
+    ExecutionSandbox? executionSandbox,
   }) {
     return ExecutionManager.fromPlatformContext(
       platformContext: platformManagers.context,
@@ -112,6 +124,7 @@ class ExecutionManager {
       environmentResolver: environmentResolver,
       redactionPolicy: redactionPolicy,
       inheritedEnvironment: inheritedEnvironment,
+      executionSandbox: executionSandbox,
     );
   }
 
@@ -120,6 +133,7 @@ class ExecutionManager {
   final EnvironmentVariableRedactionPolicy _redactionPolicy;
   final Map<String, String> _inheritedEnvironment;
   final String _pathSeparator;
+  final ExecutionSandbox? _executionSandbox;
 
   static String pathListSeparatorForPlatformContext(
     PlatformContextSnapshot context,
@@ -135,15 +149,63 @@ class ExecutionManager {
       runtimeOverrides: request.environment,
       pathSeparator: _pathSeparator,
     );
-    final processResult = await _processManager.run(
+    final sandbox = _executionSandbox;
+    ExecutionSandboxDecision? sandboxDecision;
+    if (sandbox != null) {
+      final decision = sandbox.evaluate(
+        ExecutionSandboxRequest(
+          executable: request.executablePath,
+          arguments: request.arguments,
+          cwd: request.workingDirectory ?? '.',
+          environment: environment,
+          requiresWorkspaceWrite: request.requiresWorkspaceWrite,
+          requiresNetwork: request.requiresNetwork,
+          timeout: request.timeout,
+          correlationId: request.operation,
+        ),
+      );
+      sandboxDecision = decision;
+      if (!decision.isAllowed) {
+        final failure = decision.failure;
+        return ExecutionResult(
+          status: ExecutionManagerStatus.blocked,
+          processResult: ProcessCommandResult(
+            status: ProcessCommandStatus.blocked,
+            executablePath: request.executablePath,
+            arguments: request.arguments,
+            exitCode: null,
+            stdout: '',
+            stderr: '',
+            duration: Duration.zero,
+            message: failure?.message ?? 'Execution blocked by sandbox.',
+            metadata: <String, Object?>{
+              'sandboxFailureCode': failure?.code.name,
+              'recoveryAction': failure?.recoveryAction,
+              'developerDetail': failure?.developerDetail,
+              'correlationId': failure?.correlationId,
+            },
+          ),
+          redactedEnvironment: _redactionPolicy.redactEnvironment(environment),
+        );
+      }
+    }
+    final rawProcessResult = await _processManager.run(
       ProcessCommandRequest(
         executablePath: request.executablePath,
         arguments: request.arguments,
         environment: environment,
-        workingDirectory: request.workingDirectory,
-        timeout: request.timeout,
+        workingDirectory:
+            sandboxDecision?.normalizedCwd ?? request.workingDirectory,
+        timeout: sandboxDecision?.effectiveTimeout ?? request.timeout,
       ),
     );
+    final processResult = sandbox == null
+        ? rawProcessResult
+        : _applyOutputLimits(
+            rawProcessResult,
+            maxStdoutBytes: sandbox.policy.maxStdoutBytes,
+            maxStderrBytes: sandbox.policy.maxStderrBytes,
+          );
     final platformFailure = _processManager.failureFor(
       processResult,
       operation: request.operation,
@@ -164,4 +226,51 @@ class ExecutionManager {
       ProcessCommandStatus.timedOut => ExecutionManagerStatus.failed,
     };
   }
+
+  ProcessCommandResult _applyOutputLimits(
+    ProcessCommandResult result, {
+    required int maxStdoutBytes,
+    required int maxStderrBytes,
+  }) {
+    final stdout = _limitUtf8(result.stdout, maxStdoutBytes);
+    final stderr = _limitUtf8(result.stderr, maxStderrBytes);
+    if (!stdout.truncated && !stderr.truncated) {
+      return result;
+    }
+    return ProcessCommandResult(
+      status: result.status,
+      executablePath: result.executablePath,
+      arguments: result.arguments,
+      exitCode: result.exitCode,
+      stdout: stdout.value,
+      stderr: stderr.value,
+      duration: result.duration,
+      message: result.message,
+      metadata: <String, Object?>{
+        ...result.metadata,
+        if (stdout.truncated) 'stdoutTruncated': true,
+        if (stdout.truncated) 'stdoutLimitBytes': maxStdoutBytes,
+        if (stderr.truncated) 'stderrTruncated': true,
+        if (stderr.truncated) 'stderrLimitBytes': maxStderrBytes,
+      },
+    );
+  }
+
+  _LimitedString _limitUtf8(String value, int maxBytes) {
+    final bytes = utf8.encode(value);
+    if (bytes.length <= maxBytes) {
+      return _LimitedString(value: value, truncated: false);
+    }
+    return _LimitedString(
+      value: utf8.decode(bytes.take(maxBytes).toList(), allowMalformed: true),
+      truncated: true,
+    );
+  }
+}
+
+class _LimitedString {
+  const _LimitedString({required this.value, required this.truncated});
+
+  final String value;
+  final bool truncated;
 }

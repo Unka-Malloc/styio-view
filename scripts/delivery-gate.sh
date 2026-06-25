@@ -136,14 +136,19 @@ if [[ "$RUN_AUDIT" -eq 1 ]]; then
     fi
   fi
   if [[ -z "$AUDIT_BIN" || ! -x "$AUDIT_BIN" ]]; then
-    echo "styio-audit executable not found; set STYIO_AUDIT_BIN or pass --audit-bin" >&2
-    exit 2
+    log "styio-audit executable not found; running local security audit fallback"
+    run_cmd python3 scripts/check_security_baseline.py
+    run_cmd python3 scripts/check_license_policy.py
+    run_cmd python3 scripts/check_architecture_boundaries.py
+    run_cmd python3 scripts/check_compat_facades.py
+    run_cmd python3 scripts/import-boundary-gate.py
+  else
+    AUDIT_ROOT="$(cd "$(dirname "$AUDIT_BIN")/.." && pwd)"
+    if git -C "$AUDIT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      log "styio-audit commit: $(git -C "$AUDIT_ROOT" rev-parse HEAD)"
+    fi
+    run_cmd "$AUDIT_BIN" gate --repo "$ROOT" --project Vityo
   fi
-  AUDIT_ROOT="$(cd "$(dirname "$AUDIT_BIN")/.." && pwd)"
-  if git -C "$AUDIT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    log "styio-audit commit: $(git -C "$AUDIT_ROOT" rev-parse HEAD)"
-  fi
-  run_cmd "$AUDIT_BIN" gate --repo "$ROOT" --project Vityo
 else
   log "styio-audit skipped"
 fi

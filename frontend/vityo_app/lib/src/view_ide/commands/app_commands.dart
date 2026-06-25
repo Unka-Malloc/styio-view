@@ -1,3 +1,5 @@
+import '../workbench/context_key_service.dart';
+
 enum AppCommandId {
   save,
   saveAll,
@@ -116,6 +118,23 @@ enum AppCommandPermissionRequirement {
   fullAccess,
 }
 
+extension AppCommandPermissionRequirementX on AppCommandPermissionRequirement {
+  String get wireValue {
+    return switch (this) {
+      AppCommandPermissionRequirement.none => 'none',
+      AppCommandPermissionRequirement.readOnly => 'read-only',
+      AppCommandPermissionRequirement.workspaceWrite => 'workspace-write',
+      AppCommandPermissionRequirement.toolchainManaged => 'toolchain-managed',
+      AppCommandPermissionRequirement.network => 'network',
+      AppCommandPermissionRequirement.destructive => 'destructive',
+      AppCommandPermissionRequirement.openWorld => 'open-world',
+      AppCommandPermissionRequirement.externalResource =>
+        'external-resource',
+      AppCommandPermissionRequirement.fullAccess => 'full-access',
+    };
+  }
+}
+
 enum CommandPermissionDecision { allowed, requiresApproval, denied }
 
 enum AppCommandSideEffect {
@@ -127,6 +146,19 @@ enum AppCommandSideEffect {
   externalMutation,
 }
 
+extension AppCommandSideEffectX on AppCommandSideEffect {
+  String get wireValue {
+    return switch (this) {
+      AppCommandSideEffect.none => 'none',
+      AppCommandSideEffect.readExternal => 'read-external',
+      AppCommandSideEffect.documentEdit => 'document-edit',
+      AppCommandSideEffect.workspaceEdit => 'workspace-edit',
+      AppCommandSideEffect.toolchainExecution => 'toolchain-execution',
+      AppCommandSideEffect.externalMutation => 'external-mutation',
+    };
+  }
+}
+
 enum AppCommandTargetSurface {
   editor,
   commandOverlay,
@@ -136,6 +168,21 @@ enum AppCommandTargetSurface {
   statusBar,
   modalDialog,
   background,
+}
+
+extension AppCommandTargetSurfaceX on AppCommandTargetSurface {
+  String get wireValue {
+    return switch (this) {
+      AppCommandTargetSurface.editor => 'editor',
+      AppCommandTargetSurface.commandOverlay => 'command-overlay',
+      AppCommandTargetSurface.workspaceSidebar => 'workspace-sidebar',
+      AppCommandTargetSurface.bottomPanel => 'bottom-panel',
+      AppCommandTargetSurface.settingsPanel => 'settings-panel',
+      AppCommandTargetSurface.statusBar => 'status-bar',
+      AppCommandTargetSurface.modalDialog => 'modal-dialog',
+      AppCommandTargetSurface.background => 'background',
+    };
+  }
 }
 
 enum AppCommandCategory {
@@ -295,6 +342,7 @@ class AppCommandShortcutSpec {
       'key': key,
       'control': control,
       'meta': meta,
+      'alt': alt,
       'shift': shift,
     };
   }
@@ -312,7 +360,10 @@ class AppCommandDescriptor {
     this.inputContract = '',
     this.inputExamples = const <String>[],
     this.shortcuts = const <AppCommandShortcutSpec>[],
+    this.enablement = const <ContextKeyExpression>[],
     this.permissionRequirement = AppCommandPermissionRequirement.none,
+    this.sideEffect,
+    this.targetSurface,
   });
 
   final AppCommandId id;
@@ -325,22 +376,50 @@ class AppCommandDescriptor {
   final String inputContract;
   final List<String> inputExamples;
   final List<AppCommandShortcutSpec> shortcuts;
+  final List<ContextKeyExpression> enablement;
   final AppCommandPermissionRequirement permissionRequirement;
+  final AppCommandSideEffect? sideEffect;
+  final AppCommandTargetSurface? targetSurface;
 
   AppCommandCategory get category => id.category;
+
+  AppCommandSideEffect get telemetrySideEffect {
+    return sideEffect ?? _defaultSideEffectFor(permissionRequirement);
+  }
+
+  AppCommandTargetSurface get telemetryTargetSurface {
+    return targetSurface ?? _defaultTargetSurfaceFor(category);
+  }
+
+  bool enabledIn(ContextKeyService contextKeys) {
+    return contextKeys.matchesAll(enablement);
+  }
 
   Map<String, Object?> toContributionJson() {
     return <String, Object?>{
       'id': id.name,
       'category': category.wireValue,
+      'title': label,
       'label': label,
       'description': description,
       'shortcutHint': shortcutHint,
       'primary': primary,
       'requiresInput': requiresInput,
+      'enablement': enablement
+          .map((expression) => expression.toJson())
+          .toList(growable: false),
+      'permissionRequirement': permissionRequirement.wireValue,
+      'telemetryClassification': <String, Object?>{
+        'sideEffect': telemetrySideEffect.wireValue,
+        'targetSurface': telemetryTargetSurface.wireValue,
+        'permissionRequirement': permissionRequirement.wireValue,
+      },
       if (inputLabel.isNotEmpty) 'inputLabel': inputLabel,
       if (inputContract.isNotEmpty) 'inputContract': inputContract,
       if (inputExamples.isNotEmpty) 'inputExamples': inputExamples,
+      'keybindings': shortcuts
+          .map((shortcut) => shortcut.toJson())
+          .toList(growable: false),
       if (shortcuts.isNotEmpty)
         'shortcuts': shortcuts.map((shortcut) => shortcut.toJson()).toList(),
     };
@@ -443,6 +522,50 @@ class CommandPermissionService {
           '`${descriptor.label}` requires ${requirement.name} approval before execution.',
     );
   }
+}
+
+AppCommandSideEffect _defaultSideEffectFor(
+  AppCommandPermissionRequirement requirement,
+) {
+  return switch (requirement) {
+    AppCommandPermissionRequirement.none => AppCommandSideEffect.none,
+    AppCommandPermissionRequirement.readOnly =>
+      AppCommandSideEffect.readExternal,
+    AppCommandPermissionRequirement.workspaceWrite ||
+    AppCommandPermissionRequirement.destructive =>
+      AppCommandSideEffect.workspaceEdit,
+    AppCommandPermissionRequirement.toolchainManaged =>
+      AppCommandSideEffect.toolchainExecution,
+    AppCommandPermissionRequirement.network ||
+    AppCommandPermissionRequirement.openWorld ||
+    AppCommandPermissionRequirement.externalResource ||
+    AppCommandPermissionRequirement.fullAccess =>
+      AppCommandSideEffect.externalMutation,
+  };
+}
+
+AppCommandTargetSurface _defaultTargetSurfaceFor(
+  AppCommandCategory category,
+) {
+  return switch (category) {
+    AppCommandCategory.persistence => AppCommandTargetSurface.editor,
+    AppCommandCategory.execution ||
+    AppCommandCategory.testing ||
+    AppCommandCategory.dependency ||
+    AppCommandCategory.toolchain ||
+    AppCommandCategory.deployment ||
+    AppCommandCategory.diagnostics ||
+    AppCommandCategory.languageService ||
+    AppCommandCategory.sourceControl ||
+    AppCommandCategory.debug ||
+    AppCommandCategory.module => AppCommandTargetSurface.bottomPanel,
+    AppCommandCategory.surface => AppCommandTargetSurface.commandOverlay,
+    AppCommandCategory.agentCoding ||
+    AppCommandCategory.workspace => AppCommandTargetSurface.workspaceSidebar,
+    AppCommandCategory.navigation ||
+    AppCommandCategory.refactor => AppCommandTargetSurface.editor,
+    AppCommandCategory.settings => AppCommandTargetSurface.settingsPanel,
+  };
 }
 
 class StyioCommandRegistry {

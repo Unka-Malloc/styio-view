@@ -19,6 +19,12 @@ Downstream nightly repository: <https://github.com/Unka-Malloc/vityo-nightly>
 
 仓库级构建与新环境入口见 [docs/BUILD-AND-DEV-ENV.md](docs/BUILD-AND-DEV-ENV.md)。
 
+贡献流程见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+安全报告与安全基线见 [SECURITY.md](SECURITY.md) 和 [docs/governance/SECURITY-AND-SUPPLY-CHAIN.md](docs/governance/SECURITY-AND-SUPPLY-CHAIN.md)。
+
+发布与 checkpoint 规则见 [docs/governance/RELEASE-CHECKLIST.md](docs/governance/RELEASE-CHECKLIST.md)。
+
 可直接查看的高保真原型入口见 [prototype/index.html](prototype/index.html)。
 
 人工维护的 Web Editor 入口见 [prototype/editor.html](prototype/editor.html)。
@@ -77,3 +83,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1
 2. `python3 scripts/repo-hygiene-gate.py` 是仓库级权威入口
 3. 这道门禁会阻断生成目录、依赖目录、打包产物后缀，以及未被明确允许的二进制文件进入仓库
 4. 合法的图片类资产需要放在当前允许的前端资源路径下；若确实需要新增二进制资产，应在脚本里补一条窄范围 allowlist，而不是放宽通用规则
+
+## Architecture And Release Gates
+
+本仓当前 IDE 主线以 `view_ide/` 承载 domain/application/contracts，以 `view_render/` 承载 Flutter presentation，以 legacy roots 保留一行 compatibility façade。日常结构性变更至少运行：
+
+```bash
+python3 scripts/check_architecture_boundaries.py
+python3 scripts/check_compat_facades.py
+python3 scripts/check_security_baseline.py
+python3 scripts/check_performance_budgets.py
+git diff --check
+```
+
+文档树变更后运行：
+
+```bash
+python3 scripts/docs-index.py --write
+python3 -m pytest tests/test_docs_tooling_coverage.py
+```

@@ -1,0 +1,3 @@
+result = computeTotal(41)
+result -> @stdout
+

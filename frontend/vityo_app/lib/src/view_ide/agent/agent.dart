@@ -27,6 +27,7 @@ export 'agent_command_metadata.dart';
 export 'extension_agent_provider_contributions.dart';
 export 'extension_agent_tool_contributions.dart';
 export 'agent_context.dart';
+export 'agent_permission_model.dart';
 export 'agent_profile.dart';
 export 'agent_session.dart';
 export 'agent_settings.dart';

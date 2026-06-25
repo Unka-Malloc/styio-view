@@ -7,6 +7,14 @@
 .vscode/
 .cursor/
 
+# Local secrets and credentials
+/.env
+/.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+
 # Python caches and local environments
 **/__pycache__/
 *.py[cod]

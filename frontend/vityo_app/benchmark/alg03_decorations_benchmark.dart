@@ -8,6 +8,7 @@ library;
 
 import 'dart:math';
 
+import '../lib/src/view_ide/editor/document/range_index.dart' as editor_index;
 import 'alg01_piece_table_benchmark.dart';
 
 class SourceRange {
@@ -114,6 +115,22 @@ List<Map<String, dynamic>> runAlg03Benchmarks() {
   });
   results.add(r2.toJson());
 
+  final diagnostics100kIndex = editor_index.RangeIndex<Diagnostic>.fromValues(
+    diagnostics100k,
+    startOf: (diagnostic) => diagnostic.range.start,
+    endOf: (diagnostic) => diagnostic.range.end,
+    revision: 1,
+  );
+  final r2Indexed = BenchmarkRunner(
+    'diagnostics_viewport_query_100k_indexed',
+  ).run(100, (_) {
+    diagnostics100kIndex.overlapQuery(
+      start: viewport.start,
+      end: viewport.end,
+    );
+  });
+  results.add(r2Indexed.toJson());
+
   // 100k semantic spans viewport query
   final spans100k = generateSemanticSpans(100000, docLength);
   final r3 = BenchmarkRunner('semantic_spans_viewport_query_100k').run(100, (_) {
@@ -126,6 +143,25 @@ List<Map<String, dynamic>> runAlg03Benchmarks() {
     return;
   });
   results.add(r3.toJson());
+
+  final spans100kIndex = editor_index.RangeIndex<SemanticSpan>.fromValues(
+    spans100k,
+    startOf: (span) => span.range.start,
+    endOf: (span) => span.range.end,
+    revision: 1,
+  );
+  final r3Indexed = BenchmarkRunner(
+    'semantic_spans_viewport_query_100k_indexed',
+  ).run(
+    100,
+    (_) {
+      spans100kIndex.overlapQuery(
+        start: viewport.start,
+        end: viewport.end,
+      );
+    },
+  );
+  results.add(r3Indexed.toJson());
 
   // Range update after edit (shift all positions after edit point)
   final editOffset = 200000;

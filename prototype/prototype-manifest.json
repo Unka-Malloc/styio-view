@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "last_updated": "2026-05-18",
+  "last_updated": "2026-06-28",
   "canonical_entry": "editor.html",
   "entries": [
     {
@@ -9,6 +9,13 @@
       "owner": "Shell / Editor",
       "validation": "npm run selftest:editor",
       "notes": "Current focused Web Editor surface. Product-facing prototype behavior starts here."
+    },
+    {
+      "path": "index.html",
+      "status": "style-experiment",
+      "owner": "Theme / UX",
+      "validation": "manual visual review",
+      "notes": "Design gallery index for standalone style experiment previews."
     },
     {
       "path": "styio-bauhaus.html",

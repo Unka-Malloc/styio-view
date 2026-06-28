@@ -1356,7 +1356,10 @@ raise SystemExit(64)
       expect(runtimeEvents.single.sessionId, 'artifact-session');
       expect(runtimeEvents.single.sequence, 1);
       expect(runtimeEvents.single.eventKind, 'compile.finished');
-      expect(runtimeEvents.single.payload['file'], testFile.path);
+      expect(
+        _comparableExistingPath(runtimeEvents.single.payload['file'] as String),
+        _comparableExistingPath(testFile.path),
+      );
       expect(
         runtimeEvents.single.timestamp,
         DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
@@ -1506,6 +1509,16 @@ Future<File> _writeExecutable(File file, String contents) async {
   await file.writeAsString(contents);
   Process.runSync('chmod', <String>['+x', file.path]);
   return file;
+}
+
+String _comparableExistingPath(String path) {
+  String resolved;
+  try {
+    resolved = File(path).resolveSymbolicLinksSync();
+  } on FileSystemException {
+    resolved = path;
+  }
+  return Platform.isWindows ? resolved.toLowerCase() : resolved;
 }
 
 CompilerHandshakeSnapshot _compilerSnapshot(

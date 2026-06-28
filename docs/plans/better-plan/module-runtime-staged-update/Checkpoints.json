@@ -1,0 +1,85 @@
+[
+  {
+    "id": "4d789c47-f8f4-40a2-ba77-b27bb228f903",
+    "status": "completed",
+    "prerequisites": [],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm module manifest, capability matrix, and lifecycle anchors.",
+    "description": "Module manifest, module capability matrix, module registry, module lifecycle, manifest security, and runtime surface feature registry tests exist under view_ide/module_host, module_host, and runtime tests.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Module manifest, security, registry, lifecycle, and capability matrix code anchors exist."
+      },
+      {
+        "checked": true,
+        "text": "Module lifecycle and runtime feature staged-update tests exist."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm module lifecycle baseline",
+      "target": "frontend/vityo_app/lib/src/view_ide/module_host frontend/vityo_app/test"
+    },
+    "next": [
+      "e1ce1ad4-56fa-4283-956b-d33747899ccf"
+    ]
+  },
+  {
+    "id": "e1ce1ad4-56fa-4283-956b-d33747899ccf",
+    "status": "pending",
+    "prerequisites": [
+      "4d789c47-f8f4-40a2-ba77-b27bb228f903"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Implement real module package staging and activation.",
+    "description": "The milestone requires staged update downloads and restart activation. Current evidence covers lifecycle representation and feature registry behavior, but the gap register still lists real module package staging as implementation needed.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "A real module package download, verification, staging, restart activation, and rollback path exists."
+      },
+      {
+        "checked": false,
+        "text": "Tests prove the active session keeps the old module package until restart activates the staged package."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Implement module package staging",
+      "target": "frontend/vityo_app/lib/src/view_ide/module_host frontend/vityo_app/test"
+    },
+    "next": [
+      "c33fcf19-3b58-4095-9f1b-2ff23558cbc7"
+    ]
+  },
+  {
+    "id": "c33fcf19-3b58-4095-9f1b-2ff23558cbc7",
+    "status": "pending",
+    "prerequisites": [
+      "e1ce1ad4-56fa-4283-956b-d33747899ccf"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Implement platform-specific package cleanup and resource reclamation.",
+    "description": "The gap register lists platform file deletion and resource reclaim as implementation needed. Closure requires mobile full cleanup, desktop keep-or-clear choice, menu/settings/workspace reference reclamation, and user-visible recovery behavior.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Mobile uninstall removes package, cache, and module data while desktop uninstall offers keep or clear data."
+      },
+      {
+        "checked": false,
+        "text": "Menu entries, settings entries, runtime feature slots, and invalid workspace references are reclaimed after uninstall."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Implement module resource reclamation",
+      "target": "frontend/vityo_app/lib/src/view_ide/module_host frontend/vityo_app/lib/src/view_render frontend/vityo_app/test"
+    },
+    "next": []
+  }
+]

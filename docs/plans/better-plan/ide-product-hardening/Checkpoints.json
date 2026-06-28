@@ -1,0 +1,135 @@
+[
+  {
+    "id": "5a5ee9d4-9875-44aa-a31f-cc32059cac60",
+    "status": "completed",
+    "prerequisites": [],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Confirm workbench registry and command hardening progress.",
+    "description": "Architecture rollup and code search show IdeCommandRegistry, command palette, ContextKeyService, SurfaceRegistry, extension contributions, capability registry, public contract schema gates, and architecture boundary gates exist with test anchors.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Command registry, context keys, surface registry, capability registry, and architecture gate anchors exist."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm workbench registry hardening",
+      "target": "frontend/vityo_app/lib/src/view_ide/commands frontend/vityo_app/test scripts"
+    },
+    "next": [
+      "1464e903-8fbb-46c1-8de3-70a8e4ae72a7"
+    ]
+  },
+  {
+    "id": "1464e903-8fbb-46c1-8de3-70a8e4ae72a7",
+    "status": "completed",
+    "prerequisites": [
+      "5a5ee9d4-9875-44aa-a31f-cc32059cac60"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm workspace edit hardening from the comparative audit P0 items.",
+    "description": "The comparative audit asked for EditorTransaction and WorkspaceEdit routes. Current code has editor_transactions_test.dart and workspace_edit_applier_test.dart, plus workspace edit preview/apply paths used by rename, code actions, problems surface, and agent patches.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Editor transaction and workspace edit tests exist and route edits through validated application models."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm workspace edit hardening",
+      "target": "frontend/vityo_app/lib/src/view_ide/editor frontend/vityo_app/lib/src/view_ide/workspace frontend/vityo_app/test"
+    },
+    "next": [
+      "9cf97ab6-c7f2-4a5f-a936-91a28dc9cf29"
+    ]
+  },
+  {
+    "id": "9cf97ab6-c7f2-4a5f-a936-91a28dc9cf29",
+    "status": "pending",
+    "prerequisites": [
+      "1464e903-8fbb-46c1-8de3-70a8e4ae72a7"
+    ],
+    "platform": "windows",
+    "difficulty": "deep",
+    "goal": "Build the StyioSemanticCore and workspace indexes.",
+    "description": "The comparative audit recommends StyioSemanticCore, file-based indexes, workspace model lite, stale/degraded mode, and semantic fact ownership. This overlaps with upstream StyioService blockers but has repo-local contracts and index boundaries to design.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "StyioSemanticCore, WorkspaceFileIndex, and project/workspace index contracts exist with invalidation keys matching Vityo cache and toolchain facts."
+      },
+      {
+        "checked": false,
+        "text": "Advanced refactors and cross-file navigation are disabled or degraded when semantic indexes are stale or upstream facts are absent."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Add Styio semantic core index contracts",
+      "target": "frontend/vityo_app/lib/src/view_ide/language frontend/vityo_app/lib/src/view_ide/workspace docs/design"
+    },
+    "next": [
+      "95b68a69-e068-4e51-a280-f7bc3cca0ff4"
+    ]
+  },
+  {
+    "id": "95b68a69-e068-4e51-a280-f7bc3cca0ff4",
+    "status": "pending",
+    "prerequisites": [
+      "1464e903-8fbb-46c1-8de3-70a8e4ae72a7"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Complete typed task runtime and terminal registry hardening.",
+    "description": "Runtime task lifecycle and terminal session tests exist, but the comparative audit calls for a task runtime with streaming stdout/stderr deltas, cancellation, exit status, redacted environment metadata, terminal registry, output caps, and restore semantics.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "TaskExecutionRuntime-style records cover operation id, command argv, cwd, redacted env, output deltas, diagnostics, runtime events, exit status, cancellation, and cleanup."
+      },
+      {
+        "checked": false,
+        "text": "Terminal runtime registry supports start/list/write/resize/kill/cleanup with output caps and safe historical restore."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Harden task and terminal runtimes",
+      "target": "frontend/vityo_app/lib/src/view_ide/runtime frontend/vityo_app/lib/src/view_ide/environment frontend/vityo_app/test"
+    },
+    "next": [
+      "93d297c1-7ebc-4405-9aa0-53a4fd00e799"
+    ]
+  },
+  {
+    "id": "93d297c1-7ebc-4405-9aa0-53a4fd00e799",
+    "status": "pending",
+    "prerequisites": [
+      "95b68a69-e068-4e51-a280-f7bc3cca0ff4"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Close accessibility, performance, and interaction quality gates.",
+    "description": "Capability maturity and interaction quality docs call for keyboard navigation, accessibility, contrast, focus management, container integrity, and performance evidence. Current benchmarks exist but need measured baseline and wider product UI gates.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Core surfaces have keyboard-only navigation, focus, semantics, contrast, and no-overflow tests."
+      },
+      {
+        "checked": false,
+        "text": "Performance and interaction quality gates produce release evidence for editor, language, workspace, runtime, AI context, watcher, and UI virtualization paths."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Close interaction quality gates",
+      "target": "frontend/vityo_app/test scripts/performance-gate.py docs/design/Vityo-IDE-Interaction-Quality-Bar.md"
+    },
+    "next": []
+  }
+]

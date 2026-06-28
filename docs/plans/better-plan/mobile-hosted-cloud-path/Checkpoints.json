@@ -1,0 +1,114 @@
+[
+  {
+    "id": "ed49867f-194f-45e3-8d32-c4e194937c5e",
+    "status": "completed",
+    "prerequisites": [],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm hosted workspace and cloud route anchors.",
+    "description": "Hosted control-plane clients, hosted workspace lifecycle, hosted workspace document store, hosted execution codec, and iOS/Web/Android hosted/cloud route tests exist. This node covers represented routes, not full product validation.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Hosted control plane and hosted workspace lifecycle code anchors exist."
+      },
+      {
+        "checked": true,
+        "text": "Hosted product, lifecycle, payload, execution codec, and hosted document store tests exist."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm hosted workspace cloud anchors",
+      "target": "frontend/vityo_app/lib/src/view_ide/backend_toolchain frontend/vityo_app/lib/src/view_ide/workspace"
+    },
+    "next": [
+      "df2a392c-75d7-4bb6-b890-dc57751f0061"
+    ]
+  },
+  {
+    "id": "df2a392c-75d7-4bb6-b890-dc57751f0061",
+    "status": "pending",
+    "prerequisites": [
+      "ed49867f-194f-45e3-8d32-c4e194937c5e"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Implement Android local-first execution.",
+    "description": "The mobile milestone requires Android local-first execution and fallback behavior. The gap register still lists Android local-first execution as implementation needed, while android_runtime_package_budget_test only covers budget policy anchors.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Android has a real local-first execution route with explicit fallback behavior."
+      },
+      {
+        "checked": false,
+        "text": "Android runtime package size and capability route are validated together in build or product tests."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Implement Android local-first execution",
+      "target": "frontend/vityo_app/lib/src/view_ide/module_host frontend/vityo_app/lib/src/view_ide/backend_toolchain frontend/vityo_app/test"
+    },
+    "next": [
+      "18bac97f-6b86-4fca-ad47-9634519268cc"
+    ]
+  },
+  {
+    "id": "18bac97f-6b86-4fca-ad47-9634519268cc",
+    "status": "pending",
+    "prerequisites": [
+      "ed49867f-194f-45e3-8d32-c4e194937c5e"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Validate the mobile interaction matrix.",
+    "description": "Mobile interaction, viewport, commands, editor, runtime, and recovery behavior are marked validation needed. Closure requires Android and iOS interaction tests that prove mobile is not merely a compressed desktop UI.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Android and iOS tests cover mobile input, viewport family, command availability, editor behavior, runtime route messaging, and recovery UI."
+      },
+      {
+        "checked": false,
+        "text": "Mobile pipeline selector and connectivity capability notices have integration coverage."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Validate mobile interaction matrix",
+      "target": "frontend/vityo_app/lib/src/view_render frontend/vityo_app/test"
+    },
+    "next": [
+      "3f599849-7845-4858-bd68-cd62b0c77eff"
+    ]
+  },
+  {
+    "id": "3f599849-7845-4858-bd68-cd62b0c77eff",
+    "status": "pending",
+    "prerequisites": [
+      "ed49867f-194f-45e3-8d32-c4e194937c5e"
+    ],
+    "platform": "windows",
+    "difficulty": "high",
+    "goal": "Close device, simulator, retention, and export gates.",
+    "description": "The gap register lists device/simulator platform gates and hosted workspace retention/export UX as validation needed. Closure requires Android device/emulator, iOS simulator/cloud route, and Web hosted close/export/retention flows.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Android device or emulator and iOS simulator/cloud-route gates are documented and runnable."
+      },
+      {
+        "checked": false,
+        "text": "Hosted workspace close/export/retention/delete UX is validated and visible to users."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Close mobile hosted platform gates",
+      "target": "frontend/vityo_app/test docs/assets/workflow/TEST-CATALOG.md"
+    },
+    "next": []
+  }
+]

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "f8cf97de-d5d5-4bb8-92c4-81230adce696",
+    "status": "completed",
+    "prerequisites": [],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm docs automation and lifecycle baseline.",
+    "description": "Documentation policy, history checkpoints, and scripts show docs-index, docs-lifecycle, docs-audit, team-docs-gate, and archive/rollup lifecycle are established and wired into docs and hygiene gates.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "docs-index.py, docs-lifecycle.py, docs-audit.py, and team-docs-gate.py exist."
+      },
+      {
+        "checked": true,
+        "text": "docs/rollups and docs/archive lifecycle files exist and validate through docs-lifecycle."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm docs automation baseline",
+      "target": "scripts docs"
+    },
+    "next": [
+      "d17caa5c-47a2-4ec9-b952-95906f3e0bcb"
+    ]
+  },
+  {
+    "id": "d17caa5c-47a2-4ec9-b952-95906f3e0bcb",
+    "status": "completed",
+    "prerequisites": [
+      "f8cf97de-d5d5-4bb8-92c4-81230adce696"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm repository hygiene and release gate baseline.",
+    "description": "Release checklist and workflow assets define docs, architecture, compatibility facade, security, performance, delivery, and checkpoint-health commands. Current rollup records repo hygiene, docs-gate, public contract schema, product gate, prototype, and flutter analyze source checks as passing in the last audit.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Release, delivery, checkpoint-health, repo hygiene, architecture, contract, dependency, and performance gate scripts exist."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm release gate baseline",
+      "target": "scripts docs/governance docs/assets/workflow"
+    },
+    "next": [
+      "7c4af97e-f59c-42a4-bd05-f8302cb9e8cd"
+    ]
+  },
+  {
+    "id": "7c4af97e-f59c-42a4-bd05-f8302cb9e8cd",
+    "status": "pending",
+    "prerequisites": [
+      "d17caa5c-47a2-4ec9-b952-95906f3e0bcb"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Finish documentation automation after local plan retirement.",
+    "description": "Vityo-Implementation-Gaps.md still lists documentation automation after plan retirement as implementation needed. This Better Plan workspace is a consolidation artifact, but docs scripts and policies should no longer require docs/plans as an active implementation plan source.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Docs scripts, policies, and generated indexes treat docs/plans as retired except for explicit Better Plan workflow state."
+      },
+      {
+        "checked": false,
+        "text": "Vityo-Implementation-Gaps.md no longer lists documentation automation after plan retirement as implementation needed."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Finish docs automation after plan retirement",
+      "target": "scripts/docs-index.py scripts/docs-audit.py docs/specs/DOCUMENTATION-POLICY.md docs/design/Vityo-Implementation-Gaps.md"
+    },
+    "next": [
+      "6fd0bfe7-3d65-429f-8a6d-fd0a0fc08092"
+    ]
+  },
+  {
+    "id": "6fd0bfe7-3d65-429f-8a6d-fd0a0fc08092",
+    "status": "pending",
+    "prerequisites": [
+      "d17caa5c-47a2-4ec9-b952-95906f3e0bcb"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Clarify product gate default-CI evidence policy.",
+    "description": "Current-state and audit documents state product workflow coverage requires VITYO_PRODUCT_GATE=1 and external fixtures. Closure means release evidence and gate docs clearly separate default CI green state from full product-matrix proof.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Release checklist and rollups identify which product gates are default, which are opt-in, and which claims each gate supports."
+      },
+      {
+        "checked": false,
+        "text": "Product workflow skips cannot be mistaken for live product closure in PR or checkpoint evidence."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Clarify product gate evidence policy",
+      "target": "docs/governance/RELEASE-CHECKLIST.md docs/rollups/CURRENT-STATE.md docs/assets/workflow"
+    },
+    "next": []
+  }
+]

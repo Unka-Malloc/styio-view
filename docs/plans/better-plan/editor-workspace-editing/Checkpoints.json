@@ -1,0 +1,110 @@
+[
+  {
+    "id": "77435bad-510b-4355-a1f9-6bdc236e7576",
+    "status": "completed",
+    "prerequisites": [],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm the custom editor model baseline.",
+    "description": "Editor milestone evidence and code search show document state, selection, text buffer, render layers, controller, source fidelity, keyboard input, and widget tests under frontend/vityo_app/lib/src/view_ide/editor, view_render/editor, and frontend/vityo_app/test/editor_*.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Editor source and test anchors exist for document state, selection, text buffer, glyph substitution, semantic blocks, and controller behavior."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm editor model baseline",
+      "target": "frontend/vityo_app/lib/src/view_ide/editor frontend/vityo_app/test"
+    },
+    "next": [
+      "daed970d-b17d-4403-8605-6f41a22f16ed"
+    ]
+  },
+  {
+    "id": "daed970d-b17d-4403-8605-6f41a22f16ed",
+    "status": "completed",
+    "prerequisites": [
+      "77435bad-510b-4355-a1f9-6bdc236e7576"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Confirm workspace edit and transaction anchors.",
+    "description": "Workspace edit planning, preview, application, confirmation, and telemetry are represented by frontend/vityo_app/lib/src/view_ide/workspace/workspace_edit.dart and workspace_edit_applier_test.dart; agent patch flows route through workspace edit anchors.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "WorkspaceEdit code and tests exist for rename, code action, and agent edit application paths."
+      },
+      {
+        "checked": true,
+        "text": "Agent patch application references workspace edit application rather than direct file writes."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Confirm workspace edit baseline",
+      "target": "frontend/vityo_app/lib/src/view_ide/workspace"
+    },
+    "next": [
+      "5f788902-a380-41aa-badc-2969a6c48290"
+    ]
+  },
+  {
+    "id": "5f788902-a380-41aa-badc-2969a6c48290",
+    "status": "pending",
+    "prerequisites": [
+      "daed970d-b17d-4403-8605-6f41a22f16ed"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Complete editor file binding recovery coverage.",
+    "description": "Vityo-Implementation-Gaps.md marks editor file binding tests as partially implemented: open/save, conflict, deleted-file, readonly, provider-unavailable, and several shell recovery paths exist, but provider reconnect UI and broader product flow coverage remain.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Provider reconnect UI and product flow tests are added for editor file binding recovery."
+      },
+      {
+        "checked": false,
+        "text": "The gap register no longer lists editor file binding tests as partially implemented for reconnect coverage."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Complete editor file binding recovery coverage",
+      "target": "frontend/vityo_app/lib/src/view_ide/workspace frontend/vityo_app/lib/src/view_render/editor frontend/vityo_app/test"
+    },
+    "next": [
+      "b0d4346e-3653-4b5f-b2da-e6bf41642a09"
+    ]
+  },
+  {
+    "id": "b0d4346e-3653-4b5f-b2da-e6bf41642a09",
+    "status": "pending",
+    "prerequisites": [
+      "5f788902-a380-41aa-badc-2969a6c48290"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Establish real editor performance baseline evidence.",
+    "description": "performance-baseline.md defines benchmark scripts and targets, but the current baseline is initial and skipped without Dart runtime. The editor plan remains open until performance-gate evidence is produced in an environment with Flutter or Dart.",
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "scripts/performance-gate.py records a real benchmark run for editor-sensitive paths."
+      },
+      {
+        "checked": false,
+        "text": "docs/review/performance-baseline.md is updated with measured values instead of skipped runtime status."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Establish editor performance baseline",
+      "target": "frontend/vityo_app/benchmark docs/review/performance-baseline.md"
+    },
+    "next": []
+  }
+]

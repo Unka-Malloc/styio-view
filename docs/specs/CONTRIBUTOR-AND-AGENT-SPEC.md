@@ -2,7 +2,7 @@
 
 **Purpose:** 定义人类贡献者与代码 agent 在 `Vityo` 仓库中的协作规则、联动更新要求与交付边界。
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-28
 
 ## 1. 基本原则
 
@@ -10,6 +10,7 @@
 2. 任何长期保留的交互、架构或平台策略，都必须有对应文档落点。
 3. 源码文本始终是编辑器中的 canonical source；视觉替换不能静默改写用户源代码。
 4. 任何内部 UI 组件都不得超过外部容器；若空间不足，必须通过 `min-width: 0`、局部滚动、换行或重排解决，不能让子组件溢出父容器。
+5. Documentation is English by default. Chinese prose is allowed only in documents explicitly scoped as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy, such as a localized `README.md` or product landing page.
 
 ## 2. 变更分级
 
@@ -37,6 +38,7 @@
 10. Agent 若调整团队 owned surface、review 路由或 handoff 路径，必须同步更新受影响的 `docs/teams/*.md` 与 `docs/teams/COORDINATION-RUNBOOK.md`。
 11. Agent 开始修改前必须查看 `git status --short`，把无关 dirty files 视为并发改动，不得回滚、覆盖或重排他人工作。
 12. Agent 若修改 `view_ide` / `view_render` 边界、legacy compatibility façade、sandbox/security、performance gate 或 release gate，必须同步更新 `docs/governance/` 和本地开发入口。
+13. Agent must write new documentation prose in English unless the target file's `Purpose` explicitly declares a Chinese-localized or Chinese user-facing product/marketing scope. When materially editing legacy Chinese prose in non-localized owner docs, convert the touched passage to English instead of extending it.
 
 ## 4. 人类审阅重点
 
@@ -45,6 +47,7 @@
 3. 是否把桌面交互直接照搬到移动端。
 4. 是否把 AI 面板做成“外挂聊天框”，而不是 IDE 内建能力。
 5. 是否错误地在 iOS 上暴露了本地编译模块入口。
+6. Whether new or materially edited documentation follows the English-by-default rule and has an explicit localization reason for any Chinese prose.
 
 ## 5. 批处理交付要求
 

@@ -2,11 +2,11 @@
 
 **Purpose:** Define the architecture domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo system architecture governance.
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-06-28
 
 ## Mission
 
-Own the overall Vityo system architecture: layer boundaries, import rules, adapter contract schemas, architecture alignment with mainstream IDE patterns, and architecture decision records (ADRs). Enforce that view_ide doesn't import Flutter presentation, view_render doesn't import agent providers, and backend_toolchain stays a shim-only legacy facade.
+Own the overall Vityo system architecture: layer boundaries, import rules, adapter contract schemas, architecture alignment with mainstream IDE patterns, architecture decision records (ADRs), and the implemented-decision summary. Enforce that view_ide doesn't import Flutter presentation, view_render doesn't import agent providers, and backend_toolchain stays a shim-only legacy facade.
 
 ## Owned Surface
 
@@ -29,6 +29,7 @@ Key SSOTs:
 3. `协议协商 -> ../design/Vityo-Protocol-And-Capability-Negotiation.md`
 4. `API 兼容性 -> ../governance/API-COMPATIBILITY.md`
 5. `供应链安全 -> ../governance/SECURITY-AND-SUPPLY-CHAIN.md`
+6. `已实现决策摘要 -> ../adr/IMPLEMENTED-DECISIONS.md`
 
 ## Daily Workflow
 
@@ -37,14 +38,15 @@ Key SSOTs:
 3. Ensure new public models have schemaVersion fields.
 4. Ensure new adapter payloads have capabilities maps and unknown field tolerance.
 5. Verify no competitor brand names enter UI-visible strings.
-6. Create ADRs for significant architectural decisions.
-7. Keep legacy `backend_toolchain/`, `editor/`, and `language/` roots as one-line compatibility facades only.
+6. Create standalone ADRs only for significant architectural decisions that still need direct review.
+7. When a decision is implemented and absorbed by code and owner SSOTs, compress the durable result into `docs/adr/IMPLEMENTED-DECISIONS.md` instead of leaving a stale plan or one-off ADR trail.
+8. Keep legacy `backend_toolchain/`, `editor/`, and `language/` roots as one-line compatibility facades only.
 
 ## Change Classes
 
 1. Small: New model/contract in existing domain, minor doc update. Run architecture boundary gate and flutter analyze.
-2. Medium: New architecture doc, new ADR, new governance rule, layer boundary adjustment. Run full gate suite plus docs gate.
-3. High: Layer boundary redefinition, major schema version bump, breaking contract change. Requires ADR, team review, and migration guide.
+2. Medium: New architecture doc, new ADR, implemented-decision summary update, new governance rule, layer boundary adjustment. Run full gate suite plus docs gate.
+3. High: Layer boundary redefinition, major schema version bump, breaking contract change. Requires ADR or implemented-decision replacement, team review, and migration guide.
 
 ## Required Gates
 
@@ -70,7 +72,7 @@ python3 scripts/repo-hygiene-gate.py --mode tracked
 
 Record:
 1. Which architecture docs were updated.
-2. Which ADRs were created or superseded.
+2. Which ADRs were created, superseded, or compressed into `IMPLEMENTED-DECISIONS.md`.
 3. Which layer boundaries were adjusted.
 4. Which gates were updated.
 5. Next recovery point and pending architectural decisions.

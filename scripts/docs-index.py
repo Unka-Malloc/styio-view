@@ -38,7 +38,7 @@ COLLECTION_DIRS = [
 ]
 INDEX_META = {
     "docs": ("Docs Index", "Provide the generated inventory for `docs/`; directory boundaries and maintenance rules live in [README.md](./README.md)."),
-    "docs/adr": ("ADR Index", "Provide the generated inventory for `docs/adr/`; decision-record conventions live in [README.md](./README.md)."),
+    "docs/adr": ("ADR Index", "Provide the generated inventory for `docs/adr/`; standalone ADR and implemented-decision conventions live in [README.md](./README.md)."),
     "docs/archive": ("Archive Index", "Provide the generated inventory for `docs/archive/`; archive boundaries and lifecycle rules live in [README.md](./README.md)."),
     "docs/archive/history": ("Archive History Index", "Provide the generated inventory for `docs/archive/history/`; archived topic provenance snapshots live in [README.md](./README.md)."),
     "docs/audit": ("Audit Index", "Provide the generated inventory for `docs/audit/`; transient defect records live in ignored `docs/audit/defects/` and are enforced by external `styio-audit` runs."),
@@ -52,7 +52,7 @@ INDEX_META = {
     "docs/governance": ("Governance Index", "Provide the generated inventory for `docs/governance/`; compatibility, security, ownership, and release rules live in [README.md](./README.md)."),
     "docs/history": ("History Index", "Provide the generated inventory for `docs/history/`; recovery-note rules live in [README.md](./README.md)."),
     "docs/milestones": ("Milestones Index", "Provide the generated inventory for `docs/milestones/`; feature milestone rules live in [README.md](./README.md)."),
-    "docs/plans": ("Plans Index", "Provide the generated inventory for `docs/plans/`; implementation plans and future work ledgers live in [README.md](./README.md)."),
+    "docs/plans": ("Plans Index", "Provide the generated inventory for `docs/plans/`; retired-plan boundaries and Better Plan workflow-state rules live in [README.md](./README.md)."),
     "docs/review": ("Review Index", "Provide the generated inventory for `docs/review/`; open-conflict and unresolved-risk boundaries live in [README.md](./README.md)."),
     "docs/rollups": ("Rollups Index", "Provide the generated inventory for `docs/rollups/`; compressed active summaries live in [README.md](./README.md)."),
     "docs/specs": ("Specs Index", "Provide the generated inventory for `docs/specs/`; collaboration, repository, and documentation-rule boundaries live in [README.md](./README.md)."),

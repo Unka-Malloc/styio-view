@@ -10,7 +10,7 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `adr/` | [ADR Index](./adr/INDEX.md) | 定义 docs/adr/ 的范围和命名规则；具体 ADR 清单见 INDEX.md。 |
+| `adr/` | [ADR Index](./adr/INDEX.md) | Define the current-tree policy for docs/adr/: standalone ADRs hold architectural decisions that still need direct review, while implemented decisions that match current code are compressed into IMPLEMENTED-DECISIONS.md or the owning design/spec/runbook. |
 | `archive/` | [Archive Index](./archive/INDEX.md) | 保存 Vityo 已归档的文档 provenance 和生命周期元数据；活跃摘要留在 docs/rollups/，活跃恢复记录留在 docs/history/。 |
 | `assets/` | [Assets Index](./assets/INDEX.md) | 定义 docs/assets/ 中可复用交付资产的边界；具体条目见 INDEX.md。 |
 | `audit/` | [Audit Index](./audit/INDEX.md) | Define the repository-local audit queue for security, correctness, and design defects discovered before they are converted into normal tracked work. |
@@ -20,7 +20,7 @@
 | `governance/` | [Governance Index](./governance/INDEX.md) | Define the repository-owned rules for compatibility, security, release readiness, code ownership, and migration discipline. |
 | `history/` | [History Index](./history/INDEX.md) | 定义 docs/history/ 的主题化恢复记录范围；具体主题索引见 INDEX.md。 |
 | `milestones/` | [Milestones Index](./milestones/INDEX.md) | 定义 docs/milestones/ 中按功能主题组织的里程碑文档范围；主题索引见 INDEX.md。 |
-| `plans/` | [Plans Index](./plans/INDEX.md) | Track implementation plans, future work ledgers, and planning-only material that must not be mistaken for delivered product behavior. |
+| `plans/` | [Plans Index](./plans/INDEX.md) | Mark docs/plans/ as the retired local plan area and point maintainers to the Better Plan workflow state that indexes existing owner documents without replacing them. |
 | `review/` | [Review Index](./review/INDEX.md) | 定义 docs/review/ 中风险、冲突与待裁决问题的范围；索引见 INDEX.md。 |
 | `rollups/` | [Rollups Index](./rollups/INDEX.md) | 提供 Vityo 的压缩活跃摘要与默认阅读入口，让当前状态和活跃缺口能在不先通读 raw history 的前提下被快速定位。 |
 | `specs/` | [Specs Index](./specs/INDEX.md) | 定义 docs/specs/ 中协作、依赖和仓库规则的范围；文件索引见 INDEX.md。 |

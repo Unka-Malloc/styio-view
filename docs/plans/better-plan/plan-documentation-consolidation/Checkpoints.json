@@ -1,0 +1,114 @@
+[
+  {
+    "id": "fc80a43f-6527-4f3b-a095-9982b24cef69",
+    "status": "completed",
+    "prerequisites": [],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Inventory the repository planning sources.",
+    "description": "Read docs/plans, docs/milestones, docs/rollups, docs/design gap and baseline files, docs/review, docs/audit, docs/specs documentation policy, and workflow assets to identify the current planning sources and contradictions.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Planning source files are listed in Manifest.json source_files fields with project-root relative paths."
+      },
+      {
+        "checked": true,
+        "text": "The retired docs/plans policy and active gap-register replacement rule are represented in this workspace."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Inventory Vityo planning sources",
+      "target": "docs/plans/better-plan"
+    },
+    "next": [
+      "a6843f69-f881-4380-badd-d410a52a196d"
+    ]
+  },
+  {
+    "id": "a6843f69-f881-4380-badd-d410a52a196d",
+    "status": "completed",
+    "prerequisites": [
+      "fc80a43f-6527-4f3b-a095-9982b24cef69"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Reconcile old milestone statuses with current rollup and code evidence.",
+    "description": "Compare April milestone status text with June rollups, Vityo-Implementation-Gaps.md, delivered baseline, code anchors, and test anchors; preserve contradictions in descriptions instead of silently trusting old status labels.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Completed nodes cite code or test-anchor evidence in their descriptions or source plan context."
+      },
+      {
+        "checked": true,
+        "text": "Upstream blockers remain blocked instead of being converted into local pending work."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Reconcile Vityo planning status",
+      "target": "docs/plans/better-plan"
+    },
+    "next": [
+      "b326f71a-eaf8-4ab4-86ea-1a665aaab27e"
+    ]
+  },
+  {
+    "id": "b326f71a-eaf8-4ab4-86ea-1a665aaab27e",
+    "status": "completed",
+    "prerequisites": [
+      "a6843f69-f881-4380-badd-d410a52a196d"
+    ],
+    "platform": "windows",
+    "difficulty": "medium",
+    "goal": "Create the Better Plan workspace.",
+    "description": "Create docs/plans/better-plan with a root Manifest.json and one functional plan directory per plan, each with its own Checkpoints.json. The workspace references owner docs and does not replace the active product source of truth.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "docs/plans/better-plan/Manifest.json contains only Plan objects."
+      },
+      {
+        "checked": true,
+        "text": "Every Plan object points to a dedicated plan directory and that directory's Checkpoints.json."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Create Better Plan workspace",
+      "target": "docs/plans/better-plan"
+    },
+    "next": [
+      "191b96ed-c5e3-4ba4-980d-19852d53484d"
+    ]
+  },
+  {
+    "id": "191b96ed-c5e3-4ba4-980d-19852d53484d",
+    "status": "completed",
+    "prerequisites": [
+      "b326f71a-eaf8-4ab4-86ea-1a665aaab27e"
+    ],
+    "platform": "windows",
+    "difficulty": "low",
+    "goal": "Validate the Better Plan workspace shape.",
+    "description": "Use scripts/manifest_tool.py validate docs/plans/better-plan after writing Manifest.json and Checkpoints.json. Also refresh docs indexes so docs/plans points at the Better Plan workspace README.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "scripts/manifest_tool.py validate docs/plans/better-plan succeeds."
+      },
+      {
+        "checked": true,
+        "text": "docs/plans/INDEX.md includes the Better Plan workspace after docs-index refresh."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "Validate Better Plan workspace",
+      "target": "docs/plans/better-plan"
+    },
+    "next": []
+  }
+]

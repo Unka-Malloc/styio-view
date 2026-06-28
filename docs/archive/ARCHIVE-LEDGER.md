@@ -2,7 +2,7 @@
 
 **Purpose:** Track archived `Vityo` documentation provenance and lifecycle status; the machine-readable source of truth lives in [ARCHIVE-MANIFEST.json](./ARCHIVE-MANIFEST.json).
 
-**Last updated:** 2026-06-19
+**Last updated:** 2026-06-28
 
 ## Status
 

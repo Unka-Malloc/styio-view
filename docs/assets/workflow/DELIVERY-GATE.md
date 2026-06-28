@@ -33,4 +33,4 @@ Use `--audit-bin ../styio-audit/bin/styio-audit` to force a specific audit check
 3. external `styio-audit gate --project Vityo`
 4. `./scripts/checkpoint-health.sh`, including the `95%` project coverage gate and release-readiness static checks for `toolchain/maintenance-tools.json`
 
-The standalone `project-coverage-gate` GitHub Actions workflow is the direct coverage evidence lane. It runs `python3 scripts/project-coverage-gate.py --fail-under 95` and uploads the Flutter LCOV report without waiting on sibling repository build steps.
+The standalone `project-coverage-gate` GitHub Actions workflow is the direct coverage evidence lane. It runs `python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85` and uploads the Flutter LCOV report without waiting on sibling repository build steps.

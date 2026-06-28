@@ -1,5 +1,4 @@
 import '../backend_toolchain/execution_adapter.dart';
-import '../view_ide/backend_toolchain/runtime_event_adapter.dart';
 import 'runtime_replay_summary.dart';
 
 /// An append-only log of [RuntimeEventEnvelope] values.

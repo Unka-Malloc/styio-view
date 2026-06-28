@@ -39,13 +39,11 @@ class WorkspaceGraphAdapter {
     required Uri workspaceRootUri,
     WorkspaceGraphBuilder? builder,
   }) : _projectGraphAdapter = projectGraphAdapter,
-       _builder = builder ??
-           WorkspaceGraphBuilder(workspaceRootUri: workspaceRootUri),
-       _workspaceRootUri = workspaceRootUri;
+       _builder =
+           builder ?? WorkspaceGraphBuilder(workspaceRootUri: workspaceRootUri);
 
   final ProjectGraphAdapter _projectGraphAdapter;
   final WorkspaceGraphBuilder _builder;
-  final Uri _workspaceRootUri;
 
   WorkspaceGraphSnapshot? _lastSnapshot;
 
@@ -69,7 +67,8 @@ class WorkspaceGraphAdapter {
       targets: projectSnapshot.targets,
       toolchain: projectSnapshot.toolchain,
       hostedWorkspace: hostedWorkspace ?? projectSnapshot.hostedWorkspace,
-      forcePartial: projectSnapshot.hasProjectGraphPayloadFailure == true ||
+      forcePartial:
+          projectSnapshot.hasProjectGraphPayloadFailure == true ||
           projectSnapshot.kind == ProjectKind.scratch,
       partialReason: _partialReasonFromProjectSnapshot(projectSnapshot),
       upstreamPayloadMissing:
@@ -109,10 +108,7 @@ class WorkspaceGraphAdapter {
         hostedWorkspace: hostedWorkspace,
       );
       _lastSnapshot = result.snapshot;
-      return WorkspaceGraphEvent(
-        snapshot: result.snapshot,
-        result: result,
-      );
+      return WorkspaceGraphEvent(snapshot: result.snapshot, result: result);
     }
 
     final result = _builder.incrementalUpdate(
@@ -146,7 +142,7 @@ class WorkspaceGraphAdapter {
     final entries = <CanonicalFileEntry>[];
     final now = DateTime.now();
 
-    void _add(String? path) {
+    void add(String? path) {
       if (path == null || path.isEmpty) return;
       entries.add(
         CanonicalFileEntry(
@@ -157,12 +153,12 @@ class WorkspaceGraphAdapter {
       );
     }
 
-    _add(snapshot.manifestPath);
-    _add(snapshot.lockfilePath);
-    _add(snapshot.toolchainPinPath);
-    _add(snapshot.styioConfigPath);
-    _add(snapshot.vendorRoot);
-    _add(snapshot.buildRoot);
+    add(snapshot.manifestPath);
+    add(snapshot.lockfilePath);
+    add(snapshot.toolchainPinPath);
+    add(snapshot.styioConfigPath);
+    add(snapshot.vendorRoot);
+    add(snapshot.buildRoot);
 
     return entries;
   }
@@ -175,8 +171,7 @@ class WorkspaceGraphAdapter {
     if (snapshot.kind == ProjectKind.scratch) {
       return 'Running in scratch mode; no manifest available.';
     }
-    if (snapshot.packages.isEmpty &&
-        snapshot.workspaceMembers.isNotEmpty) {
+    if (snapshot.packages.isEmpty && snapshot.workspaceMembers.isNotEmpty) {
       return 'Workspace has members but none contain a valid package.';
     }
     return null;

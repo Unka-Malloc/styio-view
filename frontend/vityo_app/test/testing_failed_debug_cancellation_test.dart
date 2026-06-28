@@ -433,7 +433,12 @@ void main() {
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('testing-cancel-failed-debug-parser syntax')),
       120,
-      scrollable: find.byType(Scrollable),
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('testing-content-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.tap(
       find.byKey(const ValueKey('testing-cancel-failed-debug-parser syntax')),

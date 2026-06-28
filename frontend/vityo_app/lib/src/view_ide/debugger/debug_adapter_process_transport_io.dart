@@ -81,9 +81,15 @@ class DapProcessTransport implements DapByteTransport {
   @override
   Future<void> close() async {
     final process = _process;
+    final exitCode = _exitCode;
     _process = null;
     if (process != null) {
       process.kill();
+      try {
+        await exitCode?.timeout(const Duration(seconds: 2));
+      } on Object {
+        // Best-effort shutdown; callers still need the transport stream closed.
+      }
     }
     if (!_incoming.isClosed) {
       await _incoming.close();

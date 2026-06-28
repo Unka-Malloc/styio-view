@@ -14,8 +14,8 @@ library;
 
 import 'dart:math';
 
-import '../lib/src/view_ide/editor/document/document_state.dart';
-import '../lib/src/view_ide/editor/document/text_buffer/text_buffer.dart';
+import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/view_ide/editor/document/text_buffer/text_buffer.dart';
 
 /// Generates a document with [lineCount] lines of text.
 DocumentState generateDocument(

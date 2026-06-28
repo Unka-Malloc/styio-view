@@ -128,8 +128,7 @@ extension AppCommandPermissionRequirementX on AppCommandPermissionRequirement {
       AppCommandPermissionRequirement.network => 'network',
       AppCommandPermissionRequirement.destructive => 'destructive',
       AppCommandPermissionRequirement.openWorld => 'open-world',
-      AppCommandPermissionRequirement.externalResource =>
-        'external-resource',
+      AppCommandPermissionRequirement.externalResource => 'external-resource',
       AppCommandPermissionRequirement.fullAccess => 'full-access',
     };
   }
@@ -544,9 +543,7 @@ AppCommandSideEffect _defaultSideEffectFor(
   };
 }
 
-AppCommandTargetSurface _defaultTargetSurfaceFor(
-  AppCommandCategory category,
-) {
+AppCommandTargetSurface _defaultTargetSurfaceFor(AppCommandCategory category) {
   return switch (category) {
     AppCommandCategory.persistence => AppCommandTargetSurface.editor,
     AppCommandCategory.execution ||
@@ -697,9 +694,7 @@ class StyioCommandRegistry {
       shortcutHint: 'F12',
       description: 'Open matching workspace definitions for a symbol.',
       primary: true,
-      shortcuts: <AppCommandShortcutSpec>[
-        AppCommandShortcutSpec('f12'),
-      ],
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('f12')],
     ),
     AppCommandDescriptor(
       id: AppCommandId.goToWorkspaceTypeDefinition,
@@ -748,9 +743,7 @@ class StyioCommandRegistry {
       shortcutHint: 'F2',
       description: 'Preview and apply a workspace symbol rename.',
       primary: true,
-      shortcuts: <AppCommandShortcutSpec>[
-        AppCommandShortcutSpec('f2'),
-      ],
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('f2')],
     ),
     AppCommandDescriptor(
       id: AppCommandId.searchWorkspaceSymbols,
@@ -1079,7 +1072,8 @@ class StyioCommandRegistry {
           'Load branch facts and prepare a source-control branch switch plan without switching branches.',
       requiresInput: true,
       inputLabel: 'Target branch',
-      inputContract: 'Existing or candidate branch name from source-control facts.',
+      inputContract:
+          'Existing or candidate branch name from source-control facts.',
       inputExamples: <String>['ai-dev', 'nightly'],
     ),
     AppCommandDescriptor(
@@ -1201,17 +1195,6 @@ class StyioCommandRegistry {
       inputLabel: 'Workspace file path',
       inputContract: 'Workspace-relative file path to reveal in the file tree.',
       inputExamples: <String>['src/main.styio'],
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.searchWorkspace,
-      label: 'Search Workspace',
-      shortcutHint: 'Route',
-      description:
-          'Search workspace documents and expose capped results to the next Agent context.',
-      requiresInput: true,
-      inputLabel: 'Search query',
-      inputContract: 'Plain text search query.',
-      inputExamples: <String>['main', '@stdout'],
     ),
     AppCommandDescriptor(
       id: AppCommandId.previewWorkspaceReplace,

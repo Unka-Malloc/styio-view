@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-28
 
 ## Mission
 
@@ -43,6 +43,8 @@ Key SSOTs:
 7. runtime/agent 的纯状态归 `view_ide`，Flutter surface 和 debug/agent panel 呈现归 `view_render`；legacy `src/runtime/` 与 `src/agent/` 只能保留 façade。
 8. agent tool execution must route through the sandbox/permission model; UI surfaces may display only redacted context and journal summaries.
 9. Permission, provider route, or sandbox changes must update [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md) when the policy changes.
+
+10. `runtime_event_log.dart` changes must keep replay output deterministic on Windows and POSIX hosts; avoid path separator, line-ending, or clock assumptions in runtime event summaries and tests.
 
 ## Change Classes
 

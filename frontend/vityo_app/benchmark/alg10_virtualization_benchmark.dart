@@ -73,7 +73,7 @@ List<VirtualListItem> generateItems(int count) {
     return VirtualListItem(
       index: i,
       height: height,
-      content: 'Item $i content ' + 'x' * (10 + rng.nextInt(90)),
+      content: 'Item $i content ${'x' * (10 + rng.nextInt(90))}',
     );
   });
 }

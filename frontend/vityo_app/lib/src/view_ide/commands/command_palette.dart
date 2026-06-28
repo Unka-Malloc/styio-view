@@ -215,14 +215,14 @@ class CommandPaletteService {
     }
 
     final shortcutDirect = normalizedShortcut.contains(normalizedPattern)
-        ? _CommandPaletteScore(value: 6200, matches: const [])
+        ? const _CommandPaletteScore(value: 6200, matches: [])
         : null;
     if (shortcutDirect != null) {
       return shortcutDirect.withBoost(recentBoost);
     }
 
     final descriptionDirect = normalizedDescription.contains(normalizedPattern)
-        ? _CommandPaletteScore(value: 5600, matches: const [])
+        ? const _CommandPaletteScore(value: 5600, matches: [])
         : null;
     if (descriptionDirect != null) {
       return descriptionDirect.withBoost(recentBoost);

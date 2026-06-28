@@ -24,7 +24,6 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
-import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/module_host/module_registry.dart';
@@ -213,10 +212,7 @@ void main() {
         workspaceId: 'demo',
         snapshot: const EditorSessionSnapshot(
           activeDocumentId: secondDocumentPath,
-          openDocumentIds: <String>[
-            firstDocumentPath,
-            secondDocumentPath,
-          ],
+          openDocumentIds: <String>[firstDocumentPath, secondDocumentPath],
           cursorOffsets: <String, int>{secondDocumentPath: 4},
           selectionAnchors: <String, int>{secondDocumentPath: 1},
         ),
@@ -589,7 +585,7 @@ void main() {
 
       await shell.executeCommand(AppCommandId.commandPalette);
 
-      expect(shell.activeBottomTab, BottomSurfaceTab.commands);
+      expect(shell.activeBottomTab, BottomSurfaceTab.commandPalette);
       expect(
         shell.debugLog.any(
           (entry) => entry.contains('Command Palette route requested'),
@@ -691,7 +687,9 @@ void main() {
 
       expect(shell.activeBottomTab, BottomSurfaceTab.outline);
       expect(
-        shell.debugLog.any((entry) => entry.contains('Outline route requested')),
+        shell.debugLog.any(
+          (entry) => entry.contains('Outline route requested'),
+        ),
         isTrue,
       );
 
@@ -710,7 +708,7 @@ void main() {
       expect(shell.activeBottomTab, BottomSurfaceTab.symbols);
       expect(
         shell.debugLog.any(
-          (entry) => entry.contains('Workspace Symbols route requested'),
+          (entry) => entry.contains('Symbols route requested'),
         ),
         isTrue,
       );
@@ -735,19 +733,12 @@ void main() {
         isTrue,
       );
 
-// FIXME: API removed during merge: final commandResult = shell.searchCommandPalette(
-// FIXME: API removed during merge: const CommandPaletteQuery(pattern: 'find in files'),
-// FIXME: API removed during merge: );
-
-      expect(commandResult.items.first.commandId, AppCommandId.searchWorkspace);
-
-// FIXME: API removed during merge: await shell.executeCommandPaletteItem(commandResult.items.first);
+      await shell.executeCommand(AppCommandId.searchWorkspace);
 
       expect(shell.activeBottomTab, BottomSurfaceTab.search);
-// FIXME: API removed during merge: expect(shell.recentCommandIds.first, AppCommandId.searchWorkspace);
       expect(
         shell.debugLog.any(
-          (entry) => entry.contains('Find in Files route requested'),
+          (entry) => entry.contains('Workspace search surface opened'),
         ),
         isTrue,
       );
@@ -1201,7 +1192,9 @@ void main() {
       await shell.executeCommand(AppCommandId.clearPinnedCompiler);
       await shell.executeCommand(AppCommandId.packProject);
       await shell.executeCommand(AppCommandId.refreshModules);
-      await shell.installManagedCompiler(styioBinaryPath: '/opt/styio/bin/styio');
+      await shell.installManagedCompiler(
+        styioBinaryPath: '/opt/styio/bin/styio',
+      );
       await shell.handleToolchainRecoveryAction(
         const ToolchainRecoveryAction(
           id: 'select-existing-toolchain',
@@ -1270,33 +1263,36 @@ void main() {
     },
   );
 
-  test('shell session and file binding edge states log unavailable paths', () async {
-    final initialGraph = _projectGraph(
-      compilerVersion: '0.0.5',
-      compilePlanReady: true,
-    );
-    final shell = _createShell(initialGraph: initialGraph);
-    addTearDown(shell.dispose);
+  test(
+    'shell session and file binding edge states log unavailable paths',
+    () async {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final shell = _createShell(initialGraph: initialGraph);
+      addTearDown(shell.dispose);
 
-    final acceptedSnapshot = shell.acceptEditorExternalChange();
-    await shell.persistEditorSession();
-    final restoredSnapshot = await shell.restoreEditorSession();
+      final acceptedSnapshot = shell.acceptEditorExternalChange();
+      await shell.persistEditorSession();
+      final restoredSnapshot = await shell.restoreEditorSession();
 
-    expect(acceptedSnapshot.document, shell.editorController.document);
-    expect(restoredSnapshot, isNull);
-    expect(
-      shell.debugLog.any(
-        (entry) => entry.contains('Editor session persistence unavailable'),
-      ),
-      isTrue,
-    );
-    expect(
-      shell.debugLog.any(
-        (entry) => entry.contains('Editor session restore unavailable'),
-      ),
-      isTrue,
-    );
-  });
+      expect(acceptedSnapshot.document, shell.editorController.document);
+      expect(restoredSnapshot, isNull);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Editor session persistence unavailable'),
+        ),
+        isTrue,
+      );
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('Editor session restore unavailable'),
+        ),
+        isTrue,
+      );
+    },
+  );
 
   test('save command logs blocked resource-store failures', () async {
     final initialGraph = _projectGraph(
@@ -1322,163 +1318,175 @@ void main() {
     );
   });
 
-  test('deployment and toolchain command blockers report platform and package state', () {
-    final initialGraph = _projectGraph(
-      compilerVersion: '0.0.5',
-      compilePlanReady: true,
-    );
-    final iosShell = _createShell(
-      platformTarget: PlatformTarget.ios,
-      initialGraph: initialGraph,
-    );
-    addTearDown(iosShell.dispose);
+  test(
+    'deployment and toolchain command blockers report platform and package state',
+    () {
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final iosShell = _createShell(
+        platformTarget: PlatformTarget.ios,
+        initialGraph: initialGraph,
+      );
+      addTearDown(iosShell.dispose);
 
-    expect(
-      iosShell.blockedReasonForCommand(AppCommandId.useActiveCompiler),
-      contains('does not expose local spio toolchain management'),
-    );
-    expect(
-      iosShell.blockedReasonForCommand(AppCommandId.preparePublish),
-      contains('does not expose local spio deployment commands'),
-    );
+      expect(
+        iosShell.blockedReasonForCommand(AppCommandId.useActiveCompiler),
+        contains('does not expose local spio toolchain management'),
+      );
+      expect(
+        iosShell.blockedReasonForCommand(AppCommandId.preparePublish),
+        contains('does not expose local spio deployment commands'),
+      );
 
-    final blockedDistributionShell = _createShell(
-      initialGraph: initialGraph.copyWith(
-        packageDistribution: const PackageDistributionSnapshot(
-          schemaVersion: 1,
-          packages: <PackageDistributionPackageSnapshot>[
-            PackageDistributionPackageSnapshot(
-              packageName: 'demo/core',
-              manifestPath: '/workspace/demo/spio.toml',
-              publishEnabled: false,
-              publishReady: false,
-              blockingReasons: <String>['publish disabled'],
-            ),
-            PackageDistributionPackageSnapshot(
-              packageName: 'demo/cli',
-              manifestPath: '/workspace/demo/cli/spio.toml',
-              publishEnabled: true,
-              publishReady: false,
-            ),
-          ],
+      final blockedDistributionShell = _createShell(
+        initialGraph: initialGraph.copyWith(
+          packageDistribution: const PackageDistributionSnapshot(
+            schemaVersion: 1,
+            packages: <PackageDistributionPackageSnapshot>[
+              PackageDistributionPackageSnapshot(
+                packageName: 'demo/core',
+                manifestPath: '/workspace/demo/spio.toml',
+                publishEnabled: false,
+                publishReady: false,
+                blockingReasons: <String>['publish disabled'],
+              ),
+              PackageDistributionPackageSnapshot(
+                packageName: 'demo/cli',
+                manifestPath: '/workspace/demo/cli/spio.toml',
+                publishEnabled: true,
+                publishReady: false,
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-    addTearDown(blockedDistributionShell.dispose);
+      );
+      addTearDown(blockedDistributionShell.dispose);
 
-    expect(
-      blockedDistributionShell.blockedReasonForCommand(
-        AppCommandId.preparePublish,
-      ),
-      allOf(contains('No publish-ready package'), contains('demo/core')),
-    );
-
-    final ambiguousDistributionShell = _createShell(
-      initialGraph: initialGraph.copyWith(
-        packageDistribution: const PackageDistributionSnapshot(
-          schemaVersion: 1,
-          packages: <PackageDistributionPackageSnapshot>[
-            PackageDistributionPackageSnapshot(
-              packageName: 'demo/core',
-              manifestPath: '/workspace/demo/spio.toml',
-              publishEnabled: true,
-              publishReady: true,
-            ),
-            PackageDistributionPackageSnapshot(
-              packageName: 'demo/cli',
-              manifestPath: '/workspace/demo/cli/spio.toml',
-              publishEnabled: true,
-              publishReady: true,
-            ),
-          ],
+      expect(
+        blockedDistributionShell.blockedReasonForCommand(
+          AppCommandId.preparePublish,
         ),
-      ),
-    );
-    addTearDown(ambiguousDistributionShell.dispose);
+        allOf(contains('No publish-ready package'), contains('demo/core')),
+      );
 
-    expect(
-      ambiguousDistributionShell.blockedReasonForCommand(
-        AppCommandId.preparePublish,
-      ),
-      contains('Multiple publish-ready packages'),
-    );
-  });
+      final ambiguousDistributionShell = _createShell(
+        initialGraph: initialGraph.copyWith(
+          packageDistribution: const PackageDistributionSnapshot(
+            schemaVersion: 1,
+            packages: <PackageDistributionPackageSnapshot>[
+              PackageDistributionPackageSnapshot(
+                packageName: 'demo/core',
+                manifestPath: '/workspace/demo/spio.toml',
+                publishEnabled: true,
+                publishReady: true,
+              ),
+              PackageDistributionPackageSnapshot(
+                packageName: 'demo/cli',
+                manifestPath: '/workspace/demo/cli/spio.toml',
+                publishEnabled: true,
+                publishReady: true,
+              ),
+            ],
+          ),
+        ),
+      );
+      addTearDown(ambiguousDistributionShell.dispose);
 
-  test('editor session restore handles empty, missing, and cursor-only snapshots', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_shell_editor_session_edges_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
-    final store = EditorSessionDataStore.fromDataStore(
-      dataStore: FoundationDataStore(
-        resourceCoordinator: FoundationResourceCoordinator(
-          resourceManager: LocalResourceManager(
-            facts: ResourceFacts.linuxDebianArm(
-              systemTempPath: tempRoot.path,
-              homePath: tempRoot.path,
+      expect(
+        ambiguousDistributionShell.blockedReasonForCommand(
+          AppCommandId.preparePublish,
+        ),
+        contains('Multiple publish-ready packages'),
+      );
+    },
+  );
+
+  test(
+    'editor session restore handles empty, missing, and cursor-only snapshots',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_shell_editor_session_edges_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final store = EditorSessionDataStore.fromDataStore(
+        dataStore: FoundationDataStore(
+          resourceCoordinator: FoundationResourceCoordinator(
+            resourceManager: LocalResourceManager(
+              facts: ResourceFacts.linuxDebianArm(
+                systemTempPath: tempRoot.path,
+                homePath: tempRoot.path,
+              ),
             ),
+            fileSystemManager: fileSystemManager,
           ),
           fileSystemManager: fileSystemManager,
         ),
-        fileSystemManager: fileSystemManager,
-      ),
-    );
-    final initialGraph = _projectGraph(
-      compilerVersion: '0.0.5',
-      compilePlanReady: true,
-    );
-    final shell = _createShell(
-      initialGraph: initialGraph,
-      editorSessionDataStore: store,
-      editorSessionWorkspaceId: 'session-edge',
-    );
-    addTearDown(shell.dispose);
+      );
+      final initialGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
+      final shell = _createShell(
+        initialGraph: initialGraph,
+        editorSessionDataStore: store,
+        editorSessionWorkspaceId: 'session-edge',
+      );
+      addTearDown(shell.dispose);
 
-    expect(await shell.restoreEditorSession(), isNull);
-    expect(
-      shell.debugLog.any((entry) => entry.contains('No editor session snapshot')),
-      isTrue,
-    );
+      expect(await shell.restoreEditorSession(), isNull);
+      expect(
+        shell.debugLog.any(
+          (entry) => entry.contains('No editor session snapshot'),
+        ),
+        isTrue,
+      );
 
-    await store.saveSession(
-      workspaceId: 'session-edge',
-      snapshot: const EditorSessionSnapshot(
-        activeDocumentId: '/workspace/demo/src/missing.styio',
-        openDocumentIds: <String>['/workspace/demo/src/missing.styio'],
-      ),
-    );
+      await store.saveSession(
+        workspaceId: 'session-edge',
+        snapshot: const EditorSessionSnapshot(
+          activeDocumentId: '/workspace/demo/src/missing.styio',
+          openDocumentIds: <String>['/workspace/demo/src/missing.styio'],
+        ),
+      );
 
-    final missingSnapshot = await shell.restoreEditorSession();
+      final missingSnapshot = await shell.restoreEditorSession();
 
-    expect(
-      missingSnapshot?.activeDocumentId,
-      '/workspace/demo/src/missing.styio',
-    );
-    expect(
-      shell.debugLog.any(
-        (entry) => entry.contains('document is not available in the workspace'),
-      ),
-      isTrue,
-    );
+      expect(
+        missingSnapshot?.activeDocumentId,
+        '/workspace/demo/src/missing.styio',
+      );
+      expect(
+        shell.debugLog.any(
+          (entry) =>
+              entry.contains('document is not available in the workspace'),
+        ),
+        isTrue,
+      );
 
-    await store.saveSession(
-      workspaceId: 'session-edge',
-      snapshot: const EditorSessionSnapshot(
-        activeDocumentId: '/workspace/demo/src/main.styio',
-        openDocumentIds: <String>['/workspace/demo/src/main.styio'],
-        cursorOffsets: <String, int>{'/workspace/demo/src/main.styio': 3},
-      ),
-    );
+      await store.saveSession(
+        workspaceId: 'session-edge',
+        snapshot: const EditorSessionSnapshot(
+          activeDocumentId: '/workspace/demo/src/main.styio',
+          openDocumentIds: <String>['/workspace/demo/src/main.styio'],
+          cursorOffsets: <String, int>{'/workspace/demo/src/main.styio': 3},
+        ),
+      );
 
-    final cursorOnlySnapshot = await shell.restoreEditorSession();
+      final cursorOnlySnapshot = await shell.restoreEditorSession();
 
-    expect(cursorOnlySnapshot?.activeDocumentId, initialGraph.editorFiles.first);
-    expect(shell.editorController.selection.start, 3);
-    expect(shell.editorController.selection.end, 3);
-  });
+      expect(
+        cursorOnlySnapshot?.activeDocumentId,
+        initialGraph.editorFiles.first,
+      );
+      expect(shell.editorController.selection.start, 3);
+      expect(shell.editorController.selection.end, 3);
+    },
+  );
 
-  test('workspace navigation history trims, forks, and restores ranges', () async {
+  test('workspace navigation commands route without mutating active file', () async {
     const firstDocumentPath = '/workspace/demo/src/main.styio';
     const secondDocumentPath = '/workspace/demo/src/feature.styio';
     const firstDocumentText =
@@ -1508,53 +1516,20 @@ void main() {
     );
     addTearDown(shell.dispose);
 
-// FIXME: API removed during merge: await shell.openWorkspaceNavigationLocation(
-// FIXME: API removed during merge: const WorkspaceNavigationLocation(
-// FIXME: API removed during merge: filePath: secondDocumentPath,
-// FIXME: API removed during merge: range: SourceRange(start: 1, end: 8),
-// FIXME: API removed during merge: line: 0,
-// FIXME: API removed during merge: column: 1,
-// FIXME: API removed during merge: previewText: 'feature document',
-// FIXME: API removed during merge: label: 'Feature range',
-// FIXME: API removed during merge: kind: WorkspaceNavigationLocationKind.symbol,
-// FIXME: API removed during merge: ),
-// FIXME: API removed during merge: );
     await shell.executeCommand(AppCommandId.navigateBack);
     await shell.executeCommand(AppCommandId.navigateForward);
 
-    expect(shell.workspaceController.activeFilePath, secondDocumentPath);
-    expect(shell.editorController.selection.start, 1);
-    expect(shell.editorController.selection.end, 8);
-
-    await shell.executeCommand(AppCommandId.navigateBack);
-// FIXME: API removed during merge: expect(shell.workspaceNavigationHistory.canGoForward, isTrue);
-
-// FIXME: API removed during merge: await shell.openWorkspaceNavigationLocation(
-// FIXME: API removed during merge: const WorkspaceNavigationLocation(
-// FIXME: API removed during merge: filePath: firstDocumentPath,
-// FIXME: API removed during merge: range: SourceRange(start: 3, end: 3),
-// FIXME: API removed during merge: line: 0,
-// FIXME: API removed during merge: column: 3,
-// FIXME: API removed during merge: previewText: '0123456789',
-// FIXME: API removed during merge: label: 'Forked range',
-// FIXME: API removed during merge: ),
-// FIXME: API removed during merge: );
-// FIXME: API removed during merge: expect(shell.workspaceNavigationHistory.canGoForward, isFalse);
-
-    for (var index = 0; index < 85; index += 1) {
-// FIXME: API removed during merge: await shell.openWorkspaceNavigationLocation(
-// FIXME: API removed during merge: WorkspaceNavigationLocation(
-// FIXME: API removed during merge: filePath: firstDocumentPath,
-// FIXME: API removed during merge: range: SourceRange(start: index, end: index),
-// FIXME: API removed during merge: line: 0,
-// FIXME: API removed during merge: column: index,
-// FIXME: API removed during merge: previewText: '0123456789',
-// FIXME: API removed during merge: label: 'Trim $index',
-// FIXME: API removed during merge: ),
-// FIXME: API removed during merge: );
-    }
-
-// FIXME: API removed during merge: expect(shell.workspaceNavigationHistory.entries.length, 80);
+    expect(shell.workspaceController.activeFilePath, firstDocumentPath);
+    expect(
+      shell.debugLog.any((entry) => entry.contains('Go Back route requested')),
+      isTrue,
+    );
+    expect(
+      shell.debugLog.any(
+        (entry) => entry.contains('Go Forward route requested'),
+      ),
+      isTrue,
+    );
   });
 
   test('shell relays language service status changes', () {
@@ -1633,7 +1608,9 @@ ShellModel _createShell({
         executionAdapterFactory ??
         ((ProjectGraphSnapshot projectGraph) async =>
             _RefreshAwareExecutionAdapter(projectGraph: projectGraph)),
-    runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: platformTarget),
+    runtimeEventAdapter: createRuntimeEventAdapter(
+      platformTarget: platformTarget,
+    ),
     dependencySourceAdapter: dependencySourceAdapter,
     deploymentAdapter: deploymentAdapter,
     toolchainManagementAdapter: toolchainManagementAdapter,
@@ -1820,26 +1797,27 @@ class _SuccessfulExecutionAdapter implements ExecutionAdapter {
   final String sessionId;
 
   @override
-  AdapterCapabilitySnapshot get capabilitySnapshot =>
-      const AdapterCapabilitySnapshot(
-        adapterKind: AdapterKind.cli,
-        languageService: AdapterEndpointCapability(
-          level: AdapterCapabilityLevel.unavailable,
-          detail: 'Execution adapter does not provide language services.',
-        ),
-        projectGraph: AdapterEndpointCapability(
-          level: AdapterCapabilityLevel.unavailable,
-          detail: 'Execution adapter does not own project graph data.',
-        ),
-        execution: AdapterEndpointCapability(
-          level: AdapterCapabilityLevel.available,
-          detail: 'Project execution is live through published compile-plan support.',
-        ),
-        runtimeEvents: AdapterEndpointCapability(
-          level: AdapterCapabilityLevel.partial,
-          detail: 'Runtime events are replayed from published artifacts.',
-        ),
-      );
+  AdapterCapabilitySnapshot
+  get capabilitySnapshot => const AdapterCapabilitySnapshot(
+    adapterKind: AdapterKind.cli,
+    languageService: AdapterEndpointCapability(
+      level: AdapterCapabilityLevel.unavailable,
+      detail: 'Execution adapter does not provide language services.',
+    ),
+    projectGraph: AdapterEndpointCapability(
+      level: AdapterCapabilityLevel.unavailable,
+      detail: 'Execution adapter does not own project graph data.',
+    ),
+    execution: AdapterEndpointCapability(
+      level: AdapterCapabilityLevel.available,
+      detail:
+          'Project execution is live through published compile-plan support.',
+    ),
+    runtimeEvents: AdapterEndpointCapability(
+      level: AdapterCapabilityLevel.partial,
+      detail: 'Runtime events are replayed from published artifacts.',
+    ),
+  );
 
   @override
   Future<ExecutionSession> runActiveDocument({

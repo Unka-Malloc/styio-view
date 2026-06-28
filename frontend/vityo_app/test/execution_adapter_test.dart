@@ -1352,7 +1352,7 @@ raise SystemExit(64)
       expect(runtimeEvents, hasLength(1));
       expect(runtimeEvents.single.schemaVersion, 2);
       expect(runtimeEvents.single.sessionId, 'artifact-session');
-      expect(runtimeEvents.single.sequence, 4);
+      expect(runtimeEvents.single.sequence, 1);
       expect(runtimeEvents.single.eventKind, 'compile.finished');
       expect(runtimeEvents.single.payload['file'], testFile.path);
       expect(

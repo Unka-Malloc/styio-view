@@ -43,11 +43,28 @@ class VityoThemeOverride {
 
   factory VityoThemeOverride.fromJson(Map<String, Object?> json) {
     return VityoThemeOverride(
-      canvas: json['canvas'] as int?,
-      panel: json['panel'] as int?,
-      ink: json['ink'] as int?,
-      accent: json['accent'] as int?,
-      muted: json['muted'] as int?,
+      canvas: _colorFromJson(json['canvas']),
+      panel: _colorFromJson(json['panel']),
+      ink: _colorFromJson(json['ink']),
+      accent: _colorFromJson(json['accent']),
+      muted: _colorFromJson(json['muted']),
     );
   }
+}
+
+int? _colorFromJson(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is String) {
+    final raw = value.trim();
+    final hex = raw.startsWith('#') ? raw.substring(1) : raw;
+    if (hex.length == 6) {
+      return int.tryParse('FF$hex', radix: 16);
+    }
+    if (hex.length == 8) {
+      return int.tryParse(hex, radix: 16);
+    }
+  }
+  return null;
 }

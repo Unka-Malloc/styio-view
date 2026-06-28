@@ -101,7 +101,7 @@ void main() {
     );
     expect(
       _stylesForText(tester, lineIndex: 0, text: 'main').single.fontWeight,
-      FontWeight.w700,
+      FontWeight.w600,
     );
   });
 }

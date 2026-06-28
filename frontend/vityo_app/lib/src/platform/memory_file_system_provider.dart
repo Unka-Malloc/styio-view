@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 
 import '../view_ide/environment/system_compatibility/file_system/file_system_adapter.dart';
 import '../view_ide/environment/system_compatibility/file_system/file_system_facts.dart';
@@ -17,9 +16,9 @@ class MemoryFileSystemProvider implements FileSystemProvider {
   MemoryFileSystemProvider({
     String providerId = 'memory',
     FileSystemFacts? facts,
-  })  : _providerId = providerId,
-        _facts = facts ?? _defaultFacts(),
-        _lockService = FoundationLockService();
+  }) : _providerId = providerId,
+       _facts = facts ?? _defaultFacts(),
+       _lockService = FoundationLockService();
 
   static FileSystemFacts _defaultFacts() {
     return FileSystemFacts(
@@ -44,7 +43,7 @@ class MemoryFileSystemProvider implements FileSystemProvider {
   final FileSystemFacts _facts;
   final FoundationLockService _lockService;
 
-  final FileSystemCompatibility _compatibility = FileSystemCompatibility(
+  final FileSystemCompatibility _compatibility = const FileSystemCompatibility(
     targetId: 'memory-fs',
     compatibilityTarget: 'virtual',
     pathStyle: FileSystemPathStyle.posix,
@@ -124,16 +123,6 @@ class MemoryFileSystemProvider implements FileSystemProvider {
     return _nodes[path.substring(0, lastSlash)];
   }
 
-  VityoFileSystemEntityType _type(String path) {
-    final node = _nodes[path];
-    if (node == null) {
-      return VityoFileSystemEntityType.notFound;
-    }
-    return node.isDirectory
-        ? VityoFileSystemEntityType.directory
-        : VityoFileSystemEntityType.file;
-  }
-
   FileSystemEntitySnapshot _snapshot(String path) {
     final normalized = _compatibility.normalizePath(path);
     final node = _nodes[normalized];
@@ -177,7 +166,9 @@ class MemoryFileSystemProvider implements FileSystemProvider {
   // -- FileSystemProvider implementation --
 
   @override
-  Future<FileSystemOperationResult<FileSystemEntitySnapshot>> stat(Uri uri) async {
+  Future<FileSystemOperationResult<FileSystemEntitySnapshot>> stat(
+    Uri uri,
+  ) async {
     final path = _path(uri);
     final node = _nodes[path];
     if (node == null) {
@@ -265,30 +256,27 @@ class MemoryFileSystemProvider implements FileSystemProvider {
     bool createParents = true,
     bool atomic = true,
   }) async {
-    return _lockService.runExclusive(
-      _lockKey(uri),
-      (_) async {
-        final path = _path(uri);
-        if (createParents) {
-          _ensureParentDirectory(path);
-        }
-        if (_nodes[path]?.isDirectory == true) {
-          return FileSystemOperationFailureResult(
-            FileSystemOperationFailure(
-              kind: FileSystemFailureKind.conflict,
-              operation: 'writeText',
-              target: path,
-              sourceManager: providerId,
-              message: 'Cannot write text: path is a directory.',
-            ),
-          );
-        }
-        final node = MemoryFileNode(text: contents);
-        _nodes[path] = node;
-        _emitEvent(FileSystemManagerEventKind.modified, path);
-        return const FileSystemOperationSuccess<void>(null);
-      },
-    );
+    return _lockService.runExclusive(_lockKey(uri), (_) async {
+      final path = _path(uri);
+      if (createParents) {
+        _ensureParentDirectory(path);
+      }
+      if (_nodes[path]?.isDirectory == true) {
+        return FileSystemOperationFailureResult(
+          FileSystemOperationFailure(
+            kind: FileSystemFailureKind.conflict,
+            operation: 'writeText',
+            target: path,
+            sourceManager: providerId,
+            message: 'Cannot write text: path is a directory.',
+          ),
+        );
+      }
+      final node = MemoryFileNode(text: contents);
+      _nodes[path] = node;
+      _emitEvent(FileSystemManagerEventKind.modified, path);
+      return const FileSystemOperationSuccess<void>(null);
+    });
   }
 
   @override
@@ -298,40 +286,40 @@ class MemoryFileSystemProvider implements FileSystemProvider {
     bool createParents = true,
     bool atomic = true,
   }) async {
-    return _lockService.runExclusive(
-      _lockKey(uri),
-      (_) async {
-        final path = _path(uri);
-        if (createParents) {
-          _ensureParentDirectory(path);
-        }
-        if (_nodes[path]?.isDirectory == true) {
-          return FileSystemOperationFailureResult(
-            FileSystemOperationFailure(
-              kind: FileSystemFailureKind.conflict,
-              operation: 'writeBytes',
-              target: path,
-              sourceManager: providerId,
-              message: 'Cannot write bytes: path is a directory.',
-            ),
-          );
-        }
-        final node = MemoryFileNode(bytes: List<int>.from(contents));
-        _nodes[path] = node;
-        _emitEvent(FileSystemManagerEventKind.modified, path);
-        return const FileSystemOperationSuccess<void>(null);
-      },
-    );
+    return _lockService.runExclusive(_lockKey(uri), (_) async {
+      final path = _path(uri);
+      if (createParents) {
+        _ensureParentDirectory(path);
+      }
+      if (_nodes[path]?.isDirectory == true) {
+        return FileSystemOperationFailureResult(
+          FileSystemOperationFailure(
+            kind: FileSystemFailureKind.conflict,
+            operation: 'writeBytes',
+            target: path,
+            sourceManager: providerId,
+            message: 'Cannot write bytes: path is a directory.',
+          ),
+        );
+      }
+      final node = MemoryFileNode(bytes: List<int>.from(contents));
+      _nodes[path] = node;
+      _emitEvent(FileSystemManagerEventKind.modified, path);
+      return const FileSystemOperationSuccess<void>(null);
+    });
   }
 
-  @override
   Future<FileSystemOperationResult<void>> writeTextSync(
     String path,
     String contents, {
     bool createParents = true,
   }) async {
     // Not needed for memory provider; delegate to writeText.
-    return writeText(Uri.parse('memory://$path'), contents, createParents: createParents);
+    return writeText(
+      Uri.parse('memory://$path'),
+      contents,
+      createParents: createParents,
+    );
   }
 
   @override
@@ -342,7 +330,7 @@ class MemoryFileSystemProvider implements FileSystemProvider {
     final path = _path(uri);
     final node = _nodes[path];
     if (node == null) {
-      return FileSystemOperationSuccess(const <FileSystemEntitySnapshot>[]);
+      return const FileSystemOperationSuccess(<FileSystemEntitySnapshot>[]);
     }
     if (!node.isDirectory) {
       return FileSystemOperationSuccess(<FileSystemEntitySnapshot>[
@@ -450,7 +438,11 @@ class MemoryFileSystemProvider implements FileSystemProvider {
     } else {
       _nodes.remove(path);
     }
-    _emitEvent(FileSystemManagerEventKind.deleted, path, isDirectory: node.isDirectory);
+    _emitEvent(
+      FileSystemManagerEventKind.deleted,
+      path,
+      isDirectory: node.isDirectory,
+    );
     return const FileSystemOperationSuccess<void>(null);
   }
 
@@ -503,7 +495,9 @@ class MemoryFileSystemProvider implements FileSystemProvider {
         final relative = entry == srcPrefix
             ? ''
             : entry.substring(srcPrefixNorm.length - 1);
-        final newKey = entry == srcPrefix ? tgtPrefix : '$tgtPrefixNorm$relative';
+        final newKey = entry == srcPrefix
+            ? tgtPrefix
+            : '$tgtPrefixNorm$relative';
         _nodes[newKey] = _nodes[entry]!.copy();
       }
     }
@@ -548,8 +542,16 @@ class MemoryFileSystemProvider implements FileSystemProvider {
       _nodes[tgtPath] = srcNode;
       _nodes.remove(srcPath);
     }
-    _emitEvent(FileSystemManagerEventKind.deleted, srcPath, isDirectory: srcNode.isDirectory);
-    _emitEvent(FileSystemManagerEventKind.created, tgtPath, isDirectory: srcNode.isDirectory);
+    _emitEvent(
+      FileSystemManagerEventKind.deleted,
+      srcPath,
+      isDirectory: srcNode.isDirectory,
+    );
+    _emitEvent(
+      FileSystemManagerEventKind.created,
+      tgtPath,
+      isDirectory: srcNode.isDirectory,
+    );
     return const FileSystemOperationSuccess<void>(null);
   }
 
@@ -559,10 +561,7 @@ class MemoryFileSystemProvider implements FileSystemProvider {
   }
 
   @override
-  Stream<FileSystemManagerEvent> watch(
-    Uri uri, {
-    bool recursive = false,
-  }) {
+  Stream<FileSystemManagerEvent> watch(Uri uri, {bool recursive = false}) {
     final path = _path(uri);
     return _eventController.stream.where((event) {
       if (event.normalizedPath == path) {
@@ -596,12 +595,12 @@ class MemoryFileNode {
     this.text,
     List<int>? bytes,
     DateTime? modifiedAt,
-  })  : _bytes = bytes,
-        modifiedAt = modifiedAt ?? DateTime.now().toUtc();
+  }) : _bytes = bytes,
+       modifiedAt = modifiedAt ?? DateTime.now().toUtc();
 
   final bool isDirectory;
   final String? text;
-  List<int>? _bytes;
+  final List<int>? _bytes;
 
   List<int>? get bytes {
     if (_bytes != null) return _bytes;
@@ -615,7 +614,7 @@ class MemoryFileNode {
     return MemoryFileNode(
       isDirectory: isDirectory,
       text: text,
-      bytes: _bytes != null ? List<int>.from(_bytes!) : null,
+      bytes: _bytes != null ? List<int>.from(_bytes) : null,
       modifiedAt: modifiedAt,
     );
   }

@@ -35,7 +35,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
 
         self.assertIn('log "project coverage gate"', script)
         self.assertIn(
-            '"$PYTHON_BIN" scripts/project-coverage-gate.py --fail-under 95 --flutter-dir "$FLUTTER_DIR"',
+            '"$PYTHON_BIN" scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85 --flutter-dir "$FLUTTER_DIR"',
             script,
         )
         self.assertNotIn('(cd "$FLUTTER_DIR" && flutter test)', script)
@@ -55,7 +55,10 @@ class ProjectCoverageGateTest(unittest.TestCase):
         self.assertIn('STYIO_FLUTTER_VERSION: "3.41.7"', workflow)
         self.assertIn("python3 -m pip install coverage", workflow)
         self.assertIn("flutter pub get", workflow)
-        self.assertIn("python3 scripts/project-coverage-gate.py --fail-under 95", workflow)
+        self.assertIn(
+            "python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85",
+            workflow,
+        )
         self.assertIn("vityo-project-coverage", workflow)
         self.assertIn("frontend/vityo_app/coverage/lcov.info", workflow)
 

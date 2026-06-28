@@ -20,10 +20,11 @@ enum LanguageAnalysisResultStatus {
 
 enum LanguageAnalysisFeature { analysis, diagnostics, completion, hover }
 
-typedef LanguageAnalysisResolver<T> = FutureOr<T> Function(
-  StyioLanguageService service,
-  LanguageAnalysisMode mode,
-);
+typedef LanguageAnalysisResolver<T> =
+    FutureOr<T> Function(
+      StyioLanguageService service,
+      LanguageAnalysisMode mode,
+    );
 
 extension LanguageAnalysisFeatureX on LanguageAnalysisFeature {
   String get capabilityId {
@@ -124,7 +125,7 @@ class StyioLanguageServiceAnalysisBackend implements LanguageAnalysisBackend {
   const StyioLanguageServiceAnalysisBackend();
 
   @override
-  StyioDocumentAnalysis analyzeDocument(
+  FutureOr<StyioDocumentAnalysis> analyzeDocument(
     StyioLanguageService service,
     DocumentState document,
   ) {
@@ -141,7 +142,7 @@ class StyioLanguageServiceAnalysisBackend implements LanguageAnalysisBackend {
   }
 
   @override
-  List<CompletionItem> completeAt(
+  FutureOr<List<CompletionItem>> completeAt(
     StyioLanguageService service,
     DocumentState document,
     int offset,
@@ -150,7 +151,7 @@ class StyioLanguageServiceAnalysisBackend implements LanguageAnalysisBackend {
   }
 
   @override
-  HoverPayload? hoverAt(
+  FutureOr<HoverPayload?> hoverAt(
     StyioLanguageService service,
     DocumentState document,
     int offset,
@@ -159,11 +160,7 @@ class StyioLanguageServiceAnalysisBackend implements LanguageAnalysisBackend {
   }
 }
 
-enum LanguageIncrementalReuse {
-  none,
-  exactRevision,
-  conservativeReparse,
-}
+enum LanguageIncrementalReuse { none, exactRevision, conservativeReparse }
 
 class LanguageDocumentChange {
   const LanguageDocumentChange({
@@ -384,9 +381,7 @@ class LanguageAnalysisScheduler {
     _dumbModeReason = '';
   }
 
-  void enterDumbMode({
-    String reason = 'Language index is unavailable.',
-  }) {
+  void enterDumbMode({String reason = 'Language index is unavailable.'}) {
     _ensureActive();
     _mode = LanguageAnalysisMode.dumb;
     _dumbModeReason = reason;
@@ -411,11 +406,8 @@ class LanguageAnalysisScheduler {
       partial: partial || !_isFullRange(document, normalizedRange),
       debounce: debounce,
       timeout: timeout,
-      resolve: (service, mode) => _analyzeWithCache(
-        service: service,
-        document: document,
-        mode: mode,
-      ),
+      resolve: (service, mode) =>
+          _analyzeWithCache(service: service, document: document, mode: mode),
       emptyValue: () => emptyStyioDocumentAnalysis,
     );
   }
@@ -615,9 +607,7 @@ class LanguageAnalysisScheduler {
       return;
     }
     if (_isOperationStale(operation)) {
-      operation.completeStale(
-        'Language analysis discarded before execution.',
-      );
+      operation.completeStale('Language analysis discarded before execution.');
       return;
     }
 
@@ -753,10 +743,7 @@ class LanguageAnalysisScheduler {
         operation.document.revision != state.latestRevision;
   }
 
-  Future<T> _withTimeout<T>(
-    FutureOr<T> Function() create,
-    Duration timeout,
-  ) {
+  Future<T> _withTimeout<T>(FutureOr<T> Function() create, Duration timeout) {
     if (timeout <= Duration.zero) {
       return Future<T>.error(
         TimeoutException('Language analysis timed out.', timeout),

@@ -46,13 +46,13 @@ void main() {
       text: 'abcdef',
       revision: 2,
     );
-    final staleEdit = WorkspaceEdit(
+    final staleEdit = const WorkspaceEdit(
       source: WorkspaceEditSource.agentPatch,
-      precondition: const WorkspaceEditPrecondition(
+      precondition: WorkspaceEditPrecondition(
         documentId: 'sample.styio',
         expectedRevision: 1,
       ),
-      edits: const <WorkspaceTextEdit>[
+      edits: <WorkspaceTextEdit>[
         WorkspaceTextEdit(
           documentId: 'sample.styio',
           range: SourceRange(start: 0, end: 1),

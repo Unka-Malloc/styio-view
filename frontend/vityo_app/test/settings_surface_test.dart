@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/theme/vityo_theme.dart';
 import 'package:vityo_app/src/view_ide/environment/configuration/vityo_theme_override.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/commands/commands.dart';
@@ -88,7 +87,7 @@ void main() {
     await tester.tap(saveThemeButton);
     await tester.pump();
 
-    expect(savedOverride?.accent, const Color(0xFF00A878));
+    expect(savedOverride?.accent, const Color(0xFF00A878).toARGB32());
   });
 
   testWidgets('settings surface renders manager-backed toolchain status', (

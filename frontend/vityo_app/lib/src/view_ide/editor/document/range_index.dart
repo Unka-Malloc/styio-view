@@ -40,9 +40,8 @@ class RangeIndexEntry<T> {
 }
 
 class RangeIndex<T> {
-  RangeIndex._({required _RangeIndexNode<T>? root, required int revision})
-      : _root = root,
-        revision = revision;
+  RangeIndex._({required _RangeIndexNode<T>? root, required this.revision})
+    : _root = root;
 
   factory RangeIndex.empty({int revision = 0}) {
     return RangeIndex<T>._(root: null, revision: revision);
@@ -52,10 +51,11 @@ class RangeIndex<T> {
     Iterable<RangeIndexEntry<T>> entries, {
     int revision = 0,
   }) {
-    final normalized = entries
-        .where((entry) => entry.start >= 0 && entry.end >= entry.start)
-        .toList(growable: false)
-      ..sort(_compareEntries);
+    final normalized =
+        entries
+            .where((entry) => entry.start >= 0 && entry.end >= entry.start)
+            .toList(growable: false)
+          ..sort(_compareEntries);
     return RangeIndex<T>._(
       root: _RangeIndexNode.build(normalized),
       revision: revision,
@@ -86,10 +86,7 @@ class RangeIndex<T> {
       );
       ordinal += 1;
     }
-    return RangeIndex<T>.fromEntries(
-      entries,
-      revision: revision,
-    );
+    return RangeIndex<T>.fromEntries(entries, revision: revision);
   }
 
   final _RangeIndexNode<T>? _root;
@@ -116,12 +113,10 @@ class RangeIndex<T> {
     return List<RangeIndexEntry<T>>.unmodifiable(result);
   }
 
-  List<T> overlapQuery({
-    required int start,
-    required int end,
-    String? layer,
-  }) {
-    return _entriesToValues(overlapEntries(start: start, end: end, layer: layer));
+  List<T> overlapQuery({required int start, required int end, String? layer}) {
+    return _entriesToValues(
+      overlapEntries(start: start, end: end, layer: layer),
+    );
   }
 
   List<RangeIndexEntry<T>> overlapEntries({
@@ -145,11 +140,7 @@ class RangeIndex<T> {
     return _root?.hasPoint(offset, layer) ?? false;
   }
 
-  bool overlapsRange({
-    required int start,
-    required int end,
-    String? layer,
-  }) {
+  bool overlapsRange({required int start, required int end, String? layer}) {
     final safeStart = start <= end ? start : end;
     final safeEnd = end >= start ? end : start;
     if (safeStart == safeEnd) {
@@ -176,7 +167,10 @@ class RangeIndex<T> {
     return List<T>.unmodifiable(entries.map((entry) => entry.value));
   }
 
-  static int _compareEntries<T>(RangeIndexEntry<T> left, RangeIndexEntry<T> right) {
+  static int _compareEntries<T>(
+    RangeIndexEntry<T> left,
+    RangeIndexEntry<T> right,
+  ) {
     final startCompare = left.start.compareTo(right.start);
     if (startCompare != 0) {
       return startCompare;
@@ -245,11 +239,7 @@ class _RangeIndexNode<T> {
     );
   }
 
-  void queryPoint(
-    int offset,
-    List<RangeIndexEntry<T>> result,
-    String? layer,
-  ) {
+  void queryPoint(int offset, List<RangeIndexEntry<T>> result, String? layer) {
     for (final entry in entries) {
       if (_layerMatches(entry, layer) && entry.containsOffset(offset)) {
         result.add(entry);

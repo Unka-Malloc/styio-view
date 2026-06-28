@@ -228,7 +228,7 @@ void main() {
         theme: ThemeSettings(themeId: 'graphite'),
       );
       final updated = original.copyWith(
-        editor: EditorSettings(fontSize: 18),
+        editor: const EditorSettings(fontSize: 18),
       );
       expect(updated.editor.fontSize, 18);
       expect(updated.theme.themeId, 'graphite'); // preserved

@@ -87,7 +87,7 @@ List<Map<String, dynamic>> runAlg09Benchmarks() {
     final watcher = FileWatcher(maxBatchSize: 1000);
     final events = generateFileEvents(burstSize);
 
-    final r1 = BenchmarkRunner('burst_event_handling_${burstSize}').run(100, (_) {
+    final r1 = BenchmarkRunner('burst_event_handling_$burstSize').run(100, (_) {
       watcher.handleBurst(events);
     });
     results.add(r1.toJson());

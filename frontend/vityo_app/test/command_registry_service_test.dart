@@ -82,11 +82,13 @@ void main() {
       expect(enablement, hasLength(4));
       expect(
         enablement,
-        contains(<String, Object?>{
-          'operator': 'equals',
-          'key': 'workspace.indexReady',
-          'value': true,
-        }),
+        contains(
+          equals(<String, Object?>{
+            'operator': 'equals',
+            'key': 'workspace.indexReady',
+            'value': true,
+          }),
+        ),
       );
       expect(telemetry['sideEffect'], 'toolchain-execution');
       expect(telemetry['targetSurface'], 'bottom-panel');

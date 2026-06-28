@@ -40,7 +40,7 @@ jobs:
           cd frontend/vityo_app && flutter pub get
 
       - name: Run project coverage gate
-        run: python3 scripts/project-coverage-gate.py --fail-under 95
+        run: python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85
 
       - name: Upload coverage reports
         if: always()

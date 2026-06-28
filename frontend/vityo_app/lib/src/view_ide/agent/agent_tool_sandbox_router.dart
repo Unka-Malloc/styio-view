@@ -13,6 +13,7 @@
 /// - Build/run tools require explicit tool permission grants.
 /// - Tool output is checked for size limits before returning to the adapter.
 /// - All tool calls are logged for audit.
+library;
 
 import 'agent_execution_mode.dart';
 import 'agent_tool_call_lifecycle.dart';
@@ -106,7 +107,7 @@ class AgentToolSandboxRouter {
     required this.executor,
     this.permissionPolicy = const AgentToolPermissionPlan(
       status: AgentToolPermissionPlanStatus.ready,
-      decisions: const <AgentToolPermissionDecision>[],
+      decisions: <AgentToolPermissionDecision>[],
     ),
     this.executionModePolicy = const AgentExecutionModePolicy(),
     this.maxOutputLength = 100000,

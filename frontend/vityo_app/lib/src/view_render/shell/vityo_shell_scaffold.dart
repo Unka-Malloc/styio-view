@@ -767,6 +767,7 @@ class _MobileShellBody extends StatelessWidget {
     return KeyedSubtree(
       key: ValueKey(layoutBinding.viewportKey),
       child: ListView(
+        key: const ValueKey('shell-mobile-scroll'),
         children: [
           SizedBox(
             height: editorHeight,

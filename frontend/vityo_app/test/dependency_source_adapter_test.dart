@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -17,12 +18,20 @@ void main() {
     File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
       ..createSync(recursive: true)
       ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
+    final manifestPath = '${tempRoot.path}${Platform.pathSeparator}spio.toml';
     await writeFakeSpioCli(
       workspaceRoot: tempRoot,
       pythonSource: '''#!/usr/bin/env python3
-import json, sys
+import json, os, sys
 
-if sys.argv[1:] == ['--json', 'fetch', '--manifest-path', '${tempRoot.path}${Platform.pathSeparator}spio.toml', '--locked', '--offline']:
+expected_manifest = os.path.normpath(${jsonEncode(manifestPath)})
+args = sys.argv[1:]
+if (
+    len(args) == 6
+    and args[:3] == ['--json', 'fetch', '--manifest-path']
+    and os.path.normpath(args[3]) == expected_manifest
+    and args[4:] == ['--locked', '--offline']
+):
     print(json.dumps({
         'command': 'fetch',
         'message': 'materialized dependency sources under local spio cache',

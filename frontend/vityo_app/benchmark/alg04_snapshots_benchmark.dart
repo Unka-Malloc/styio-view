@@ -107,7 +107,7 @@ List<Map<String, dynamic>> runAlg04Benchmarks() {
     results.add(r4.toJson());
 
     // Stale detection (stale - different content)
-    final modifiedText = text + 'modified!';
+    final modifiedText = '${text}modified!';
     final r5 = BenchmarkRunner('stale_detection_stale_content_${size}lines').run(500, (_) {
       snapshot.isStale(modifiedText, 1);
     });

@@ -87,7 +87,7 @@ List<ContextItem> generateContextItems(int count) {
       id: 'ctx_$i',
       kind: kinds[i % kinds.length],
       tokenCount: tokenCount,
-      content: 'Context item $i content ' + 'x' * (tokenCount * 4),
+      content: 'Context item $i content ${'x' * (tokenCount * 4)}',
     );
   });
 }
@@ -98,7 +98,7 @@ List<Map<String, dynamic>> runAlg08Benchmarks() {
 
   for (final size in [100, 1000, 10000]) {
     final items = generateContextItems(size);
-    final budget = AIContextBudget(maxTokens: 64000);
+    final budget = const AIContextBudget(maxTokens: 64000);
 
     // Packing time
     final r1 = BenchmarkRunner('context_packing_${size}items').run(100, (_) {

@@ -94,19 +94,19 @@ List<Map<String, dynamic>> runAlg07Benchmarks() {
     final engine = RuntimeReplayEngine(events: events);
 
     // Events replay
-    final r1 = BenchmarkRunner('events_replay_${size}').run(100, (_) {
+    final r1 = BenchmarkRunner('events_replay_$size').run(100, (_) {
       engine.replayAll();
     });
     results.add(r1.toJson());
 
     // Log line filter
-    final r2 = BenchmarkRunner('log_line_filter_${size}').run(100, (_) {
+    final r2 = BenchmarkRunner('log_line_filter_$size').run(100, (_) {
       engine.filterEvents('runtime', EventType.logMessage);
     });
     results.add(r2.toJson());
 
     // Graph digest recompute
-    final r3 = BenchmarkRunner('graph_digest_recompute_${size}').run(100, (_) {
+    final r3 = BenchmarkRunner('graph_digest_recompute_$size').run(100, (_) {
       engine.recomputeDigest();
     });
     results.add(r3.toJson());

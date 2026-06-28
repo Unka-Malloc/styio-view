@@ -135,6 +135,7 @@ class LanguageCache {
 
   /// Put entry into cache
   void put<T>(String key, LanguageCacheEntry<T> entry) {
+    _cache.remove(key);
     // Evict if at capacity
     while (_cache.length >= _capacity) {
       _cache.remove(_cache.keys.first);
@@ -198,7 +199,7 @@ class LanguageCache {
   }
 
   /// Get all cached keys
-  List<String> get keys => _cache.keys.toList(growable: false);
+  List<String> get keys => _cache.keys.toList();
 
   /// Get entry count
   int get size => _cache.length;

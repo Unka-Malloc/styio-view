@@ -25,7 +25,8 @@ void main() {
       return AgentToolCallDispatchResult.success(
         callId: request.callId,
         toolId: request.toolId,
-        output: '{"text":"value = 1"}',
+        output:
+            '{"source":"test-tool","document":{"path":"main.styio","text":"value = 1"}}',
         metadata: const <String, Object?>{'source': 'test-tool'},
       );
     });
@@ -42,7 +43,10 @@ void main() {
       AgentToolSessionPartStatus.completed,
     );
     expect(transcript.parts.single.inputText, '{"path":"main.styio"}');
-    expect(transcript.parts.single.output, '{"text":"value = 1"}');
+    expect(
+      transcript.parts.single.output,
+      '{"source":"test-tool","document":{"path":"main.styio","text":"value = 1"}}',
+    );
     expect(
       transcript.parts.single.metadata['toolResult'],
       isA<Map<String, Object?>>(),

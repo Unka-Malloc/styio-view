@@ -10,11 +10,6 @@ extension VityoThemeOverrideColorX on VityoThemeOverride {
   Color? get mutedColor => muted != null ? Color(muted!) : null;
 }
 
-Color? _colorFromJson(Object? value) {
-  if (value is int) return Color(value);
-  return null;
-}
-
 class VityoTheme {
   static ThemeData light({
     VityoThemePreset preset = VityoThemePreset.parchment,
@@ -26,6 +21,7 @@ class VityoTheme {
     final ink = overrides.inkColor ?? palette.ink;
     final accent = overrides.accentColor ?? palette.accent;
     final muted = overrides.mutedColor ?? palette.muted;
+    final baseTextTheme = ThemeData.light().textTheme;
 
     final colorScheme =
         ColorScheme.fromSeed(
@@ -54,6 +50,9 @@ class VityoTheme {
         selectedItemColor: accent,
         unselectedItemColor: muted,
       ),
+      textTheme: baseTextTheme
+          .apply(bodyColor: ink, displayColor: ink)
+          .copyWith(bodySmall: baseTextTheme.bodySmall?.copyWith(color: muted)),
       tabBarTheme: TabBarThemeData(
         labelColor: accent,
         unselectedLabelColor: muted,
@@ -76,19 +75,19 @@ class VityoTheme {
   static _Palette _paletteForPreset(VityoThemePreset preset) {
     return switch (preset) {
       VityoThemePreset.parchment => const _Palette(
-            canvas: Color(0xFFF7F4EB),
-            panel: Color(0xFFFFFDF5),
-            ink: Color(0xFF2D2416),
-            accent: Color(0xFFC7522A),
-            muted: Color(0xFFA09880),
-          ),
+        canvas: Color(0xFFF7F4EB),
+        panel: Color(0xFFFFFDF5),
+        ink: Color(0xFF2D2416),
+        accent: Color(0xFFC7522A),
+        muted: Color(0xFFA09880),
+      ),
       VityoThemePreset.graphite => const _Palette(
-            canvas: Color(0xFF1E1E1E),
-            panel: Color(0xFF2D2D2D),
-            ink: Color(0xFFE0E0E0),
-            accent: Color(0xFF569CD6),
-            muted: Color(0xFF808080),
-          ),
+        canvas: Color(0xFFEDEFF2),
+        panel: Color(0xFFFFFFFF),
+        ink: Color(0xFF1E252B),
+        accent: Color(0xFF2F6F73),
+        muted: Color(0xFF62717C),
+      ),
     };
   }
 }

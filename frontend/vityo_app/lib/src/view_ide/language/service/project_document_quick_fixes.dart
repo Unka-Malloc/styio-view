@@ -102,10 +102,7 @@ class ProjectDocumentQuickFixProvider {
         document,
         diagnostic,
       ),
-      'parameter-shadowing' => _shadowingDeclarationFixes(
-        document,
-        diagnostic,
-      ),
+      'parameter-shadowing' => _shadowingDeclarationFixes(document, diagnostic),
       'unused-parameter' => _unusedParameterFix(document, diagnostic),
       'redundant-type-annotation' => _redundantTypeAnnotationFix(
         document,
@@ -117,14 +114,8 @@ class ProjectDocumentQuickFixProvider {
       ),
       'constant-condition' => _constantConditionFixes(document, diagnostic),
       'unresolved-resource' => _unresolvedResourceFix(document, diagnostic),
-      'unresolved-task-await' => _unresolvedTaskAwaitFix(
-        document,
-        diagnostic,
-      ),
-      'unresolved-reference' => _unresolvedReferenceFixes(
-        document,
-        diagnostic,
-      ),
+      'unresolved-task-await' => _unresolvedTaskAwaitFix(document, diagnostic),
+      'unresolved-reference' => _unresolvedReferenceFixes(document, diagnostic),
       'simplifiable-boolean-negation' ||
       'simplifiable-boolean-comparison' ||
       'simplifiable-boolean-expression' ||
@@ -192,8 +183,10 @@ class ProjectDocumentQuickFixProvider {
         document,
         diagnostic,
       ),
-      'invalid-task-return-expression' =>
-        _invalidTaskReturnExpressionFixes(document, diagnostic),
+      'invalid-task-return-expression' => _invalidTaskReturnExpressionFixes(
+        document,
+        diagnostic,
+      ),
       'duplicate-import' ||
       'import-block-not-optimized' => _importOptimizationFix(document),
       'simplifiable-numeric-expression' =>
@@ -346,17 +339,17 @@ class ProjectDocumentQuickFixProvider {
       return const <DiagnosticQuickFix>[];
     }
 
-    final returnKeyword = _isHashFunctionDeclarationName(
-      source,
-      diagnostic.range.start,
-    )
+    final returnKeyword =
+        _isHashFunctionDeclarationName(source, diagnostic.range.start)
         ? '<|'
         : 'emit';
+    final lineEnding = _lineEndingFor(source);
     final closingIndent = _lineIndentBefore(source, closingBrace);
     final emitIndent = '$closingIndent  ';
     final insertText = closingBrace > 0 && source[closingBrace - 1] == '\n'
-        ? '$emitIndent$returnKeyword $replacement\n'
-        : '\n$emitIndent$returnKeyword $replacement\n$closingIndent';
+        ? '$emitIndent$returnKeyword $replacement$lineEnding'
+        : '$lineEnding$emitIndent$returnKeyword $replacement'
+              '$lineEnding$closingIndent';
 
     return [
       DiagnosticQuickFix(
@@ -793,16 +786,21 @@ class ProjectDocumentQuickFixProvider {
     }
     final expression = document.text.substring(range.start, range.end);
     final replacement = switch (diagnostic.code) {
-      'simplifiable-boolean-negation' =>
-        _simplifyBooleanNegationExpression(expression),
-      'simplifiable-boolean-comparison' =>
-        _simplifyBooleanComparisonExpression(expression),
-      'simplifiable-boolean-expression' =>
-        _simplifyBooleanExpression(expression),
-      'simplifiable-negated-comparison' =>
-        _simplifyNegatedComparisonExpression(expression),
-      'simplifiable-demorgan-expression' =>
-        _simplifyDeMorganExpression(expression),
+      'simplifiable-boolean-negation' => _simplifyBooleanNegationExpression(
+        expression,
+      ),
+      'simplifiable-boolean-comparison' => _simplifyBooleanComparisonExpression(
+        expression,
+      ),
+      'simplifiable-boolean-expression' => _simplifyBooleanExpression(
+        expression,
+      ),
+      'simplifiable-negated-comparison' => _simplifyNegatedComparisonExpression(
+        expression,
+      ),
+      'simplifiable-demorgan-expression' => _simplifyDeMorganExpression(
+        expression,
+      ),
       _ => null,
     };
     if (replacement == null || replacement.trim().isEmpty) {
@@ -916,10 +914,18 @@ class ProjectDocumentQuickFixProvider {
       if (right == 'false') {
         return left;
       }
-      if (_absorbsBooleanExpression(absorber: left, absorbed: right, op: '&&')) {
+      if (_absorbsBooleanExpression(
+        absorber: left,
+        absorbed: right,
+        op: '&&',
+      )) {
         return left;
       }
-      if (_absorbsBooleanExpression(absorber: right, absorbed: left, op: '&&')) {
+      if (_absorbsBooleanExpression(
+        absorber: right,
+        absorbed: left,
+        op: '&&',
+      )) {
         return right;
       }
       return null;
@@ -941,10 +947,18 @@ class ProjectDocumentQuickFixProvider {
       if (right == 'true') {
         return left;
       }
-      if (_absorbsBooleanExpression(absorber: left, absorbed: right, op: '||')) {
+      if (_absorbsBooleanExpression(
+        absorber: left,
+        absorbed: right,
+        op: '||',
+      )) {
         return left;
       }
-      if (_absorbsBooleanExpression(absorber: right, absorbed: left, op: '||')) {
+      if (_absorbsBooleanExpression(
+        absorber: right,
+        absorbed: left,
+        op: '||',
+      )) {
         return right;
       }
     }
@@ -2758,10 +2772,7 @@ class ProjectDocumentQuickFixProvider {
     DocumentState document,
     Diagnostic diagnostic,
   ) {
-    final lineRemovalRange = _lineRemovalRange(
-      document.text,
-      diagnostic.range,
-    );
+    final lineRemovalRange = _lineRemovalRange(document.text, diagnostic.range);
     final lineText = document.text.substring(
       lineRemovalRange.start,
       lineRemovalRange.end,
@@ -2858,6 +2869,10 @@ class ProjectDocumentQuickFixProvider {
     }
     return firstLineRange;
   }
+}
+
+String _lineEndingFor(String source) {
+  return source.contains('\r\n') ? '\r\n' : '\n';
 }
 
 class _StyioImportLine {

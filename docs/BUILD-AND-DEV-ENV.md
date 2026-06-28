@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the repository-level entry point for bootstrapping a fresh machine, installing shared GUI toolchains, and routing contributors to the correct implementation surface.
 
-**Last updated:** 2026-06-26
+**Last updated:** 2026-06-28
 
 ## Who This Is For
 
@@ -42,7 +42,7 @@ For editor-integrated devcontainers, open [../.devcontainer/devcontainer.json](.
 | macOS | `macos` desktop + `web` | `macos+ios`, `macos+android`, `macos+ios+android` | `./scripts/bootstrap-dev-env-macos.sh [--with-ios] [--with-android]` |
 | Windows | `windows` desktop + `web` | `windows+android` | `powershell -ExecutionPolicy Bypass -File .\scripts\bootstrap-dev-env-windows.ps1 [-WithAndroid]` |
 
-All host scripts install the standardized toolchain, then call the shared workspace bootstrap entrypoint to restore `npm` / `flutter pub` dependencies and generate the selected Flutter runners. On Windows, `bootstrap-workspace.ps1` resolves `flutter.bat` / `npm.cmd` from `VITYO_FLUTTER_BIN`, `VITYO_FLUTTER_HOME`, `VITYO_NPM_BIN`, or `PATH`.
+All host scripts install the standardized toolchain, then call the shared workspace bootstrap entrypoint to restore `npm` / `flutter pub` dependencies and generate the selected Flutter runners. On Windows, `bootstrap-workspace.ps1` resolves `flutter.bat` / `npm.cmd` from `VITYO_FLUTTER_BIN`, `VITYO_FLUTTER_HOME`, `VITYO_NPM_BIN`, or `PATH`. It also preserves tracked Flutter metadata around runner generation and creates plugin junctions for the Windows runner when the host cannot create Flutter's default plugin symlinks.
 
 Device verification stays host-driven:
 
@@ -106,6 +106,8 @@ flutter analyze
 flutter test
 flutter build windows --debug
 ```
+
+Run the Windows validation commands from a regular PowerShell session. The bootstrap script restores the tracked `.metadata` and `pubspec.lock` files after Flutter writes generated state, and the plugin junction fallback avoids requiring Developer Mode or elevated symlink privileges for `flutter build windows --debug`.
 
 Linux Android SDK profile management:
 

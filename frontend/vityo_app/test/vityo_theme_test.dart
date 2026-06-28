@@ -26,17 +26,13 @@ void main() {
   });
 
   test('theme override copyWith updates persisted accent only', () {
-    const base = VityoThemeOverride(
-      canvas: 0xFF101820,
-      accent: 0xFF5668A6,
-    );
+    const base = VityoThemeOverride(canvas: 0xFF101820, accent: 0xFF5668A6);
 
     final updated = base.copyWith(accent: 0xFF00A878);
 
     expect(updated.canvas, 0xFF101820);
     expect(updated.accent, 0xFF00A878);
   });
-
 
   test('theme override accepts hash colors for persisted JSON payloads', () {
     final override = VityoThemeOverride.fromJson(<String, Object?>{
@@ -53,7 +49,7 @@ void main() {
     final parchment = VityoTheme.light();
     final graphite = VityoTheme.light(preset: VityoThemePreset.graphite);
 
-    expect(parchment.scaffoldBackgroundColor, const Color(0xFFF4F1EA));
+    expect(parchment.scaffoldBackgroundColor, const Color(0xFFF7F4EB));
     expect(graphite.scaffoldBackgroundColor, const Color(0xFFEDEFF2));
     expect(graphite.cardColor, const Color(0xFFFFFFFF));
     expect(graphite.textTheme.bodyMedium?.color, const Color(0xFF1E252B));
@@ -85,10 +81,7 @@ void main() {
       fileSystemManager: fileSystemManager,
     );
     final store = VityoThemeOverrideStore.fromDataStore(dataStore: dataStore);
-    const override = VityoThemeOverride(
-      canvas: 0xFF101820,
-      accent: 0xFF00A878,
-    );
+    const override = VityoThemeOverride(canvas: 0xFF101820, accent: 0xFF00A878);
 
     await store.saveOverride(workspaceId: 'demo', override: override);
     final restored = await store.readOverride(workspaceId: 'demo');

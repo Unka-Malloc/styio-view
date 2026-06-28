@@ -447,9 +447,16 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('command-palette-keybinding-shortcut-input')),
+    final shortcutInput = find.byKey(
+      const ValueKey('command-palette-keybinding-shortcut-input'),
     );
+    await tester.ensureVisible(shortcutInput);
+    await tester.pump();
+    final shortcutEditable = find.descendant(
+      of: shortcutInput,
+      matching: find.byType(EditableText),
+    );
+    tester.widget<EditableText>(shortcutEditable).focusNode.requestFocus();
     await tester.pump();
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);

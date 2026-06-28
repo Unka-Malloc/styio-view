@@ -7,7 +7,6 @@ import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
-import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 

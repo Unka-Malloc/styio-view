@@ -230,8 +230,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await _focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     expect(controller.selection.start, 1);
@@ -329,8 +328,7 @@ loose
         ),
       ),
     );
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await _focusSourceBuffer(tester);
 
     controller.selectCollapsed(text.indexOf('pri)') + 3);
     await tester.pump();
@@ -472,4 +470,18 @@ value = blend(price, tax)
       );
     }
   });
+}
+
+Future<void> _focusSourceBuffer(WidgetTester tester) async {
+  final sourceSurface = find.byKey(const ValueKey('source-buffer-surface'));
+  final sourceFocus = find.ancestor(
+    of: sourceSurface,
+    matching: find.byType(Focus),
+  );
+  if (sourceFocus.evaluate().isNotEmpty) {
+    tester.widget<Focus>(sourceFocus.first).focusNode?.requestFocus();
+  } else {
+    await tester.tap(sourceSurface);
+  }
+  await tester.pump();
 }

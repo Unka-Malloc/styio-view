@@ -6,6 +6,7 @@
 /// - Stale diagnostics (from a previous revision) are rejected.
 /// - Missing upstream capabilities return structured blocked reasons.
 /// - Capability gaps never cause crashes or fake results.
+library;
 
 import '../contract/language_contract.dart';
 

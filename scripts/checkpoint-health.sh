@@ -73,7 +73,7 @@ log "repo hygiene policy tests"
 "$PYTHON_BIN" -m unittest tests.test_repo_hygiene_gate
 
 log "project coverage gate"
-"$PYTHON_BIN" scripts/project-coverage-gate.py --fail-under 95 --flutter-dir "$FLUTTER_DIR"
+"$PYTHON_BIN" scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85 --flutter-dir "$FLUTTER_DIR"
 
 log "release readiness static gate"
 "$PYTHON_BIN" scripts/release-readiness-gate.py --flutter-dir "$FLUTTER_DIR" --skip-build

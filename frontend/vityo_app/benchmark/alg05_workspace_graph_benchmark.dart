@@ -69,7 +69,10 @@ class ProjectGraph {
   }
 
   /// Rebuild after a manifest edit.
-  ProjectGraph rebuildAfterManifestEdit(String packageName, String newManifest) {
+  ProjectGraph rebuildAfterManifestEdit(
+    String packageName,
+    String newManifest,
+  ) {
     final oldNode = packages[packageName];
     if (oldNode == null) return this;
     final newNode = PackageNode(
@@ -121,7 +124,8 @@ ProjectGraph generatePackageGraph(int count, {int seed = 42}) {
       name: name,
       version: version,
       dependencies: deps,
-      manifestContent: 'package $name\nversion $version\ndeps: ${deps.join(',')}',
+      manifestContent:
+          'package $name\nversion $version\ndeps: ${deps.join(',')}',
     );
   }
   return ProjectGraph(packages: packages);
@@ -135,13 +139,17 @@ List<Map<String, dynamic>> runAlg05Benchmarks() {
     final graph = generatePackageGraph(size);
 
     // Build packages (just the graph construction)
-    final r1 = BenchmarkRunner('build_packages_${size}pkgs').run(200, (_) {
-      generatePackageGraph(size, seed: size + _);
+    final r1 = BenchmarkRunner('build_packages_${size}pkgs').run(200, (
+      iteration,
+    ) {
+      generatePackageGraph(size, seed: size + iteration);
     });
     results.add(r1.toJson());
 
     // Dependency resolution
-    final r2 = BenchmarkRunner('dependency_resolution_${size}pkgs').run(200, (_) {
+    final r2 = BenchmarkRunner('dependency_resolution_${size}pkgs').run(200, (
+      _,
+    ) {
       graph.resolveDependencyOrder();
     });
     results.add(r2.toJson());
@@ -156,7 +164,10 @@ List<Map<String, dynamic>> runAlg05Benchmarks() {
 
   // Single manifest edit rebuild
   final r4 = BenchmarkRunner('manifest_edit_rebuild_1000pkgs').run(500, (_) {
-    largeGraph.rebuildAfterManifestEdit('pkg_0', 'package pkg_0\nversion 2.0.0');
+    largeGraph.rebuildAfterManifestEdit(
+      'pkg_0',
+      'package pkg_0\nversion 2.0.0',
+    );
   });
   results.add(r4.toJson());
 

@@ -44,12 +44,12 @@ void main() {
       (lane) => lane.family == 'unit.test',
     );
     final observedLane = replay.lanes.firstWhere(
-      (lane) => lane.family == 'custom',
+      (lane) => lane.family == 'unsupported',
     );
 
     expect(runtimeEventFamily('unit.test.finished'), 'unit.test');
     expect(runtimeEventStatus('compile.failed'), 'failed');
-    expect(replay.families, <String>['compile', 'unit.test', 'custom']);
+    expect(replay.families, <String>['compile', 'unit.test', 'unsupported']);
     expect(replay.latestEvent!.eventKind, 'custom');
     expect(replay.windowLabel, 'Window 00:00:01 -> 00:00:05.');
     expect(compileLane.statusLabel, 'failed lane');

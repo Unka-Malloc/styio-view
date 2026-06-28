@@ -34,7 +34,6 @@ import '../toolchain/toolchain_resolver.dart';
 import '../toolchain/toolchain_runtime.dart';
 import '../testing/testing.dart';
 import '../workspace/workspace.dart';
-import '../environment/configuration/vityo_theme_override.dart';
 
 const int _maxNativeToolResultRecords = 24;
 const int _maxAgentIdeCommandResultRecords = 12;
@@ -4702,8 +4701,8 @@ class ShellRuntimeModel extends ChangeNotifier {
         appendLog(message);
         notifyListeners();
         return commandResult;
-          default:
-            throw UnimplementedError('AppCommandId.$commandId not implemented');
+      default:
+        throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -4781,8 +4780,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.refreshModules:
       case AppCommandId.openSettings:
         return const <String, Object?>{};
-          default:
-            throw UnimplementedError('AppCommandId.$commandId not implemented');
+      default:
+        throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -6387,6 +6386,22 @@ class ShellRuntimeModel extends ChangeNotifier {
       _documentCache.remove(document.documentId);
       _dirtyDocumentPaths.add(document.documentId);
     }
+    WorkspaceReplacePreviewDocument? activePreviewDocument;
+    for (final document in preview.documents) {
+      if (document.documentId == workspaceController.activeFilePath) {
+        activePreviewDocument = document;
+        break;
+      }
+    }
+    if (activePreviewDocument != null) {
+      editorController.loadDocument(
+        DocumentState(
+          documentId: activePreviewDocument.documentId,
+          text: activePreviewDocument.afterText,
+          revision: activePreviewDocument.revision + 1,
+        ),
+      );
+    }
     if (result.failures.isEmpty) {
       _lastWorkspaceReplacePreview = null;
     }
@@ -7820,8 +7835,12 @@ class ShellRuntimeModel extends ChangeNotifier {
           '${StyioCommandRegistry.descriptorFor(commandId).label} requires a File Explorer dialog route.',
         );
         return;
-          default:
-            throw UnimplementedError('AppCommandId.$commandId not implemented');
+      default:
+        appendLog(
+          '${StyioCommandRegistry.descriptorFor(commandId).label} route requested.',
+        );
+        notifyListeners();
+        return;
     }
   }
 
@@ -7946,8 +7965,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.debugFailedTests:
         await executeCommand(commandId);
         return;
-          default:
-            throw UnimplementedError('AppCommandId.$commandId not implemented');
+      default:
+        throw UnimplementedError('AppCommandId.$commandId not implemented');
     }
   }
 
@@ -8185,8 +8204,8 @@ class ShellRuntimeModel extends ChangeNotifier {
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.openSettings:
         return null;
-          default:
-            throw UnimplementedError('AppCommandId.$commandId not implemented');
+      default:
+        return null;
     }
   }
 

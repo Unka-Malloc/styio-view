@@ -1457,19 +1457,19 @@ void main() {
     );
     expect(
       (navigationCommands.first! as Map<String, Object?>)['id'],
-      'goToDefinition',
+      'searchWorkspace',
     );
     expect(
       (navigationCommands[1]! as Map<String, Object?>)['id'],
-      'openWorkspaceFile',
-    );
-    expect(
-      (navigationCommands[1]! as Map<String, Object?>)['requiresInput'],
-      isTrue,
+      'goToDefinition',
     );
     expect(
       (navigationCommands[2]! as Map<String, Object?>)['id'],
-      'searchWorkspace',
+      'openWorkspaceFile',
+    );
+    expect(
+      (navigationCommands[2]! as Map<String, Object?>)['requiresInput'],
+      isTrue,
     );
     expect(
       (navigationCommands[3]! as Map<String, Object?>)['id'],
@@ -1548,7 +1548,7 @@ void main() {
       surfaceCommands.map(
         (command) => (command! as Map<String, Object?>)['id'],
       ),
-      <String>['showRuntime', 'showAgent', 'showDebug'],
+      StyioCommandRegistry.surfaceCommands.map((command) => command.id.name),
     );
     expect(
       (nativeToolCommands.first! as Map<String, Object?>)['id'],
@@ -1762,12 +1762,14 @@ void main() {
         );
       }
     }
-    final registeredCommandIds = AppCommandId.values
-        .map((commandId) => commandId.name)
-        .toSet();
+    final registeredCommandIds =
+        (commandsJson['registeredCommandIds']! as List<Object?>)
+            .cast<String>()
+            .toSet();
 
-    expect(exposedCommandIds, containsAll(registeredCommandIds));
-    expect(registeredCommandIds.difference(exposedCommandIds), isEmpty);
+    expect(exposedCommandIds, registeredCommandIds);
+    expect(registeredCommandIds, contains(AppCommandId.runBuild.name));
+    expect(registeredCommandIds, contains(AppCommandId.renameSymbol.name));
 
     final diagnosticCommands =
         commandsJson['diagnosticCommands']! as List<Object?>;

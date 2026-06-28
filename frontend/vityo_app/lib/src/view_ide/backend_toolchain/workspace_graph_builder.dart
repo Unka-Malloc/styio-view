@@ -475,7 +475,7 @@ class WorkspaceGraphBuilder {
     final diagnostics = <GraphDiagnostic>[];
     if (sortedPackages == null && packageCount > 0) {
       diagnostics.add(
-        GraphDiagnostic(
+        const GraphDiagnostic(
           severity: 'warning',
           message:
               'Topological sort failed: dependency graph contains one or more cycles. '

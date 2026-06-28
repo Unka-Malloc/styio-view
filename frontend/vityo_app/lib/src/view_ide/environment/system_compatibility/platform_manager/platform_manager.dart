@@ -64,47 +64,61 @@ class PlatformManagerBundle {
     final components = <PlatformManagerComponentHealth>[
       PlatformManagerComponentHealth(
         managerKey: 'fileSystem',
-        ready: context.fileSystem.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.fileSystem.compatibilityTarget,
+        ),
         message: 'File system manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'shell',
-        ready: context.shell.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(context.shell.compatibilityTarget),
         message: 'Shell manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'process',
-        ready: context.process.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.process.compatibilityTarget,
+        ),
         message: 'Process manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'resource',
-        ready: context.resource.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.resource.compatibilityTarget,
+        ),
         message: 'Resource manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'network',
-        ready: context.network.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.network.compatibilityTarget,
+        ),
         message: 'Network manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'clipboard',
-        ready: context.clipboard.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.clipboard.compatibilityTarget,
+        ),
         message: 'Clipboard manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'notification',
-        ready: context.notification.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.notification.compatibilityTarget,
+        ),
         message: 'Notification manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'localService',
-        ready: context.localService.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(
+          context.localService.compatibilityTarget,
+        ),
         message: 'Local service manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
         managerKey: 'pty',
-        ready: context.pty.supportsLinuxDebianArmTarget,
+        ready: _isSupportedCompatibilityTarget(context.pty.compatibilityTarget),
         message: 'PTY manager compatibility is available.',
       ),
     ];
@@ -329,39 +343,57 @@ class PlatformManagerHealthProbe {
     return <PlatformManagerHealthProbe>[
       _probe(
         'fileSystem',
-        (bundle) => bundle.context.fileSystem.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.fileSystem.compatibilityTarget,
+        ),
       ),
       _probe(
         'shell',
-        (bundle) => bundle.context.shell.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.shell.compatibilityTarget,
+        ),
       ),
       _probe(
         'process',
-        (bundle) => bundle.context.process.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.process.compatibilityTarget,
+        ),
       ),
       _probe(
         'resource',
-        (bundle) => bundle.context.resource.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.resource.compatibilityTarget,
+        ),
       ),
       _probe(
         'network',
-        (bundle) => bundle.context.network.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.network.compatibilityTarget,
+        ),
       ),
       _probe(
         'clipboard',
-        (bundle) => bundle.context.clipboard.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.clipboard.compatibilityTarget,
+        ),
       ),
       _probe(
         'notification',
-        (bundle) => bundle.context.notification.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.notification.compatibilityTarget,
+        ),
       ),
       _probe(
         'localService',
-        (bundle) => bundle.context.localService.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.localService.compatibilityTarget,
+        ),
       ),
       _probe(
         'pty',
-        (bundle) => bundle.context.pty.supportsLinuxDebianArmTarget,
+        (bundle) => _isSupportedCompatibilityTarget(
+          bundle.context.pty.compatibilityTarget,
+        ),
       ),
     ];
   }
@@ -634,6 +666,10 @@ PlatformManagerHealthProbe _probe(
       ),
     ],
   );
+}
+
+bool _isSupportedCompatibilityTarget(String compatibilityTarget) {
+  return compatibilityTarget.isNotEmpty && compatibilityTarget != 'unsupported';
 }
 
 Future<PlatformManagerBundle> createPlatformManagerBundle({

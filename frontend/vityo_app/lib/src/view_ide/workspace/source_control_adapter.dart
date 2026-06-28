@@ -4,6 +4,7 @@
 /// local git candidate; Web/iOS default blocked or hosted-controlled.
 /// No real destructive git operations are implemented.
 /// Real git integration requires permission model and approval flow.
+library;
 
 // ── Provider Kind ─────────────────────────────────────────────────
 

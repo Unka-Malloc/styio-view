@@ -185,8 +185,8 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
         key: const ValueKey('command-palette-surface'),
         child: Padding(
           padding: EdgeInsets.all(compact ? 14 : 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
+            key: const ValueKey('command-palette-content-scroll'),
             children: [
               Text('Command Palette', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
@@ -318,41 +318,47 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 ),
                 const SizedBox(height: 12),
               ],
-              Expanded(
-                child: visibleEntries.isEmpty
-                    ? Center(
-                        key: const ValueKey('command-palette-empty-state'),
-                        child: Text(
-                          _query.trim().isEmpty
-                              ? 'No commands registered.'
-                              : 'No commands match "$_query".',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      )
-                    : ListView.separated(
-                        key: const ValueKey('command-palette-command-list'),
-                        itemCount: visibleEntries.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final entry = visibleEntries[index];
-                          final command = entry.command;
-                          final blockedReason = widget.blockedReasonForCommand
-                              ?.call(command.id);
-                          final selected = index == overlayState.selectedIndex;
-                          return ListTile(
-                            key: ValueKey('command-palette-${command.id.name}'),
-                            selected: selected,
-                            dense: true,
-                            title: Text(command.label),
-                            subtitle: Text(
-                              blockedReason == null
-                                  ? command.description
-                                  : '${command.description}\nBlocked: $blockedReason',
-                            ),
-                            leading: const Icon(
-                              Icons.keyboard_command_key_rounded,
-                            ),
-                            trailing: Wrap(
+              if (visibleEntries.isEmpty)
+                SizedBox(
+                  height: 96,
+                  child: Center(
+                    key: const ValueKey('command-palette-empty-state'),
+                    child: Text(
+                      _query.trim().isEmpty
+                          ? 'No commands registered.'
+                          : 'No commands match "$_query".',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                )
+              else
+                ListView.separated(
+                  key: const ValueKey('command-palette-command-list'),
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: visibleEntries.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final entry = visibleEntries[index];
+                    final command = entry.command;
+                    final blockedReason = widget.blockedReasonForCommand?.call(
+                      command.id,
+                    );
+                    final selected = index == overlayState.selectedIndex;
+                    return ListTile(
+                      key: ValueKey('command-palette-${command.id.name}'),
+                      selected: selected,
+                      dense: true,
+                      title: Text(command.label),
+                      subtitle: Text(
+                        blockedReason == null
+                            ? command.description
+                            : '${command.description}\nBlocked: $blockedReason',
+                      ),
+                      leading: const Icon(Icons.keyboard_command_key_rounded),
+                      trailing: compact
+                          ? null
+                          : Wrap(
                               spacing: 8,
                               children: [
                                 Chip(label: Text(command.category.wireValue)),
@@ -374,20 +380,19 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                                   const Chip(label: Text('blocked')),
                               ],
                             ),
-                            enabled:
-                                _canExecuteCommand(command.id) &&
-                                blockedReason == null,
-                            onTap:
-                                !_canExecuteCommand(command.id) ||
-                                    blockedReason != null
-                                ? null
-                                : () {
-                                    _executeCommand(command.id);
-                                  },
-                          );
-                        },
-                      ),
-              ),
+                      enabled:
+                          _canExecuteCommand(command.id) &&
+                          blockedReason == null,
+                      onTap:
+                          !_canExecuteCommand(command.id) ||
+                              blockedReason != null
+                          ? null
+                          : () {
+                              _executeCommand(command.id);
+                            },
+                    );
+                  },
+                ),
             ],
           ),
         ),
@@ -444,6 +449,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
             DropdownButtonFormField<AppCommandId>(
               key: const ValueKey('command-palette-keybinding-command'),
               initialValue: _keybindingCommand,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Command',
                 border: OutlineInputBorder(),
@@ -452,7 +458,7 @@ class _CommandPaletteSurfaceState extends State<CommandPaletteSurface> {
                 for (final command in widget.commands)
                   DropdownMenuItem<AppCommandId>(
                     value: command.id,
-                    child: Text(command.label),
+                    child: Text(command.label, overflow: TextOverflow.ellipsis),
                   ),
               ],
               onChanged: (commandId) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GitHub Actions Pin Gate — enforce that all external actions are pinned to a full-length commit SHA.
+"""GitHub Actions Pin Gate - enforce that all external actions are pinned to a full-length commit SHA.
 
 Usage:
     python3 scripts/github-actions-pin-gate.py              # audit mode (default)
@@ -7,15 +7,15 @@ Usage:
     python3 scripts/github-actions-pin-gate.py --json       # machine-readable JSON
 
 Exit codes:
-    0 — all actions properly pinned
-    1 — one or more unpinned actions found
-    2 — configuration or parse error
+    0 - all actions properly pinned
+    1 - one or more unpinned actions found
+    2 - configuration or parse error
 
 Policy:
-    - `uses: ./...` — local actions, always allowed.
-    - `uses: owner/repo@<40-char SHA>` — pinned, allowed.
-    - `uses: owner/repo@vX`, `@main`, `@master`, `@stable`, `@latest`, `@HEAD` — UNPINNED, FAIL.
-    - `uses: docker://...` — container actions, reported.
+    - `uses: ./...` - local actions, always allowed.
+    - `uses: owner/repo@<40-char SHA>` - pinned, allowed.
+    - `uses: owner/repo@vX`, `@main`, `@master`, `@stable`, `@latest`, `@HEAD` - UNPINNED, FAIL.
+    - `uses: docker://...` - container actions, reported.
 """
 
 import argparse
@@ -78,7 +78,7 @@ def classify_action(uses: str) -> dict:
 
     # Docker container action
     if uses.startswith("docker://"):
-        return {"status": "container", "action": uses, "reason": "Container-based action — verify separately"}
+        return {"status": "container", "action": uses, "reason": "Container-based action - verify separately"}
 
     # External action: owner/repo@ref
     if "@" not in uses:
@@ -86,11 +86,11 @@ def classify_action(uses: str) -> dict:
 
     owner_repo, ref = uses.rsplit("@", 1)
 
-    # 40-char hex SHA → pinned
+    # 40-char hex SHA -> pinned
     if re.match(r"^[\da-fA-F]{40}$", ref):
         return {"status": "pinned", "action": uses, "reason": None}
 
-    # Known tag/branch patterns → unpinned
+    # Known tag/branch patterns -> unpinned
     tag_match = TAG_OR_BRANCH_PATTERN.search(f"@{ref}")
     tag_label = tag_match.group(1) if tag_match else ref
 
@@ -175,26 +175,26 @@ def run_gate(mode: str = "audit", json_output: bool = False) -> tuple[bool, list
         print()
 
         if pinned:
-            print("  ✓ Pinned actions:")
+            print("  [OK] Pinned actions:")
             for p in pinned:
                 print(f"    {p['action']}  ({p['file']}:{p['line']})")
             print()
 
         if local:
-            print("  ✓ Local actions:")
+            print("  [OK] Local actions:")
             for l in local:
                 print(f"    {l['action']}  ({l['file']}:{l['line']})")
             print()
 
         if unpinned:
-            print("  ✗ UNPINNED ACTIONS (must be pinned to full-length SHA):")
+            print("  [UNPINNED] Actions must be pinned to full-length SHA:")
             for u in unpinned:
                 print(f"    {u['action']}  ({u['file']}:{u['line']})")
-                print(f"      → {u['reason']}")
+                print(f"      -> {u['reason']}")
             print()
 
         if containers:
-            print("  ⚠ Container actions (verify separately):")
+            print("  [WARN] Container actions (verify separately):")
             for c in containers:
                 print(f"    {c['action']}  ({c['file']}:{c['line']})")
             print()
@@ -205,7 +205,7 @@ def run_gate(mode: str = "audit", json_output: bool = False) -> tuple[bool, list
         print("\n  [AUDIT MODE] Unpinned actions are reported but do not block PR CI.")
         print("  Release readiness requires --mode enforce to pass.")
         print("  To pin actions, resolve each tag to a full-length commit SHA.")
-        print("  Example fix:  actions/checkout@v5  →  actions/checkout@<40-char-SHA>  # v5")
+        print("  Example fix:  actions/checkout@v5  ->  actions/checkout@<40-char-SHA>  # v5")
 
     return passed, findings
 
@@ -226,7 +226,7 @@ def main():
     if not passed and args.mode == "enforce":
         sys.exit(1)
 
-    # In audit mode, always exit 0 — the report is informational.
+    # In audit mode, always exit 0; the report is informational.
     sys.exit(0)
 
 

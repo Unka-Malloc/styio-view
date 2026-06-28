@@ -325,7 +325,7 @@ class LocalFileSystemManager implements FileSystemManager {
       );
       try {
         await temp.writeAsString(contents);
-        await temp.rename(normalized);
+        await _renameFileWithRetry(temp, normalized);
       } finally {
         if (await temp.exists()) {
           await temp.delete();
@@ -354,7 +354,7 @@ class LocalFileSystemManager implements FileSystemManager {
       );
       try {
         await temp.writeAsBytes(contents);
-        await temp.rename(normalized);
+        await _renameFileWithRetry(temp, normalized);
       } finally {
         if (await temp.exists()) {
           await temp.delete();
@@ -436,6 +436,20 @@ class LocalFileSystemManager implements FileSystemManager {
       }
     }
   }
+}
+
+Future<File> _renameFileWithRetry(File source, String target) async {
+  for (var attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      return await source.rename(target);
+    } on FileSystemException {
+      if (!Platform.isWindows || attempt == 5) {
+        rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 25 * (1 << attempt)));
+    }
+  }
+  return source.rename(target);
 }
 
 FileSystemFailureKind? _localFileSystemFailureKind(Object error) {

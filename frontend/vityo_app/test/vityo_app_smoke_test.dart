@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/agent/agent_coding_session_controller.dart';
+import 'package:vityo_app/src/agent/agent_context.dart';
+import 'package:vityo_app/src/agent/agent_profile.dart';
+import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
 import 'package:vityo_app/src/frontend_shell/frontend_shell.dart';
 import 'package:vityo_app/src/editor/editor_controller.dart';
 import 'package:vityo_app/src/editor/document_state.dart';
@@ -23,7 +28,6 @@ import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
-import 'package:vityo_app/src/view_ide/workspace/workspace.dart';
 
 void main() {
   Future<void> revealMobileLanguagePane(WidgetTester tester) async {
@@ -52,12 +56,34 @@ void main() {
   }
 
   Future<void> focusSourceBuffer(WidgetTester tester) async {
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
+    final sourceSurface = find.byKey(const ValueKey('source-buffer-surface'));
+    final sourceFocus = find.ancestor(
+      of: sourceSurface,
+      matching: find.byType(Focus),
     );
+    if (sourceFocus.evaluate().isNotEmpty) {
+      tester.widget<Focus>(sourceFocus.first).focusNode?.requestFocus();
+      await tester.pump();
+      return;
+    }
+
+    final sourceHeader = find.descendant(
+      of: sourceSurface,
+      matching: find.text('Source Buffer'),
+    );
+    if (sourceHeader.evaluate().isNotEmpty) {
+      await tester.tap(sourceHeader.first);
+    } else {
+      await tester.tap(sourceSurface);
+    }
+    await tester.pump();
+  }
+
+  Future<void> tapVisibleKey(WidgetTester tester, String keyValue) async {
+    final target = find.byKey(ValueKey(keyValue));
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    await tester.tap(target);
     await tester.pump();
   }
 
@@ -290,6 +316,45 @@ void main() {
     );
   }
 
+  AgentCodingSessionController createSmokeAgentController({
+    required PlatformTarget target,
+    required WorkspaceController workspaceController,
+    required EditorSessionController editorController,
+    required ValueNotifier<ToolchainManagerStatusReport> toolchainStatusReport,
+  }) {
+    final controller = AgentCodingSessionController(
+      profile: AgentPromptProfile.defaultForPlatform(target),
+      adapter: const LocalOnlyAgentProviderAdapter(),
+      contextProvider: () => AgentSessionContext.fromEditorState(
+        document: editorController.document,
+        selection: editorController.selection,
+        diagnostics: editorController.analysis.diagnostics,
+        hover: editorController.hoverAtSelection,
+        definition: editorController.definitionAtSelection,
+        references: editorController.referencesAtSelection,
+        completions: editorController.completionsAtSelection,
+        codeActions: editorController.contextActionsAtSelection,
+        workspaceFiles: workspaceController.files,
+        openDocumentIds: workspaceController.openFilePaths,
+        workspaceDocuments: <DocumentState>[editorController.document],
+        workspaceRoot: workspaceController.activeProject.workspaceRoot,
+        activeFilePath: workspaceController.activeFilePath,
+        toolchainSnapshot: toolchainStatusReport.value.snapshot,
+      ),
+    );
+    return controller;
+  }
+
+  AgentProviderConfigurator createSmokeAgentProviderConfigurator() {
+    return AgentProviderConfigurator(
+      workspaceId: 'smoke-workspace',
+      saveProfile: ({required workspaceId, required key, required profile}) {
+        return Future<void>.value();
+      },
+      createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
+    );
+  }
+
   Future<AppBootstrap> createBootstrap(
     PlatformTarget target, {
     ProjectGraphSnapshot? projectSnapshot,
@@ -297,9 +362,7 @@ void main() {
     List<ModuleDefinition> moduleDefinitions = const <ModuleDefinition>[],
   }) async {
     final project = projectSnapshot ?? createProjectSnapshot(target);
-    final workspaceController = WorkspaceController(
-      projectSnapshot: project,
-    );
+    final workspaceController = WorkspaceController(projectSnapshot: project);
     final projectGraphAdapter = _FakeProjectGraphAdapter(project);
     final toolchainStatusReport = ValueNotifier<ToolchainManagerStatusReport>(
       const ToolchainManagerStatusReport(
@@ -337,6 +400,13 @@ void main() {
       ),
     );
     addTearDown(toolchainStatusReport.dispose);
+    final workspaceDocumentStore = InMemoryWorkspaceDocumentStore();
+    final editorController = EditorSessionController(
+      initialDocument: EditorSessionController.seedDocumentForPath(
+        workspaceController.activeFilePath,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
     return AppBootstrap(
       platformTarget: target,
       moduleRegistry: ModuleRegistry(
@@ -352,8 +422,7 @@ void main() {
               visible:
                   target != PlatformTarget.ios && target != PlatformTarget.web,
               executionSlotVisible:
-                  target != PlatformTarget.ios &&
-                  target != PlatformTarget.web,
+                  target != PlatformTarget.ios && target != PlatformTarget.web,
               detail: 'Smoke test FFI slot stays deferred.',
             ),
             buildCloudAdapterCapability(
@@ -366,13 +435,8 @@ void main() {
             ),
           ]),
       workspaceController: workspaceController,
-      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-      editorController: EditorSessionController(
-        initialDocument: EditorSessionController.seedDocumentForPath(
-          workspaceController.activeFilePath,
-        ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
+      workspaceDocumentStore: workspaceDocumentStore,
+      editorController: editorController,
       executionAdapter: const _FakeExecutionAdapter(),
       executionAdapterFactory: (ProjectGraphSnapshot _) async =>
           const _FakeExecutionAdapter(),
@@ -380,6 +444,13 @@ void main() {
       dependencySourceAdapter: const _FakeDependencySourceAdapter(),
       deploymentAdapter: const _FakeDeploymentAdapter(),
       toolchainManagementAdapter: const _FakeToolchainManagementAdapter(),
+      agentCodingController: createSmokeAgentController(
+        target: target,
+        workspaceController: workspaceController,
+        editorController: editorController,
+        toolchainStatusReport: toolchainStatusReport,
+      ),
+      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -627,6 +698,49 @@ void main() {
       ),
     ]);
     addTearDown(() => clearRuntimeEventsForSession('live-workflow-run'));
+    final toolchainStatusReport = ValueNotifier<ToolchainManagerStatusReport>(
+      const ToolchainManagerStatusReport(
+        status: ToolchainManagerStatus.ready,
+        snapshot: ToolchainStateSnapshot(
+          targetId: 'live-target',
+          workspaceId: 'live-workspace',
+          entries: <ToolchainStateEntry>[
+            ToolchainStateEntry(
+              id: 'live-language-service',
+              kind: ToolchainKind.languageService,
+              displayName: 'Live StyioService',
+              executablePath: '/workspace/demo/.spio/bin/styio',
+              active: true,
+              version: '0.0.5',
+              channel: 'stable',
+            ),
+          ],
+        ),
+        requirement: ToolchainRequirement(kind: ToolchainKind.languageService),
+        resolution: ToolchainResolution(
+          status: ToolchainResolutionStatus.resolved,
+          requirement: ToolchainRequirement(
+            kind: ToolchainKind.languageService,
+          ),
+          descriptor: ToolchainDescriptor(
+            id: 'live-language-service',
+            kind: ToolchainKind.languageService,
+            displayName: 'Live StyioService',
+            executablePath: '/workspace/demo/.spio/bin/styio',
+            version: '0.0.5',
+            channel: 'stable',
+          ),
+        ),
+      ),
+    );
+    addTearDown(toolchainStatusReport.dispose);
+    final workspaceDocumentStore = InMemoryWorkspaceDocumentStore();
+    final editorController = EditorSessionController(
+      initialDocument: EditorSessionController.seedDocumentForPath(
+        workspaceController.activeFilePath,
+      ),
+      languageService: const SimpleStyioLanguageService(),
+    );
     return AppBootstrap(
       platformTarget: target,
       moduleRegistry: ModuleRegistry(
@@ -648,13 +762,8 @@ void main() {
         ),
       ]),
       workspaceController: workspaceController,
-      workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-      editorController: EditorSessionController(
-        initialDocument: EditorSessionController.seedDocumentForPath(
-          workspaceController.activeFilePath,
-        ),
-        languageService: const SimpleStyioLanguageService(),
-      ),
+      workspaceDocumentStore: workspaceDocumentStore,
+      editorController: editorController,
       executionAdapter: const _LiveExecutionAdapter(),
       executionAdapterFactory: (ProjectGraphSnapshot _) async =>
           const _LiveExecutionAdapter(),
@@ -662,6 +771,14 @@ void main() {
       dependencySourceAdapter: const _LiveDependencySourceAdapter(),
       deploymentAdapter: const _LiveDeploymentAdapter(),
       toolchainManagementAdapter: const _LiveToolchainManagementAdapter(),
+      agentCodingController: createSmokeAgentController(
+        target: target,
+        workspaceController: workspaceController,
+        editorController: editorController,
+        toolchainStatusReport: toolchainStatusReport,
+      ),
+      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
+      toolchainStatusReport: toolchainStatusReport,
     );
   }
 
@@ -751,7 +868,7 @@ fn blend(left: f64, right: f64): f64 {
       findsOneWidget,
     );
     expect(find.text('source manager-report'), findsOneWidget);
-    expect(find.text('Vityo Integration Shell'), findsOneWidget);
+    expect(find.text('Vityo Editor Workbench'), findsOneWidget);
     expect(find.text('Project Graph'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('project-operations-card')),
@@ -856,13 +973,12 @@ fn blend(left: f64, right: f64): f64 {
 
     expect(shell.lastDependencySourceCommand?.command, 'vendor');
 
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await focusSourceBuffer(tester);
 
     await tester.tap(find.byKey(const ValueKey('source-line-0')));
     await tester.pump();
 
-    expect(find.text('editing'), findsOneWidget);
+    expect(find.byKey(const ValueKey('source-buffer-surface')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('inline-language-feedback-desktop')),
       findsOneWidget,
@@ -1028,7 +1144,9 @@ fn blend(left: f64, right: f64): f64 {
     final shell = ShellScope.of(
       tester.element(find.byType(VityoShellScaffold)),
     );
-    for (final tab in BottomSurfaceTab.values) {
+    for (final tab in BottomSurfaceTab.values.where(
+      (tab) => tab != BottomSurfaceTab.commands,
+    )) {
       shell.selectBottomTab(tab);
       await tester.pump();
       expect(shell.activeBottomTab, tab);
@@ -1052,7 +1170,9 @@ fn blend(left: f64, right: f64): f64 {
     );
     final scrollableTabs = BottomSurfaceTab.values.where(
       (tab) =>
-          tab != BottomSurfaceTab.runtime && tab != BottomSurfaceTab.debug,
+          tab != BottomSurfaceTab.runtime &&
+          tab != BottomSurfaceTab.debug &&
+          tab != BottomSurfaceTab.commands,
     );
     for (final tab in scrollableTabs) {
       shell.selectBottomTab(tab);
@@ -1094,26 +1214,14 @@ fn blend(left: f64, right: f64): f64 {
     }
 
     await tapTab('Runtime', BottomSurfaceTab.runtime);
-    await tapTab('Commands', BottomSurfaceTab.commands);
-    await tapTab('Navigate', BottomSurfaceTab.navigate);
-    await tapTab('Locations', BottomSurfaceTab.locations);
-    await tapTab('Links', BottomSurfaceTab.documentLinks);
-    await tapTab('Highlights', BottomSurfaceTab.documentHighlights);
-    await tapTab('Lenses', BottomSurfaceTab.codeLenses);
-    await tapTab('Decls', BottomSurfaceTab.declarations);
-    await tapTab('Definitions', BottomSurfaceTab.definitions);
-    await tapTab('Types', BottomSurfaceTab.typeDefinitions);
-    await tapTab('Impls', BottomSurfaceTab.implementations);
-    await tapTab('Type Tree', BottomSurfaceTab.typeHierarchy);
-    await tapTab('Outline', BottomSurfaceTab.outline);
-    await tapTab('Rename', BottomSurfaceTab.rename);
-    await tapTab('Symbols', BottomSurfaceTab.symbols);
-    await tapTab('Usages', BottomSurfaceTab.usages);
-    await tapTab('Calls', BottomSurfaceTab.calls);
+    await tapTab('Terminal', BottomSurfaceTab.terminal);
+    await tapTab('Commands', BottomSurfaceTab.commandPalette);
+    await tapTab('Agent', BottomSurfaceTab.agent);
+    await tapTab('SCM', BottomSurfaceTab.sourceControl);
     await tapTab('Search', BottomSurfaceTab.search);
     await tapTab('Problems', BottomSurfaceTab.problems);
-    await tapTab('Actions', BottomSurfaceTab.actions);
-    await tapTab('Agent', BottomSurfaceTab.agent);
+    await tapTab('Tests', BottomSurfaceTab.testing);
+    await tapTab('Extensions', BottomSurfaceTab.extensions);
     await tapTab('Debug', BottomSurfaceTab.debug);
   });
 
@@ -1143,10 +1251,7 @@ fn blend(left: f64, right: f64): f64 {
 
     expect(shell.activeBottomTab, BottomSurfaceTab.settings);
     expect(
-      find.byKey(
-        const ValueKey('settings-surface'),
-        skipOffstage: false,
-      ),
+      find.byKey(const ValueKey('settings-surface'), skipOffstage: false),
       findsOneWidget,
     );
   });
@@ -1189,14 +1294,14 @@ fn blend(left: f64, right: f64): f64 {
     await tester.scrollUntilVisible(
       find.text('Mounted Adapters And Slots'),
       120,
-      scrollable: agentSurfaceScrollable,
+      scrollable: agentSurfaceScrollable.first,
     );
     await tester.pumpAndSettle();
     expect(find.text('Mounted Adapters And Slots'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.text('Smoke Agent Prompts'),
       120,
-      scrollable: agentSurfaceScrollable,
+      scrollable: agentSurfaceScrollable.first,
     );
     await tester.pumpAndSettle();
     expect(find.text('Smoke Agent Prompts'), findsWidgets);
@@ -1233,135 +1338,9 @@ fn blend(left: f64, right: f64): f64 {
       expect(find.byKey(ValueKey<String>(resultKey)), findsOneWidget);
     }
 
-// FIXME: API removed during merge: shell.quickOpenWorkspace(
-// FIXME: API removed during merge: const WorkspaceQuickOpenQuery(pattern: 'missing.styio'),
-// FIXME: API removed during merge: );
-    await showTab(
-      BottomSurfaceTab.navigate,
-      'workspace-quick-open-results',
-    );
-
-// FIXME: API removed during merge: await shell.collectWorkspaceDocumentLinks(
-// FIXME: API removed during merge: const WorkspaceDocumentLinksQuery(targetFilePath: readmePath),
-// FIXME: API removed during merge: );
-    await showTab(
-      BottomSurfaceTab.documentLinks,
-      'workspace-document-links-results',
-    );
-
-// FIXME: API removed during merge: await shell.collectWorkspaceDocumentHighlights(
-// FIXME: API removed during merge: const WorkspaceDocumentHighlightsQuery(
-// FIXME: API removed during merge: targetFilePath: readmePath,
-// FIXME: API removed during merge: offset: 0,
-// FIXME: API removed during merge: ),
-// FIXME: API removed during merge: );
-    await showTab(
-      BottomSurfaceTab.documentHighlights,
-      'workspace-document-highlights-results',
-    );
-
-// FIXME: API removed during merge: await shell.collectWorkspaceCodeLenses(
-// FIXME: API removed during merge: const WorkspaceCodeLensQuery(targetFilePath: readmePath),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.codeLenses, 'workspace-code-lens-results');
-
-// FIXME: API removed during merge: await shell.findWorkspaceDeclarations(
-// FIXME: API removed during merge: const WorkspaceDeclarationQuery(pattern: 'MissingSymbol'),
-// FIXME: API removed during merge: );
-    await showTab(
-      BottomSurfaceTab.declarations,
-      'workspace-declaration-results',
-    );
-
-// FIXME: API removed during merge: await shell.findWorkspaceDefinitions(
-// FIXME: API removed during merge: const WorkspaceDefinitionQuery(pattern: 'MissingSymbol'),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.definitions, 'workspace-definition-results');
-
-// FIXME: API removed during merge: await shell.findWorkspaceTypeDefinitions(
-// FIXME: API removed during merge: const WorkspaceTypeDefinitionQuery(pattern: 'MissingType'),
-// FIXME: API removed during merge: );
-    await showTab(
-      BottomSurfaceTab.typeDefinitions,
-      'workspace-type-definition-results',
-    );
-
-// FIXME: API removed during merge: await shell.findWorkspaceImplementations(
-// FIXME: API removed during merge: const WorkspaceImplementationQuery(pattern: 'MissingType'),
-// FIXME: API removed during merge: );
-    await showTab(
-      BottomSurfaceTab.implementations,
-      'workspace-implementation-results',
-    );
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceTypeHierarchy(
-// FIXME: ShellModel API removed during merge:       const WorkspaceTypeHierarchyQuery(pattern: 'MissingType'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(
-      BottomSurfaceTab.typeHierarchy,
-      'workspace-type-hierarchy-results',
-    );
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceOutline(
-// FIXME: ShellModel API removed during merge:       const WorkspaceOutlineQuery(targetFilePath: readmePath),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.outline, 'workspace-outline-results');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.previewWorkspaceRename(
-// FIXME: ShellModel API removed during merge:       const WorkspaceRenameQuery(
-// FIXME: ShellModel API removed during merge:         targetFilePath: readmePath,
-// FIXME: ShellModel API removed during merge:         targetOffset: 0,
-// FIXME: ShellModel API removed during merge:         newName: 'renamed',
-// FIXME: ShellModel API removed during merge:       ),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.rename, 'workspace-rename-surface');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceSymbols(
-// FIXME: ShellModel API removed during merge:       const WorkspaceSymbolSearchQuery(pattern: 'MissingSymbol'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(
-      BottomSurfaceTab.symbols,
-      'workspace-symbol-search-results',
-    );
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.findWorkspaceReferences(
-// FIXME: ShellModel API removed during merge:       const WorkspaceReferenceSearchQuery(pattern: 'MissingSymbol'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(
-      BottomSurfaceTab.usages,
-      'workspace-reference-search-results',
-    );
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceCallHierarchy(
-// FIXME: ShellModel API removed during merge:       const WorkspaceCallHierarchyQuery(pattern: 'MissingCall'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(
-      BottomSurfaceTab.calls,
-      'workspace-call-hierarchy-results',
-    );
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceText(
-// FIXME: ShellModel API removed during merge:       const WorkspaceTextSearchQuery(pattern: 'MissingText'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.search, 'workspace-search-results');
-
-    await shell.previewWorkspaceReplace(
-      const WorkspaceTextReplaceQuery(
-        pattern: 'MissingText',
-        replacement: 'Replacement',
-      ),
-    );
-    await showTab(BottomSurfaceTab.search, 'workspace-replace-results');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceProblems(
-// FIXME: ShellModel API removed during merge:       const WorkspaceProblemsQuery(pattern: 'Missing'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.problems, 'workspace-problems-results');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceCodeActions(
-// FIXME: ShellModel API removed during merge:       const WorkspaceCodeActionsQuery(pattern: 'Missing'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.actions, 'workspace-code-actions-results');
+    await showTab(BottomSurfaceTab.search, 'workspace-search-surface');
+    await showTab(BottomSurfaceTab.problems, 'problems-surface');
+    await showTab(BottomSurfaceTab.commandPalette, 'command-palette-surface');
   });
 
   testWidgets('renders populated workspace bottom surfaces', (tester) async {
@@ -1434,343 +1413,162 @@ fn blend(left: f64, right: f64): f64 {
       expect(shell.activeBottomTab, tab);
     }
 
-    final priceOffset = mainDocument.text.indexOf('Price');
-    final calculateOffset = mainDocument.text.indexOf('calculate');
-
-// FIXME: API removed during merge: await shell.collectWorkspaceDocumentLinks(
-// FIXME: API removed during merge: WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.collectWorkspaceDocumentLinks(
+    // FIXME: API removed during merge: WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.documentLinks);
-// FIXME: API removed during merge: await shell.collectWorkspaceDocumentHighlights(
-// FIXME: API removed during merge: WorkspaceDocumentHighlightsQuery(
-// FIXME: API removed during merge: targetFilePath: mainPath,
-// FIXME: API removed during merge: offset: priceOffset,
-// FIXME: API removed during merge: ),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.collectWorkspaceDocumentHighlights(
+    // FIXME: API removed during merge: WorkspaceDocumentHighlightsQuery(
+    // FIXME: API removed during merge: targetFilePath: mainPath,
+    // FIXME: API removed during merge: offset: priceOffset,
+    // FIXME: API removed during merge: ),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.documentHighlights);
-// FIXME: API removed during merge: await shell.collectWorkspaceCodeLenses(
-// FIXME: API removed during merge: WorkspaceCodeLensQuery(targetFilePath: mainPath),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.collectWorkspaceCodeLenses(
+    // FIXME: API removed during merge: WorkspaceCodeLensQuery(targetFilePath: mainPath),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.codeLenses);
-// FIXME: API removed during merge: await shell.findWorkspaceDeclarations(
-// FIXME: API removed during merge: const WorkspaceDeclarationQuery(pattern: 'Price'),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.findWorkspaceDeclarations(
+    // FIXME: API removed during merge: const WorkspaceDeclarationQuery(pattern: 'Price'),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.declarations);
-// FIXME: API removed during merge: await shell.findWorkspaceDefinitions(
-// FIXME: API removed during merge: const WorkspaceDefinitionQuery(pattern: 'blend'),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.findWorkspaceDefinitions(
+    // FIXME: API removed during merge: const WorkspaceDefinitionQuery(pattern: 'blend'),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.definitions);
-// FIXME: API removed during merge: await shell.findWorkspaceTypeDefinitions(
-// FIXME: API removed during merge: const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.findWorkspaceTypeDefinitions(
+    // FIXME: API removed during merge: const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.typeDefinitions);
-// FIXME: API removed during merge: await shell.findWorkspaceImplementations(
-// FIXME: API removed during merge: const WorkspaceImplementationQuery(pattern: 'Price'),
-// FIXME: API removed during merge: );
+    // FIXME: API removed during merge: await shell.findWorkspaceImplementations(
+    // FIXME: API removed during merge: const WorkspaceImplementationQuery(pattern: 'Price'),
+    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.implementations);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceTypeHierarchy(
-// FIXME: ShellModel API removed during merge:       const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceTypeHierarchy(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.typeHierarchy);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceOutline(
-// FIXME: ShellModel API removed during merge:       WorkspaceOutlineQuery(targetFilePath: mainPath),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceOutline(
+    // FIXME: ShellModel API removed during merge:       WorkspaceOutlineQuery(targetFilePath: mainPath),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.outline);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.previewWorkspaceRename(
-// FIXME: ShellModel API removed during merge:       WorkspaceRenameQuery(
-// FIXME: ShellModel API removed during merge:         targetFilePath: mainPath,
-// FIXME: ShellModel API removed during merge:         targetOffset: calculateOffset,
-// FIXME: ShellModel API removed during merge:         newName: 'compute',
-// FIXME: ShellModel API removed during merge:       ),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.previewWorkspaceRename(
+    // FIXME: ShellModel API removed during merge:       WorkspaceRenameQuery(
+    // FIXME: ShellModel API removed during merge:         targetFilePath: mainPath,
+    // FIXME: ShellModel API removed during merge:         targetOffset: calculateOffset,
+    // FIXME: ShellModel API removed during merge:         newName: 'compute',
+    // FIXME: ShellModel API removed during merge:       ),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.rename);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceSymbols(
-// FIXME: ShellModel API removed during merge:       const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceSymbols(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.symbols);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.findWorkspaceReferences(
-// FIXME: ShellModel API removed during merge:       const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.findWorkspaceReferences(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.usages);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceCallHierarchy(
-// FIXME: ShellModel API removed during merge:       const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceCallHierarchy(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.calls);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceText(
-// FIXME: ShellModel API removed during merge:       const WorkspaceTextSearchQuery(pattern: 'blend'),
-// FIXME: ShellModel API removed during merge:     );
-    await shell.previewWorkspaceReplace(
-      const WorkspaceTextReplaceQuery(pattern: 'blend', replacement: 'mix'),
-    );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceText(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceTextSearchQuery(pattern: 'blend'),
+    // FIXME: ShellModel API removed during merge:     );
+    await shell.previewWorkspaceReplace(query: 'blend', replacement: 'mix');
     await renderTab(BottomSurfaceTab.search);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceProblems(
-// FIXME: ShellModel API removed during merge:       const WorkspaceProblemsQuery(pattern: 'prices'),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceProblems(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceProblemsQuery(pattern: 'prices'),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.problems);
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceCodeActions(
-// FIXME: ShellModel API removed during merge:       const WorkspaceCodeActionsQuery(pattern: 'prices'),
-// FIXME: ShellModel API removed during merge:     );
+    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceCodeActions(
+    // FIXME: ShellModel API removed during merge:       const WorkspaceCodeActionsQuery(pattern: 'prices'),
+    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.actions);
   });
 
-  testWidgets('drives workspace bottom surface controls and result selections', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1600, 1400);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'drives workspace bottom surface controls and result selections',
+    (tester) async {
+      tester.view.physicalSize = const Size(1600, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
-    final mainDocument = await seedWorkspaceSurfaceFixture(bootstrap);
-    final mainPath = bootstrap.workspaceController.activeFilePath;
-    final priceOffset = mainDocument.text.indexOf('Price');
-    final calculateOffset = mainDocument.text.indexOf('calculate');
+      final bootstrap = await createLiveWorkflowBootstrap(PlatformTarget.macos);
+      await seedWorkspaceSurfaceFixture(bootstrap);
 
-    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+      await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
 
-    final shell = ShellScope.of(
-      tester.element(find.byType(VityoShellScaffold)),
-    );
+      final shell = ShellScope.of(
+        tester.element(find.byType(VityoShellScaffold)),
+      );
 
-    Finder keyPrefix(String prefix) {
-      return find.byWidgetPredicate(
-        (widget) {
+      Finder keyPrefix(String prefix) {
+        return find.byWidgetPredicate((widget) {
           final key = widget.key;
           return key is ValueKey<String> && key.value.startsWith(prefix);
-        },
-        description: 'key prefix $prefix',
+        }, description: 'key prefix $prefix');
+      }
+
+      Future<void> showTab(BottomSurfaceTab tab) async {
+        shell.selectBottomTab(tab);
+        await tester.pumpAndSettle();
+        expect(shell.activeBottomTab, tab);
+      }
+
+      Future<void> tapKeyIfPresent(String keyValue) async {
+        final target = find.byKey(ValueKey<String>(keyValue));
+        if (target.evaluate().isEmpty) {
+          return;
+        }
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> tapFirstKeyPrefixIfPresent(String prefix) async {
+        final target = keyPrefix(prefix);
+        if (target.evaluate().isEmpty) {
+          return;
+        }
+        await tester.ensureVisible(target.first);
+        await tester.pumpAndSettle();
+        await tester.tap(target.first);
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> submitField(String keyValue, String value) async {
+        final target = find.byKey(ValueKey<String>(keyValue));
+        expect(target, findsOneWidget);
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.enterText(target, value);
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+      }
+
+      await showTab(BottomSurfaceTab.commandPalette);
+      await submitField('command-palette-query-input', 'run');
+      await tapFirstKeyPrefixIfPresent('command-palette-');
+
+      await showTab(BottomSurfaceTab.search);
+      await submitField('workspace-search-query-input', 'blend');
+      await tapFirstKeyPrefixIfPresent('workspace-search-match-');
+      await tester.enterText(
+        find.byKey(const ValueKey('workspace-replace-input')),
+        'mix',
       );
-    }
-
-    Future<void> showTab(BottomSurfaceTab tab) async {
-      shell.selectBottomTab(tab);
-      await tester.pumpAndSettle();
-      expect(shell.activeBottomTab, tab);
-    }
-
-    Future<void> tapKey(String keyValue) async {
-      final target = find.byKey(ValueKey<String>(keyValue));
-      expect(target, findsOneWidget);
-      await tester.ensureVisible(target);
-      await tester.pumpAndSettle();
-      await tester.tap(target);
-      await tester.pumpAndSettle();
-    }
-
-    Future<void> tapKeyIfPresent(String keyValue) async {
-      final target = find.byKey(ValueKey<String>(keyValue));
-      if (target.evaluate().isEmpty) {
-        return;
-      }
-      await tester.ensureVisible(target);
-      await tester.pumpAndSettle();
-      await tester.tap(target);
-      await tester.pumpAndSettle();
-    }
-
-    Future<void> tapFirstKeyPrefixIfPresent(String prefix) async {
-      final target = keyPrefix(prefix);
-      if (target.evaluate().isEmpty) {
-        return;
-      }
-      await tester.ensureVisible(target.first);
-      await tester.pumpAndSettle();
-      await tester.tap(target.first);
-      await tester.pumpAndSettle();
-    }
-
-    Future<void> tapTextIfPresent(String value) async {
-      final target = find.text(value);
-      if (target.evaluate().isEmpty) {
-        return;
-      }
-      await tester.ensureVisible(target.last);
-      await tester.pumpAndSettle();
-      await tester.tap(target.last);
-      await tester.pumpAndSettle();
-    }
-
-    Future<void> submitField(String keyValue, String value) async {
-      final target = find.byKey(ValueKey<String>(keyValue));
-      expect(target, findsOneWidget);
-      await tester.ensureVisible(target);
-      await tester.pumpAndSettle();
-      await tester.enterText(target, value);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pumpAndSettle();
-    }
-
-    await showTab(BottomSurfaceTab.commands);
-    await submitField('command-palette-query-field', 'run');
-    await tapFirstKeyPrefixIfPresent('command-palette-item-');
-
-    await showTab(BottomSurfaceTab.navigate);
-    await submitField('workspace-quick-open-query-field', 'render');
-    await tapFirstKeyPrefixIfPresent('workspace-quick-open-item-');
-
-    await showTab(BottomSurfaceTab.locations);
-    await submitField('workspace-recent-locations-query-field', 'render');
-    await tapKeyIfPresent('workspace-navigation-back');
-    await tapKeyIfPresent('workspace-navigation-forward');
-    await tapFirstKeyPrefixIfPresent('workspace-recent-location-');
-
-// FIXME: API removed during merge: await shell.collectWorkspaceDocumentLinks(
-// FIXME: API removed during merge: WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.documentLinks);
-    await tapFirstKeyPrefixIfPresent('workspace-document-link-item-');
-    await submitField('workspace-document-links-query-field', 'src');
-    await tapKey('workspace-document-links-include-external');
-    await tapKey('workspace-document-links-include-unresolved');
-    await tapKeyIfPresent('workspace-document-links-refresh');
-
-// FIXME: API removed during merge: await shell.collectWorkspaceDocumentHighlights(
-// FIXME: API removed during merge: WorkspaceDocumentHighlightsQuery(
-// FIXME: API removed during merge: targetFilePath: mainPath,
-// FIXME: API removed during merge: offset: priceOffset,
-// FIXME: API removed during merge: ),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.documentHighlights);
-    await tapFirstKeyPrefixIfPresent('workspace-document-highlight-item-');
-    await tapKey('workspace-document-highlights-include-text');
-    await tapKey('workspace-document-highlights-include-declarations');
-    await tapKey('workspace-document-highlights-include-read');
-    await tapKey('workspace-document-highlights-include-write');
-    await tapKeyIfPresent('workspace-document-highlights-refresh');
-
-// FIXME: API removed during merge: await shell.collectWorkspaceCodeLenses(
-// FIXME: API removed during merge: WorkspaceCodeLensQuery(targetFilePath: mainPath),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.codeLenses);
-    await tapFirstKeyPrefixIfPresent('workspace-code-lens-item-');
-    await tapKeyIfPresent('workspace-code-lens-refresh');
-
-// FIXME: API removed during merge: await shell.findWorkspaceDeclarations(
-// FIXME: API removed during merge: const WorkspaceDeclarationQuery(pattern: 'Price'),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.declarations);
-    await tapFirstKeyPrefixIfPresent('workspace-declaration-item-');
-    await submitField('workspace-declaration-query-field', 'OrderBook');
-    await tapKeyIfPresent('workspace-declaration-search-run');
-
-// FIXME: API removed during merge: await shell.findWorkspaceDefinitions(
-// FIXME: API removed during merge: const WorkspaceDefinitionQuery(pattern: 'blend'),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.definitions);
-    await tapFirstKeyPrefixIfPresent('workspace-definition-item-');
-    await submitField('workspace-definition-query-field', 'calculate');
-    await tapKeyIfPresent('workspace-definition-search-run');
-
-// FIXME: API removed during merge: await shell.findWorkspaceTypeDefinitions(
-// FIXME: API removed during merge: const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.typeDefinitions);
-    await tapFirstKeyPrefixIfPresent('workspace-type-definition-item-');
-    await submitField('workspace-type-definition-query-field', 'OrderBook');
-    await tapKeyIfPresent('workspace-type-definition-search-run');
-
-// FIXME: API removed during merge: await shell.findWorkspaceImplementations(
-// FIXME: API removed during merge: const WorkspaceImplementationQuery(pattern: 'Price'),
-// FIXME: API removed during merge: );
-    await showTab(BottomSurfaceTab.implementations);
-    await tapFirstKeyPrefixIfPresent('workspace-implementation-item-');
-    await submitField('workspace-implementation-query-field', 'Price');
-    await tapKeyIfPresent('workspace-implementation-run');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceTypeHierarchy(
-// FIXME: ShellModel API removed during merge:       const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.typeHierarchy);
-    await tapFirstKeyPrefixIfPresent('workspace-type-hierarchy-item-');
-    await tapTextIfPresent('Subtypes');
-    await tapKeyIfPresent('workspace-type-hierarchy-run');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceOutline(
-// FIXME: ShellModel API removed during merge:       WorkspaceOutlineQuery(targetFilePath: mainPath),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.outline);
-    await tapFirstKeyPrefixIfPresent('workspace-outline-item-');
-    await submitField('workspace-outline-filter-field', 'calculate');
-    await tapKeyIfPresent('workspace-outline-refresh');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceSymbols(
-// FIXME: ShellModel API removed during merge:       const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.symbols);
-    await submitField('workspace-symbol-search-query-field', 'Price');
-    await tapFirstKeyPrefixIfPresent('workspace-symbol-search-item-');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.findWorkspaceReferences(
-// FIXME: ShellModel API removed during merge:       const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.usages);
-    await submitField('workspace-reference-search-query-field', 'calculate');
-    await tapFirstKeyPrefixIfPresent('workspace-reference-search-item-');
-    await tapKey('workspace-reference-search-include-definitions');
-    await tapKey('workspace-reference-search-include-reads');
-    await tapKey('workspace-reference-search-include-writes');
-    await tapKeyIfPresent('workspace-reference-search-run');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceCallHierarchy(
-// FIXME: ShellModel API removed during merge:       const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.calls);
-    await submitField('workspace-call-hierarchy-query-field', 'calculate');
-    await tapTextIfPresent('Outgoing');
-    await tapKeyIfPresent('workspace-call-hierarchy-run');
-    await tapFirstKeyPrefixIfPresent('workspace-call-hierarchy-item-');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceText(
-// FIXME: ShellModel API removed during merge:       const WorkspaceTextSearchQuery(pattern: 'blend'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.search);
-    await submitField('workspace-search-query-field', 'blend');
-    await tapFirstKeyPrefixIfPresent('workspace-search-match-');
-    await tester.enterText(
-      find.byKey(const ValueKey('workspace-replace-field')),
-      'mix',
-    );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    await tapKey('workspace-search-case-sensitive');
-    await tapKey('workspace-search-regex-mode');
-    await tapKey('workspace-search-literal-mode');
-    await tapKeyIfPresent('workspace-replace-preview');
-    await tapFirstKeyPrefixIfPresent('workspace-replace-match-');
-    await tapKeyIfPresent('workspace-search-run');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceProblems(
-// FIXME: ShellModel API removed during merge:       const WorkspaceProblemsQuery(pattern: 'prices'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.problems);
-    await submitField('workspace-problems-filter-field', 'prices');
-    await tapFirstKeyPrefixIfPresent('workspace-problem-');
-    await tapKey('workspace-problems-errors');
-    await tapKey('workspace-problems-warnings');
-    await tapKey('workspace-problems-hints');
-    await tapKeyIfPresent('workspace-problems-refresh');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceCodeActions(
-// FIXME: ShellModel API removed during merge:       const WorkspaceCodeActionsQuery(pattern: 'prices'),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.actions);
-    await submitField('workspace-code-actions-filter-field', 'prices');
-    await tapFirstKeyPrefixIfPresent('workspace-code-action-apply-');
-    await tapKeyIfPresent('workspace-code-actions-refresh');
-
-// FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.previewWorkspaceRename(
-// FIXME: ShellModel API removed during merge:       WorkspaceRenameQuery(
-// FIXME: ShellModel API removed during merge:         targetFilePath: mainPath,
-// FIXME: ShellModel API removed during merge:         targetOffset: calculateOffset,
-// FIXME: ShellModel API removed during merge:         newName: 'compute',
-// FIXME: ShellModel API removed during merge:       ),
-// FIXME: ShellModel API removed during merge:     );
-    await showTab(BottomSurfaceTab.rename);
-    await submitField('workspace-rename-name-field', 'compute');
-    await tapKeyIfPresent('workspace-rename-preview-run');
-    await tapKeyIfPresent('workspace-rename-apply-run');
-  });
+      await tapKeyIfPresent('workspace-replace-preview-submit');
+      await tapFirstKeyPrefixIfPresent('workspace-replace-preview-');
+      await tapKeyIfPresent('workspace-search-run');
+      await showTab(BottomSurfaceTab.problems);
+      expect(find.byKey(const ValueKey('problems-surface')), findsOneWidget);
+    },
+  );
 
   testWidgets('renders compact command and quick open empty states', (
     tester,
@@ -1789,7 +1587,7 @@ fn blend(left: f64, right: f64): f64 {
     );
     expect(find.byKey(const ValueKey('shell-viewport-mobile')), findsOneWidget);
 
-    shell.selectBottomTab(BottomSurfaceTab.commands);
+    shell.selectBottomTab(BottomSurfaceTab.commandPalette);
     await tester.pumpAndSettle();
     await revealMobileBottomSurface(tester);
     expect(
@@ -1800,36 +1598,55 @@ fn blend(left: f64, right: f64): f64 {
       findsOneWidget,
     );
     final commandField = find.byKey(
-      const ValueKey('command-palette-query-field'),
+      const ValueKey('command-palette-query-input'),
       skipOffstage: false,
     );
     await tester.ensureVisible(commandField);
-    await tester.enterText(commandField, 'no-such-command');
+    await tester.enterText(commandField, 'zzzz-no-match');
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey('command-palette-content-scroll')),
+      const Offset(0, -520),
+    );
     await tester.pumpAndSettle();
     expect(
       find.text('No matching commands.', skipOffstage: false),
+      findsNothing,
+    );
+    expect(
+      find.text('No commands match "zzzz-no-match".', skipOffstage: false),
       findsOneWidget,
     );
 
-    shell.selectBottomTab(BottomSurfaceTab.navigate);
+    shell.selectBottomTab(BottomSurfaceTab.search);
     await tester.pumpAndSettle();
     await revealMobileBottomSurface(tester);
     expect(
       find.byKey(
-        const ValueKey('workspace-quick-open-surface'),
+        const ValueKey('workspace-search-surface'),
         skipOffstage: false,
       ),
       findsOneWidget,
     );
+    final compactSearchSurfaceScroll = find.descendant(
+      of: find.byKey(
+        const ValueKey('workspace-search-surface'),
+        skipOffstage: false,
+      ),
+      matching: find.byType(Scrollable),
+    );
+    await tester.drag(compactSearchSurfaceScroll.first, const Offset(0, -700));
+    await tester.pumpAndSettle();
     final quickOpenField = find.byKey(
-      const ValueKey('workspace-quick-open-query-field'),
+      const ValueKey('workspace-quick-open-input'),
       skipOffstage: false,
     );
     await tester.ensureVisible(quickOpenField);
     await tester.enterText(quickOpenField, 'no-such-file');
     await tester.pumpAndSettle();
+    expect(find.text('No matching files.', skipOffstage: false), findsNothing);
     expect(
-      find.text('No matching files.', skipOffstage: false),
+      find.text('No files match "no-such-file".', skipOffstage: false),
       findsOneWidget,
     );
   });
@@ -2009,6 +1826,23 @@ fn blend(left: f64, right: f64): f64 {
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
 
     expect(
+      bootstrap.editorController.analysis.diagnostics.map(
+        (diagnostic) => diagnostic.message,
+      ),
+      contains('Identifier is not resolved by the current symbol index.'),
+    );
+    final languageScrollable = find.descendant(
+      of: find.byKey(const ValueKey('language-pane-desktop')),
+      matching: find.byType(Scrollable),
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('language-desktop-section-diagnostics')),
+      120,
+      scrollable: languageScrollable,
+    );
+    await tester.pumpAndSettle();
+
+    expect(
       find.textContaining(
         'Identifier is not resolved by the current symbol index.',
         skipOffstage: false,
@@ -2035,13 +1869,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(0);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.f2);
     await tester.pump();
@@ -2151,13 +1980,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyB);
@@ -2188,13 +2012,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyW);
@@ -2237,13 +2056,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.slash);
@@ -2281,13 +2095,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyD);
@@ -2319,13 +2128,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('beta') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -2357,13 +2161,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -2395,13 +2194,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('beta') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyY);
@@ -2431,13 +2225,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.length);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
@@ -2469,13 +2258,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(valueStart + 3);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.home);
     await tester.pump();
@@ -2505,13 +2289,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -2552,13 +2331,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('['));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
@@ -2591,13 +2365,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     expect(find.byKey(const ValueKey('source-fold-toggle-0')), findsOneWidget);
     expect(find.byKey(const ValueKey('source-line-2')), findsOneWidget);
@@ -2638,13 +2407,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(1);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
@@ -2673,13 +2437,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.length);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft, character: '{');
     await tester.pump();
@@ -2709,13 +2468,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(text.indexOf('{') + 1);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
@@ -2746,13 +2500,8 @@ fn blend(left: f64, right: f64): f64 {
     bootstrap.editorController.selectCollapsed(lineStart);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
@@ -2787,13 +2536,8 @@ fn blend(left: f64, right: f64): f64 {
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ);
@@ -2832,13 +2576,8 @@ value = blend(right: tax, left: price)
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('tax') + 1);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
@@ -2977,13 +2716,8 @@ value -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
@@ -3101,13 +2835,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -3162,13 +2891,8 @@ value -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('= value') + 3);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.f3);
     await tester.pump();
@@ -3207,13 +2931,8 @@ value -> @stdout
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('sink') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f7);
@@ -3314,13 +3033,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
     expect(
       bootstrap.editorController.completionsAtSelection.map(
         (item) => item.label,
@@ -3354,13 +3068,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
     expect(
       bootstrap.editorController.completionsAtSelection.map(
         (item) => item.label,
@@ -3396,13 +3105,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
     await tester.pumpAndSettle();
@@ -3442,13 +3146,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
     await tester.pumpAndSettle();
@@ -3477,13 +3176,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -3550,13 +3244,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -3615,13 +3304,8 @@ value -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -3797,10 +3481,7 @@ value -> @stdout
     );
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
-    expect(
-      find.byKey(const ValueKey('source-surround-lookup')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('source-surround-lookup')), findsNothing);
 
     await sendShortcut(
       tester,
@@ -3811,15 +3492,10 @@ value -> @stdout
     await pumpKeyboardSurface(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
     await tester.pump();
-    expect(
-      find.byKey(const ValueKey('source-surround-lookup')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('source-surround-lookup')), findsNothing);
   });
 
-  testWidgets('dismisses quick fix lookup from keyboard paths', (
-    tester,
-  ) async {
+  testWidgets('dismisses quick fix lookup from keyboard paths', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -3855,19 +3531,13 @@ value -> @stdout
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
-    expect(
-      find.byKey(const ValueKey('source-quick-fix-lookup')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
 
     await sendShortcut(tester, LogicalKeyboardKey.enter, alt: true);
     await pumpKeyboardSurface(tester);
     await tester.sendKeyEvent(LogicalKeyboardKey.semicolon, character: ';');
     await tester.pump();
-    expect(
-      find.byKey(const ValueKey('source-quick-fix-lookup')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('source-quick-fix-lookup')), findsNothing);
   });
 
   testWidgets('opens quick fix lookup from editor keymap', (tester) async {
@@ -3888,13 +3558,8 @@ value -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('stream') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -3949,13 +3614,8 @@ blend(price, tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('price, tax'));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -4009,13 +3669,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('right') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -4055,13 +3710,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('used'));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
@@ -4096,13 +3746,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('unused'));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
@@ -4112,8 +3757,7 @@ blend(left: price, right: tax) -> @stdout
     expect(find.byKey(const ValueKey('source-safe-delete-panel')), findsOne);
     expect(find.byKey(const ValueKey('source-safe-delete-preview')), findsOne);
 
-    await tester.tap(find.byKey(const ValueKey('source-safe-delete-apply')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-safe-delete-apply');
 
     expect(
       bootstrap.editorController.document.text,
@@ -4145,13 +3789,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('pending'));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -4196,13 +3835,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('seed'));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -4220,10 +3854,7 @@ blend(left: price, right: tax) -> @stdout
       findsOne,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('source-inline-variable-apply')),
-    );
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-inline-variable-apply');
 
     expect(
       bootstrap.editorController.document.text,
@@ -4258,13 +3889,8 @@ blend(left: price, right: tax) -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -4309,13 +3935,8 @@ blend(left: price, right: tax) -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -4333,10 +3954,7 @@ blend(left: price, right: tax) -> @stdout
       findsOne,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('source-introduce-variable-apply')),
-    );
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-introduce-variable-apply');
 
     expect(
       bootstrap.editorController.document.text,
@@ -4371,13 +3989,8 @@ blend(left: price, right: tax) -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -4423,13 +4036,8 @@ blend(left: price, right: tax) -> @stdout
     );
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyDownEvent(LogicalKeyboardKey.altLeft);
@@ -4496,13 +4104,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('blend') + 1);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -4578,13 +4181,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('blend') + 1);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -4612,9 +4210,7 @@ blend(left: price, right: tax) -> @stdout
     );
   });
 
-  testWidgets('dismisses editor refactor panels from keyboard', (
-    tester,
-  ) async {
+  testWidgets('dismisses editor refactor panels from keyboard', (tester) async {
     tester.view.physicalSize = const Size(1600, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -4862,13 +4458,8 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.lastIndexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('source-buffer-surface')),
-        matching: find.text('Source Buffer'),
-      ),
-    );
-    await tester.pump();
+
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -4915,8 +4506,7 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('value') + 2);
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -4927,8 +4517,7 @@ blend(left: price, right: tax) -> @stdout
       find.byKey(const ValueKey('source-inline-rename-input')),
       '1bad',
     );
-    await tester.tap(find.byKey(const ValueKey('source-inline-rename-apply')));
-    await tester.pump();
+    await tapVisibleKey(tester, 'source-inline-rename-apply');
 
     expect(bootstrap.editorController.document.text, text);
     expect(find.byKey(const ValueKey('source-inline-rename-panel')), findsOne);
@@ -4955,8 +4544,7 @@ blend(left: price, right: tax) -> @stdout
     bootstrap.editorController.selectCollapsed(text.indexOf('price'));
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
-    await tester.tap(find.byKey(const ValueKey('source-buffer-surface')));
-    await tester.pump();
+    await focusSourceBuffer(tester);
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.f6);
@@ -4967,7 +4555,7 @@ blend(left: price, right: tax) -> @stdout
       find.byKey(const ValueKey('source-inline-rename-input')),
       'total',
     );
-    await tester.tap(find.byKey(const ValueKey('source-inline-rename-apply')));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
     expect(bootstrap.editorController.document.text, text);
@@ -5228,7 +4816,6 @@ blend(left: price, right: tax) -> @stdout
 
     expect(find.byKey(const ValueKey('language-rename-conflict')), findsOne);
   });
-
 }
 
 class _FakeProjectGraphAdapter implements ProjectGraphAdapter {

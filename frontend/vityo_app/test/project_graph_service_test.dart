@@ -114,11 +114,13 @@ void main() {
     expect(graph.topologicalOrder, isNull);
     expect(
       graph.stronglyConnectedComponents,
-      contains(<String>[
-        'module:cycle/a',
-        'module:cycle/b',
-        'module:cycle/c',
-      ]),
+      contains(
+        equals(<String>[
+          'module:cycle/a',
+          'module:cycle/b',
+          'module:cycle/c',
+        ]),
+      ),
     );
     expect(
       graph.diagnostics.map((diagnostic) => diagnostic.code),

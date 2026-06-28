@@ -4,7 +4,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -121,13 +123,33 @@ class DevServerPathUtilityTest(unittest.TestCase):
         outside = self.root / "outside"
         outside.mkdir()
         link = self.workspace / "outside-link"
-        link.symlink_to(outside, target_is_directory=True)
+        self._create_directory_link(link, outside)
         with self.assertRaisesRegex(ValueError, "path escapes workspace root"):
             dev_server.resolve_workspace_path("outside-link", require_exists=True)
         broken = self.root / "broken-link"
-        broken.symlink_to(self.root / "missing-target")
-        with self.assertRaisesRegex(ValueError, "browser path must point to an existing file or directory"):
-            dev_server.resolve_browser_path(str(broken))
+        try:
+            broken.symlink_to(self.root / "missing-target")
+        except OSError:
+            pass
+        else:
+            with self.assertRaisesRegex(ValueError, "browser path must point to an existing file or directory"):
+                dev_server.resolve_browser_path(str(broken))
+
+    def _create_directory_link(self, link: Path, target: Path) -> None:
+        try:
+            link.symlink_to(target, target_is_directory=True)
+            return
+        except OSError:
+            if os.name != "nt":
+                raise
+
+        result = subprocess.run(
+            ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            self.skipTest(f"directory links are unavailable: {result.stderr or result.stdout}")
 
     def test_workspace_and_browser_snapshots_filter_entries_and_select_files(self) -> None:
         snapshot = dev_server.workspace_snapshot()
@@ -212,6 +234,7 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
         body: dict | None = None,
         headers: dict[str, str] | None = None,
         follow_redirects: bool = True,
+        retry_on_disconnect: bool = False,
     ) -> tuple[int, dict[str, str], bytes]:
         request_headers = headers.copy() if headers else {}
         data = None
@@ -229,11 +252,18 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
         if not follow_redirects:
             opener = urllib.request.build_opener(_NoRedirectHandler)
 
-        try:
-            with opener.open(request, timeout=5) as response:
-                return response.status, dict(response.headers), response.read()
-        except urllib.error.HTTPError as error:
-            return error.code, dict(error.headers), error.read()
+        for attempt in range(2 if retry_on_disconnect else 1):
+            try:
+                with opener.open(request, timeout=5) as response:
+                    return response.status, dict(response.headers), response.read()
+            except urllib.error.HTTPError as error:
+                return error.code, dict(error.headers), error.read()
+            except (ConnectionAbortedError, ConnectionResetError):
+                if attempt == 0 and retry_on_disconnect:
+                    time.sleep(0.05)
+                    continue
+                raise
+        raise AssertionError("request retry loop exited unexpectedly")
 
     def load_session_cookie(self) -> str:
         status, headers, _ = self.request("GET", "/editor")
@@ -541,6 +571,7 @@ class DevServerSecurityBoundaryTest(unittest.TestCase):
             "/api/workspace/create-file",
             body={"path": "created.styio", "content": "x"},
             headers=self.authenticated_headers(origin=self.origin),
+            retry_on_disconnect=True,
         )
 
         self.assertEqual(status, 403)

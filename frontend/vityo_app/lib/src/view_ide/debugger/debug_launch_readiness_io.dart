@@ -86,17 +86,119 @@ bool _looksLikePath(String value) {
 }
 
 Future<String?> _lookupExecutable(String executableName) async {
-  final result = await Process.run('/bin/sh', <String>[
-    '-c',
-    r'command -v "$1"',
-    'vityo-debug-launch-lookup',
-    executableName,
-  ]);
-  if (result.exitCode != 0) {
+  final currentExecutable = _currentExecutableFor(executableName);
+  if (currentExecutable != null) {
+    return currentExecutable;
+  }
+  final result = await _runExecutableLookup(executableName);
+  if (result == null || result.exitCode != 0) {
     return null;
   }
   final output = result.stdout.toString().trim();
-  return output.isEmpty ? null : output.split('\n').first.trim();
+  return _executableLookupPathFromOutput(executableName, output);
+}
+
+String? _currentExecutableFor(String executableName) {
+  final normalizedName = executableName.trim().toLowerCase();
+  if (normalizedName.isEmpty) {
+    return null;
+  }
+  final currentPath = Platform.resolvedExecutable;
+  final windowsDartExecutable = _windowsDartExecutableFor(
+    currentPath: currentPath,
+    executableName: normalizedName,
+  );
+  if (windowsDartExecutable != null) {
+    return windowsDartExecutable;
+  }
+  final currentName = currentPath
+      .split(RegExp(r'[\\/]'))
+      .last
+      .toLowerCase();
+  if (normalizedName == currentName ||
+      normalizedName == currentName.replaceFirst(RegExp(r'\.exe$'), '')) {
+    return currentPath;
+  }
+  return null;
+}
+
+String? _windowsDartExecutableFor({
+  required String currentPath,
+  required String executableName,
+}) {
+  if (!Platform.isWindows ||
+      (executableName != 'dart' && executableName != 'dart.exe')) {
+    return null;
+  }
+  final currentFile = File(currentPath);
+  for (final candidate in _windowsDartExecutableCandidates(currentFile)) {
+    if (candidate.existsSync()) {
+      return candidate.path;
+    }
+  }
+  return null;
+}
+
+List<File> _windowsDartExecutableCandidates(File currentFile) {
+  final separator = Platform.pathSeparator;
+  final currentName = currentFile.path
+      .split(RegExp(r'[\\/]'))
+      .last
+      .toLowerCase();
+  return <File>[
+    if (currentName == 'dart.exe') currentFile,
+    File('${currentFile.path}.exe'),
+    File([currentFile.parent.path, 'dart.exe'].join(separator)),
+    File(
+      [
+        currentFile.parent.path,
+        'cache',
+        'dart-sdk',
+        'bin',
+        'dart.exe',
+      ].join(separator),
+    ),
+  ];
+}
+
+Future<ProcessResult?> _runExecutableLookup(String executableName) async {
+  try {
+    if (Platform.isWindows) {
+      return await Process.run('where.exe', <String>[executableName]);
+    }
+    return await Process.run('/bin/sh', <String>[
+      '-c',
+      r'command -v "$1"',
+      'vityo-debug-launch-lookup',
+      executableName,
+    ]);
+  } on Object {
+    return null;
+  }
+}
+
+String? _executableLookupPathFromOutput(String executableName, String output) {
+  if (output.isEmpty) {
+    return null;
+  }
+  final lines = output
+      .split(RegExp(r'\r?\n'))
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty);
+  if (Platform.isWindows &&
+      (executableName.toLowerCase() == 'dart' ||
+          executableName.toLowerCase() == 'dart.exe')) {
+    for (final line in lines) {
+      final dartExecutable = _windowsDartExecutableFor(
+        currentPath: line,
+        executableName: executableName.toLowerCase(),
+      );
+      if (dartExecutable != null) {
+        return dartExecutable;
+      }
+    }
+  }
+  return lines.isEmpty ? null : lines.first;
 }
 
 Future<bool> _fileExists(String path) {

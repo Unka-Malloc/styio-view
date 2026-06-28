@@ -44,7 +44,46 @@ function Download-File {
         [string]$Url,
         [string]$Destination
     )
-    Invoke-WebRequest -Uri $Url -OutFile $Destination
+    Ensure-Directory (Split-Path -Parent $Destination)
+    $lastError = $null
+    $maxAttempts = 20
+    for ($attempt = 1; $attempt -le $maxAttempts; $attempt += 1) {
+        try {
+            if (($attempt -eq 1) -and (Test-Path $Destination)) {
+                Remove-Item -Force $Destination
+            }
+            $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+            if ($curl) {
+                $curlArgs = @("--fail", "--location", "--retry", "10", "--retry-delay", "2", "--retry-all-errors")
+                if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
+                    $curlArgs += @("--continue-at", "-")
+                }
+                $curlArgs += @("--output", $Destination, $Url)
+                & $curl.Source @curlArgs
+                if ($LASTEXITCODE -ne 0) {
+                    throw "curl.exe exited with code $LASTEXITCODE"
+                }
+            } else {
+                Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing
+            }
+
+            if ((Test-Path $Destination) -and ((Get-Item $Destination).Length -gt 0)) {
+                return
+            }
+            throw "downloaded file is empty"
+        } catch {
+            $lastError = $_
+            if ($attempt -eq $maxAttempts) {
+                throw "Failed to download $Url after $attempt attempts: $lastError"
+            }
+            Start-Sleep -Seconds ([Math]::Min(30, 2 * $attempt))
+        }
+    }
+}
+
+function New-TempDownloadPath {
+    param([string]$FileName)
+    return Join-Path $env:TEMP "vityo-$PID-$FileName"
 }
 
 function Ensure-Directory {
@@ -90,7 +129,7 @@ function Install-Python {
     $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
     $installer = "python-$PythonStandardVersion-$arch.exe"
     $url = "https://www.python.org/ftp/python/$PythonStandardVersion/$installer"
-    $tmp = Join-Path $env:TEMP $installer
+    $tmp = New-TempDownloadPath $installer
     Write-Log "Installing Python $PythonStandardVersion"
     Download-File -Url $url -Destination $tmp
     Start-Process -FilePath $tmp -ArgumentList "/quiet InstallAllUsers=0 PrependPath=1 Include_pip=1" -Wait
@@ -128,7 +167,7 @@ function Install-Node {
     Ensure-Directory $NodeInstallRoot
     $archive = "node-v$NodeStandardVersion-win-$nodeArch.zip"
     $url = "https://nodejs.org/dist/v$NodeStandardVersion/$archive"
-    $tmp = Join-Path $env:TEMP $archive
+    $tmp = New-TempDownloadPath $archive
     Write-Log "Installing Node.js v$NodeStandardVersion"
     Download-File -Url $url -Destination $tmp
     if (Test-Path $nodeRoot) {
@@ -138,8 +177,24 @@ function Install-Node {
 }
 
 function Install-Flutter {
-    $versionFile = Join-Path $FlutterHome "version"
-    if ((Test-Path $versionFile) -and ((Get-Content -Raw $versionFile).Trim() -eq $FlutterStandardVersion)) {
+    $flutterBin = Join-Path $FlutterHome "bin\\flutter.bat"
+    $versionJson = Join-Path $FlutterHome "bin\\cache\\flutter.version.json"
+    $current = ""
+    if (Test-Path $versionJson) {
+        try {
+            $current = (Get-Content -Raw $versionJson | ConvertFrom-Json).frameworkVersion
+        } catch {
+            $current = ""
+        }
+    }
+    if ((-not $current) -and (Test-Path $flutterBin)) {
+        try {
+            $current = ((& $flutterBin --version --machine) | ConvertFrom-Json).frameworkVersion
+        } catch {
+            $current = ""
+        }
+    }
+    if ($current -eq $FlutterStandardVersion) {
         Write-Log "Flutter already matches standardized version $FlutterStandardVersion"
         return
     }
@@ -147,7 +202,7 @@ function Install-Flutter {
     Ensure-Directory (Split-Path -Parent $FlutterHome)
     $archive = "flutter_windows_$FlutterStandardVersion-stable.zip"
     $url = "https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/$archive"
-    $tmp = Join-Path $env:TEMP $archive
+    $tmp = New-TempDownloadPath $archive
     Write-Log "Installing Flutter $FlutterStandardVersion"
     Download-File -Url $url -Destination $tmp
     if (Test-Path $FlutterHome) {
@@ -159,7 +214,12 @@ function Install-Flutter {
 function Install-ManagedBrowser {
     $chromeRoot = Join-Path $BrowserHome "chrome-win64"
     $chromeExe = Join-Path $chromeRoot "chrome.exe"
-    if ((Test-Path $chromeExe) -and ((& $chromeExe --version) -match [regex]::Escape($ChromiumStandardVersion))) {
+    $chromeManifest = Join-Path $chromeRoot "$ChromiumStandardVersion.manifest"
+    $chromeVersion = ""
+    if (Test-Path $chromeExe) {
+        $chromeVersion = (Get-Item $chromeExe).VersionInfo.ProductVersion
+    }
+    if ((Test-Path $chromeExe) -and (($chromeVersion -eq $ChromiumStandardVersion) -or (Test-Path $chromeManifest))) {
         Write-Log "managed browser already matches standardized version $ChromiumStandardVersion"
         return
     }
@@ -167,7 +227,7 @@ function Install-ManagedBrowser {
     Ensure-Directory $BrowserHome
     $archive = "chrome-win64.zip"
     $url = "https://storage.googleapis.com/chrome-for-testing-public/$ChromiumStandardVersion/win64/$archive"
-    $tmp = Join-Path $env:TEMP $archive
+    $tmp = New-TempDownloadPath $archive
     Write-Log "Installing managed browser runtime $ChromiumStandardVersion"
     Download-File -Url $url -Destination $tmp
     if (Test-Path $chromeRoot) {
@@ -179,7 +239,7 @@ function Install-ManagedBrowser {
 function Install-AndroidSdk {
     $archive = "commandlinetools-win-$AndroidCmdlineToolsVersion`_latest.zip"
     $url = "https://dl.google.com/android/repository/$archive"
-    $tmp = Join-Path $env:TEMP $archive
+    $tmp = New-TempDownloadPath $archive
     $cmdlineRoot = Join-Path $AndroidSdkRoot "cmdline-tools\\latest"
     $sdkManager = Join-Path $cmdlineRoot "bin\\sdkmanager.bat"
 

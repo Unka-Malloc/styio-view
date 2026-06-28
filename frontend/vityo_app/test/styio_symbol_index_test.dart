@@ -1630,7 +1630,7 @@ value = self
     const targetSource = 'value = 1\n';
     final assignmentTarget = index.introduceVariable(
       targetSource,
-      SourceRange(start: 0, end: 'value'.length),
+      const SourceRange(start: 0, end: 'value'.length),
       'renamed',
     );
 
@@ -1679,7 +1679,7 @@ value = self
     );
     final assignmentTarget = index.extractFunction(
       expressionSource,
-      SourceRange(start: 0, end: 'value'.length),
+      const SourceRange(start: 0, end: 'value'.length),
       'compute',
     );
 

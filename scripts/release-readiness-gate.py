@@ -194,8 +194,11 @@ def parse_policy_date(raw: object) -> date | None:
 def is_safe_relative_path(raw: object) -> bool:
     if not isinstance(raw, str) or not raw:
         return False
+    normalized = raw.replace("\\", "/")
+    if normalized.startswith("/"):
+        return False
     path = Path(raw)
-    return not path.is_absolute() and ".." not in path.parts
+    return not path.is_absolute() and not path.drive and ".." not in normalized.split("/")
 
 
 def string_list(raw: object) -> list[str]:

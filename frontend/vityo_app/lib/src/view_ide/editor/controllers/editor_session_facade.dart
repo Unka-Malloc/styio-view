@@ -90,9 +90,6 @@ class EditorSessionFacade extends ChangeNotifier {
   }
 
   EditorRenderPlan get _renderPlan => renderPlanController.renderPlan;
-  set _renderPlan(EditorRenderPlan renderPlan) {
-    renderPlanController.setRenderPlan(renderPlan);
-  }
 
   StyioDocumentAnalysis get _analysis => languageFeatureController.analysis;
   set _analysis(StyioDocumentAnalysis analysis) {
@@ -773,11 +770,7 @@ class EditorSessionFacade extends ChangeNotifier {
 
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
-    _replaceDocumentRange(
-      start: startOffset,
-      end: endOffset,
-      replacement: '',
-    );
+    _replaceDocumentRange(start: startOffset, end: endOffset, replacement: '');
     _selection = SelectionState.collapsed(
       startOffset.clamp(0, _document.length).toInt(),
     );
@@ -1606,11 +1599,7 @@ class EditorSessionFacade extends ChangeNotifier {
     required String replacement,
     required int selectionOffset,
   }) {
-    _replaceDocumentRange(
-      start: start,
-      end: end,
-      replacement: replacement,
-    );
+    _replaceDocumentRange(start: start, end: end, replacement: replacement);
     _selection = SelectionState.collapsed(selectionOffset);
   }
 

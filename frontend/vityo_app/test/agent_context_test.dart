@@ -59,7 +59,7 @@ void main() {
 
   group('AgentContextSnapshot', () {
     test('hasSelection is true only when scope and document permit', () {
-      final withSelection = AgentContextSnapshot(
+      final withSelection = const AgentContextSnapshot(
         snapshotId: 'snap-1',
         scope: AgentContextScope.full,
         documentContext: AgentActiveDocumentContext(
@@ -70,16 +70,16 @@ void main() {
       );
       expect(withSelection.hasSelection, isTrue);
 
-      final withoutSelection = AgentContextSnapshot(
+      final withoutSelection = const AgentContextSnapshot(
         snapshotId: 'snap-2',
         scope: AgentContextScope.full,
         documentContext: AgentActiveDocumentContext(),
       );
       expect(withoutSelection.hasSelection, isFalse);
 
-      final scopedOut = AgentContextSnapshot(
+      final scopedOut = const AgentContextSnapshot(
         snapshotId: 'snap-3',
-        scope: const AgentContextScope(
+        scope: AgentContextScope(
           includeDiagnostics: false,
           includeProjectGraph: false,
           includeRuntimeEvents: false,
@@ -97,7 +97,7 @@ void main() {
     });
 
     test('context channels respect scope', () {
-      final snapshot = AgentContextSnapshot(
+      final snapshot = const AgentContextSnapshot(
         snapshotId: 'snap-4',
         scope: AgentContextScope(
           includeDiagnostics: false,
@@ -113,7 +113,7 @@ void main() {
     });
 
     test('snapshot serializes to JSON without secrets', () {
-      final snapshot = AgentContextSnapshot(
+      final snapshot = const AgentContextSnapshot(
         snapshotId: 'snap-5',
         createdAtIso8601: '2026-06-24T00:00:00Z',
         scope: AgentContextScope.full,
@@ -146,7 +146,7 @@ void main() {
     });
 
     test('snapshot roundtrips through JSON', () {
-      final original = AgentContextSnapshot(
+      final original = const AgentContextSnapshot(
         snapshotId: 'snap-6',
         createdAtIso8601: '2026-06-24T00:00:00Z',
         scope: AgentContextScope(
@@ -201,7 +201,7 @@ void main() {
     });
 
     test('toDisplaySummary produces correct summary', () {
-      final snapshot = AgentContextSnapshot(
+      final snapshot = const AgentContextSnapshot(
         snapshotId: 'snap-7',
         workspaceContext: AgentWorkspaceSummaryContext(workspaceRoot: '/ws'),
         documentContext: AgentActiveDocumentContext(
@@ -236,7 +236,7 @@ void main() {
 
   group('AgentActionPlan', () {
     test('action plan references commands and workspace edits', () {
-      final plan = AgentActionPlan(
+      final plan = const AgentActionPlan(
         planId: 'plan-1',
         description: 'Fix unresolved references',
         commands: [AppCommandId.applyQuickFix],
@@ -268,7 +268,7 @@ void main() {
 
   group('AgentWorkspaceEditApplication', () {
     test('reports failures without losing successful applications', () {
-      final application = AgentWorkspaceEditApplication(
+      final application = const AgentWorkspaceEditApplication(
         applicationId: 'app-1',
         planId: 'plan-1',
         appliedAtIso8601: '2026-06-24T00:00:00Z',
@@ -308,7 +308,7 @@ void main() {
 
   group('Agent context secret redaction', () {
     test('API key environment variable names are not leaked in snapshot', () {
-      final snapshot = AgentContextSnapshot(
+      final snapshot = const AgentContextSnapshot(
         snapshotId: 'snap-secret',
         redactionPolicy: AgentRedactionPolicy.defaultPolicy,
       );

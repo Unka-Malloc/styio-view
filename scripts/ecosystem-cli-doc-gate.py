@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -36,7 +37,7 @@ def args_with_workspace_root(args: list[str], workspace_root: Path) -> list[str]
         if arg.startswith("--workspace-root="):
             continue
         updated.append(arg)
-    updated.extend(["--workspace-root", str(workspace_root)])
+    updated.extend(["--workspace-root", workspace_root.as_posix()])
     return updated
 
 
@@ -61,9 +62,16 @@ def compatibility_workspace(args: list[str]):
         for repo_name in SIBLING_REPOS:
             source = workspace_root / repo_name
             if source.exists():
-                (tmp_root / repo_name).symlink_to(source, target_is_directory=True)
-        (tmp_root / "styio-view").symlink_to(ROOT, target_is_directory=True)
+                link_or_copy_directory(source, tmp_root / repo_name)
+        link_or_copy_directory(ROOT, tmp_root / "styio-view")
         yield args_with_workspace_root(args, tmp_root)
+
+
+def link_or_copy_directory(source: Path, target: Path) -> None:
+    try:
+        target.symlink_to(source, target_is_directory=True)
+    except OSError:
+        shutil.copytree(source, target, dirs_exist_ok=True)
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -160,8 +160,9 @@ class AgentToolPermissionPlan {
       decisions: List<AgentToolPermissionDecision>.unmodifiable(decisions),
       rules: List<AgentToolPermissionRule>.unmodifiable(orderedRules),
       todoItems: _todoItems(decisions),
-      auditRecords:
-          List<AgentToolPermissionAuditRecord>.unmodifiable(auditRecords),
+      auditRecords: List<AgentToolPermissionAuditRecord>.unmodifiable(
+        auditRecords,
+      ),
     );
   }
 
@@ -235,8 +236,9 @@ class AgentToolPermissionPlan {
           .toList(growable: false),
       'rules': rules.map((rule) => rule.toJson()).toList(growable: false),
       'todoItems': todoItems,
-      'auditRecords':
-          auditRecords.map((r) => r.toJson()).toList(growable: false),
+      'auditRecords': auditRecords
+          .map((r) => r.toJson())
+          .toList(growable: false),
     };
   }
 }
@@ -256,7 +258,7 @@ class AgentToolPermissionAuditRecord {
   ) {
     return AgentToolPermissionAuditRecord(
       toolId: decision.toolId,
-      action: decision.action ?? AgentToolPermissionAction.allow,
+      action: decision.action,
       decisionStatus: decision.status,
       reason: decision.reason,
       ruleId: decision.ruleId,

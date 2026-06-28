@@ -5,6 +5,7 @@
 /// - Profile is local-first; sync is optional.
 /// - Secret fields are redacted in display projections and Agent context.
 /// - Settings/profile snapshot can be safely consumed by Agent context.
+library;
 
 // ── Settings Schema ───────────────────────────────────────────────
 
@@ -297,7 +298,7 @@ class VityoSettingsSnapshot {
       schema: json['schema'] != null
           ? VityoSettingsSchema.fromJson(
               Map<String, Object?>.from(json['schema'] as Map))
-          : VityoSettingsSchema(),
+          : const VityoSettingsSchema(),
       editor: json['editor'] != null
           ? EditorSettings.fromJson(
               Map<String, Object?>.from(json['editor'] as Map))

@@ -219,7 +219,7 @@ class _RecordingProcessManager implements ProcessManager {
     String operation = 'process.spawn',
     String? recoveryHint,
   }) {
-    return ProcessFailureClassifier(
+    return const ProcessFailureClassifier(
       sourceManager: '_RecordingProcessManager',
     ).classify(
       result,
@@ -251,7 +251,7 @@ class _RecordingPtyManager implements PtyManager {
     String target = 'pty',
     String? recoveryHint,
   }) {
-    return PtyFailureClassifier(
+    return const PtyFailureClassifier(
       sourceManager: '_RecordingPtyManager',
     ).classifyResize(
       result,
@@ -267,7 +267,7 @@ class _RecordingPtyManager implements PtyManager {
     String operation = 'pty.start',
     String? recoveryHint,
   }) {
-    return PtyFailureClassifier(
+    return const PtyFailureClassifier(
       sourceManager: '_RecordingPtyManager',
     ).classifySession(
       session,

@@ -30,7 +30,7 @@ void main() {
     });
 
     test('available snapshot with changes reports correctly', () {
-      final snapshot = SourceControlSnapshot(
+      final snapshot = const SourceControlSnapshot(
         providerKind: SourceControlProviderKind.localGit,
         branchName: 'main',
         changes: [
@@ -55,7 +55,7 @@ void main() {
     });
 
     test('serializes to JSON', () {
-      final snapshot = SourceControlSnapshot(
+      final snapshot = const SourceControlSnapshot(
         providerKind: SourceControlProviderKind.localGit,
         branchName: 'feature/test',
         remoteName: 'origin',

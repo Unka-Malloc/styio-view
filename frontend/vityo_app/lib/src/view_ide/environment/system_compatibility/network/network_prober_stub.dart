@@ -22,6 +22,7 @@ class UnsupportedNetworkProber implements NetworkProber {
 class LocalNetworkProber extends UnsupportedNetworkProber {
   const LocalNetworkProber({
     String targetId = 'local',
+    String? operatingSystem,
     Map<String, String>? environment,
     Future<String?> Function()? architectureReader,
     Future<Map<String, String>> Function()? osReleaseReader,

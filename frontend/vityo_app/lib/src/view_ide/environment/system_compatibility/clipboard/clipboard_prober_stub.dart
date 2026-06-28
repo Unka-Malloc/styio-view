@@ -22,6 +22,7 @@ class UnsupportedClipboardProber implements ClipboardProber {
 class LocalClipboardProber extends UnsupportedClipboardProber {
   const LocalClipboardProber({
     String targetId = 'local',
+    String? operatingSystem,
     Map<String, String>? environment,
     Future<String?> Function()? architectureReader,
     Future<Map<String, String>> Function()? osReleaseReader,

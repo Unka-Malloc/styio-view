@@ -68,14 +68,14 @@ void main() {
   group('IdeCapabilityRegistry', () {
     test('registers and looks up capabilities', () {
       final registry = IdeCapabilityRegistry(descriptors: [
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'a',
           domain: IdeCapabilityDomain.workbench,
           label: 'A',
           description: 'Cap A',
           availability: IdeCapabilityAvailability.available,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'b',
           domain: IdeCapabilityDomain.languageIntelligence,
           label: 'B',
@@ -93,28 +93,28 @@ void main() {
 
     test('filters available, usable, blocked', () {
       final registry = IdeCapabilityRegistry(descriptors: [
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'available',
           domain: IdeCapabilityDomain.workbench,
           label: 'Avail',
           description: '...',
           availability: IdeCapabilityAvailability.available,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'preview',
           domain: IdeCapabilityDomain.workbench,
           label: 'Preview',
           description: '...',
           availability: IdeCapabilityAvailability.previewOnly,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'blocked',
           domain: IdeCapabilityDomain.workbench,
           label: 'Blocked',
           description: '...',
           availability: IdeCapabilityAvailability.blockedByUpstreamContract,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'planned',
           domain: IdeCapabilityDomain.workbench,
           label: 'Planned',
@@ -131,14 +131,14 @@ void main() {
 
     test('toSnapshot aggregates correctly', () {
       final registry = IdeCapabilityRegistry(descriptors: [
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'a',
           domain: IdeCapabilityDomain.workbench,
           label: 'A',
           description: '...',
           availability: IdeCapabilityAvailability.available,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'b',
           domain: IdeCapabilityDomain.languageIntelligence,
           label: 'B',
@@ -186,21 +186,21 @@ void main() {
     test('filters descriptors for platform', () {
       const filter = PlatformCapabilityFilter();
       final descriptors = [
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'execution.local',
           domain: IdeCapabilityDomain.runDebugRuntime,
           label: 'Local Run',
           description: '...',
           availability: IdeCapabilityAvailability.available,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'execution.cloud',
           domain: IdeCapabilityDomain.runDebugRuntime,
           label: 'Cloud Run',
           description: '...',
           availability: IdeCapabilityAvailability.available,
         ),
-        IdeCapabilityDescriptor(
+        const IdeCapabilityDescriptor(
           capabilityId: 'sourceControl.localGit',
           domain: IdeCapabilityDomain.sourceControl,
           label: 'Local Git',
@@ -220,7 +220,7 @@ void main() {
 
   group('IdeCapabilityGap', () {
     test('displayMessage is descriptive', () {
-      final gap = IdeCapabilityGap(
+      final gap = const IdeCapabilityGap(
         capabilityId: 'language.rename',
         reason: IdeCapabilityAvailability.blockedByUpstreamContract,
         upstreamContract: 'LanguageServiceAdapter.renamePlan',
@@ -252,7 +252,7 @@ void main() {
     });
 
     test('separates upstream vs platform blocked', () {
-      final report = IdeCapabilityGapReport(
+      final report = const IdeCapabilityGapReport(
         platformTarget: 'ios',
         gaps: [
           IdeCapabilityGap(

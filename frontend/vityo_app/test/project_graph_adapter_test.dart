@@ -950,7 +950,8 @@ raise SystemExit(64)
 
       await writeFakeSpioCli(
         workspaceRoot: tempRoot,
-        pythonSource: '''#!/usr/bin/env python3
+        pythonSource:
+            '''#!/usr/bin/env python3
 import json, sys
 
 override = ${jsonEncode(styioBinary.path)}
@@ -1199,7 +1200,10 @@ raise SystemExit(64)
       expect(graph.toolchain.source, ToolchainResolutionSource.managedCurrent);
       expect(graph.toolchain.channel, 'nightly');
       expect(graph.activeCompiler?.compilerVersion, '2026.6.19');
-      expect(graph.toolchainEnvironment?.currentCompilerError, contains('cached'));
+      expect(
+        graph.toolchainEnvironment?.currentCompilerError,
+        contains('cached'),
+      );
       expect(
         graph.notes.any((note) => note.contains('Toolchain-only payload')),
         isTrue,
@@ -1218,7 +1222,7 @@ raise SystemExit(64)
         required String projectGraphBody,
       }) async {
         final tempRoot = await Directory.systemTemp.createTemp(tempPrefix);
-        addTearDown(() => tempRoot.delete(recursive: true));
+        addTearDown(() => _deleteDirectoryWithRetry(tempRoot));
 
         File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
           ..createSync(recursive: true)
@@ -1237,7 +1241,8 @@ path = "src/main.styio"
 
         await writeFakeSpioCli(
           workspaceRoot: tempRoot,
-          pythonSource: '''#!/usr/bin/env python3
+          pythonSource:
+              '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -1254,12 +1259,16 @@ $projectGraphBody
 raise SystemExit(64)
 ''',
         );
+        final previousCurrentDirectory = Directory.current;
         Directory.current = tempRoot;
-
-        final adapter = await createProjectGraphAdapter(
-          platformTarget: PlatformTarget.linux,
-        );
-        return adapter.loadProjectGraph();
+        try {
+          final adapter = await createProjectGraphAdapter(
+            platformTarget: PlatformTarget.linux,
+          );
+          return await adapter.loadProjectGraph();
+        } finally {
+          Directory.current = previousCurrentDirectory;
+        }
       }
 
       final commandFailure = await loadGraphWithSpio(
@@ -1328,7 +1337,8 @@ path = "src/main.styio"
 
       await writeFakeSpioCli(
         workspaceRoot: tempRoot,
-        pythonSource: '''#!/usr/bin/env python3
+        pythonSource:
+            '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
@@ -1458,4 +1468,20 @@ raise SystemExit(64)
       );
     },
   );
+}
+
+Future<void> _deleteDirectoryWithRetry(Directory directory) async {
+  for (var attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+      return;
+    } on FileSystemException {
+      if (attempt == 4) {
+        rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
+    }
+  }
 }

@@ -453,7 +453,7 @@ class _GlobMatcher {
       final expression = RegExp.escape(_pattern)
           .replaceAll(r'\*\*', '.*')
           .replaceAll(r'\*', '[^/]*');
-      final regex = RegExp('^${expression}\$');
+      final regex = RegExp('^$expression\$');
       return regex.hasMatch(normalized);
     }
     return normalized == _pattern;

@@ -288,26 +288,31 @@ class RepoHygieneCoverageTest(unittest.TestCase):
         self.assertIn("  - a", stderr.getvalue())
         self.assertIn("  - b", stderr.getvalue())
 
+        tracked_check_names = (
+            "check_gitignore",
+            "check_doc_references",
+            "check_project_branding",
+            "check_view_boundary_imports",
+            "check_legacy_backend_toolchain_facades",
+            "check_legacy_command_adapter",
+            "check_legacy_editor_facades",
+            "check_legacy_language_facades",
+            "check_legacy_workspace_facades",
+            "check_legacy_module_host_facades",
+            "check_legacy_runtime_facades",
+            "check_legacy_render_shell_facades",
+            "check_legacy_view_render_facades",
+            "check_shell_runtime_boundary",
+            "check_legacy_agent_facades",
+            "check_legacy_platform_facades",
+            "check_view_ide_language_layout",
+            "check_view_ide_editor_layout",
+        )
         with mock.patch.object(sys, "argv", ["repo-hygiene-gate.py", "--mode", "tracked"]):
-            with mock.patch.object(self.gate, "check_gitignore", return_value=[]), \
-                mock.patch.object(self.gate, "check_doc_references", return_value=[]), \
-                mock.patch.object(self.gate, "check_project_branding", return_value=[]), \
-                mock.patch.object(self.gate, "check_view_boundary_imports", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_backend_toolchain_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_command_adapter", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_editor_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_language_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_workspace_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_module_host_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_runtime_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_render_shell_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_view_render_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_shell_runtime_boundary", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_agent_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_legacy_platform_facades", return_value=[]), \
-                mock.patch.object(self.gate, "check_view_ide_language_layout", return_value=[]), \
-                mock.patch.object(self.gate, "check_view_ide_editor_layout", return_value=[]), \
-                mock.patch.object(self.gate, "tracked_files", return_value=[]):
+            with ExitStack() as stack:
+                for name in tracked_check_names:
+                    stack.enter_context(mock.patch.object(self.gate, name, return_value=[]))
+                stack.enter_context(mock.patch.object(self.gate, "tracked_files", return_value=[]))
                 stdout = io.StringIO()
                 with redirect_stdout(stdout):
                     code = self.gate.main()

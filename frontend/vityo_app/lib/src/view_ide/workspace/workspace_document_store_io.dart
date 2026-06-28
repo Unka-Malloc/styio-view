@@ -24,36 +24,41 @@ class FileSystemWorkspaceDocumentStore
   FileSystemWorkspaceDocumentStore(
     this.rootDirectory, {
     FileSystemManager? fileSystemManager,
-  }) : fileSystemManager = fileSystemManager ??
-            LocalFileSystemManager(
-              facts: FileSystemFacts(
-                targetId: 'local',
-                operatingSystem: Platform.operatingSystem,
-                distributionId: 'unknown',
-                distributionName: 'Unknown',
-                architecture: 'unknown',
-                pathStyle: Platform.isWindows
-                    ? FileSystemPathStyle.windows
-                    : FileSystemPathStyle.posix,
-                pathSeparator: Platform.pathSeparator,
-                providerKind: FileSystemProviderKind.local,
-                watchSupport: Platform.isLinux
-                    ? FileSystemWatchSupport.directory
-                    : FileSystemWatchSupport.unknown,
-                caseSensitive: Platform.isLinux || Platform.isAndroid,
-                supportsFileUri: true,
-                supportsSymbolicLinks: Platform.isLinux || Platform.isMacOS,
-                supportsAtomicWrite: true,
-                detectedAt: DateTime.now().toUtc(),
-              ),
-            );
+  }) : fileSystemManager =
+           fileSystemManager ??
+           LocalFileSystemManager(
+             facts: FileSystemFacts(
+               targetId: 'local',
+               operatingSystem: Platform.operatingSystem,
+               distributionId: 'unknown',
+               distributionName: 'Unknown',
+               architecture: 'unknown',
+               pathStyle: Platform.isWindows
+                   ? FileSystemPathStyle.windows
+                   : FileSystemPathStyle.posix,
+               pathSeparator: Platform.pathSeparator,
+               providerKind: FileSystemProviderKind.local,
+               watchSupport:
+                   Platform.isLinux || Platform.isWindows || Platform.isMacOS
+                   ? FileSystemWatchSupport.directory
+                   : FileSystemWatchSupport.unknown,
+               caseSensitive: Platform.isLinux || Platform.isAndroid,
+               supportsFileUri: true,
+               supportsSymbolicLinks: Platform.isLinux || Platform.isMacOS,
+               supportsAtomicWrite: true,
+               detectedAt: DateTime.now().toUtc(),
+             ),
+           );
 
   final Directory rootDirectory;
   final FileSystemManager fileSystemManager;
 
   @override
   Future<DocumentState> loadDocument(String path) async {
-    await fileSystemManager.createDirectory(rootDirectory.path, recursive: true);
+    await fileSystemManager.createDirectory(
+      rootDirectory.path,
+      recursive: true,
+    );
     if (fileSystemManager.compatibility.isAbsolutePath(path)) {
       if (await fileSystemManager.exists(path)) {
         return DocumentState(
@@ -75,7 +80,9 @@ class FileSystemWorkspaceDocumentStore
     var revision = 0;
 
     if (await fileSystemManager.exists(metadataPath)) {
-      final metadata = jsonDecode(await fileSystemManager.readText(metadataPath));
+      final metadata = jsonDecode(
+        await fileSystemManager.readText(metadataPath),
+      );
       if (metadata is Map<String, dynamic>) {
         revision = metadata['revision'] is int
             ? metadata['revision'] as int
@@ -88,7 +95,10 @@ class FileSystemWorkspaceDocumentStore
 
   @override
   Future<void> saveDocument(DocumentState document) async {
-    await fileSystemManager.createDirectory(rootDirectory.path, recursive: true);
+    await fileSystemManager.createDirectory(
+      rootDirectory.path,
+      recursive: true,
+    );
     if (fileSystemManager.compatibility.isAbsolutePath(document.documentId)) {
       await fileSystemManager.writeText(document.documentId, document.text);
       return;
@@ -105,7 +115,10 @@ class FileSystemWorkspaceDocumentStore
 
   @override
   Future<bool> deleteDocument(String path) async {
-    await fileSystemManager.createDirectory(rootDirectory.path, recursive: true);
+    await fileSystemManager.createDirectory(
+      rootDirectory.path,
+      recursive: true,
+    );
     if (fileSystemManager.compatibility.isAbsolutePath(path)) {
       if (!await fileSystemManager.exists(path)) {
         return false;
@@ -128,7 +141,10 @@ class FileSystemWorkspaceDocumentStore
 
   @override
   Future<bool> documentExists(String path) async {
-    await fileSystemManager.createDirectory(rootDirectory.path, recursive: true);
+    await fileSystemManager.createDirectory(
+      rootDirectory.path,
+      recursive: true,
+    );
     if (fileSystemManager.compatibility.isAbsolutePath(path)) {
       return fileSystemManager.exists(path);
     }
@@ -149,13 +165,16 @@ class FileSystemWorkspaceDocumentStore
     if (filePath == null) {
       return;
     }
-    final absoluteDocument =
-        fileSystemManager.compatibility.isAbsolutePath(documentId);
+    final absoluteDocument = fileSystemManager.compatibility.isAbsolutePath(
+      documentId,
+    );
     final sourcePath = fileSystemManager.normalizePath(filePath);
     final metadataPath = absoluteDocument
         ? null
         : fileSystemManager.normalizePath(_metadataPath(documentId));
-    final watchPath = absoluteDocument ? sourcePath : File(sourcePath).parent.path;
+    final watchPath = absoluteDocument
+        ? sourcePath
+        : File(sourcePath).parent.path;
 
     await for (final event in fileSystemManager.watch(watchPath)) {
       final eventPath = fileSystemManager.normalizePath(event.normalizedPath);
@@ -207,7 +226,10 @@ class FileSystemWorkspaceDocumentStore
       }
     }
     final segments = rawSegments.map(Uri.encodeComponent);
-    return fileSystemManager.joinPath(<String>[rootDirectory.path, ...segments]);
+    return fileSystemManager.joinPath(<String>[
+      rootDirectory.path,
+      ...segments,
+    ]);
   }
 
   bool _isDocumentWatchEvent(

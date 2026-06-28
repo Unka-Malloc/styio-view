@@ -10,6 +10,7 @@
 /// - Denylist always overrides allowlist.
 /// - Matching against provider kind, adapter ID, and profile endpoint model.
 /// - Access control is checked before provider selection and execution.
+library;
 
 enum AgentProviderAccessControlAction { allow, deny }
 

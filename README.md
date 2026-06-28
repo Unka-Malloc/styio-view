@@ -80,6 +80,8 @@ flutter test
 flutter build windows --debug
 ```
 
+The PowerShell workspace bootstrap prepares Flutter Windows plugin junctions when needed, so a normal non-admin PowerShell host can build the native Windows target without WSL or Docker.
+
 这套脚本会把 `Vityo` 的桌面 / Web 主线环境拉起，并按需附加 `linux+android`、`macos+ios`、`macos+android`、`windows+android` 组合开发工具链。共享 workspace 初始化入口是：
 
 ```bash

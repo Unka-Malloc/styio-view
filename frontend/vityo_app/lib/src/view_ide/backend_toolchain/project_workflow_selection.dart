@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'project_graph_contract.dart';
 
 class ProjectWorkflowSelection {
@@ -130,18 +128,47 @@ bool _pathIsWithinRoot(String path, String rootPath) {
     return false;
   }
 
-  final absolutePath = File(path).absolute.path;
-  final absoluteRoot = Directory(rootPath).absolute.path;
+  final absolutePath = _normalizePathForContainment(path);
+  final absoluteRoot = _normalizePathForContainment(rootPath);
   if (absolutePath == absoluteRoot) {
     return true;
   }
-  final prefix = absoluteRoot.endsWith(Platform.pathSeparator)
-      ? absoluteRoot
-      : '$absoluteRoot${Platform.pathSeparator}';
+  final prefix = absoluteRoot.endsWith('/') ? absoluteRoot : '$absoluteRoot/';
   return absolutePath.startsWith(prefix);
 }
 
 bool _isAbsolutePath(String path) {
-  return path.startsWith(Platform.pathSeparator) ||
+  return path.startsWith('/') ||
+      path.startsWith(r'\') ||
       RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
+}
+
+String _normalizePathForContainment(String path) {
+  final source = path.trim().replaceAll(r'\', '/');
+  final driveMatch = RegExp(r'^([A-Za-z]:)(?:/|$)').firstMatch(source);
+  final prefix = driveMatch == null ? (source.startsWith('/') ? '/' : '') : driveMatch.group(1)!.toLowerCase();
+  final body = driveMatch == null
+      ? (source.startsWith('/') ? source.substring(1) : source)
+      : source.substring(driveMatch.group(0)!.length);
+  final parts = <String>[];
+  for (final segment in body.split('/')) {
+    if (segment.isEmpty || segment == '.') {
+      continue;
+    }
+    if (segment == '..') {
+      if (parts.isNotEmpty) {
+        parts.removeLast();
+      }
+      continue;
+    }
+    parts.add(segment);
+  }
+  final normalized = parts.join('/');
+  if (prefix.isEmpty) {
+    return normalized;
+  }
+  if (prefix == '/') {
+    return normalized.isEmpty ? '/' : '/$normalized';
+  }
+  return normalized.isEmpty ? prefix : '$prefix/$normalized';
 }

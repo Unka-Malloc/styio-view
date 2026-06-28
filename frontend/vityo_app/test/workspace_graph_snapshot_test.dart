@@ -53,7 +53,7 @@ void main() {
 
   group('GraphDiagnostic', () {
     test('creates a diagnostic with required fields', () {
-      final diag = GraphDiagnostic(
+      final diag = const GraphDiagnostic(
         severity: 'error',
         message: 'Dependency cycle detected: a -> b -> a',
         source: 'package-a',
@@ -67,13 +67,13 @@ void main() {
     });
 
     test('equality compares all fields', () {
-      final a = GraphDiagnostic(
+      final a = const GraphDiagnostic(
         severity: 'warning', message: 'test', source: 'src', code: 'w001',
       );
-      final b = GraphDiagnostic(
+      final b = const GraphDiagnostic(
         severity: 'warning', message: 'test', source: 'src', code: 'w001',
       );
-      final c = GraphDiagnostic(
+      final c = const GraphDiagnostic(
         severity: 'error', message: 'test', source: 'src', code: 'w001',
       );
 
@@ -83,7 +83,7 @@ void main() {
   });
 
   group('WorkspaceGraphSnapshot', () {
-    final defaultToolchain = ToolchainStatusSnapshot(
+    final defaultToolchain = const ToolchainStatusSnapshot(
       source: ToolchainResolutionSource.unavailable,
       detail: 'Test toolchain.',
     );
@@ -181,12 +181,12 @@ void main() {
         createdAt: DateTime(2026, 6, 24),
         toolchain: defaultToolchain,
         diagnostics: [
-          GraphDiagnostic(
+          const GraphDiagnostic(
             severity: 'error',
             message: 'Test error',
             code: 'test_error',
           ),
-          GraphDiagnostic(
+          const GraphDiagnostic(
             severity: 'warning',
             message: 'Test warning',
             code: 'test_warning',
@@ -206,7 +206,7 @@ void main() {
         createdAt: DateTime(2026, 6, 24),
         toolchain: defaultToolchain,
         diagnostics: [
-          GraphDiagnostic(
+          const GraphDiagnostic(
             severity: 'error',
             message: 'Cycle: a -> b -> a',
             code: 'cycle_detected',
@@ -250,7 +250,7 @@ void main() {
       final updated = original.copyWith(
         graphHash: 'hash2',
         diagnostics: [
-          GraphDiagnostic(severity: 'info', message: 'Updated.'),
+          const GraphDiagnostic(severity: 'info', message: 'Updated.'),
         ],
       );
 
@@ -272,7 +272,7 @@ void main() {
           'pkg3': <String>[],
         },
         dependencies: [
-          ProjectDependencySnapshot(
+          const ProjectDependencySnapshot(
             sourcePackageName: 'pkg1',
             dependencyName: 'dep1',
             kind: ProjectDependencyKind.runtime,
@@ -280,7 +280,7 @@ void main() {
           ),
         ],
         targets: [
-          ProjectTargetDescriptor(
+          const ProjectTargetDescriptor(
             id: 'pkg1:lib:lib',
             packageName: 'pkg1',
             kind: ProjectTargetKind.lib,

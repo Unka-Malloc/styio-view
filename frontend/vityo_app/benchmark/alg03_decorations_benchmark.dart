@@ -8,7 +8,7 @@ library;
 
 import 'dart:math';
 
-import '../lib/src/view_ide/editor/document/range_index.dart' as editor_index;
+import 'package:vityo_app/src/view_ide/editor/document/range_index.dart' as editor_index;
 import 'alg01_piece_table_benchmark.dart';
 
 class SourceRange {

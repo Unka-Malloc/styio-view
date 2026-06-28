@@ -175,7 +175,7 @@ void main() {
       );
       expect(
         base.copyWith(operatingSystem: 'windows').compatibilityTarget,
-        'unsupported',
+        'windows-arm64',
       );
 
       final entries = FileSystemFacts.buildEntries(

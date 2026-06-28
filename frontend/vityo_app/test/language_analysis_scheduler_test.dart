@@ -96,9 +96,9 @@ void main() {
     await _pumpAsync();
     expect(backend.pending, hasLength(2));
 
-    backend.completeAt(0, document, code: 'stale.analysis');
+    backend.completePendingAt(0, document, code: 'stale.analysis');
     final firstResult = await first;
-    backend.completeAt(1, nextDocument, code: 'fresh.analysis');
+    backend.completePendingAt(1, nextDocument, code: 'fresh.analysis');
     final secondResult = await second;
 
     expect(firstResult.status, LanguageAnalysisResultStatus.stale);
@@ -133,10 +133,13 @@ void main() {
       defaultTimeout: const Duration(seconds: 5),
     );
 
-    final pending = scheduler.analyzeDocument(document, debounce: Duration.zero);
+    final pending = scheduler.analyzeDocument(
+      document,
+      debounce: Duration.zero,
+    );
     await _pumpAsync();
     final cancelled = scheduler.cancelDocument(document.documentId);
-    backend.completeAt(0, document, code: 'cancelled.analysis');
+    backend.completePendingAt(0, document, code: 'cancelled.analysis');
     final result = await pending;
 
     expect(cancelled, isTrue);
@@ -313,7 +316,11 @@ class _CompleterAnalysisBackend extends StyioLanguageServiceAnalysisBackend {
     return completer.future;
   }
 
-  void completeAt(int index, DocumentState document, {required String code}) {
+  void completePendingAt(
+    int index,
+    DocumentState document, {
+    required String code,
+  }) {
     pending[index].complete(_analysisWithDiagnostic(document, code: code));
   }
 }

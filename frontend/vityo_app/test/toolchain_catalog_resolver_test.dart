@@ -247,8 +247,8 @@ void main() {
       ),
     );
 
-    final report = await ToolchainHealthChecker(
-      environmentBuilder: const ToolchainEnvironmentBuilder(
+    final report = await const ToolchainHealthChecker(
+      environmentBuilder: ToolchainEnvironmentBuilder(
         inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
       ),
     ).check(
@@ -337,7 +337,7 @@ class _RecordingProcessManager implements ProcessManager {
     String operation = 'process.spawn',
     String? recoveryHint,
   }) {
-    return ProcessFailureClassifier(
+    return const ProcessFailureClassifier(
       sourceManager: '_RecordingProcessManager',
     ).classify(
       result,

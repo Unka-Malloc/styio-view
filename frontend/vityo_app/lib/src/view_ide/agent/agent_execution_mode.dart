@@ -4,6 +4,7 @@
 /// - Dry-run/plan-only mode prevents any side effects (patches, commands, tool calls).
 /// - Build-capable mode requires explicit tool permissions for build/run tools.
 /// - Blocked reasons are exposed through the agent context and Agent Surface UI.
+library;
 
 import 'agent_tool_permission.dart';
 

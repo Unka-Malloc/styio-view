@@ -184,7 +184,7 @@ fn blend(left: f64, right: f64): f64 {
 }
 value = blend(1.0, 2.0)
 ''';
-    final copied = WorkspaceRenameQuery(
+    final copied = const WorkspaceRenameQuery(
       targetFilePath: 'old.styio',
       targetOffset: 1,
       newName: 'oldName',

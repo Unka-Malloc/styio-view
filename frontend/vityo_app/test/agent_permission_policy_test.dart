@@ -15,7 +15,7 @@ void main() {
       // readOnly is the most restrictive
       // fullAccessDisabledByDefault is the most permissive
       const scopes = PermissionRequestScope.values;
-      expect(scopes.length, 4);
+      expect(scopes.length, 7);
       expect(scopes.first, PermissionRequestScope.readOnly);
       expect(scopes.last, PermissionRequestScope.fullAccessDisabledByDefault);
     });
@@ -177,14 +177,14 @@ void main() {
 
   group('AgentSession', () {
     test('copyWith preserves immutability', () {
-      final session = AgentSession(
+      final session = const AgentSession(
         sessionId: 'sess-1',
         profileId: 'default',
         status: AgentSessionStatus.idle,
-        turns: const [],
-        toolInvocations: const [],
-        permissionRequests: const [],
-        auditEvents: const [],
+        turns: [],
+        toolInvocations: [],
+        permissionRequests: [],
+        auditEvents: [],
       );
 
       final active = session.copyWith(status: AgentSessionStatus.active);
@@ -193,14 +193,14 @@ void main() {
     });
 
     test('appendAuditEvent adds event immutably', () {
-      final session = AgentSession(
+      final session = const AgentSession(
         sessionId: 'sess-2',
         profileId: 'default',
         status: AgentSessionStatus.active,
-        turns: const [],
-        toolInvocations: const [],
-        permissionRequests: const [],
-        auditEvents: const [],
+        turns: [],
+        toolInvocations: [],
+        permissionRequests: [],
+        auditEvents: [],
       );
 
       const event = AgentAuditEvent(
@@ -217,13 +217,13 @@ void main() {
     });
 
     test('session serializes with all collections', () {
-      final session = AgentSession(
+      final session = const AgentSession(
         sessionId: 'sess-3',
         profileId: 'default-linux',
         status: AgentSessionStatus.completed,
-        turns: const [],
+        turns: [],
         toolInvocations: [
-          const ToolInvocation(
+          ToolInvocation(
             invocationId: 'inv-1',
             toolName: 'read_file',
             scope: PermissionRequestScope.readOnly,
@@ -231,7 +231,7 @@ void main() {
           ),
         ],
         permissionRequests: [
-          const PermissionRequest(
+          PermissionRequest(
             requestId: 'req-1',
             scope: PermissionRequestScope.workspaceWrite,
             reason: 'Edit file',
@@ -239,7 +239,7 @@ void main() {
             decision: PermissionDecision.allowOnce,
           ),
         ],
-        auditEvents: const [],
+        auditEvents: [],
       );
 
       final json = session.toJson();

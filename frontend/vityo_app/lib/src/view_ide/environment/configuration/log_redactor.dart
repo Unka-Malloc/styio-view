@@ -25,7 +25,7 @@ class LogRedactor {
     ),
     LogRedactionRule(
       pattern: RegExp(
-        r'\b(Authorization\s*[:=]\s*)[^\s,;}]+',
+        r'\b(Authorization\s*[:=]\s*)(?!(?:Bearer|Basic)\b)[^\s,;}]+',
         caseSensitive: false,
       ),
       replacement: r'$1<redacted>',

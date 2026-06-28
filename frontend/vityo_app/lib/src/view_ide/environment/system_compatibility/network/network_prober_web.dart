@@ -15,6 +15,7 @@ class WebNetworkProber implements NetworkProber {
 class LocalNetworkProber extends WebNetworkProber {
   const LocalNetworkProber({
     String targetId = 'web',
+    String? operatingSystem,
     Map<String, String>? environment,
     Future<String?> Function()? architectureReader,
     Future<Map<String, String>> Function()? osReleaseReader,

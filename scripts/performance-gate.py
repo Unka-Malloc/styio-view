@@ -219,7 +219,7 @@ def _run_benchmark_suite() -> dict[str, dict[str, float]] | dict[str, str]:
 
     try:
         result = subprocess.run(
-            ["dart", "run", str(BENCHMARK_RUNNER_RELATIVE)],
+            ["dart", "run", BENCHMARK_RUNNER_RELATIVE.as_posix()],
             capture_output=True, text=True, timeout=300,
             cwd=str(FLUTTER_APP_DIR),
         )

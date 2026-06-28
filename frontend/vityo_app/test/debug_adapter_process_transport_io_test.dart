@@ -15,7 +15,7 @@ void main() {
       final tempRoot = await Directory.systemTemp.createTemp(
         'vityo_dap_process_transport_',
       );
-      addTearDown(() => tempRoot.delete(recursive: true));
+      addTearDown(() => _deleteDirectoryWithRetry(tempRoot));
       final capture = File('${tempRoot.path}/stdin.bin');
       final adapterScript = File('${tempRoot.path}/fake_dap_adapter.dart');
       await adapterScript.writeAsString(r'''
@@ -42,7 +42,7 @@ void main() async {
 ''');
 
       final transport = DapProcessTransport(
-        executable: 'dart',
+        executable: _dartExecutablePath(),
         arguments: <String>[adapterScript.path],
         environment: <String, String>{'DAP_CAPTURE_PATH': capture.path},
       );
@@ -69,7 +69,7 @@ void main() async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_dap_process_args_',
     );
-    addTearDown(() => tempRoot.delete(recursive: true));
+    addTearDown(() => _deleteDirectoryWithRetry(tempRoot));
     final capture = File('${tempRoot.path}/args.txt');
     final program = File('${tempRoot.path}/demo')..writeAsStringSync('');
     final adapterScript = File('${tempRoot.path}/capture_args_adapter.dart');
@@ -91,7 +91,7 @@ void main(List<String> args) {
         reason: 'ready',
         debuggerId: 'dart-fake-adapter',
         debuggerLabel: 'Dart Fake Adapter',
-        debuggerExecutablePath: 'dart',
+        debuggerExecutablePath: _dartExecutablePath(),
         debuggerArguments: <String>[adapterScript.path, '--adapter-mode'],
         adapterProtocol: 'dap',
         programPath: program.path,
@@ -100,10 +100,13 @@ void main(List<String> args) {
       ),
     );
 
-    await _pumpUntil(() => capture.existsSync());
+    try {
+      await _pumpUntil(() => capture.existsSync() && capture.lengthSync() > 0);
 
-    expect(await capture.readAsLines(), <String>['--adapter-mode']);
-    await transport.close();
+      expect(await capture.readAsLines(), <String>['--adapter-mode']);
+    } finally {
+      await transport.close();
+    }
   });
 }
 
@@ -117,5 +120,65 @@ Future<void> _pumpUntil(
       throw TimeoutException('Timed out waiting for condition.');
     }
     await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
+String _dartExecutablePath() {
+  final resolved = File(Platform.resolvedExecutable);
+  if (!Platform.isWindows) {
+    return resolved.path;
+  }
+  for (final candidate in _dartExecutableCandidatesFor(resolved)) {
+    if (candidate.existsSync()) {
+      return candidate.path;
+    }
+  }
+  final pathEntries = (Platform.environment['PATH'] ?? '')
+      .split(';')
+      .where((entry) => entry.trim().isNotEmpty);
+  for (final entry in pathEntries) {
+    for (final candidate in _dartExecutableCandidatesFor(
+      File([entry, 'dart'].join(Platform.pathSeparator)),
+    )) {
+      if (candidate.existsSync()) {
+        return candidate.path;
+      }
+    }
+  }
+  return resolved.path;
+}
+
+List<File> _dartExecutableCandidatesFor(File resolved) {
+  final resolvedName = resolved.path.split(RegExp(r'[\\/]')).last.toLowerCase();
+  final separator = Platform.pathSeparator;
+  return <File>[
+    if (resolvedName == 'dart.exe') resolved,
+    File('${resolved.path}.exe'),
+    File([resolved.parent.path, 'dart.exe'].join(separator)),
+    File(
+      [
+        resolved.parent.path,
+        'cache',
+        'dart-sdk',
+        'bin',
+        'dart.exe',
+      ].join(separator),
+    ),
+  ];
+}
+
+Future<void> _deleteDirectoryWithRetry(Directory directory) async {
+  for (var attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+      return;
+    } on FileSystemException {
+      if (attempt == 5) {
+        rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 50 * (attempt + 1)));
+    }
   }
 }

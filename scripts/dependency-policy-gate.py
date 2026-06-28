@@ -196,7 +196,7 @@ def run_gate(json_output: bool = False) -> tuple[bool, list[str], list[str], lis
         print(f"[dependency-policy-gate] registered: {len(registered_deps)}")
         if registered_deps:
             for p in registered_deps:
-                print(f"  ✓ {p}")
+                print(f"  + {p}")
         print(f"[dependency-policy-gate] sdk/exempt: {len(sdk_deps_seen)}")
         if sdk_deps_seen:
             for p in sdk_deps_seen:
@@ -204,7 +204,7 @@ def run_gate(json_output: bool = False) -> tuple[bool, list[str], list[str], lis
         print(f"[dependency-policy-gate] unregistered: {len(unregistered_deps)}")
         if unregistered_deps:
             for p in unregistered_deps:
-                print(f"  ✗ {p} — NOT in DEPENDENCY-USAGE.md")
+                print(f"  ! {p} - NOT in DEPENDENCY-USAGE.md")
         print(f"[dependency-policy-gate] result: {'PASS' if passed else 'FAIL'}")
 
     return passed, registered_deps, unregistered_deps, details

@@ -246,13 +246,14 @@ void main() {
     final store = SemanticSnapshotPanelEventStore.fromDataStore(
       dataStore: await _createDataStore(),
     );
+    final now = DateTime.now().toUtc();
     final event = SemanticSnapshotPanelEvent(
       target: SemanticSnapshotPanelEventTarget.refactor,
       kind: SemanticSnapshotTelemetryEventKind.renameSafety,
       documentId: 'src/main.styio',
       message: 'Rename is safe.',
       payload: <String, Object?>{'newName': 'nextName'},
-      timestamp: DateTime.utc(2026, 5, 20, 4),
+      timestamp: now,
     );
 
     final state = await store.recordEvent(workspaceId: 'demo', event: event);
@@ -308,10 +309,11 @@ void main() {
         );
       }
 
-      await record('old event', DateTime.utc(2026, 5, 18));
-      await record('new event 1', DateTime.utc(2026, 5, 20, 1));
-      await record('new event 2', DateTime.utc(2026, 5, 20, 2));
-      final state = await record('new event 3', DateTime.utc(2026, 5, 20, 3));
+      final now = DateTime.now().toUtc();
+      await record('old event', now.subtract(const Duration(days: 2)));
+      await record('new event 1', now.subtract(const Duration(hours: 2)));
+      await record('new event 2', now.subtract(const Duration(hours: 1)));
+      final state = await record('new event 3', now);
       final restored = await store.readState(
         workspaceId: 'demo',
         target: SemanticSnapshotPanelEventTarget.problems,

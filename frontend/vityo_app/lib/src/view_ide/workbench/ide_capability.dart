@@ -4,6 +4,7 @@
 /// status, owner boundary, related commands, and target surface.
 /// This is the single source of truth for capability state; view_render
 /// consumes this model but never infers capability state from UI context.
+library;
 
 import '../commands/app_commands.dart';
 

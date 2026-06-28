@@ -42,7 +42,7 @@ class BrowserVirtualFileSystemProvider implements FileSystemProvider {
   final String _providerId;
   final FileSystemFacts _facts;
 
-  final FileSystemCompatibility _compatibility = FileSystemCompatibility(
+  final FileSystemCompatibility _compatibility = const FileSystemCompatibility(
     targetId: 'browser-vfs',
     compatibilityTarget: 'browser',
     pathStyle: FileSystemPathStyle.posix,
@@ -143,7 +143,7 @@ class BrowserVirtualFileSystemProvider implements FileSystemProvider {
     Uri uri, {
     bool recursive = false,
   }) async {
-    return FileSystemOperationSuccess(const <FileSystemEntitySnapshot>[]);
+    return const FileSystemOperationSuccess(<FileSystemEntitySnapshot>[]);
   }
 
   @override

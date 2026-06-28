@@ -146,10 +146,26 @@ void main() {
     expect(find.text('failed 1'), findsOneWidget);
     expect(find.text('Run History'), findsOneWidget);
 
+    await tester.tap(find.byKey(const ValueKey('testing-run-tests')));
+    await tester.tap(
+      find.byKey(const ValueKey('testing-run-selected-configuration')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('testing-debug-selected-configuration')),
+    );
+    await tester.tap(find.byKey(const ValueKey('testing-rerun-failed')));
+    await tester.tap(find.byKey(const ValueKey('testing-open-diagnostics')));
+    await tester.pump();
+
     await tester.scrollUntilVisible(
       find.text('Failed Retry History'),
       120,
-      scrollable: find.byType(Scrollable),
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('testing-content-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.pump();
 
@@ -162,18 +178,15 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.byKey(const ValueKey('testing-run-tests')));
-    await tester.tap(
-      find.byKey(const ValueKey('testing-run-selected-configuration')),
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('testing-debug-selected-configuration')),
-    );
-    await tester.tap(find.byKey(const ValueKey('testing-rerun-failed')));
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('testing-run-configuration-debug-parser')),
       120,
-      scrollable: find.byType(Scrollable),
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('testing-content-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.pump();
     expect(find.text('Debug parser test'), findsOneWidget);
@@ -185,7 +198,12 @@ void main() {
         const ValueKey('testing-failed-parser rejects invalid resource'),
       ),
       120,
-      scrollable: find.byType(Scrollable),
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('testing-content-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
     );
     await tester.pump();
     expect(find.text('parser rejects invalid resource'), findsOneWidget);
@@ -194,7 +212,6 @@ void main() {
         const ValueKey('testing-failed-parser rejects invalid resource'),
       ),
     );
-    await tester.tap(find.byKey(const ValueKey('testing-open-diagnostics')));
     await tester.pump();
 
     expect(runCount, 1);

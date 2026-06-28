@@ -19,7 +19,7 @@ void main() {
       <AppCommandId>[
         AppCommandId.searchWorkspace,
         AppCommandId.run,
-        AppCommandId.commandPalette,
+        AppCommandId.save,
       ],
     );
     expect(result.items.map((item) => item.recentRank), <int?>[0, 1, null]);

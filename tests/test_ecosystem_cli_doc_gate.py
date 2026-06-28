@@ -111,7 +111,7 @@ class EcosystemCliDocGateTest(unittest.TestCase):
                     observed["command"] = command
                     observed["cwd"] = cwd
                     delegated_root = self.gate.workspace_root_from_args(command[2:])
-                    observed["has_alias"] = (delegated_root / "styio-view").is_symlink()
+                    observed["has_alias"] = (delegated_root / "styio-view").is_dir()
                     return mock.Mock(returncode=7)
 
                 with mock.patch.object(self.gate.subprocess, "run", side_effect=fake_run):

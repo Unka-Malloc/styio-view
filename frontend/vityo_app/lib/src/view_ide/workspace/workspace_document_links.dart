@@ -401,7 +401,7 @@ class _GlobMatcher {
           .replaceAll(r'\*\*', '.*')
           .replaceAll(r'\*', '[^/]*');
       final regex = RegExp(
-        '^${expression}\$',
+        '^$expression\$',
       );
       return regex.hasMatch(normalized);
     }

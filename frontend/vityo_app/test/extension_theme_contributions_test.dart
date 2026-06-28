@@ -38,7 +38,7 @@ void main() {
 
     expect(theme.ready, isTrue);
     expect(theme.title, 'Sunlit');
-    expect(theme.override?.accent, const Color(0xFFC46A2B));
+    expect(theme.override?.accent, const Color(0xFFC46A2B).toARGB32());
     expect(catalog.toJson()['readyThemeCount'], 1);
   });
 

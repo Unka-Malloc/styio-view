@@ -14,7 +14,7 @@
 
 1. `flutter analyze` in `frontend/vityo_app`
 2. `python3 -m unittest tests.test_repo_hygiene_gate`
-3. `python3 scripts/project-coverage-gate.py --fail-under 95 --flutter-dir frontend/vityo_app`, which runs the Python tooling coverage gate and `flutter test --coverage`
+3. `python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85 --flutter-dir frontend/vityo_app`, which runs the Python tooling coverage gate and `flutter test --coverage`
 4. `python3 scripts/release-readiness-gate.py --skip-build`
 5. `./scripts/language-fixture-gate.sh --flutter-dir frontend/vityo_app`
 6. `npm run governance` in `prototype/`

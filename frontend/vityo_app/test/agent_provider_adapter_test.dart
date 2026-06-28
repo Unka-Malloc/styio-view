@@ -13,6 +13,7 @@ import 'package:vityo_app/src/editor/document_state.dart';
 import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
@@ -944,7 +945,10 @@ void main() {
       2,
     );
     expect((json['usage']! as Map<String, Object?>)['moduleCommandCount'], 1);
-    expect((json['usage']! as Map<String, Object?>)['surfaceCommandCount'], 3);
+    expect(
+      (json['usage']! as Map<String, Object?>)['surfaceCommandCount'],
+      StyioCommandRegistry.surfaceCommands.length,
+    );
     expect((json['usage']! as Map<String, Object?>)['testingCommandCount'], 4);
     expect((json['usage']! as Map<String, Object?>)['debugCommandCount'], 7);
     expect(
@@ -1769,7 +1773,10 @@ void main() {
       expect(metadata['dependencyCommandCount'], 2);
       expect(metadata['deploymentCommandCount'], 2);
       expect(metadata['moduleCommandCount'], 1);
-      expect(metadata['surfaceCommandCount'], 3);
+      expect(
+        metadata['surfaceCommandCount'],
+        StyioCommandRegistry.surfaceCommands.length,
+      );
       expect(metadata['testingCommandCount'], 4);
       expect(metadata['debugCommandCount'], 7);
       expect(metadata['settingsCommandCount'], 1);

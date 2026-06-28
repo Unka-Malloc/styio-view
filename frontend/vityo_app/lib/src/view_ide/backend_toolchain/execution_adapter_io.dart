@@ -1967,7 +1967,8 @@ DiagnosticSeverity _severityFromCategory(String category) {
 }
 
 bool _isAbsolutePath(String path) {
-  return path.startsWith(Platform.pathSeparator) ||
+  return path.startsWith('/') ||
+      path.startsWith(r'\') ||
       RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);
 }
 

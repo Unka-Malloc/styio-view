@@ -1,5 +1,6 @@
 /// Capability gap model — structured blocked reasons for missing IDE capabilities.
 /// Pure Dart, no Flutter imports. Used by both view_ide and view_render.
+library;
 
 import 'ide_capability.dart';
 

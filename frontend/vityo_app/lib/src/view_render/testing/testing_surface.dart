@@ -64,8 +64,8 @@ class TestingSurface extends StatelessWidget {
       key: const ValueKey('testing-surface'),
       child: Padding(
         padding: EdgeInsets.all(compact ? 14 : 18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          key: const ValueKey('testing-content-scroll'),
           children: [
             Text('Testing', style: theme.textTheme.titleLarge),
             const SizedBox(height: 6),
@@ -176,202 +176,199 @@ class TestingSurface extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               )
             else
-              Expanded(
-                child: ListView(
-                  key: const ValueKey('testing-result-list'),
-                  children: [
-                    if (discovery != null) ...[
+              ListView(
+                key: const ValueKey('testing-result-list'),
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  if (discovery != null) ...[
+                    ListTile(
+                      key: const ValueKey('testing-discovery-result'),
+                      title: Text('Discovered ${discovery!.testCount} test(s)'),
+                      subtitle: Text(
+                        discovery!.message.isEmpty
+                            ? 'Provider ${discovery!.providerId}'
+                            : discovery!.message,
+                      ),
+                    ),
+                    for (final root in discovery!.roots)
                       ListTile(
-                        key: const ValueKey('testing-discovery-result'),
-                        title: Text(
-                          'Discovered ${discovery!.testCount} test(s)',
-                        ),
+                        key: ValueKey('testing-discovery-${root.id}'),
+                        dense: true,
+                        leading: const Icon(Icons.account_tree_outlined),
+                        title: Text(root.label),
                         subtitle: Text(
-                          discovery!.message.isEmpty
-                              ? 'Provider ${discovery!.providerId}'
-                              : discovery!.message,
+                          '${root.kind.wireValue} · ${root.testCount} test(s)',
                         ),
                       ),
-                      for (final root in discovery!.roots)
-                        ListTile(
-                          key: ValueKey('testing-discovery-${root.id}'),
-                          dense: true,
-                          leading: const Icon(Icons.account_tree_outlined),
-                          title: Text(root.label),
-                          subtitle: Text(
-                            '${root.kind.wireValue} · ${root.testCount} test(s)',
-                          ),
-                        ),
-                    ],
-                    if (lastRun != null)
-                      ListTile(
-                        key: const ValueKey('testing-provider-run-result'),
-                        title: Text('Provider ${lastRun!.providerId}'),
-                        subtitle: Text(lastRun!.message),
-                      )
-                    else if (latest != null)
-                      ListTile(
-                        key: const ValueKey('testing-latest-result'),
-                        title: Text(latest.label),
-                        subtitle: Text(
-                          nativeToolMetadataSummaryText(
-                                latest.metadata,
-                                describeUnstructured: true,
-                              ) ??
-                              latest.message,
-                        ),
-                      ),
-                    if (runHistory.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 8,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          'Run History',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                      ),
-                      for (final entry in runHistory.take(5))
-                        ListTile(
-                          key: ValueKey(
-                            'testing-history-${entry.providerId}-${entry.status.wireValue}',
-                          ),
-                          dense: true,
-                          leading: const Icon(Icons.history_rounded),
-                          title: Text(
-                            entry.runner.isEmpty
-                                ? entry.providerId
-                                : entry.runner,
-                          ),
-                          subtitle: Text(
-                            '${entry.status.wireValue} · ${entry.message}',
-                          ),
-                        ),
-                    ],
-                    if (failedRetryHistory.isNotEmpty) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 8,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          'Failed Retry History',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                      ),
-                      for (final record in failedRetryHistory.take(5))
-                        ListTile(
-                          key: ValueKey(
-                            'testing-failed-retry-${record.providerId}-${record.status.wireValue}-${record.debug ? 'debug' : 'run'}',
-                          ),
-                          dense: true,
-                          leading: Icon(
-                            record.debug
-                                ? Icons.bug_report_outlined
-                                : Icons.replay_rounded,
-                          ),
-                          title: Text(
-                            record.debug
-                                ? 'Debug failed tests'
-                                : 'Rerun failed tests',
-                          ),
-                          subtitle: Text(_failedRetrySummary(record)),
-                        ),
-                    ],
-                    if (configurationSet?.configurations.isNotEmpty ==
-                        true) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 8,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          'Run Configurations',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                      ),
-                      for (final configuration
-                          in configurationSet!.configurations.take(6))
-                        ListTile(
-                          key: ValueKey(
-                            'testing-run-configuration-${configuration.id}',
-                          ),
-                          dense: true,
-                          selected:
-                              configuration.id ==
-                              configurationSet!.selectedConfiguration?.id,
-                          leading: Icon(
-                            configuration.debug
-                                ? Icons.bug_report_outlined
-                                : Icons.play_circle_outline,
-                          ),
-                          title: Text(configuration.label),
-                          subtitle: Text(_configurationSummary(configuration)),
-                          onTap: onSelectRunConfiguration == null
-                              ? null
-                              : () {
-                                  onSelectRunConfiguration!(configuration);
-                                },
-                        ),
-                    ],
-                    if (failedTests.isNotEmpty) ...[
-                      if (failedDebugCancellationRoute != null)
-                        ListTile(
-                          key: const ValueKey(
-                            'testing-failed-debug-cancellation-route',
-                          ),
-                          dense: true,
-                          leading: const Icon(Icons.cancel_schedule_send),
-                          title: const Text('Failed-test debug cancellation'),
-                          subtitle: Text(failedDebugCancellationRoute!.message),
-                        ),
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          left: 16,
-                          right: 16,
-                          top: 8,
-                          bottom: 4,
-                        ),
-                        child: Text(
-                          'Failed Tests',
-                          style: theme.textTheme.titleSmall,
-                        ),
-                      ),
-                      for (final failed in failedTests)
-                        ListTile(
-                          key: ValueKey('testing-failed-${failed['name']}'),
-                          dense: true,
-                          leading: const Icon(Icons.cancel_outlined),
-                          title: Text('${failed['name'] ?? 'unknown'}'),
-                          subtitle: Text('${failed['status'] ?? 'failed'}'),
-                          trailing: onCancelFailedTestDebug == null
-                              ? null
-                              : IconButton(
-                                  key: ValueKey(
-                                    'testing-cancel-failed-debug-${failed['name']}',
-                                  ),
-                                  tooltip: 'Cancel failed-test debug',
-                                  icon: const Icon(Icons.stop_circle_outlined),
-                                  onPressed: () {
-                                    onCancelFailedTestDebug!(failed);
-                                  },
-                                ),
-                          onTap: onSelectFailedTest == null
-                              ? null
-                              : () {
-                                  onSelectFailedTest!(failed);
-                                },
-                        ),
-                    ],
                   ],
-                ),
+                  if (lastRun != null)
+                    ListTile(
+                      key: const ValueKey('testing-provider-run-result'),
+                      title: Text('Provider ${lastRun!.providerId}'),
+                      subtitle: Text(lastRun!.message),
+                    )
+                  else if (latest != null)
+                    ListTile(
+                      key: const ValueKey('testing-latest-result'),
+                      title: Text(latest.label),
+                      subtitle: Text(
+                        nativeToolMetadataSummaryText(
+                              latest.metadata,
+                              describeUnstructured: true,
+                            ) ??
+                            latest.message,
+                      ),
+                    ),
+                  if (runHistory.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 8,
+                        bottom: 4,
+                      ),
+                      child: Text(
+                        'Run History',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    for (final entry in runHistory.take(5))
+                      ListTile(
+                        key: ValueKey(
+                          'testing-history-${entry.providerId}-${entry.status.wireValue}',
+                        ),
+                        dense: true,
+                        leading: const Icon(Icons.history_rounded),
+                        title: Text(
+                          entry.runner.isEmpty
+                              ? entry.providerId
+                              : entry.runner,
+                        ),
+                        subtitle: Text(
+                          '${entry.status.wireValue} · ${entry.message}',
+                        ),
+                      ),
+                  ],
+                  if (failedRetryHistory.isNotEmpty) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 8,
+                        bottom: 4,
+                      ),
+                      child: Text(
+                        'Failed Retry History',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    for (final record in failedRetryHistory.take(5))
+                      ListTile(
+                        key: ValueKey(
+                          'testing-failed-retry-${record.providerId}-${record.status.wireValue}-${record.debug ? 'debug' : 'run'}',
+                        ),
+                        dense: true,
+                        leading: Icon(
+                          record.debug
+                              ? Icons.bug_report_outlined
+                              : Icons.replay_rounded,
+                        ),
+                        title: Text(
+                          record.debug
+                              ? 'Debug failed tests'
+                              : 'Rerun failed tests',
+                        ),
+                        subtitle: Text(_failedRetrySummary(record)),
+                      ),
+                  ],
+                  if (configurationSet?.configurations.isNotEmpty == true) ...[
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 8,
+                        bottom: 4,
+                      ),
+                      child: Text(
+                        'Run Configurations',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    for (final configuration
+                        in configurationSet!.configurations.take(6))
+                      ListTile(
+                        key: ValueKey(
+                          'testing-run-configuration-${configuration.id}',
+                        ),
+                        dense: true,
+                        selected:
+                            configuration.id ==
+                            configurationSet!.selectedConfiguration?.id,
+                        leading: Icon(
+                          configuration.debug
+                              ? Icons.bug_report_outlined
+                              : Icons.play_circle_outline,
+                        ),
+                        title: Text(configuration.label),
+                        subtitle: Text(_configurationSummary(configuration)),
+                        onTap: onSelectRunConfiguration == null
+                            ? null
+                            : () {
+                                onSelectRunConfiguration!(configuration);
+                              },
+                      ),
+                  ],
+                  if (failedTests.isNotEmpty) ...[
+                    if (failedDebugCancellationRoute != null)
+                      ListTile(
+                        key: const ValueKey(
+                          'testing-failed-debug-cancellation-route',
+                        ),
+                        dense: true,
+                        leading: const Icon(Icons.cancel_schedule_send),
+                        title: const Text('Failed-test debug cancellation'),
+                        subtitle: Text(failedDebugCancellationRoute!.message),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 8,
+                        bottom: 4,
+                      ),
+                      child: Text(
+                        'Failed Tests',
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    for (final failed in failedTests)
+                      ListTile(
+                        key: ValueKey('testing-failed-${failed['name']}'),
+                        dense: true,
+                        leading: const Icon(Icons.cancel_outlined),
+                        title: Text('${failed['name'] ?? 'unknown'}'),
+                        subtitle: Text('${failed['status'] ?? 'failed'}'),
+                        trailing: onCancelFailedTestDebug == null
+                            ? null
+                            : IconButton(
+                                key: ValueKey(
+                                  'testing-cancel-failed-debug-${failed['name']}',
+                                ),
+                                tooltip: 'Cancel failed-test debug',
+                                icon: const Icon(Icons.stop_circle_outlined),
+                                onPressed: () {
+                                  onCancelFailedTestDebug!(failed);
+                                },
+                              ),
+                        onTap: onSelectFailedTest == null
+                            ? null
+                            : () {
+                                onSelectFailedTest!(failed);
+                              },
+                      ),
+                  ],
+                ],
               ),
           ],
         ),

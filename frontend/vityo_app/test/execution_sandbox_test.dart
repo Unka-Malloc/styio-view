@@ -187,8 +187,8 @@ void main() {
           timeout: Duration.zero,
         ),
       );
-      final invalidOutputLimit = ExecutionSandbox(
-        policy: const ExecutionSandboxPolicy(
+      final invalidOutputLimit = const ExecutionSandbox(
+        policy: ExecutionSandboxPolicy(
           workspaceRoot: '/workspace/project',
           trustState: WorkspaceTrustState.trusted,
           maxStdoutBytes: 0,
@@ -225,8 +225,8 @@ void main() {
       );
       final manager = ExecutionManager(
         processManager: processManager,
-        executionSandbox: ExecutionSandbox(
-          policy: const ExecutionSandboxPolicy(
+        executionSandbox: const ExecutionSandbox(
+          policy: ExecutionSandboxPolicy(
             workspaceRoot: '/workspace/project',
             trustState: WorkspaceTrustState.trusted,
             timeout: Duration(seconds: 2),
@@ -274,8 +274,8 @@ void main() {
       );
       final manager = ExecutionManager(
         processManager: processManager,
-        executionSandbox: ExecutionSandbox(
-          policy: const ExecutionSandboxPolicy(
+        executionSandbox: const ExecutionSandbox(
+          policy: ExecutionSandboxPolicy(
             workspaceRoot: '/workspace/project',
             trustState: WorkspaceTrustState.restricted,
             approvalPolicy: ApprovalPolicy.workspaceWrite,

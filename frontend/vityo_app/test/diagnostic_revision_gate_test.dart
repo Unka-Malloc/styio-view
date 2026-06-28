@@ -5,7 +5,7 @@ import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart'
 void main() {
   group('RevisionBoundDiagnostic', () {
     test('isStaleForRevision returns true when revision differs', () {
-      final diag = RevisionBoundDiagnostic(
+      final diag = const RevisionBoundDiagnostic(
         diagnostic: Diagnostic(
           severity: DiagnosticSeverity.error,
           code: 'E001',
@@ -24,7 +24,7 @@ void main() {
     });
 
     test('serializes and deserializes', () {
-      final original = RevisionBoundDiagnostic(
+      final original = const RevisionBoundDiagnostic(
         diagnostic: Diagnostic(
           severity: DiagnosticSeverity.warning,
           code: 'W001',
@@ -54,7 +54,7 @@ void main() {
     test('filters stale diagnostics', () {
       const gate = DiagnosticRevisionGate();
       final diagnostics = [
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.error,
             code: 'E001',
@@ -65,7 +65,7 @@ void main() {
           revision: 5,
           source: DiagnosticSource.compiler,
         ),
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.error,
             code: 'E002',
@@ -76,7 +76,7 @@ void main() {
           revision: 3,
           source: DiagnosticSource.compiler,
         ),
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.warning,
             code: 'W001',
@@ -106,7 +106,7 @@ void main() {
 
   group('LanguageCapabilityGap', () {
     test('blockedMessage is descriptive for each reason', () {
-      final upstreamBlocked = LanguageCapabilityGap(
+      final upstreamBlocked = const LanguageCapabilityGap(
         capabilityId: 'language.rename',
         reason: CapabilityGapReason.upstreamBlocked,
         upstreamContract: 'LanguageServiceAdapter.renamePlan',
@@ -117,14 +117,14 @@ void main() {
       );
       expect(upstreamBlocked.blockedMessage, contains('LanguageServiceAdapter'));
 
-      final implNeeded = LanguageCapabilityGap(
+      final implNeeded = const LanguageCapabilityGap(
         capabilityId: 'language.inlayHints',
         reason: CapabilityGapReason.implementationNeeded,
         detail: 'Rendering code not yet written',
       );
       expect(implNeeded.blockedMessage, contains('implementation pending'));
 
-      final platformUnsupported = LanguageCapabilityGap(
+      final platformUnsupported = const LanguageCapabilityGap(
         capabilityId: 'execution.local',
         reason: CapabilityGapReason.platformUnsupported,
         detail: 'iOS does not support local compilation',
@@ -136,7 +136,7 @@ void main() {
     });
 
     test('serializes with blocked message', () {
-      final gap = LanguageCapabilityGap(
+      final gap = const LanguageCapabilityGap(
         capabilityId: 'language.formatting',
         reason: CapabilityGapReason.upstreamBlocked,
         upstreamContract: 'LanguageServiceAdapter.formattingEdits',
@@ -153,7 +153,7 @@ void main() {
 
   group('LanguageCapabilityGapSnapshot', () {
     test('isBlocked checks capability availability', () {
-      final snapshot = LanguageCapabilityGapSnapshot(
+      final snapshot = const LanguageCapabilityGapSnapshot(
         gaps: [
           LanguageCapabilityGap(
             capabilityId: 'language.rename',
@@ -172,7 +172,7 @@ void main() {
     });
 
     test('separates upstream-blocked from vityo-actionable', () {
-      final snapshot = LanguageCapabilityGapSnapshot(
+      final snapshot = const LanguageCapabilityGapSnapshot(
         gaps: [
           LanguageCapabilityGap(
             capabilityId: 'language.rename',
@@ -200,7 +200,7 @@ void main() {
     });
 
     test('summary includes all blocked capabilities', () {
-      final snapshot = LanguageCapabilityGapSnapshot(
+      final snapshot = const LanguageCapabilityGapSnapshot(
         gaps: [
           LanguageCapabilityGap(
             capabilityId: 'a',
@@ -220,7 +220,7 @@ void main() {
 
   group('Diagnostic confidence', () {
     test('local heuristic diagnostics are marked with lower confidence', () {
-      final diag = RevisionBoundDiagnostic(
+      final diag = const RevisionBoundDiagnostic(
         diagnostic: Diagnostic(
           severity: DiagnosticSeverity.hint,
           code: 'H001',
@@ -240,7 +240,7 @@ void main() {
     });
 
     test('compiler diagnostics have authoritative confidence', () {
-      final diag = RevisionBoundDiagnostic(
+      final diag = const RevisionBoundDiagnostic(
         diagnostic: Diagnostic(
           severity: DiagnosticSeverity.error,
           code: 'E001',
@@ -292,7 +292,7 @@ void main() {
   group('Multiple diagnostics sort stability', () {
     test('same severity diagnostics sort consistently by file, line, column', () {
       final diagnostics = [
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.error,
             code: 'E003',
@@ -303,7 +303,7 @@ void main() {
           revision: 1,
           source: DiagnosticSource.compiler,
         ),
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.error,
             code: 'E001',
@@ -314,7 +314,7 @@ void main() {
           revision: 1,
           source: DiagnosticSource.compiler,
         ),
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.error,
             code: 'E002',
@@ -325,7 +325,7 @@ void main() {
           revision: 1,
           source: DiagnosticSource.compiler,
         ),
-        RevisionBoundDiagnostic(
+        const RevisionBoundDiagnostic(
           diagnostic: Diagnostic(
             severity: DiagnosticSeverity.warning,
             code: 'W001',

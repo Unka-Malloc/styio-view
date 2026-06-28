@@ -6,6 +6,7 @@
 /// are blocked/preview-only until Styio runtime supports them.
 ///
 /// Pure Dart, no Flutter imports.
+library;
 
 // ── Breakpoint ────────────────────────────────────────────────────
 

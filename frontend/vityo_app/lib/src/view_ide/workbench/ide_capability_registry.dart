@@ -1,8 +1,8 @@
 /// IDE capability registry — registers, queries, and derives capability state.
 /// Pure Dart, no Flutter imports. Consumed by view_render for display.
+library;
 
 import 'ide_capability.dart';
-import '../commands/app_commands.dart';
 import '../platform/platform_target.dart';
 
 // ── Registry ──────────────────────────────────────────────────────

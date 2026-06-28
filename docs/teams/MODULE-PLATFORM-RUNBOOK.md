@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 module host、platform capability、六端 runner 与分发路径的日常维护入口。
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-28
 
 ## Mission
 
@@ -45,6 +45,8 @@ Key SSOTs:
 5. `module_lifecycle.dart` 只表达最小 lifecycle plan：mount、leave unmounted、uninstall reclaim 和 blocked core-module uninstall；不要在本轮扩展到真实 staged package update 或远程 module registry。
 6. 平台支持、可见性和默认挂载必须来自 manifest/capability rule，不允许用 UI 层临时判断替代 module rule。
 7. module manifest security 必须在 activation 前完成 schema、permission、capability 和 trust 检查；未知 privileged capability 默认拒绝，不允许由 UI 层临时放行。
+
+8. Browser and memory file-system provider changes must preserve lexical path/URI behavior across Web, Linux, macOS, and Windows; update Windows path tests when provider normalization, separators, or URI handling changes.
 
 ## Change Classes
 

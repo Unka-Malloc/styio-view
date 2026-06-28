@@ -29,7 +29,7 @@ void main() {
         return AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: 'command executed',
+          output: _commandOutput(),
         );
       },
     );
@@ -175,7 +175,7 @@ void main() {
         return AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: 'command executed',
+          output: _commandOutput(),
         );
       },
       continueAfterDispatch: (request) {
@@ -225,7 +225,7 @@ void main() {
         return AgentToolCallDispatchResult.success(
           callId: request.callId,
           toolId: request.toolId,
-          output: 'command executed',
+          output: _commandOutput(),
         );
       },
       continueAfterDispatch: (_) {
@@ -241,6 +241,10 @@ void main() {
       contains('provider unavailable'),
     );
   });
+}
+
+String _commandOutput() {
+  return '{"source":"test-command-runner","result":{"applied":true}}';
 }
 
 AgentSessionContext _context() {

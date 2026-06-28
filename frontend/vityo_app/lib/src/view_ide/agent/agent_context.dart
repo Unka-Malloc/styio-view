@@ -6,6 +6,7 @@
 /// - Agent actions go through command registry or workspace edit transactions
 /// - Agent never bypasses the Source Buffer / Document Model
 /// - Secrets and tokens are redacted from context snapshots
+library;
 
 import '../commands/app_commands.dart';
 import '../environment/configuration/log_redactor.dart';
@@ -75,19 +76,19 @@ class AgentContextScope {
   };
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'schemaVersion': schemaVersion,
-        'includeWorkspace': includeWorkspace,
-        'includeActiveDocument': includeActiveDocument,
-        'includeSelection': includeSelection,
-        'includeDiagnostics': includeDiagnostics,
-        'includeProjectGraph': includeProjectGraph,
-        'includeRuntimeEvents': includeRuntimeEvents,
-        'includeCommands': includeCommands,
-        'includeCapabilityGaps': includeCapabilityGaps,
-        'includeSettings': includeSettings,
-        'includeProfile': includeProfile,
-        ...extensions,
-      };
+    'schemaVersion': schemaVersion,
+    'includeWorkspace': includeWorkspace,
+    'includeActiveDocument': includeActiveDocument,
+    'includeSelection': includeSelection,
+    'includeDiagnostics': includeDiagnostics,
+    'includeProjectGraph': includeProjectGraph,
+    'includeRuntimeEvents': includeRuntimeEvents,
+    'includeCommands': includeCommands,
+    'includeCapabilityGaps': includeCapabilityGaps,
+    'includeSettings': includeSettings,
+    'includeProfile': includeProfile,
+    ...extensions,
+  };
 
   factory AgentContextScope.fromJson(Map<String, Object?> json) {
     return AgentContextScope(
@@ -133,7 +134,7 @@ class AgentRedactionPolicy {
   /// Replace API key references (env var names like *_API_KEY) with '[SECRET]'.
   final bool redactApiKeyReferences;
 
-  /// Replace /home/<user>, /Users/<user>, C:\Users\<user> paths.
+  /// Replace user-home paths such as /home/[user], /Users/[user], and C:\Users\[user].
   final bool redactHomeDirectoryPaths;
 
   /// Replace other user-specific paths (Desktop, Documents, etc.).
@@ -158,13 +159,13 @@ class AgentRedactionPolicy {
   );
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'redactEnvironmentVariableValues': redactEnvironmentVariableValues,
-        'redactApiKeyReferences': redactApiKeyReferences,
-        'redactHomeDirectoryPaths': redactHomeDirectoryPaths,
-        'redactUserSpecificPaths': redactUserSpecificPaths,
-        'redactSecretFields': redactSecretFields,
-        'additionalPatterns': additionalPatterns,
-      };
+    'redactEnvironmentVariableValues': redactEnvironmentVariableValues,
+    'redactApiKeyReferences': redactApiKeyReferences,
+    'redactHomeDirectoryPaths': redactHomeDirectoryPaths,
+    'redactUserSpecificPaths': redactUserSpecificPaths,
+    'redactSecretFields': redactSecretFields,
+    'additionalPatterns': additionalPatterns,
+  };
 }
 
 // ── Context Channel Payloads ──────────────────────────────────────
@@ -186,12 +187,12 @@ class AgentWorkspaceSummaryContext {
   final List<String> openDocumentPaths;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'workspaceRoot': workspaceRoot,
-        'memberCount': memberCount,
-        'activeFilePath': activeFilePath,
-        'activeFileLanguage': activeFileLanguage,
-        'openDocumentPaths': openDocumentPaths,
-      };
+    'workspaceRoot': workspaceRoot,
+    'memberCount': memberCount,
+    'activeFilePath': activeFilePath,
+    'activeFileLanguage': activeFileLanguage,
+    'openDocumentPaths': openDocumentPaths,
+  };
 }
 
 /// Active document context (redacted Source Buffer excerpt).
@@ -217,14 +218,14 @@ class AgentActiveDocumentContext {
   bool get hasSelection => selectionStartOffset >= 0 && selectionEndOffset >= 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'filePath': filePath,
-        'language': language,
-        'lineCount': lineCount,
-        'selectionStartOffset': selectionStartOffset,
-        'selectionEndOffset': selectionEndOffset,
-        'selectionText': selectionText,
-        'selectedSymbolName': selectedSymbolName,
-      };
+    'filePath': filePath,
+    'language': language,
+    'lineCount': lineCount,
+    'selectionStartOffset': selectionStartOffset,
+    'selectionEndOffset': selectionEndOffset,
+    'selectionText': selectionText,
+    'selectedSymbolName': selectedSymbolName,
+  };
 }
 
 /// Diagnostic context summary for agent.
@@ -244,12 +245,12 @@ class AgentDiagnosticsContext {
   final List<String> topErrors;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'errorCount': errorCount,
-        'warningCount': warningCount,
-        'hintCount': hintCount,
-        'fileCount': fileCount,
-        'topErrors': topErrors,
-      };
+    'errorCount': errorCount,
+    'warningCount': warningCount,
+    'hintCount': hintCount,
+    'fileCount': fileCount,
+    'topErrors': topErrors,
+  };
 }
 
 /// Project graph summary for agent context.
@@ -281,18 +282,18 @@ class AgentProjectGraphContext {
   final List<String> blockedInfo;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'projectTitle': projectTitle,
-        'projectKind': projectKind,
-        'packageCount': packageCount,
-        'targetCount': targetCount,
-        'dependencyCount': dependencyCount,
-        'lockState': lockState,
-        'vendorState': vendorState,
-        'toolchainChannel': toolchainChannel,
-        'toolchainVersion': toolchainVersion,
-        'graphSource': graphSource,
-        'blockedInfo': blockedInfo,
-      };
+    'projectTitle': projectTitle,
+    'projectKind': projectKind,
+    'packageCount': packageCount,
+    'targetCount': targetCount,
+    'dependencyCount': dependencyCount,
+    'lockState': lockState,
+    'vendorState': vendorState,
+    'toolchainChannel': toolchainChannel,
+    'toolchainVersion': toolchainVersion,
+    'graphSource': graphSource,
+    'blockedInfo': blockedInfo,
+  };
 }
 
 /// Runtime event summary for agent context.
@@ -316,14 +317,14 @@ class AgentRuntimeSummaryContext {
   final Map<String, String> laneStatuses;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'lastRunStatus': lastRunStatus,
-        'lastRunUnitRange': lastRunUnitRange,
-        'lastRunSessionId': lastRunSessionId,
-        'eventCount': eventCount,
-        'compileErrorCount': compileErrorCount,
-        'testFailCount': testFailCount,
-        'laneStatuses': laneStatuses,
-      };
+    'lastRunStatus': lastRunStatus,
+    'lastRunUnitRange': lastRunUnitRange,
+    'lastRunSessionId': lastRunSessionId,
+    'eventCount': eventCount,
+    'compileErrorCount': compileErrorCount,
+    'testFailCount': testFailCount,
+    'laneStatuses': laneStatuses,
+  };
 }
 
 /// Capability gap summary for agent context.
@@ -343,11 +344,11 @@ class AgentCapabilityGapContext {
   bool get hasBlockers => missingCapabilities.isNotEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'missingCapabilities': missingCapabilities,
-        'degradedCapabilities': degradedCapabilities,
-        'upstreamBlocked': upstreamBlocked,
-        'availableCapabilities': availableCapabilities,
-      };
+    'missingCapabilities': missingCapabilities,
+    'degradedCapabilities': degradedCapabilities,
+    'upstreamBlocked': upstreamBlocked,
+    'availableCapabilities': availableCapabilities,
+  };
 }
 
 /// Agent-visible command catalog snapshot.
@@ -365,11 +366,11 @@ class AgentCommandSummaryContext {
   final Map<String, String> blockedCommands;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'availableCommandCount': availableCommandCount,
-        'blockedCommandCount': blockedCommandCount,
-        'availableCommandIds': availableCommandIds,
-        'blockedCommands': blockedCommands,
-      };
+    'availableCommandCount': availableCommandCount,
+    'blockedCommandCount': blockedCommandCount,
+    'availableCommandIds': availableCommandIds,
+    'blockedCommands': blockedCommands,
+  };
 }
 
 // ── Agent Context Snapshot ────────────────────────────────────────
@@ -411,8 +412,7 @@ class AgentContextSnapshot {
   final String profileId;
   final AgentRedactionPolicy redactionPolicy;
 
-  bool get hasWorkspace =>
-      scope.includeWorkspace && workspaceContext != null;
+  bool get hasWorkspace => scope.includeWorkspace && workspaceContext != null;
   bool get hasDocument =>
       scope.includeActiveDocument && documentContext != null;
   bool get hasSelection =>
@@ -423,8 +423,7 @@ class AgentContextSnapshot {
       scope.includeDiagnostics && diagnosticsContext != null;
   bool get hasProjectGraph =>
       scope.includeProjectGraph && projectGraphContext != null;
-  bool get hasRuntime =>
-      scope.includeRuntimeEvents && runtimeContext != null;
+  bool get hasRuntime => scope.includeRuntimeEvents && runtimeContext != null;
   bool get hasCommands =>
       scope.includeCommands && commandCatalogContext != null;
   bool get hasCapabilityGaps =>
@@ -468,7 +467,8 @@ class AgentContextSnapshot {
     'redactionPolicy',
   };
 
-  Map<String, Object?> toJson() => _redactAgentContextSnapshotJson(<String, Object?>{
+  Map<String, Object?> toJson() =>
+      _redactAgentContextSnapshotJson(<String, Object?>{
         'schemaVersion': schemaVersion,
         'snapshotId': snapshotId,
         'createdAtIso8601': createdAtIso8601,
@@ -494,176 +494,173 @@ class AgentContextSnapshot {
       createdAtIso8601: json['createdAtIso8601'] as String? ?? '',
       scope: json['scope'] != null
           ? AgentContextScope.fromJson(
-              Map<String, Object?>.from(json['scope'] as Map))
+              Map<String, Object?>.from(json['scope'] as Map),
+            )
           : AgentContextScope.full,
       workspaceContext: json['workspaceContext'] != null
           ? AgentWorkspaceSummaryContext(
               workspaceRoot:
-                  (json['workspaceContext'] as Map)['workspaceRoot'] as String? ??
-                      '',
+                  (json['workspaceContext'] as Map)['workspaceRoot']
+                      as String? ??
+                  '',
               memberCount:
-                  (json['workspaceContext'] as Map)['memberCount'] as int? ??
-                      0,
+                  (json['workspaceContext'] as Map)['memberCount'] as int? ?? 0,
               activeFilePath:
                   (json['workspaceContext'] as Map)['activeFilePath']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               activeFileLanguage:
                   (json['workspaceContext'] as Map)['activeFileLanguage']
-                          as String? ??
-                      'styio',
+                      as String? ??
+                  'styio',
               openDocumentPaths:
                   ((json['workspaceContext'] as Map)['openDocumentPaths']
                           as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
             )
           : null,
       documentContext: json['documentContext'] != null
           ? AgentActiveDocumentContext(
               filePath:
-                  (json['documentContext'] as Map)['filePath'] as String? ??
-                      '',
+                  (json['documentContext'] as Map)['filePath'] as String? ?? '',
               language:
                   (json['documentContext'] as Map)['language'] as String? ??
-                      'styio',
+                  'styio',
               lineCount:
                   (json['documentContext'] as Map)['lineCount'] as int? ?? 0,
               selectionStartOffset:
                   (json['documentContext'] as Map)['selectionStartOffset']
-                          as int? ??
-                      -1,
+                      as int? ??
+                  -1,
               selectionEndOffset:
                   (json['documentContext'] as Map)['selectionEndOffset']
-                          as int? ??
-                      -1,
+                      as int? ??
+                  -1,
               selectionText:
                   (json['documentContext'] as Map)['selectionText']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               selectedSymbolName:
                   (json['documentContext'] as Map)['selectedSymbolName']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
             )
           : null,
       diagnosticsContext: json['diagnosticsContext'] != null
           ? AgentDiagnosticsContext(
               errorCount:
                   (json['diagnosticsContext'] as Map)['errorCount'] as int? ??
-                      0,
+                  0,
               warningCount:
                   (json['diagnosticsContext'] as Map)['warningCount'] as int? ??
-                      0,
+                  0,
               hintCount:
-                  (json['diagnosticsContext'] as Map)['hintCount'] as int? ??
-                      0,
+                  (json['diagnosticsContext'] as Map)['hintCount'] as int? ?? 0,
               fileCount:
-                  (json['diagnosticsContext'] as Map)['fileCount'] as int? ??
-                      0,
+                  (json['diagnosticsContext'] as Map)['fileCount'] as int? ?? 0,
               topErrors:
                   ((json['diagnosticsContext'] as Map)['topErrors'] as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
             )
           : null,
       projectGraphContext: json['projectGraphContext'] != null
           ? AgentProjectGraphContext(
               projectTitle:
                   (json['projectGraphContext'] as Map)['projectTitle']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               projectKind:
                   (json['projectGraphContext'] as Map)['projectKind']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               packageCount:
                   (json['projectGraphContext'] as Map)['packageCount']
-                          as int? ??
-                      0,
+                      as int? ??
+                  0,
               targetCount:
                   (json['projectGraphContext'] as Map)['targetCount'] as int? ??
-                      0,
+                  0,
               dependencyCount:
                   (json['projectGraphContext'] as Map)['dependencyCount']
-                          as int? ??
-                      0,
+                      as int? ??
+                  0,
               lockState:
                   (json['projectGraphContext'] as Map)['lockState']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               vendorState:
                   (json['projectGraphContext'] as Map)['vendorState']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               toolchainChannel:
                   (json['projectGraphContext'] as Map)['toolchainChannel']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               toolchainVersion:
                   (json['projectGraphContext'] as Map)['toolchainVersion']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               graphSource:
                   (json['projectGraphContext'] as Map)['graphSource']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               blockedInfo:
-                  ((json['projectGraphContext'] as Map)['blockedInfo']
-                          as List?)
+                  ((json['projectGraphContext'] as Map)['blockedInfo'] as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
             )
           : null,
       runtimeContext: json['runtimeContext'] != null
           ? AgentRuntimeSummaryContext(
               lastRunStatus:
                   (json['runtimeContext'] as Map)['lastRunStatus'] as String? ??
-                      '',
+                  '',
               lastRunUnitRange:
                   (json['runtimeContext'] as Map)['lastRunUnitRange']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               lastRunSessionId:
                   (json['runtimeContext'] as Map)['lastRunSessionId']
-                          as String? ??
-                      '',
+                      as String? ??
+                  '',
               eventCount:
                   (json['runtimeContext'] as Map)['eventCount'] as int? ?? 0,
               compileErrorCount:
                   (json['runtimeContext'] as Map)['compileErrorCount']
-                          as int? ??
-                      0,
+                      as int? ??
+                  0,
               testFailCount:
-                  (json['runtimeContext'] as Map)['testFailCount'] as int? ??
-                      0,
+                  (json['runtimeContext'] as Map)['testFailCount'] as int? ?? 0,
               laneStatuses:
                   ((json['runtimeContext'] as Map)['laneStatuses']
                           as Map<String, Object?>?)
                       ?.cast<String, String>() ??
-                      const <String, String>{},
+                  const <String, String>{},
             )
           : null,
       commandCatalogContext: json['commandCatalogContext'] != null
           ? AgentCommandSummaryContext(
               availableCommandCount:
-                  (json['commandCatalogContext'] as Map)[
-                          'availableCommandCount'] as int? ??
-                      0,
+                  (json['commandCatalogContext']
+                          as Map)['availableCommandCount']
+                      as int? ??
+                  0,
               blockedCommandCount:
-                  (json['commandCatalogContext'] as Map)[
-                          'blockedCommandCount'] as int? ??
-                      0,
+                  (json['commandCatalogContext'] as Map)['blockedCommandCount']
+                      as int? ??
+                  0,
               availableCommandIds:
-                  ((json['commandCatalogContext'] as Map)[
-                          'availableCommandIds'] as List?)
+                  ((json['commandCatalogContext'] as Map)['availableCommandIds']
+                          as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
               blockedCommands:
                   ((json['commandCatalogContext'] as Map)['blockedCommands']
                           as Map<String, Object?>?)
                       ?.cast<String, String>() ??
-                      const <String, String>{},
+                  const <String, String>{},
             )
           : null,
       capabilityGapContext: json['capabilityGapContext'] != null
@@ -672,55 +669,58 @@ class AgentContextSnapshot {
                   ((json['capabilityGapContext'] as Map)['missingCapabilities']
                           as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
               degradedCapabilities:
-                  ((json['capabilityGapContext'] as Map)[
-                          'degradedCapabilities'] as List?)
+                  ((json['capabilityGapContext'] as Map)['degradedCapabilities']
+                          as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
               upstreamBlocked:
                   ((json['capabilityGapContext'] as Map)['upstreamBlocked']
                           as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
               availableCapabilities:
-                  ((json['capabilityGapContext'] as Map)[
-                          'availableCapabilities'] as List?)
+                  ((json['capabilityGapContext']
+                              as Map)['availableCapabilities']
+                          as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
             )
           : null,
       settingsSummary:
-          (json['settingsSummary'] as Map<String, Object?>?)?.cast<
-              String, String>() ?? const <String, String>{},
+          (json['settingsSummary'] as Map<String, Object?>?)
+              ?.cast<String, String>() ??
+          const <String, String>{},
       profileId: json['profileId'] as String? ?? '',
       redactionPolicy: json['redactionPolicy'] != null
           ? AgentRedactionPolicy(
               redactEnvironmentVariableValues:
-                  (json['redactionPolicy'] as Map)[
-                          'redactEnvironmentVariableValues'] as bool? ??
-                      true,
+                  (json['redactionPolicy']
+                          as Map)['redactEnvironmentVariableValues']
+                      as bool? ??
+                  true,
               redactApiKeyReferences:
                   (json['redactionPolicy'] as Map)['redactApiKeyReferences']
-                          as bool? ??
-                      true,
+                      as bool? ??
+                  true,
               redactHomeDirectoryPaths:
                   (json['redactionPolicy'] as Map)['redactHomeDirectoryPaths']
-                          as bool? ??
-                      true,
+                      as bool? ??
+                  true,
               redactUserSpecificPaths:
                   (json['redactionPolicy'] as Map)['redactUserSpecificPaths']
-                          as bool? ??
-                      true,
+                      as bool? ??
+                  true,
               redactSecretFields:
                   (json['redactionPolicy'] as Map)['redactSecretFields']
-                          as bool? ??
-                      true,
+                      as bool? ??
+                  true,
               additionalPatterns:
                   ((json['redactionPolicy'] as Map)['additionalPatterns']
                           as List?)
                       ?.cast<String>() ??
-                      const <String>[],
+                  const <String>[],
             )
           : AgentRedactionPolicy.defaultPolicy,
     );
@@ -788,15 +788,16 @@ class AgentActionPlan {
   bool get hasCommands => commands.isNotEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'planId': planId,
-        'description': description,
-        'commands': commands.map((c) => c.name).toList(growable: false),
-        'workspaceEdits':
-            workspaceEdits.map((e) => e.toJson()).toList(growable: false),
-        'requiresPermission': requiresPermission,
-        'permissionScope': permissionScope.name,
-        'permissionReason': permissionReason,
-      };
+    'planId': planId,
+    'description': description,
+    'commands': commands.map((c) => c.name).toList(growable: false),
+    'workspaceEdits': workspaceEdits
+        .map((e) => e.toJson())
+        .toList(growable: false),
+    'requiresPermission': requiresPermission,
+    'permissionScope': permissionScope.name,
+    'permissionReason': permissionReason,
+  };
 }
 
 /// A single workspace edit intent from the Agent. Applied through
@@ -828,16 +829,16 @@ class AgentWorkspaceEditIntent {
   bool get isRangeEdit => rangeStart >= 0 && rangeEnd >= 0;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'intentId': intentId,
-        'filePath': filePath,
-        'editKind': editKind,
-        'rangeStart': rangeStart,
-        'rangeEnd': rangeEnd,
-        'newText': newText,
-        'originalText': originalText,
-        'summary': summary,
-        'symbolName': symbolName,
-      };
+    'intentId': intentId,
+    'filePath': filePath,
+    'editKind': editKind,
+    'rangeStart': rangeStart,
+    'rangeEnd': rangeEnd,
+    'newText': newText,
+    'originalText': originalText,
+    'summary': summary,
+    'symbolName': symbolName,
+  };
 }
 
 // ── Agent Workspace Edit Application ──────────────────────────────
@@ -872,15 +873,15 @@ class AgentWorkspaceEditApplication {
   bool get hasFailures => failedIntents.isNotEmpty;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'applicationId': applicationId,
-        'planId': planId,
-        'appliedAtIso8601': appliedAtIso8601,
-        'editCount': editCount,
-        'affectedFilePaths': affectedFilePaths,
-        'appliedCount': appliedIntents.length,
-        'failedCount': failedIntents.length,
-        'errorMessages': errorMessages,
-        'rollbackAvailable': rollbackAvailable,
-        'rollbackTransactionId': rollbackTransactionId,
-      };
+    'applicationId': applicationId,
+    'planId': planId,
+    'appliedAtIso8601': appliedAtIso8601,
+    'editCount': editCount,
+    'affectedFilePaths': affectedFilePaths,
+    'appliedCount': appliedIntents.length,
+    'failedCount': failedIntents.length,
+    'errorMessages': errorMessages,
+    'rollbackAvailable': rollbackAvailable,
+    'rollbackTransactionId': rollbackTransactionId,
+  };
 }

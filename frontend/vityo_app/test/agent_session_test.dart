@@ -23,7 +23,7 @@ void main() {
       affectedSymbols: <String>['task:build'],
     );
 
-    final pendingPlan = PatchApplyPlan(
+    final pendingPlan = const PatchApplyPlan(
       planId: 'plan-1',
       preview: preview,
       permissionRequest: pendingRequest,

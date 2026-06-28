@@ -80,9 +80,11 @@ class FileSystemCompatibility {
     if (!supportsFileUri) {
       throw UnsupportedError('File URI is not supported by this file system.');
     }
+    final useWindowsUri =
+        pathStyle == FileSystemPathStyle.windows || _hasWindowsDrive(path);
     return Uri.file(
       normalizePath(path),
-      windows: pathStyle == FileSystemPathStyle.windows,
+      windows: useWindowsUri,
     );
   }
 
@@ -93,8 +95,11 @@ class FileSystemCompatibility {
     if (uri.scheme != 'file') {
       throw FormatException('Unsupported file URI scheme ${uri.scheme}.');
     }
+    final useWindowsUri =
+        pathStyle == FileSystemPathStyle.windows ||
+        RegExp(r'^/[A-Za-z]:').hasMatch(uri.path);
     return normalizePath(
-      uri.toFilePath(windows: pathStyle == FileSystemPathStyle.windows),
+      uri.toFilePath(windows: useWindowsUri),
     );
   }
 
@@ -181,4 +186,8 @@ class FileSystemCompatibility {
     }
     return body.isEmpty ? '.' : body;
   }
+}
+
+bool _hasWindowsDrive(String path) {
+  return RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path.trim());
 }

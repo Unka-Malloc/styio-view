@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_context.dart';
 import 'package:vityo_app/src/view_ide/agent/agent_session.dart';
-import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 
 void main() {
   group('PatchApplyPlan', () {
@@ -215,32 +214,32 @@ void main() {
 
   group('AgentWorkspaceEditApplication', () {
     test('hasFailures only when failedIntents non-empty', () {
-      final success = AgentWorkspaceEditApplication(
+      final success = const AgentWorkspaceEditApplication(
         applicationId: 'app-1',
         planId: 'plan-1',
         appliedAtIso8601: '2026-06-24T00:00:00Z',
         editCount: 1,
         affectedFilePaths: ['main.styio'],
-        appliedIntents: const [
+        appliedIntents: [
           AgentWorkspaceEditIntent(
             intentId: 'edit-1', filePath: 'main.styio', editKind: 'replace'),
         ],
-        failedIntents: const [],
-        errorMessages: const [],
+        failedIntents: [],
+        errorMessages: [],
       );
       expect(success.hasFailures, isFalse);
 
-      final failure = AgentWorkspaceEditApplication(
+      final failure = const AgentWorkspaceEditApplication(
         applicationId: 'app-2',
         planId: 'plan-2',
         appliedAtIso8601: '2026-06-24T00:00:00Z',
         editCount: 2,
         affectedFilePaths: ['main.styio'],
-        appliedIntents: const [
+        appliedIntents: [
           AgentWorkspaceEditIntent(
             intentId: 'edit-1', filePath: 'main.styio', editKind: 'replace'),
         ],
-        failedIntents: const [
+        failedIntents: [
           AgentWorkspaceEditIntent(
             intentId: 'edit-2', filePath: 'lib.styio', editKind: 'insert',
             summary: 'Out of range'),
@@ -253,19 +252,19 @@ void main() {
     });
 
     test('serializes with applied and failed counts', () {
-      final application = AgentWorkspaceEditApplication(
+      final application = const AgentWorkspaceEditApplication(
         applicationId: 'app-3',
         planId: 'plan-3',
         appliedAtIso8601: '2026-06-24T00:00:00Z',
         editCount: 3,
         affectedFilePaths: ['a.styio', 'b.styio'],
-        appliedIntents: const [
+        appliedIntents: [
           AgentWorkspaceEditIntent(
             intentId: 'e1', filePath: 'a.styio', editKind: 'replace'),
           AgentWorkspaceEditIntent(
             intentId: 'e2', filePath: 'b.styio', editKind: 'replace'),
         ],
-        failedIntents: const [
+        failedIntents: [
           AgentWorkspaceEditIntent(
             intentId: 'e3', filePath: 'c.styio', editKind: 'delete',
             summary: 'File not found'),
@@ -283,18 +282,18 @@ void main() {
     });
 
     test('rollbackAvailable can be false', () {
-      final application = AgentWorkspaceEditApplication(
+      final application = const AgentWorkspaceEditApplication(
         applicationId: 'app-4',
         planId: 'plan-4',
         appliedAtIso8601: '2026-06-24T00:00:00Z',
         editCount: 1,
         affectedFilePaths: ['main.styio'],
-        appliedIntents: const [
+        appliedIntents: [
           AgentWorkspaceEditIntent(
             intentId: 'e1', filePath: 'main.styio', editKind: 'delete'),
         ],
-        failedIntents: const [],
-        errorMessages: const [],
+        failedIntents: [],
+        errorMessages: [],
         rollbackAvailable: false,
         rollbackTransactionId: '',
       );
@@ -305,11 +304,11 @@ void main() {
 
   group('AgentActionPlan patch workflow', () {
     test('action plan with workspaceWrite requires permission', () {
-      final plan = AgentActionPlan(
+      final plan = const AgentActionPlan(
         planId: 'plan-patch',
         description: 'Apply patch to fix references',
         workspaceEdits: [
-          const AgentWorkspaceEditIntent(
+          AgentWorkspaceEditIntent(
             intentId: 'e1',
             filePath: 'main.styio',
             editKind: 'replace',

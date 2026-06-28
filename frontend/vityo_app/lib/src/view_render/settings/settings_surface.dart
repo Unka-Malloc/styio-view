@@ -7,7 +7,6 @@ import '../../view_ide/environment/configuration/vityo_theme_override.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
 import '../../view_ide/toolchain/toolchain_manager.dart';
 import '../platform/viewport_profile.dart';
-import '../theme/theme.dart';
 
 class SettingsSurface extends StatelessWidget {
   const SettingsSurface({
@@ -180,16 +179,23 @@ class _CommandPaletteSettingsCardState
           DropdownButtonFormField<AppCommandCategory?>(
             key: const ValueKey('settings-command-palette-default-category'),
             initialValue: _defaultCategory,
+            isExpanded: true,
             decoration: const InputDecoration(labelText: 'Default category'),
             items: <DropdownMenuItem<AppCommandCategory?>>[
               const DropdownMenuItem<AppCommandCategory?>(
                 value: null,
-                child: Text('No default category'),
+                child: Text(
+                  'No default category',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               ...AppCommandCategory.values.map(
                 (category) => DropdownMenuItem<AppCommandCategory?>(
                   value: category,
-                  child: Text(category.wireValue),
+                  child: Text(
+                    category.wireValue,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
             ],
@@ -407,14 +413,22 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
   void initState() {
     super.initState();
     _accentController = TextEditingController(
-      text: _colorToHex(widget.themeOverride.accent != null ? Color(widget.themeOverride.accent!) : null),
+      text: _colorToHex(
+        widget.themeOverride.accent != null
+            ? Color(widget.themeOverride.accent!)
+            : null,
+      ),
     );
   }
 
   @override
   void didUpdateWidget(covariant _ThemeSettingsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextText = _colorToHex(widget.themeOverride.accent != null ? Color(widget.themeOverride.accent!) : null);
+    final nextText = _colorToHex(
+      widget.themeOverride.accent != null
+          ? Color(widget.themeOverride.accent!)
+          : null,
+    );
     if (_accentController.text != nextText) {
       _accentController.text = nextText;
     }
@@ -470,7 +484,9 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
                           return;
                         }
                         widget.onSaveThemeOverride!(
-                          widget.themeOverride.copyWith(accent: accent?.value),
+                          widget.themeOverride.copyWith(
+                            accent: accent.toARGB32(),
+                          ),
                         );
                       },
                 child: const Text('Save theme override'),

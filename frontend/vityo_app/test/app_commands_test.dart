@@ -6,6 +6,8 @@ void main() {
     expect(
       StyioCommandRegistry.primaryCommands.map((command) => command.id),
       <AppCommandId>[
+        AppCommandId.save,
+        AppCommandId.saveAll,
         AppCommandId.run,
         AppCommandId.commandPalette,
         AppCommandId.quickOpen,
@@ -250,26 +252,13 @@ void main() {
     expect(
       StyioCommandRegistry.navigationCommands.map((command) => command.id),
       <AppCommandId>[
-        AppCommandId.commandPalette,
-        AppCommandId.quickOpen,
-        AppCommandId.navigateBack,
-        AppCommandId.navigateForward,
-        AppCommandId.showRecentLocations,
-        AppCommandId.showWorkspaceDocumentLinks,
-        AppCommandId.showWorkspaceDocumentHighlights,
-        AppCommandId.showWorkspaceCodeLenses,
-        AppCommandId.goToWorkspaceDeclaration,
-        AppCommandId.goToWorkspaceDefinition,
-        AppCommandId.goToWorkspaceTypeDefinition,
-        AppCommandId.goToWorkspaceImplementation,
-        AppCommandId.showWorkspaceTypeHierarchy,
-        AppCommandId.showWorkspaceOutline,
-        AppCommandId.renameWorkspaceSymbol,
-        AppCommandId.searchWorkspaceSymbols,
-        AppCommandId.findWorkspaceReferences,
-        AppCommandId.showWorkspaceCallHierarchy,
-        AppCommandId.showWorkspaceProblems,
-        AppCommandId.showWorkspaceCodeActions,
+        AppCommandId.searchWorkspace,
+        AppCommandId.goToDefinition,
+        AppCommandId.openWorkspaceFile,
+        AppCommandId.previewWorkspaceReplace,
+        AppCommandId.applyWorkspaceReplace,
+        AppCommandId.nextReference,
+        AppCommandId.previousReference,
       ],
     );
     expect(
@@ -285,6 +274,9 @@ void main() {
         AppCommandId.useActiveCompiler,
         AppCommandId.pinActiveCompiler,
         AppCommandId.clearPinnedCompiler,
+        AppCommandId.bootstrapStyioToolchain,
+        AppCommandId.executeToolchainInstallPlan,
+        AppCommandId.selectClangCppVersion,
       ],
     );
     expect(
@@ -321,6 +313,9 @@ void main() {
         AppCommandId.useActiveCompiler,
         AppCommandId.pinActiveCompiler,
         AppCommandId.clearPinnedCompiler,
+        AppCommandId.bootstrapStyioToolchain,
+        AppCommandId.executeToolchainInstallPlan,
+        AppCommandId.selectClangCppVersion,
         AppCommandId.packProject,
         AppCommandId.preparePublish,
       ],

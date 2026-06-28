@@ -508,14 +508,12 @@ void main() {
     'workspace search watcher stream batcher flushes on debounce timer',
     () async {
       final events = StreamController<FileSystemManagerEvent>();
-      final batches = <WorkspaceSearchWatcherEventBatch>[];
-      final subscription = const WorkspaceSearchWatcherStreamBatcher(
+      final observed = const WorkspaceSearchWatcherStreamBatcher(
         policy: WorkspaceSearchWatcherPolicy(
           debounceWindow: Duration(milliseconds: 5),
           maxEventsPerBatch: 10,
         ),
-      ).bind(events.stream).listen(batches.add);
-      addTearDown(subscription.cancel);
+      ).bind(events.stream).first.timeout(const Duration(seconds: 1));
       addTearDown(events.close);
 
       events
@@ -533,13 +531,14 @@ void main() {
             normalizedPath: '/workspace/vityo/src/b.styio',
           ),
         );
-      await Future<void>.delayed(const Duration(milliseconds: 25));
+      await events.close();
 
-      expect(batches, hasLength(1));
-      expect(batches.single.eventCount, 2);
-      expect(batches.single.shouldRefresh, isTrue);
-      expect(batches.single.refreshPlan.refreshEventCount, 2);
-      expect(batches.single.toJson()['eventCount'], 2);
+      final batch = await observed;
+
+      expect(batch.eventCount, 2);
+      expect(batch.shouldRefresh, isTrue);
+      expect(batch.refreshPlan.refreshEventCount, 2);
+      expect(batch.toJson()['eventCount'], 2);
     },
   );
 

@@ -125,9 +125,6 @@ Future<void> _pumpUntil(
 
 String _dartExecutablePath() {
   final resolved = File(Platform.resolvedExecutable);
-  if (!Platform.isWindows) {
-    return resolved.path;
-  }
   for (final candidate in _dartExecutableCandidatesFor(resolved)) {
     if (candidate.existsSync()) {
       return candidate.path;
@@ -150,18 +147,27 @@ String _dartExecutablePath() {
 
 List<File> _dartExecutableCandidatesFor(File resolved) {
   final resolvedName = resolved.path.split(RegExp(r'[\\/]')).last.toLowerCase();
+  final dartExecutableName = Platform.isWindows ? 'dart.exe' : 'dart';
   final separator = Platform.pathSeparator;
   return <File>[
-    if (resolvedName == 'dart.exe') resolved,
-    File('${resolved.path}.exe'),
-    File([resolved.parent.path, 'dart.exe'].join(separator)),
+    if (resolvedName == dartExecutableName) resolved,
+    if (Platform.isWindows) File('${resolved.path}.exe'),
+    File([resolved.parent.path, dartExecutableName].join(separator)),
     File(
       [
         resolved.parent.path,
         'cache',
         'dart-sdk',
         'bin',
-        'dart.exe',
+        dartExecutableName,
+      ].join(separator),
+    ),
+    File(
+      [
+        resolved.parent.parent.parent.parent.path,
+        'dart-sdk',
+        'bin',
+        dartExecutableName,
       ].join(separator),
     ),
   ];

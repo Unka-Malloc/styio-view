@@ -227,12 +227,18 @@ class LocalFileSystemManager implements FileSystemManager {
 
   @override
   Future<String> readText(String path) async {
-    return File(normalizePath(path)).readAsString();
+    return _readFileWithRetry<String>(
+      File(normalizePath(path)),
+      (file) => file.readAsString(),
+    );
   }
 
   @override
   Future<List<int>> readBytes(String path) async {
-    return File(normalizePath(path)).readAsBytes();
+    return _readFileWithRetry<List<int>>(
+      File(normalizePath(path)),
+      (file) => file.readAsBytes(),
+    );
   }
 
   @override
@@ -450,6 +456,33 @@ Future<File> _renameFileWithRetry(File source, String target) async {
     }
   }
   return source.rename(target);
+}
+
+Future<T> _readFileWithRetry<T>(
+  File file,
+  Future<T> Function(File file) read,
+) async {
+  for (var attempt = 0; attempt < 6; attempt += 1) {
+    try {
+      return await read(file);
+    } on FileSystemException catch (error) {
+      if (!_isTransientWindowsFileLock(error) || attempt == 5) {
+        rethrow;
+      }
+      await Future<void>.delayed(Duration(milliseconds: 25 * (1 << attempt)));
+    }
+  }
+  return read(file);
+}
+
+bool _isTransientWindowsFileLock(FileSystemException error) {
+  if (!Platform.isWindows) {
+    return false;
+  }
+  return switch (error.osError?.errorCode) {
+    32 || 33 => true,
+    _ => false,
+  };
 }
 
 FileSystemFailureKind? _localFileSystemFailureKind(Object error) {

@@ -1137,9 +1137,7 @@ Future<_PreparedExecutionInput> _prepareSingleFileExecutionInput({
     );
   }
 
-  final tempDirectory = await Directory.systemTemp.createTemp(
-    'Vityo-run-',
-  );
+  final tempDirectory = await Directory.systemTemp.createTemp('Vityo-run-');
   final tempFile = File(
     '${tempDirectory.path}${Platform.pathSeparator}main.styio',
   );
@@ -1632,6 +1630,16 @@ bool _samePath(String left, String right) {
   return left.toLowerCase() == right.toLowerCase();
 }
 
+bool _sameDiagnosticFile(String left, String right) {
+  if (!_isAbsolutePath(left) || !_isAbsolutePath(right)) {
+    return left == right;
+  }
+  return _samePath(
+    _canonicalPathForContainment(left),
+    _canonicalPathForContainment(right),
+  );
+}
+
 bool _pathStartsWith(String path, String prefix) {
   if (!Platform.isWindows) {
     return path.startsWith(prefix);
@@ -1757,7 +1765,7 @@ _ParsedDiagnosticRecord? _parseDiagnosticObject(
   if (filePath != null &&
       filePath.isNotEmpty &&
       activeFilePath.isNotEmpty &&
-      filePath != activeFilePath) {
+      !_sameDiagnosticFile(filePath, activeFilePath)) {
     return _ParsedDiagnosticRecord(logMessage: displayMessage);
   }
   return _ParsedDiagnosticRecord(
@@ -1844,7 +1852,7 @@ SourceRange? _diagnosticRangeFromPayload(
   if (filePath != null &&
       filePath.isNotEmpty &&
       activeFilePath.isNotEmpty &&
-      filePath != activeFilePath) {
+      !_sameDiagnosticFile(filePath, activeFilePath)) {
     return null;
   }
 
@@ -1973,5 +1981,13 @@ bool _isAbsolutePath(String path) {
 }
 
 String _joinPath(String base, String child) {
-  return Directory(base).uri.resolve(child).toFilePath();
+  var result = base;
+  for (final segment
+      in child
+          .replaceAll('\\', '/')
+          .split('/')
+          .where((segment) => segment.isNotEmpty && segment != '.')) {
+    result = _appendRelativePath(result, segment);
+  }
+  return result;
 }

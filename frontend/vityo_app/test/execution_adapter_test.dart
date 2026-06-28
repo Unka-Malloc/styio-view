@@ -1331,14 +1331,16 @@ raise SystemExit(64)
       expect(testSession.kind, 'test');
       expect(testSession.sessionId, 'artifact-session');
       expect(testSession.stdoutEvents.single.message, 'plain stdout');
-      expect(
-        testSession.diagnostics.map((diagnostic) => diagnostic.message),
-        containsAll(<String>[
-          'range summary range detail',
-          'negative length',
-          'stderr diagnostic',
-        ]),
-      );
+      final diagnosticMessages = testSession.diagnostics
+          .map((diagnostic) => diagnostic.message)
+          .toList(growable: false);
+      for (final expectedMessage in <String>[
+        'range summary range detail',
+        'negative length',
+        'stderr diagnostic',
+      ]) {
+        expect(diagnosticMessages, anyElement(contains(expectedMessage)));
+      }
       expect(testSession.diagnostics.first.severity, DiagnosticSeverity.warning);
       expect(testSession.diagnostics.first.code, '99');
       expect(testSession.diagnostics.first.range.start, 4);

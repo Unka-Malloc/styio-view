@@ -343,7 +343,7 @@ The bridge is intentionally temporary. It exists to keep current project diagnos
 
 The CLI connector must receive a real file path. For Vityo-owned workspace documents, the path is resolved by `WorkspaceDocumentStore.filePathForDocumentId`. For absolute project files, the document id may already be the file path.
 
-The test fixture naming rule applies here: parser-expected fixtures use `.true.styio` or `.false.styio`, and `.true.styio` fixtures must pass the real Styio parser command used by the connector.
+The test fixture naming rule applies here: parser-expected fixtures use `.true.styio` or `.false.styio`, and `.true.styio` fixtures must pass the real Styio parser command used by the connector. The repository CI wrapper defaults to `test/fixtures/language_service` and `test/fixtures/styio_language/syntax_contract`; broader fixture sets must be passed explicitly with `--fixture-root`.
 
 Platform discovery currently checks `VITYO_STYIO_BIN`, common local binary paths such as `/usr/local/bin/styio`, Windows executable extensions such as `styio.exe`, and host lookup through `which styio` or `where.exe styio` on IO platforms. Non-IO platforms return an empty toolchain catalog and keep the local fallback service active.
 

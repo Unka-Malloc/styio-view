@@ -10,6 +10,18 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import '../tool/language_fixture_gate.dart' as language_fixture_gate;
 
 void main() {
+  test('language fixture gate command defaults to parser-backed CI roots', () {
+    final config = language_fixture_gate.LanguageFixtureGateCommandConfig.parse(
+      const <String>[],
+      environment: const <String, String>{},
+    );
+
+    expect(config.roots, const <String>[
+      'test/fixtures/language_service',
+      'test/fixtures/styio_language/syntax_contract',
+    ]);
+  });
+
   Future<ConfigurationStore> createConfigurationStore(Directory root) async {
     final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
     final resourceManager = LocalResourceManager(

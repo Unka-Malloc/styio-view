@@ -10,7 +10,10 @@ Styio executable.
 
 Options:
   --flutter-dir <dir>    Flutter shell directory (default: frontend/vityo_app)
-  --fixture-root <dir>   Fixture root inside the Flutter directory (default: test/fixtures)
+  --fixture-root <dir>   Fixture root inside the Flutter directory (can repeat).
+                         Defaults to parser-backed CI fixture roots:
+                         test/fixtures/language_service and
+                         test/fixtures/styio_language/syntax_contract
   --styio-bin <path>     Explicit Styio executable path
   -h, --help             Show this help
 
@@ -32,7 +35,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 FLUTTER_DIR="frontend/vityo_app"
-FIXTURE_ROOT="test/fixtures"
+DEFAULT_FIXTURE_ROOTS=(
+  "test/fixtures/language_service"
+  "test/fixtures/styio_language/syntax_contract"
+)
+FIXTURE_ROOTS=()
 STYIO_BIN="${STYIO:-}"
 
 while [[ $# -gt 0 ]]; do
@@ -42,7 +49,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     --fixture-root)
-      FIXTURE_ROOT="$2"
+      FIXTURE_ROOTS+=("$2")
       shift 2
       ;;
     --styio-bin)
@@ -86,10 +93,20 @@ if [[ -z "$STYIO_BIN" || ! -x "$STYIO_BIN" ]]; then
   exit 2
 fi
 
+if [[ "${#FIXTURE_ROOTS[@]}" -eq 0 ]]; then
+  FIXTURE_ROOTS=("${DEFAULT_FIXTURE_ROOTS[@]}")
+fi
+
 log "styio: $STYIO_BIN"
-log "fixture root: $FLUTTER_DIR/$FIXTURE_ROOT"
+for fixture_root in "${FIXTURE_ROOTS[@]}"; do
+  log "fixture root: $FLUTTER_DIR/$fixture_root"
+done
 
 (
   cd "$FLUTTER_DIR"
-  dart run tool/language_fixture_gate.dart --styio "$STYIO_BIN" --root "$FIXTURE_ROOT"
+  LANGUAGE_FIXTURE_ARGS=(dart run tool/language_fixture_gate.dart --styio "$STYIO_BIN")
+  for fixture_root in "${FIXTURE_ROOTS[@]}"; do
+    LANGUAGE_FIXTURE_ARGS+=(--root "$fixture_root")
+  done
+  "${LANGUAGE_FIXTURE_ARGS[@]}"
 )

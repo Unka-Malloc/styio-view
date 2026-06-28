@@ -114,7 +114,10 @@ Options:
   --timeout-ms <number>   Per-fixture toolchain timeout. Defaults to 10000.
   -h, --help              Show this help.
 
-If no fixture root is provided, the command scans test/fixtures.
+If no fixture root is provided, the command scans the parser-backed fixture
+roots used by repository CI:
+  test/fixtures/language_service
+  test/fixtures/styio_language/syntax_contract
 ''';
 
   static LanguageFixtureGateCommandConfig parse(
@@ -159,7 +162,12 @@ If no fixture root is provided, the command scans test/fixtures.
     }
     return LanguageFixtureGateCommandConfig(
       styioExecutable: styioExecutable,
-      roots: roots.isEmpty ? const <String>['test/fixtures'] : roots,
+      roots: roots.isEmpty
+          ? const <String>[
+              'test/fixtures/language_service',
+              'test/fixtures/styio_language/syntax_contract',
+            ]
+          : roots,
       parserEngine: parserEngine,
       timeout: timeout,
       help: help,

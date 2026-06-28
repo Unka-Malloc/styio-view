@@ -63,6 +63,10 @@ human summary to stderr for CI logs.
 `scripts/language-fixture-gate.sh` is the repository-level wrapper. It resolves
 the Styio executable from `--styio-bin`, `STYIO`, sibling `styio-nightly` build
 outputs, `/usr/local/bin/styio`, or `PATH`, then runs the Flutter tool command.
+By default, the wrapper scans only the parser-backed CI fixture roots
+`test/fixtures/language_service` and
+`test/fixtures/styio_language/syntax_contract`. Use repeated `--fixture-root`
+options when intentionally validating a broader fixture set.
 `scripts/checkpoint-health.sh` calls this wrapper by default, and the GitHub
 local CI workflow builds sibling `styio-nightly` before invoking the Vityo gate.
 

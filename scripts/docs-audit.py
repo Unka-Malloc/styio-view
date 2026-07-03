@@ -21,7 +21,7 @@ REQUIRED_COLLECTION_DIRS = [
     DOCS / "contracts",
     DOCS / "design",
     DOCS / "external",
-    DOCS / "external" / "for-spio",
+    DOCS / "external" / "for-pafio",
     DOCS / "external" / "for-styio",
     DOCS / "history",
     DOCS / "milestones",

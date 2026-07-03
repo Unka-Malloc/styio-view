@@ -2,16 +2,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'project_graph_contract.dart';
-import 'spio_cli_discovery.dart';
+import 'pafio_cli_discovery.dart';
 
-const String missingLocalSpioBinaryMessage =
-    'No spio binary was resolved. Set VITYO_SPIO_BIN or keep styio-spio available in the local workspace.';
+const String missingLocalPafioBinaryMessage =
+    'No pafio binary was resolved. Set VITYO_PAFIO_BIN or keep styio-pafio available in the local workspace.';
 
-enum LocalSpioCommandOutcome { blocked, succeeded, failed }
+enum LocalPafioCommandOutcome { blocked, succeeded, failed }
 
-typedef SpioCommandResultFactory<T> =
+typedef PafioCommandResultFactory<T> =
     T Function({
-      required LocalSpioCommandOutcome outcome,
+      required LocalPafioCommandOutcome outcome,
       required String command,
       required String statusMessage,
       required String stdout,
@@ -20,13 +20,13 @@ typedef SpioCommandResultFactory<T> =
       Map<String, dynamic>? errorPayload,
     });
 
-T blockedSpioCommandResult<T>({
-  required SpioCommandResultFactory<T> factory,
+T blockedPafioCommandResult<T>({
+  required PafioCommandResultFactory<T> factory,
   required String command,
   required String statusMessage,
 }) {
   return factory(
-    outcome: LocalSpioCommandOutcome.blocked,
+    outcome: LocalPafioCommandOutcome.blocked,
     command: command,
     statusMessage: statusMessage,
     stdout: '',
@@ -34,7 +34,7 @@ T blockedSpioCommandResult<T>({
   );
 }
 
-List<String> spioManifestArgs(ProjectGraphSnapshot projectGraph) {
+List<String> pafioManifestArgs(ProjectGraphSnapshot projectGraph) {
   final manifestPath = projectGraph.manifestPath;
   if (manifestPath == null || manifestPath.isEmpty) {
     return const <String>[];
@@ -56,18 +56,18 @@ Map<String, dynamic>? parseJsonObjectPayload(String text) {
   }
 }
 
-Future<T> runLocalSpioCommand<T>({
+Future<T> runLocalPafioCommand<T>({
   required ProjectGraphSnapshot projectGraph,
   required String command,
   required List<String> args,
-  required SpioCommandResultFactory<T> factory,
-  String missingBinaryMessage = missingLocalSpioBinaryMessage,
+  required PafioCommandResultFactory<T> factory,
+  String missingBinaryMessage = missingLocalPafioBinaryMessage,
 }) async {
-  final spioBinary = await resolveSpioBinary(
+  final pafioBinary = await resolvePafioBinary(
     workspaceRoot: projectGraph.workspaceRoot,
   );
-  if (spioBinary == null) {
-    return blockedSpioCommandResult(
+  if (pafioBinary == null) {
+    return blockedPafioCommandResult(
       factory: factory,
       command: command,
       statusMessage: missingBinaryMessage,
@@ -76,7 +76,7 @@ Future<T> runLocalSpioCommand<T>({
 
   try {
     final result = await Process.run(
-      spioBinary,
+      pafioBinary,
       args,
       workingDirectory: projectGraph.workspaceRoot,
     );
@@ -86,11 +86,11 @@ Future<T> runLocalSpioCommand<T>({
     final failurePayload = parseJsonObjectPayload(stderr);
     if (result.exitCode == 0) {
       return factory(
-        outcome: LocalSpioCommandOutcome.succeeded,
+        outcome: LocalPafioCommandOutcome.succeeded,
         command: command,
         statusMessage:
             successPayload?['message'] as String? ??
-            '$command completed through spio.',
+            '$command completed through pafio.',
         stdout: stdout,
         stderr: stderr,
         payload: successPayload,
@@ -98,7 +98,7 @@ Future<T> runLocalSpioCommand<T>({
     }
 
     return factory(
-      outcome: LocalSpioCommandOutcome.failed,
+      outcome: LocalPafioCommandOutcome.failed,
       command: command,
       statusMessage:
           failurePayload?['message'] as String? ??
@@ -109,9 +109,9 @@ Future<T> runLocalSpioCommand<T>({
     );
   } on ProcessException catch (error) {
     return factory(
-      outcome: LocalSpioCommandOutcome.failed,
+      outcome: LocalPafioCommandOutcome.failed,
       command: command,
-      statusMessage: 'Failed to execute spio: ${error.message}',
+      statusMessage: 'Failed to execute pafio: ${error.message}',
       stdout: '',
       stderr: '',
     );

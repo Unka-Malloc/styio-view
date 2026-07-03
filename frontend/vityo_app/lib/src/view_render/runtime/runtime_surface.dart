@@ -586,7 +586,7 @@ class _RuntimeEventSection extends StatelessWidget {
           const SizedBox(height: 10),
           if (replay.events.isEmpty)
             Text(
-              'No published runtime events have been captured yet. Run a project session through spio to populate compile/run replay data.',
+              'No published runtime events have been captured yet. Run a project session through pafio to populate compile/run replay data.',
               style: theme.textTheme.bodySmall,
             )
           else ...[
@@ -908,7 +908,7 @@ class _RuntimeGraphSection extends StatelessWidget {
           const SizedBox(height: 10),
           if (graph.routeNodes.isEmpty)
             Text(
-              'No execution graph can be derived yet. Run a project session through spio to publish runtime replay first.',
+              'No execution graph can be derived yet. Run a project session through pafio to publish runtime replay first.',
               style: theme.textTheme.bodySmall,
             )
           else ...[

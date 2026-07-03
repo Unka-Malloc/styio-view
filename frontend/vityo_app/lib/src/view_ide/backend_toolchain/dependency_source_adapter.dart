@@ -38,16 +38,16 @@ String? blockedDependencySourceCommandReason({
     if (projectGraph.hasHostedWorkspace) {
       final manifestPath = projectGraph.manifestPath;
       if (manifestPath == null || manifestPath.isEmpty) {
-        return '$command requires a resolved spio manifest path.';
+        return '$command requires a resolved pafio manifest path.';
       }
       return null;
     }
-    return '${platformTarget.label} does not expose local spio dependency materialization commands.';
+    return '${platformTarget.label} does not expose local pafio dependency materialization commands.';
   }
 
   final manifestPath = projectGraph.manifestPath;
   if (manifestPath == null || manifestPath.isEmpty) {
-    return '$command requires a resolved spio manifest path.';
+    return '$command requires a resolved pafio manifest path.';
   }
 
   return null;

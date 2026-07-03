@@ -1,16 +1,16 @@
 import 'dart:io';
 
-Future<File> writeFakeSpioCli({
+Future<File> writeFakePafioCli({
   required Directory workspaceRoot,
   required String pythonSource,
 }) async {
   final binDirectory = Directory(
-    '${workspaceRoot.path}${Platform.pathSeparator}.spio'
+    '${workspaceRoot.path}${Platform.pathSeparator}.pafio'
     '${Platform.pathSeparator}bin',
   );
   return writeFakePythonCli(
     directory: binDirectory,
-    executableName: 'spio',
+    executableName: 'pafio',
     pythonSource: pythonSource,
   );
 }
@@ -43,7 +43,7 @@ Future<File> writeFakePythonCli({
   final chmod = Process.runSync('chmod', <String>['+x', executable.path]);
   if (chmod.exitCode != 0) {
     throw FileSystemException(
-      'Failed to mark fake spio executable: ${chmod.stderr}',
+      'Failed to mark fake pafio executable: ${chmod.stderr}',
       executable.path,
     );
   }

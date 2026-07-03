@@ -914,16 +914,16 @@ void main() {
 
 ProjectGraphSnapshot _projectGraph() {
   return const ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.package,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
-    lockfilePath: '/workspace/demo/spio.lock',
-    toolchainPinPath: '/workspace/demo/spio-toolchain.toml',
-    vendorRoot: '/workspace/demo/.spio/vendor',
-    buildRoot: '/workspace/demo/.spio/build',
+    manifestPath: '/workspace/demo/pafio.toml',
+    lockfilePath: '/workspace/demo/pafio.lock',
+    toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
+    vendorRoot: '/workspace/demo/.pafio/vendor',
+    buildRoot: '/workspace/demo/.pafio/build',
     packages: <ProjectPackageSnapshot>[],
     dependencies: <ProjectDependencySnapshot>[],
     targets: <ProjectTargetDescriptor>[],

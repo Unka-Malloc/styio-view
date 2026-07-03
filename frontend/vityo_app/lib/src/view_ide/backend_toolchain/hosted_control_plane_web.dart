@@ -34,7 +34,7 @@ HostedControlPlaneConfig? resolveHostedControlPlaneConfig({
       : '/workspace/hosted';
   final manifestPath = configuredManifestPath.isNotEmpty
       ? configuredManifestPath
-      : '$workspaceRoot/spio.toml';
+      : '$workspaceRoot/pafio.toml';
   return HostedControlPlaneConfig(
     baseUrl: baseUrl,
     workspaceRoot: workspaceRoot,

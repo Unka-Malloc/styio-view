@@ -1169,8 +1169,8 @@ class _RequiredHandoffsCard extends StatelessWidget {
     final styioCount = handoffs
         .where((handoff) => handoff.owner == HandoffOwner.styio)
         .length;
-    final spioCount = handoffs
-        .where((handoff) => handoff.owner == HandoffOwner.spio)
+    final pafioCount = handoffs
+        .where((handoff) => handoff.owner == HandoffOwner.pafio)
         .length;
 
     return DecoratedBox(
@@ -1197,7 +1197,7 @@ class _RequiredHandoffsCard extends StatelessWidget {
               children: [
                 Chip(label: Text('$blockingCount blocking')),
                 Chip(label: Text('$styioCount styio')),
-                Chip(label: Text('$spioCount spio')),
+                Chip(label: Text('$pafioCount pafio')),
               ],
             ),
             const SizedBox(height: 10),

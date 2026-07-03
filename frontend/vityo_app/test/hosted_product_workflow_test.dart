@@ -122,7 +122,7 @@ void main() {
           install.succeeded,
           isTrue,
           reason:
-              '${scenario.label} should install the managed compiler through hosted spio. '
+              '${scenario.label} should install the managed compiler through hosted pafio. '
               'status=${install.status.name} message=${install.statusMessage}',
         );
         final installedToolchains =
@@ -164,7 +164,7 @@ void main() {
           installAlternate.succeeded,
           isTrue,
           reason:
-              '${scenario.label} should install the alternate managed compiler through hosted spio. '
+              '${scenario.label} should install the alternate managed compiler through hosted pafio. '
               'status=${installAlternate.status.name} message=${installAlternate.statusMessage}',
         );
         final refreshedToolchains =
@@ -591,7 +591,7 @@ void main() {
           fetch.errorPayload,
           isNotNull,
           reason:
-              '${scenario.label} should keep the structured spio failure payload for dependency fetch errors.',
+              '${scenario.label} should keep the structured pafio failure payload for dependency fetch errors.',
         );
         expect(
           shell.lastDependencySourceCommand?.status,
@@ -614,7 +614,7 @@ void main() {
           preflight.errorPayload,
           isNotNull,
           reason:
-              '${scenario.label} should keep the structured spio failure payload for hosted preflight errors.',
+              '${scenario.label} should keep the structured pafio failure payload for hosted preflight errors.',
         );
         expect(
           shell.lastDeploymentCommand?.status,

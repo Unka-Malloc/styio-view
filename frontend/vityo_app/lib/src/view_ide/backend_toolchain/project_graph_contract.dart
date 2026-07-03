@@ -347,13 +347,13 @@ class ManagedToolchainInstallSnapshot {
 
 class ManagedToolchainStateSnapshot {
   const ManagedToolchainStateSnapshot({
-    this.spioHome,
+    this.pafioHome,
     this.currentBinaryPath,
     this.currentMetadataPath,
     this.installed = const <ManagedToolchainInstallSnapshot>[],
   });
 
-  final String? spioHome;
+  final String? pafioHome;
   final String? currentBinaryPath;
   final String? currentMetadataPath;
   final List<ManagedToolchainInstallSnapshot> installed;
@@ -514,7 +514,7 @@ class VendorSourceStateSnapshot {
 class ProjectSourceStateSnapshot {
   const ProjectSourceStateSnapshot({
     required this.schemaVersion,
-    this.spioHome,
+    this.pafioHome,
     this.declaredGitDependencies = 0,
     this.declaredRegistryDependencies = 0,
     this.gitCache = const GitCacheStateSnapshot(),
@@ -523,7 +523,7 @@ class ProjectSourceStateSnapshot {
   });
 
   final int schemaVersion;
-  final String? spioHome;
+  final String? pafioHome;
   final int declaredGitDependencies;
   final int declaredRegistryDependencies;
   final GitCacheStateSnapshot gitCache;
@@ -701,11 +701,11 @@ class ProjectGraphSnapshot {
       workspaceRoot: workspaceRoot,
       workspaceMembers: const <String>[],
       manifestPath: null,
-      lockfilePath: '$workspaceRoot/spio.lock',
+      lockfilePath: '$workspaceRoot/pafio.lock',
       toolchainPinPath: null,
       styioConfigPath: null,
-      vendorRoot: '$workspaceRoot/.spio/vendor',
-      buildRoot: '$workspaceRoot/.spio/build',
+      vendorRoot: '$workspaceRoot/.pafio/vendor',
+      buildRoot: '$workspaceRoot/.pafio/build',
       packages: const <ProjectPackageSnapshot>[],
       dependencies: const <ProjectDependencySnapshot>[],
       targets: const <ProjectTargetDescriptor>[],

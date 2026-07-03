@@ -1,14 +1,14 @@
 import '../platform/platform_target.dart';
 import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
-import 'spio_cli_support.dart';
+import 'pafio_cli_support.dart';
 import 'toolchain_management_adapter.dart';
 
 ToolchainCommandResult _blockedToolchainCommandResult({
   required String command,
   required String statusMessage,
 }) {
-  return blockedSpioCommandResult(
+  return blockedPafioCommandResult(
     factory: _toolchainCommandResult,
     command: command,
     statusMessage: statusMessage,
@@ -23,7 +23,7 @@ ToolchainCommandResult? _unsupportedLocalToolchainPlatformResult({
     PlatformTarget.ios || PlatformTarget.web => _blockedToolchainCommandResult(
       command: command,
       statusMessage:
-          '${platformTarget.label} does not expose local spio toolchain management.',
+          '${platformTarget.label} does not expose local pafio toolchain management.',
     ),
     _ => null,
   };
@@ -212,7 +212,7 @@ class _LocalCliToolchainManagementAdapter
         _blockedToolchainCommandResult(
           command: 'tool pin',
           statusMessage:
-              'Project pinning requires a resolved spio manifest path.',
+              'Project pinning requires a resolved pafio manifest path.',
         ),
       );
     }
@@ -245,7 +245,7 @@ class _LocalCliToolchainManagementAdapter
         _blockedToolchainCommandResult(
           command: 'tool pin',
           statusMessage:
-              'Clearing a project pin requires a resolved spio manifest path.',
+              'Clearing a project pin requires a resolved pafio manifest path.',
         ),
       );
     }
@@ -276,7 +276,7 @@ class _LocalCliToolchainManagementAdapter
       return blockedResult;
     }
 
-    return runLocalSpioCommand(
+    return runLocalPafioCommand(
       projectGraph: projectGraph,
       command: command,
       args: args,
@@ -317,7 +317,7 @@ ToolchainCommandResult _toolchainCommandResultFromHostedResponse({
 }
 
 ToolchainCommandResult _toolchainCommandResult({
-  required LocalSpioCommandOutcome outcome,
+  required LocalPafioCommandOutcome outcome,
   required String command,
   required String statusMessage,
   required String stdout,
@@ -328,9 +328,9 @@ ToolchainCommandResult _toolchainCommandResult({
   return ToolchainCommandResult(
     command: command,
     status: switch (outcome) {
-      LocalSpioCommandOutcome.blocked => ToolchainCommandStatus.blocked,
-      LocalSpioCommandOutcome.succeeded => ToolchainCommandStatus.succeeded,
-      LocalSpioCommandOutcome.failed => ToolchainCommandStatus.failed,
+      LocalPafioCommandOutcome.blocked => ToolchainCommandStatus.blocked,
+      LocalPafioCommandOutcome.succeeded => ToolchainCommandStatus.succeeded,
+      LocalPafioCommandOutcome.failed => ToolchainCommandStatus.failed,
     },
     statusMessage: statusMessage,
     stdout: stdout,

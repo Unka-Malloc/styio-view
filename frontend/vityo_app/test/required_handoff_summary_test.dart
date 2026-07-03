@@ -5,7 +5,7 @@ import 'package:vityo_app/src/integration/required_handoff_summary.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
 void main() {
-  test('summarizes styio and spio handoffs for preview-only project route', () {
+  test('summarizes styio and pafio handoffs for preview-only project route', () {
     final handoffs = summarizeRequiredHandoffs(
       platformTarget: PlatformTarget.macos,
       projectGraph: const ProjectGraphSnapshot(
@@ -14,9 +14,9 @@ void main() {
         kind: ProjectKind.package,
         workspaceRoot: '/workspace/demo',
         workspaceMembers: <String>[],
-        manifestPath: '/workspace/demo/spio.toml',
-        lockfilePath: '/workspace/demo/spio.lock',
-        toolchainPinPath: '/workspace/demo/spio-toolchain.toml',
+        manifestPath: '/workspace/demo/pafio.toml',
+        lockfilePath: '/workspace/demo/pafio.lock',
+        toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
         dependencies: <ProjectDependencySnapshot>[],
         packages: <ProjectPackageSnapshot>[],
         targets: <ProjectTargetDescriptor>[],
@@ -98,7 +98,7 @@ void main() {
     expect(
       handoffs.any(
         (handoff) =>
-            handoff.owner == HandoffOwner.spio &&
+            handoff.owner == HandoffOwner.pafio &&
             handoff.title.contains('project graph'),
       ),
       isTrue,
@@ -106,7 +106,7 @@ void main() {
     expect(
       handoffs.any(
         (handoff) =>
-            handoff.owner == HandoffOwner.spio &&
+            handoff.owner == HandoffOwner.pafio &&
             handoff.title.contains('toolchain'),
       ),
       isTrue,
@@ -124,7 +124,7 @@ void main() {
           kind: ProjectKind.package,
           workspaceRoot: '/workspace/runtime-events',
           workspaceMembers: <String>[],
-          manifestPath: '/workspace/runtime-events/spio.toml',
+          manifestPath: '/workspace/runtime-events/pafio.toml',
           dependencies: <ProjectDependencySnapshot>[],
           packages: <ProjectPackageSnapshot>[],
           targets: <ProjectTargetDescriptor>[],
@@ -193,7 +193,7 @@ void main() {
           kind: ProjectKind.hosted,
           workspaceRoot: '/workspace/cloud-demo',
           workspaceMembers: <String>[],
-          manifestPath: '/workspace/cloud-demo/spio.toml',
+          manifestPath: '/workspace/cloud-demo/pafio.toml',
           dependencies: <ProjectDependencySnapshot>[],
           packages: <ProjectPackageSnapshot>[],
           targets: <ProjectTargetDescriptor>[],
@@ -249,7 +249,7 @@ void main() {
           kind: ProjectKind.hosted,
           workspaceRoot: '/workspace/hosted-runtime',
           workspaceMembers: const <String>[],
-          manifestPath: '/workspace/hosted-runtime/spio.toml',
+          manifestPath: '/workspace/hosted-runtime/pafio.toml',
           dependencies: const <ProjectDependencySnapshot>[],
           packages: const <ProjectPackageSnapshot>[],
           targets: const <ProjectTargetDescriptor>[],
@@ -272,7 +272,7 @@ void main() {
           ),
           sourceState: const ProjectSourceStateSnapshot(
             schemaVersion: 1,
-            spioHome: '/workspace/.spio',
+            pafioHome: '/workspace/.pafio',
           ),
           hostedWorkspace: HostedWorkspaceRecordSnapshot(
             workspaceId: 'hosted-runtime',
@@ -339,7 +339,7 @@ void main() {
           kind: ProjectKind.package,
           workspaceRoot: '/workspace/demo-env',
           workspaceMembers: <String>[],
-          manifestPath: '/workspace/demo-env/spio.toml',
+          manifestPath: '/workspace/demo-env/pafio.toml',
           dependencies: <ProjectDependencySnapshot>[],
           packages: <ProjectPackageSnapshot>[],
           targets: <ProjectTargetDescriptor>[],
@@ -360,7 +360,7 @@ void main() {
           ),
           sourceState: ProjectSourceStateSnapshot(
             schemaVersion: 1,
-            spioHome: '/workspace/.spio',
+            pafioHome: '/workspace/.pafio',
           ),
           notes: <String>[],
         ),
@@ -414,7 +414,7 @@ void main() {
           kind: ProjectKind.package,
           workspaceRoot: '/workspace/demo-cache',
           workspaceMembers: <String>[],
-          manifestPath: '/workspace/demo-cache/spio.toml',
+          manifestPath: '/workspace/demo-cache/pafio.toml',
           dependencies: <ProjectDependencySnapshot>[],
           packages: <ProjectPackageSnapshot>[],
           targets: <ProjectTargetDescriptor>[],
@@ -468,7 +468,7 @@ void main() {
     },
   );
 
-  test('requests repair handoffs when published spio payloads fail', () {
+  test('requests repair handoffs when published pafio payloads fail', () {
     final handoffs = summarizeRequiredHandoffs(
       platformTarget: PlatformTarget.macos,
       projectGraph: const ProjectGraphSnapshot(
@@ -477,7 +477,7 @@ void main() {
         kind: ProjectKind.package,
         workspaceRoot: '/workspace/demo-broken',
         workspaceMembers: <String>[],
-        manifestPath: '/workspace/demo-broken/spio.toml',
+        manifestPath: '/workspace/demo-broken/pafio.toml',
         dependencies: <ProjectDependencySnapshot>[],
         packages: <ProjectPackageSnapshot>[],
         targets: <ProjectTargetDescriptor>[],
@@ -489,11 +489,11 @@ void main() {
         lockState: ProjectLockState.unknown,
         vendorState: ProjectVendorState.unknown,
         projectGraphPayloadFailure: PublishedPayloadFailure(
-          command: 'spio project-graph --json',
+          command: 'pafio project-graph --json',
           detail: 'Published project graph payload emitted invalid JSON.',
         ),
         toolchainStatePayloadFailure: PublishedPayloadFailure(
-          command: 'spio tool status --json',
+          command: 'pafio tool status --json',
           detail: 'Published toolchain-state payload emitted invalid JSON.',
         ),
         notes: <String>[],

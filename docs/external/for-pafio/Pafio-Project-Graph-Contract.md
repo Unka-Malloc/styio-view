@@ -1,6 +1,6 @@
-# Spio Project Graph Contract
+# Pafio Project Graph Contract
 
-**Purpose:** 冻结 `Vityo` 对 `spio` 项目图 published payload 的 handoff 要求。
+**Purpose:** 冻结 `styio-view` 对 `pafio` 项目图 published payload 的 handoff 要求。
 
 **Last updated:** 2026-04-17
 
@@ -9,19 +9,19 @@
 正式 project graph machine path 使用：
 
 ```text
-spio project-graph --json
-spio project-graph --manifest-path <path> --json [--styio-bin <path>]
+pafio project-graph --json
+pafio project-graph --manifest-path <path> --json [--styio-bin <path>]
 ```
 
-其中基线 spelling 也固定为 `spio project-graph --manifest-path <path> --json`。
+其中基线 spelling 也固定为 `pafio project-graph --manifest-path <path> --json`。
 
 当前 published payload family：
 
-1. `project_graph` published family
+1. `project_graph v1`
 
 ## 2. Required Published Keys
 
-`Vityo` 需要 `spio project-graph --manifest-path <path> --json [--styio-bin <path>]` 至少提供这些 published keys：
+`styio-view` 需要 `pafio project-graph --manifest-path <path> --json [--styio-bin <path>]` 至少提供这些 published keys：
 
 1. `workspace_root`
 2. `manifest_path`
@@ -51,7 +51,7 @@ spio project-graph --manifest-path <path> --json [--styio-bin <path>]
 6. `packageDistribution`
 7. `sourceState`
 
-但对接真相源仍然是 `spio` 发布的 snake_case payload。
+但对接真相源仍然是 `pafio` 发布的 snake_case payload。
 
 ## 3. Required Behaviors
 
@@ -62,13 +62,13 @@ spio project-graph --manifest-path <path> --json [--styio-bin <path>]
 5. package records 必须带 `publish_enabled`。
 6. dependency records 必须带 `source_kind / package / path / git / rev / registry / version / publish_blocking`。
 7. `package_distribution` 必须给出 per-package `publish_ready`、`blocking_reasons` 和 aggregated `registry_sources`。
-8. `source_state` 必须给出 `spio_home`、git cache roots、registry cache roots、vendor metadata presence。
+8. `source_state` 必须给出 `pafio_home`、git cache roots、registry cache roots、vendor metadata presence。
 9. 项目 pin 指向未安装 compiler 时，必须通过 published payload 返回，而不是让前端把 `active_compiler = null` 当成“没配置”。
-10. 如果 shell 设置了 `VITYO_STYIO_BIN`，manifest-mode 的 `project-graph` 读取必须消费同一个 `--styio-bin` override，让 `toolchain` / `active_compiler` 和后续执行路径保持一致。
+10. 如果 shell 设置了 `STYIO_VIEW_STYIO_BIN`，manifest-mode 的 `project-graph` 读取必须消费同一个 `--styio-bin` override，让 `toolchain` / `active_compiler` 和后续执行路径保持一致。
 
 ## 4. Frontend Consumption Rules
 
-1. `Vityo` 主线优先消费 `project_graph` published family。
+1. `styio-view` 主线优先消费 `project_graph v1`。
 2. canonical files inference 只允许作为 fallback，不再是 project route 的真相源。
-3. 一旦 published payload 可用，前端不得继续通过 `spio.toml`、`spio.lock`、`spio-toolchain.toml`、`.spio/vendor/`、`.spio/build/` 重建 project graph 真相。
-4. 如果 `spio` 已广告 `project_graph` published family 但 `project-graph --json` 退出失败、返回非法 JSON 或 payload 解析失败，`Vityo` 必须把它显示为 published contract failure，并把 adapter capability 降到 `partial`；不能静默表现得像合同正常。
+3. 一旦 published payload 可用，前端不得继续通过 `pafio.toml`、`pafio.lock`、`pafio-toolchain.toml`、`.pafio/vendor/`、`.pafio/build/` 重建 project graph 真相。
+4. 如果 `pafio` 已广告 `project_graph v1` 但 `project-graph --json` 退出失败、返回非法 JSON 或 payload 解析失败，`styio-view` 必须把它显示为 published contract failure，并把 adapter capability 降到 `partial`；不能静默表现得像合同正常。

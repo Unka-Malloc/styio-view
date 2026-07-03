@@ -2,7 +2,7 @@ import '../platform/platform_target.dart';
 import 'dependency_source_adapter.dart';
 import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
-import 'spio_cli_support.dart';
+import 'pafio_cli_support.dart';
 
 Future<DependencySourceAdapter> createPlatformDependencySourceAdapter({
   required PlatformTarget platformTarget,
@@ -159,14 +159,14 @@ class _LocalCliDependencySourceAdapter implements DependencySourceAdapter {
       command: command,
     );
     if (blockedReason != null) {
-      return blockedSpioCommandResult(
+      return blockedPafioCommandResult(
         factory: _dependencyCommandResult,
         command: command,
         statusMessage: blockedReason,
       );
     }
 
-    return runLocalSpioCommand(
+    return runLocalPafioCommand(
       projectGraph: projectGraph,
       command: command,
       args: args,
@@ -180,7 +180,7 @@ List<String> _manifestArgs(ProjectGraphSnapshot projectGraph) {
   if (manifestPath == null || manifestPath.isEmpty) {
     return const <String>[];
   }
-  return spioManifestArgs(projectGraph);
+  return pafioManifestArgs(projectGraph);
 }
 
 DependencySourceCommandResult _dependencyResultFromHostedResponse({
@@ -215,7 +215,7 @@ DependencySourceCommandResult _dependencyResultFromHostedResponse({
 }
 
 DependencySourceCommandResult _dependencyCommandResult({
-  required LocalSpioCommandOutcome outcome,
+  required LocalPafioCommandOutcome outcome,
   required String command,
   required String statusMessage,
   required String stdout,
@@ -226,10 +226,10 @@ DependencySourceCommandResult _dependencyCommandResult({
   return DependencySourceCommandResult(
     command: command,
     status: switch (outcome) {
-      LocalSpioCommandOutcome.blocked => DependencySourceCommandStatus.blocked,
-      LocalSpioCommandOutcome.succeeded =>
+      LocalPafioCommandOutcome.blocked => DependencySourceCommandStatus.blocked,
+      LocalPafioCommandOutcome.succeeded =>
         DependencySourceCommandStatus.succeeded,
-      LocalSpioCommandOutcome.failed => DependencySourceCommandStatus.failed,
+      LocalPafioCommandOutcome.failed => DependencySourceCommandStatus.failed,
     },
     statusMessage: statusMessage,
     stdout: stdout,

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-void appendSpioExecutableCandidates(List<String> candidates, String path) {
+void appendPafioExecutableCandidates(List<String> candidates, String path) {
   if (Platform.isWindows && !_hasExecutableExtension(path)) {
     candidates.add('$path.cmd');
     candidates.add('$path.exe');
@@ -26,35 +26,35 @@ String joinPath(String left, String right) {
   return '$normalizedLeft$separator$normalizedRight';
 }
 
-Future<String?> resolveSpioBinary({required String workspaceRoot}) async {
+Future<String?> resolvePafioBinary({required String workspaceRoot}) async {
   final candidates = <String>[];
   final seen = <String>{};
-  final explicit = Platform.environment['VITYO_SPIO_BIN'];
+  final explicit = Platform.environment['VITYO_PAFIO_BIN'];
   if (explicit != null && explicit.isNotEmpty) {
-    appendSpioExecutableCandidates(candidates, explicit);
+    appendPafioExecutableCandidates(candidates, explicit);
   }
-  final fromEnv = Platform.environment['SPIO_BIN'];
+  final fromEnv = Platform.environment['PAFIO_BIN'];
   if (fromEnv != null && fromEnv.isNotEmpty) {
-    appendSpioExecutableCandidates(candidates, fromEnv);
+    appendPafioExecutableCandidates(candidates, fromEnv);
   }
 
   var current = Directory(workspaceRoot).absolute;
   while (true) {
-    appendSpioExecutableCandidates(
+    appendPafioExecutableCandidates(
       candidates,
-      joinPath(current.path, '.spio/bin/spio'),
+      joinPath(current.path, '.pafio/bin/pafio'),
     );
-    appendSpioExecutableCandidates(
+    appendPafioExecutableCandidates(
       candidates,
-      joinPath(current.path, 'scripts/spio'),
+      joinPath(current.path, 'scripts/pafio'),
     );
-    appendSpioExecutableCandidates(
+    appendPafioExecutableCandidates(
       candidates,
-      joinPath(current.path, '../styio-spio/scripts/spio'),
+      joinPath(current.path, '../styio-pafio/scripts/pafio'),
     );
-    appendSpioExecutableCandidates(
+    appendPafioExecutableCandidates(
       candidates,
-      joinPath(current.path, '../../Unka-Malloc/styio-spio/scripts/spio'),
+      joinPath(current.path, '../../Unka-Malloc/styio-pafio/scripts/pafio'),
     );
     final parent = current.parent;
     if (parent.path == current.path) {
@@ -75,7 +75,7 @@ Future<String?> resolveSpioBinary({required String workspaceRoot}) async {
 
   try {
     final pathCandidates = <String>[];
-    appendSpioExecutableCandidates(pathCandidates, 'spio');
+    appendPafioExecutableCandidates(pathCandidates, 'pafio');
     for (final candidate in pathCandidates) {
       try {
         final result = await Process.run(candidate, const <String>['--version']);

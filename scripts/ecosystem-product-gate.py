@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL_GATE = ROOT.parent / "styio-spio" / "scripts" / "ecosystem-product-gate.py"
+CANONICAL_GATE = ROOT.parent / "styio-pafio" / "scripts" / "ecosystem-product-gate.py"
 
 
 def main(argv: list[str] | None = None) -> int:

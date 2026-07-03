@@ -15,7 +15,7 @@
       "authority": "compiler and managed toolchain SSOT",
       "channel": "nightly"
     },
-    "styio_spio": {
+    "styio_pafio": {
       "authority": "project graph, toolchain state, hosted control plane",
       "workspace_id": null
     }

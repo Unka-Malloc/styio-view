@@ -553,7 +553,7 @@ ProjectSourceStateSnapshot projectSourceStateFromPayload(
 ) {
   return ProjectSourceStateSnapshot(
     schemaVersion: payload['schema_version'] as int? ?? 1,
-    spioHome: payload['spio_home'] as String?,
+    pafioHome: payload['pafio_home'] as String?,
     declaredGitDependencies: payload['declared_git_dependencies'] as int? ?? 0,
     declaredRegistryDependencies:
         payload['declared_registry_dependencies'] as int? ?? 0,
@@ -601,7 +601,7 @@ ManagedToolchainStateSnapshot managedToolchainStateFromPayload(
   Map<String, dynamic> payload,
 ) {
   return ManagedToolchainStateSnapshot(
-    spioHome: payload['spio_home'] as String?,
+    pafioHome: payload['pafio_home'] as String?,
     currentBinaryPath: payload['current_binary'] as String?,
     currentMetadataPath: payload['current_metadata_path'] as String?,
     installed: (payload['installed'] as List? ?? const <Object>[])

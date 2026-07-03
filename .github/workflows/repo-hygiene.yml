@@ -31,30 +31,30 @@ jobs:
             requested="${{ github.base_ref }}"
           fi
 
-          for ref in "$requested" nightly; do
-            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-spio.git "$ref" >/dev/null 2>&1; then
+          for ref in "$requested" stable nightly; do
+            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1 \
+              && git ls-remote --exit-code --heads https://github.com/SymPolicy/Pafio.git "$ref" >/dev/null 2>&1; then
               echo "ref=$ref" >> "$GITHUB_OUTPUT"
               exit 0
             fi
           done
 
-          echo "No common sibling checkout ref found for '$requested' or fallback 'nightly'." >&2
+          echo "No common sibling checkout ref found for '$requested' or fallbacks 'stable'/'nightly'." >&2
           exit 1
 
-      - name: Check out styio-nightly sibling repository
+      - name: Check out Styio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: Unka-Malloc/styio-nightly
+          repository: SymPolicy/Styio
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
-      - name: Check out styio-spio sibling repository
+      - name: Check out Pafio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: Unka-Malloc/styio-spio
+          repository: SymPolicy/Pafio
           ref: ${{ steps.sibling-ref.outputs.ref }}
-          path: styio-spio
+          path: styio-pafio
 
       - name: Set up standardized Python
         uses: actions/setup-python@v6

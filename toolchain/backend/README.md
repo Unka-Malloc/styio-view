@@ -22,7 +22,7 @@ The `Vityo` toolchain backend owns:
 - managed compiler install/use/pin semantics
 - machine-info and capability publication
 
-### From `styio-spio`
+### From `styio-pafio`
 
 - project graph and toolchain state payloads
 - dependency and registry state needed by environment/toolchain views

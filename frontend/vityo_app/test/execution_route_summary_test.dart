@@ -140,9 +140,9 @@ void main() {
         kind: ProjectKind.package,
         workspaceRoot: '/workspace/demo',
         workspaceMembers: <String>[],
-        manifestPath: '/workspace/demo/spio.toml',
-        lockfilePath: '/workspace/demo/spio.lock',
-        toolchainPinPath: '/workspace/demo/spio-toolchain.toml',
+        manifestPath: '/workspace/demo/pafio.toml',
+        lockfilePath: '/workspace/demo/pafio.lock',
+        toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
         dependencies: <ProjectDependencySnapshot>[],
         packages: <ProjectPackageSnapshot>[],
         targets: <ProjectTargetDescriptor>[],
@@ -231,9 +231,9 @@ void main() {
         kind: ProjectKind.package,
         workspaceRoot: '/workspace/demo-live',
         workspaceMembers: <String>[],
-        manifestPath: '/workspace/demo-live/spio.toml',
-        lockfilePath: '/workspace/demo-live/spio.lock',
-        toolchainPinPath: '/workspace/demo-live/spio-toolchain.toml',
+        manifestPath: '/workspace/demo-live/pafio.toml',
+        lockfilePath: '/workspace/demo-live/pafio.lock',
+        toolchainPinPath: '/workspace/demo-live/pafio-toolchain.toml',
         dependencies: <ProjectDependencySnapshot>[],
         packages: <ProjectPackageSnapshot>[],
         targets: <ProjectTargetDescriptor>[],
@@ -287,7 +287,7 @@ void main() {
       ],
     );
 
-    expect(summary.title, 'Project route live through spio');
+    expect(summary.title, 'Project route live through pafio');
     expect(summary.previewOnly, isFalse);
   });
 
@@ -301,9 +301,9 @@ void main() {
         kind: ProjectKind.package,
         workspaceRoot: '/workspace/demo-jit',
         workspaceMembers: <String>[],
-        manifestPath: '/workspace/demo-jit/spio.toml',
-        lockfilePath: '/workspace/demo-jit/spio.lock',
-        toolchainPinPath: '/workspace/demo-jit/spio-toolchain.toml',
+        manifestPath: '/workspace/demo-jit/pafio.toml',
+        lockfilePath: '/workspace/demo-jit/pafio.lock',
+        toolchainPinPath: '/workspace/demo-jit/pafio-toolchain.toml',
         dependencies: <ProjectDependencySnapshot>[],
         packages: <ProjectPackageSnapshot>[],
         targets: <ProjectTargetDescriptor>[],
@@ -372,7 +372,7 @@ void main() {
         kind: ProjectKind.hosted,
         workspaceRoot: '/workspace/hosted-demo',
         workspaceMembers: <String>[],
-        manifestPath: '/workspace/hosted-demo/spio.toml',
+        manifestPath: '/workspace/hosted-demo/pafio.toml',
         dependencies: <ProjectDependencySnapshot>[],
         packages: <ProjectPackageSnapshot>[],
         targets: <ProjectTargetDescriptor>[],
@@ -565,7 +565,7 @@ ProjectGraphSnapshot _packageGraph({bool jitReady = false}) {
     kind: ProjectKind.package,
     workspaceRoot: '/workspace/demo-route',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo-route/spio.toml',
+    manifestPath: '/workspace/demo-route/pafio.toml',
     dependencies: const <ProjectDependencySnapshot>[],
     packages: const <ProjectPackageSnapshot>[],
     targets: const <ProjectTargetDescriptor>[],

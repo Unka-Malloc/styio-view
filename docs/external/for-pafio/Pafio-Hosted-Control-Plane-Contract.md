@@ -1,12 +1,12 @@
-# Spio Hosted Control-Plane Contract
+# Pafio Hosted Control-Plane Contract
 
-**Purpose:** Record the frontend-facing hosted workspace API that `Vityo` consumes from `spio` so UI and backend teams can ship independently against a fixed contract package.
+**Purpose:** Record the frontend-facing hosted workspace API that `styio-view` consumes from `pafio` so UI and backend teams can ship independently against a fixed contract package.
 
 **Last updated:** 2026-04-21
 
 ## Source Of Truth
 
-The backend-owned machine contract lives in `styio-spio`:
+The backend-owned machine contract lives in `styio-pafio`:
 
 - `contracts/hosted-control-plane/v1/openapi.json`
 - `contracts/hosted-control-plane/v1/workflows.arazzo.json`
@@ -14,15 +14,15 @@ The backend-owned machine contract lives in `styio-spio`:
 - `contracts/hosted-control-plane/v1/hosted-control-plane.examples.json`
 - `contracts/hosted-control-plane/v1/redocly.yaml`
 
-`Vityo` consumes that published package. This document is the consumer-side handoff note, not a second source of truth.
+`styio-view` consumes that versioned package. This document is the consumer-side handoff note, not a second source of truth.
 
 ## Fixed Base Path
 
-`Vityo` treats the hosted API family as:
+`styio-view` treats the hosted API family as:
 
 `/api/styio-hosted/v1`
 
-The base URL may change per environment, but the hosted path family and operation spellings are fixed by contract.
+The base URL may change per environment, but the versioned path family and operation spellings are fixed by contract.
 
 ## Fixed Route Set
 
@@ -62,11 +62,11 @@ Every frontend/backend interaction now has a fixed contract entrypoint:
 | publish preflight | `DeploymentAdapter.preparePublish()` | `preparePublish` | `POST /workspaces/{workspace_id}/deployment/preflight` |
 | publish artifact | `DeploymentAdapter.publishToRegistry()` | `publishToRegistry` | `POST /workspaces/{workspace_id}/deployment/publish` |
 
-`RuntimeEventAdapter` does not call a separate hosted route; it consumes `runtime_events` emitted by the execution envelopes documented in `runWorkflow`, `buildWorkflow`, and `testWorkflow`.
+`RuntimeEventAdapter` does not call a separate hosted route in `v1`; it consumes `runtime_events` emitted by the execution envelopes documented in `runWorkflow`, `buildWorkflow`, and `testWorkflow`.
 
 ## Frontend Request Body Summary
 
-`Vityo` binds to these request fields when it calls the hosted control plane:
+`styio-view` binds to these request fields when it calls the hosted control plane:
 
 | Operation | Required request fields consumed by frontend | Optional request fields consumed by frontend |
 |-----------|----------------------------------------------|---------------------------------------------|
@@ -108,7 +108,7 @@ These fields are part of the hosted consumer contract even when some deployments
 
 ## Execution Envelope Fields Consumed By Frontend
 
-Hosted execution is a single response-envelope contract. `Vityo` does not rely on a separate event stream route.
+Hosted execution is a single response-envelope contract. `styio-view` does not rely on a separate event stream route in `v1`.
 
 The frontend consumes:
 

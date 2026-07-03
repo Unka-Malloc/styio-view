@@ -2,7 +2,7 @@ import '../platform/platform_target.dart';
 import 'deployment_adapter.dart';
 import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
-import 'spio_cli_support.dart';
+import 'pafio_cli_support.dart';
 
 Future<DeploymentAdapter> createPlatformDeploymentAdapter({
   required PlatformTarget platformTarget,
@@ -258,25 +258,25 @@ class _LocalCliDeploymentAdapter implements DeploymentAdapter {
   }) async {
     if (platformTarget == PlatformTarget.ios ||
         platformTarget == PlatformTarget.web) {
-      return blockedSpioCommandResult(
+      return blockedPafioCommandResult(
         factory: _deploymentCommandResult,
         command: command,
         statusMessage:
-            '${platformTarget.label} does not expose local spio deployment commands.',
+            '${platformTarget.label} does not expose local pafio deployment commands.',
       );
     }
 
     final manifestPath = projectGraph.manifestPath;
     if (manifestPath == null || manifestPath.isEmpty) {
-      return blockedSpioCommandResult(
+      return blockedPafioCommandResult(
         factory: _deploymentCommandResult,
         command: command,
         statusMessage:
-            'Deployment commands require a resolved spio manifest path.',
+            'Deployment commands require a resolved pafio manifest path.',
       );
     }
 
-    return runLocalSpioCommand(
+    return runLocalPafioCommand(
       projectGraph: projectGraph,
       command: command,
       args: args,
@@ -359,7 +359,7 @@ List<String> _manifestArgs(ProjectGraphSnapshot projectGraph) {
   if (manifestPath == null || manifestPath.isEmpty) {
     return const <String>[];
   }
-  return spioManifestArgs(projectGraph);
+  return pafioManifestArgs(projectGraph);
 }
 
 DeploymentCommandResult _deploymentResultFromHostedResponse({
@@ -394,7 +394,7 @@ DeploymentCommandResult _deploymentResultFromHostedResponse({
 }
 
 DeploymentCommandResult _deploymentCommandResult({
-  required LocalSpioCommandOutcome outcome,
+  required LocalPafioCommandOutcome outcome,
   required String command,
   required String statusMessage,
   required String stdout,
@@ -405,9 +405,9 @@ DeploymentCommandResult _deploymentCommandResult({
   return DeploymentCommandResult(
     command: command,
     status: switch (outcome) {
-      LocalSpioCommandOutcome.blocked => DeploymentCommandStatus.blocked,
-      LocalSpioCommandOutcome.succeeded => DeploymentCommandStatus.succeeded,
-      LocalSpioCommandOutcome.failed => DeploymentCommandStatus.failed,
+      LocalPafioCommandOutcome.blocked => DeploymentCommandStatus.blocked,
+      LocalPafioCommandOutcome.succeeded => DeploymentCommandStatus.succeeded,
+      LocalPafioCommandOutcome.failed => DeploymentCommandStatus.failed,
     },
     statusMessage: statusMessage,
     stdout: stdout,

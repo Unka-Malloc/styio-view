@@ -7,7 +7,7 @@
 ## Scope
 
 1. `for-styio/` 放置上游 `styio` 对接合同。
-2. `for-spio/` 放置上游 `spio` 对接合同。
+2. `for-pafio/` 放置上游 `pafio` 对接合同。
 3. 本目录只写跨仓责任边界和 machine handoff，不替代 `docs/contracts/` 的前端适配合同。
 
 ## Naming Rules

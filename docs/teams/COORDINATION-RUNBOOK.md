@@ -44,7 +44,7 @@ flowchart TB
 | Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | app shell, editor core, language UI 外壳, 手写 Web Editor 主线 | 编辑语义、源码保真、focused editor workflow、editor layout change |
 | Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | runtime/debug/agent surfaces, prompt/profile UX, execution-state UI | runtime 面板语义、agent panel 行为、execution summary、profile flow change |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | module host, capability matrix, platform runners, distribution path | manifest/lifecycle、platform gating、runner config、distribution route change |
-| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | integration layer, adapter contracts, `external/for-styio/`, `external/for-spio/` handoff | contract/schema、handoff payload、upstream responsibility boundary change |
+| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | integration layer, adapter contracts, `external/for-styio/`, `external/for-pafio/` handoff | contract/schema、handoff payload、upstream responsibility boundary change |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | theme system, visual tokens, style layers, UX guardrails | palette/font/theme preset、layout system、overflow rule、visual hierarchy change |
 | Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | docs tree, milestone/history/review, repo hygiene, delivery-facing docs | docs topology、INDEX/README 结构、milestone/handoff path、repo hygiene rule change |
 
@@ -53,7 +53,7 @@ flowchart TB
 1. 编辑器主线或源码保真相关变更需要 Shell / Editor review；若消费了新 payload 或 schema，Adapter / Contracts 也必须 review。
 2. runtime、debug、agent panel 行为变更需要 Runtime / Agent review；若 capability gating 或执行路由受影响，Module / Platform 和 Adapter / Contracts 需要追加 review。
 3. module manifest、capability matrix、平台 runner 或分发策略变更需要 Module / Platform review，并由 Adapter / Contracts 审核对上游 handoff 的影响。
-4. contract、schema、`external/for-styio/`、`external/for-spio/` 变更需要 Adapter / Contracts review；任何消费这些合同的团队都要同步确认。
+4. contract、schema、`external/for-styio/`、`external/for-pafio/` 变更需要 Adapter / Contracts review；任何消费这些合同的团队都要同步确认。
 5. theme、字体、palette、布局系统或容器约束变更需要 Theme / UX review，并由对应消费团队确认不会破坏交互。
 6. docs 树结构、里程碑、history、review 和 repo hygiene 相关变更需要 Docs / Delivery review；若改动改变了某团队工作流，该团队也要共同 review。
 7. API compatibility、deprecation、security baseline、release checklist、CODEOWNERS 或 PR template 变化需要 Governance / Docs review；若影响 agent、module、adapter 或 architecture owner surface，对应团队必须追加 review。
@@ -62,7 +62,7 @@ flowchart TB
 
 1. 产品语义冲突：回到 [../design/Vityo-Product-Spec.md](../design/Vityo-Product-Spec.md)。
 2. 系统层次、数据流或执行后端冲突：回到 [../design/Vityo-System-Architecture.md](../design/Vityo-System-Architecture.md)。
-3. 上游职责边界冲突：回到 [../specs/REPOSITORY-MAP.md](../specs/REPOSITORY-MAP.md)、`../external/for-styio/`、`../external/for-spio/`。
+3. 上游职责边界冲突：回到 [../specs/REPOSITORY-MAP.md](../specs/REPOSITORY-MAP.md)、`../external/for-styio/`、`../external/for-pafio/`。
 4. 文档与交付纪律冲突：回到 [../specs/DOCUMENTATION-POLICY.md](../specs/DOCUMENTATION-POLICY.md) 与 [../specs/CONTRIBUTOR-AND-AGENT-SPEC.md](../specs/CONTRIBUTOR-AND-AGENT-SPEC.md)。
 5. 未决风险仍无结论：记录到 [../review/Logic-Conflicts.md](../review/Logic-Conflicts.md)。
 
@@ -82,7 +82,7 @@ flowchart TB
 |---------|--------------|
 | 手写 Web Editor 主线 | `cd prototype && npm run selftest:editor`，必要时更新手写 Web IDE handbook |
 | Flutter 壳层或共享 UI 状态 | `cd frontend/vityo_app && flutter analyze && flutter test` |
-| adapter / schema / handoff 合同 | 更新 `docs/contracts/`、`docs/external/for-styio/`、`docs/external/for-spio/` 与 `TEST-CATALOG` 对应映射 |
+| adapter / schema / handoff 合同 | 更新 `docs/contracts/`、`docs/external/for-styio/`、`docs/external/for-pafio/` 与 `TEST-CATALOG` 对应映射 |
 | module lifecycle / distribution / capability | 更新 manifest、capability matrix、分发 schema 与测试目录条目 |
 | 文档结构或交付边界 | 更新相关 `README.md` / `INDEX.md` 并运行 `python3 scripts/repo-hygiene-gate.py --mode tracked` |
 | IDE architecture / compat façade | `python3 scripts/check_architecture_boundaries.py` 与 `python3 scripts/check_compat_facades.py` |

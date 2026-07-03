@@ -1,6 +1,6 @@
 # Vityo Implementation Gaps
 
-**Purpose:** Track unfinished Vityo implementation and integration gaps after retiring `docs/plans/` as an active documentation area.
+**Purpose:** Track unfinished Vityo implementation and integration gaps after retiring `docs/plan/` as an active documentation area.
 
 **Last updated:** 2026-06-25
 
@@ -115,11 +115,11 @@ Status values:
 | M6 IDE hardening | Validation needed | Vityo | Product-level full UI, contract, sample matrix, and workflow gates. |
 | Runtime event product completeness | Partially implemented | Vityo | `StyioServiceRuntimeSession` emits lifecycle events and metadata-only `StyioServiceRuntimeStatusSnapshot` values that expose provider manifest state plus diagnostics/completion/hover/semantic-token capability states and counts without raw language payloads. Interaction now has `LanguageServiceStatusSurface` to project those snapshots into UI-consumable status models without rendering ownership. `AppBootstrap`, `ShellRuntimeModel`, and `EditorSurface` now carry and render that status in the real editor language pane, with a widget-test anchor for the status card surface. Remaining closure: validate the full app flow against a real asynchronous StyioService update on every supported platform. |
 | Hosted workspace retention/export UX | Validation needed | Vityo | User-visible close/export/retention/delete path. |
-| Documentation automation after plan retirement | Implementation needed | Vityo | Docs index/lifecycle/audit scripts and policies must no longer require `docs/plans/`. |
+| Documentation automation after plan retirement | Implementation needed | Vityo | Docs index/lifecycle/audit scripts and policies must no longer require `docs/plan/`. |
 
 ## 9. Retired Plan Replacement Rule
 
-No new local `docs/plans/` document should be added for Vityo implementation tracking.
+No new local `docs/plan/` document should be added for Vityo implementation tracking.
 
 Use these destinations instead:
 
@@ -129,7 +129,7 @@ Use these destinations instead:
 | Active implementation or integration gap | `docs/design/Vityo-Implementation-Gaps.md` |
 | Upstream Styio handoff | `docs/external/for-styio/` |
 | Upstream Spio handoff | `docs/external/for-spio/` |
-| Frozen milestone batch | `docs/milestones/` |
+| Frozen milestone batch | `docs/plan/` |
 | Open risk or conflict before decision | `docs/review/` |
 | Final architecture decision | `docs/adr/` |
 

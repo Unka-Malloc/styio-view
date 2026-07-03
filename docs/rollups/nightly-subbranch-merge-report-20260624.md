@@ -70,7 +70,7 @@ c7484c9b8e97fd0eb39f73893891f5680763123e
 
 ### Codex Assets Rejected/Modified
 
-- Old docs structure (`docs/milestones/2026-04-12/`) kept deleted (nightly already archived)
+- Old docs structure (`docs/plan/2026-04-12/`) kept deleted (nightly already archived)
 - Old barrel exports merged into current structure
 - `prototype/app.js` and `prototype/index.html` kept from HEAD (codex wanted to delete)
 

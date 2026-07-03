@@ -15,7 +15,7 @@
 
 ## Retired Planning Rule
 
-`docs/plans/` has been retired for repo-local Vityo implementation tracking.
+`docs/plan/` has been retired for repo-local Vityo implementation tracking.
 
 Use:
 

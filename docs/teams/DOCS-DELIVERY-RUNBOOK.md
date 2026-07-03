@@ -100,7 +100,7 @@ Key SSOTs:
 23. Governance docs are part of docs delivery. API compatibility, security, release checklist, CODEOWNERS policy, root contribution/security entries, and PR template changes must keep generated docs indexes current.
 24. When a new docs collection is added, update `scripts/docs-index.py` collection metadata and run `python3 scripts/docs-index.py --write` in the same change.
 25. Windows-native bootstrap changes must keep `README.md`, `docs/BUILD-AND-DEV-ENV.md`, `.github/workflows/local-ci-gate.yml`, and the PowerShell script comments aligned. The PowerShell workspace bootstrap may create Flutter plugin junctions on Windows to avoid Developer Mode or admin symlink requirements, but it must restore tracked `.metadata` and `pubspec.lock` after runner generation and dependency restore.
-26. Better Plan workflow state lives only under `docs/plans/better-plan/` and must be validated with `python3 scripts/manifest_tool.py validate docs/plans/better-plan`; owner facts still belong in design, milestone, rollup, review, audit, specs, or external handoff documents.
+26. Better Plan workflow state lives only under `docs/plan/better-plan/` and must be validated with `python3 scripts/manifest_tool.py validate docs/plan/better-plan`; owner facts still belong in design, milestone, rollup, review, audit, specs, or external handoff documents.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 
@@ -146,7 +146,7 @@ Record:
 
 2026-06-28: Windows native compatibility gate repair updated PowerShell bootstrap behavior, Windows validation docs, coverage-gate thresholds, and hosted `windows-latest` evidence expectations. Refresh DOC-STATS.md whenever this runbook changes.
 
-2026-06-28: Better Plan workspace added under `docs/plans/better-plan/` to index existing planning, milestone, gap, rollup, audit, and governance sources without reviving `docs/plans/` as an implementation-plan SSOT. Added `scripts/manifest_tool.py`; validate with `python3 scripts/manifest_tool.py validate docs/plans/better-plan`, then run docs index/audit gates.
+2026-06-28: Better Plan workspace added under `docs/plan/better-plan/` to index existing planning, milestone, gap, rollup, audit, and governance sources without reviving `docs/plan/` as an implementation-plan SSOT. Added `scripts/manifest_tool.py`; validate with `python3 scripts/manifest_tool.py validate docs/plan/better-plan`, then run docs index/audit gates.
 
 2026-06-28: Added `docs/adr/IMPLEMENTED-DECISIONS.md` as the current-code compressed index for implemented architecture decisions. ADR policy now keeps standalone ADRs for decisions still needing direct review, while implemented decisions must carry current implementation or verification anchors.
 

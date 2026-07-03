@@ -19,8 +19,8 @@
 | `external/` | [External Docs Index](./external/INDEX.md) | 集中维护 Vityo 与外部上游仓库之间的 handoff 文档入口。 |
 | `governance/` | [Governance Index](./governance/INDEX.md) | Define the repository-owned rules for compatibility, security, release readiness, code ownership, and migration discipline. |
 | `history/` | [History Index](./history/INDEX.md) | 定义 docs/history/ 的主题化恢复记录范围；具体主题索引见 INDEX.md。 |
-| `milestones/` | [Milestones Index](./milestones/INDEX.md) | 定义 docs/milestones/ 中按功能主题组织的里程碑文档范围；主题索引见 INDEX.md。 |
-| `plans/` | [Plans Index](./plans/INDEX.md) | Mark docs/plans/ as the retired local plan area and point maintainers to the Better Plan workflow state that indexes existing owner documents without replacing them. |
+| `milestones/` | [Milestones Index](./plan/repository-delivery-convergence/Evidence.md) | 定义 docs/plan/ 中按功能主题组织的里程碑文档范围；主题索引见 INDEX.md。 |
+| `plans/` | [Plans Index](./plan/repository-delivery-convergence/Evidence.md) | Mark docs/plan/ as the retired local plan area and point maintainers to the Better Plan workflow state that indexes existing owner documents without replacing them. |
 | `review/` | [Review Index](./review/INDEX.md) | 定义 docs/review/ 中风险、冲突与待裁决问题的范围；索引见 INDEX.md。 |
 | `rollups/` | [Rollups Index](./rollups/INDEX.md) | 提供 Vityo 的压缩活跃摘要与默认阅读入口，让当前状态和活跃缺口能在不先通读 raw history 的前提下被快速定位。 |
 | `specs/` | [Specs Index](./specs/INDEX.md) | 定义 docs/specs/ 中协作、依赖和仓库规则的范围；文件索引见 INDEX.md。 |

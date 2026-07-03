@@ -39,8 +39,8 @@
 | 三仓文件治理对齐 | 上游 `styio-nightly` canonical governance plan | 本仓不再保留本地 plan 镜像 |
 | 第三方依赖清单 | `THIRD-PARTY.md` | 与实现同步更新 |
 | `styio` 对接边界与接口合同 | `../external/for-styio/` | 链接 |
-| `spio` 对接边界与接口合同 | `../external/for-spio/` | 链接 |
-| 冻结里程碑与任务清单 | `../milestones/INITIAL-IMPLEMENTATION-MILESTONES.md` | 链接 |
+| `pafio` 对接边界与接口合同 | `../external/for-pafio/` | 链接 |
+| 冻结里程碑与任务清单 | `../plan/repository-delivery-convergence/Evidence.md` | 链接 |
 | 测试与验收映射 | `../assets/workflow/TEST-CATALOG.md` | 链接 |
 | 架构裁决与已实现决策 | `../adr/` | 只保留仍需评审的 ADR 与当前实现决策摘要 |
 | 未决风险与冲突 | `../review/Logic-Conflicts.md` | 链接 |
@@ -48,11 +48,11 @@
 ### 0.5 文档状态
 
 1. `docs/design/` 是产品、系统、已交付设计基线和活跃缺口登记的 SSOT。
-2. `docs/plans/` 已退役；本仓不再用本地计划文档承载 Vityo 实施跟踪。`docs/plans/better-plan/` 只保存 Better Plan 工作流状态，索引现有 owner 文档，不作为新的产品事实来源。
+2. `docs/plan/` 已退役；本仓不再用本地计划文档承载 Vityo 实施跟踪。`docs/plan/better-plan/` 只保存 Better Plan 工作流状态，索引现有 owner 文档，不作为新的产品事实来源。
 3. `docs/rollups/` 负责压缩当前状态和活跃缺口，不替代 owner 文档。
 4. `docs/history/` 负责活跃恢复记录；原始历史一旦退役，应迁入 `docs/archive/`。
 5. `docs/archive/` 负责归档 provenance 与 lifecycle 元数据，不用来隐藏仍活跃的 owner 文档。
-6. `docs/milestones/` 按功能主题保存冻结目标和任务清单；日期和版本号只能作为状态字段出现在正文，不能作为目录、入口或任务身份。
+6. `docs/plan/` 按功能主题保存冻结目标和任务清单；日期和版本号只能作为状态字段出现在正文，不能作为目录、入口或任务身份。
 7. `docs/review/` 中的未决问题一旦裁决，应按评审需要迁入 ADR，或在实现吸收到 owner SSOT 后压缩进 `docs/adr/IMPLEMENTED-DECISIONS.md`，并在 review 文档中回填链接。
 
 ## 1. 目录职责
@@ -61,7 +61,7 @@
 |------|----------|
 | `docs/design/` | 产品规格、系统架构、核心术语、不变量、已交付设计基线、活跃缺口登记 |
 | `docs/specs/` | 文档策略、仓库边界、协作规范、依赖清单 |
-| `docs/milestones/` | 冻结的阶段目标、任务表与门禁 |
+| `docs/plan/` | 冻结的阶段目标、任务表与门禁 |
 | `docs/adr/` | 仍需直接评审的架构决策记录与当前已实现决策摘要 |
 | `docs/review/` | 风险、冲突、待裁决问题 |
 | `docs/assets/` | 测试目录、复用交付资产 |
@@ -69,7 +69,7 @@
 | `docs/history/` | 按主题命名的恢复记录与历史信息 |
 | `docs/archive/` | 已归档 provenance 与 lifecycle 元数据 |
 | `docs/external/for-styio/` | 与上游 `styio` 的接口、责任边界与对接清单 |
-| `docs/external/for-spio/` | 与上游 `spio` 的接口、责任边界与对接清单 |
+| `docs/external/for-pafio/` | 与上游 `pafio` 的接口、责任边界与对接清单 |
 | `docs/teams/` | 团队 runbook、ownership 路由与 handoff 入口 |
 
 ## 2. 联动更新规则
@@ -95,7 +95,7 @@
 
 1. 设计级文档使用稳定主题名，优先 `Vityo-*.md`。
 2. 规范文件使用稳定全大写或描述性短横线命名。
-3. 不再新增本地 `docs/plans/` 计划文件；未完成项进入 `docs/design/Vityo-Implementation-Gaps.md`。Better Plan 状态文件只能引用现有 owner 文档并通过 `scripts/manifest_tool.py` 校验。
+3. 不再新增本地 `docs/plan/` 计划文件；未完成项进入 `docs/design/Vityo-Implementation-Gaps.md`。Better Plan 状态文件只能引用现有 owner 文档并通过 `scripts/manifest_tool.py` 校验。
 4. 历史、审计和 rollup 文件使用稳定主题名；日期只能写入 `Date`、`Last updated` 或正文状态说明。
 5. 独立 ADR 文件严格使用 `ADR-XXXX-<slug>.md`；`docs/adr/IMPLEMENTED-DECISIONS.md` 不编号，只作为当前已实现决策的压缩索引。
 6. 里程碑文件使用稳定功能主题名；不得使用日期目录、版本号目录、阶段编号前缀或 `00-` 入口文件组织里程碑。

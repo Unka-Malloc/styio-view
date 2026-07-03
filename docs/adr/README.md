@@ -9,7 +9,7 @@
 1. Use a standalone ADR for a significant architecture decision that still needs direct review, migration discussion, or a durable review record before it is absorbed by stable owner docs.
 2. Once a decision is implemented and reflected in current code, gates, and SSOTs, compress the durable result into [IMPLEMENTED-DECISIONS.md](./IMPLEMENTED-DECISIONS.md) or the owning design/spec/runbook.
 3. Do not keep one-file-per-decision history in the current tree just to preserve older wording. Git history remains the source for exact historical text.
-4. ADRs are not milestone plans, task lists, rollups, or gap ledgers. Use `docs/design/`, `docs/rollups/`, `docs/milestones/`, and `docs/review/` for those responsibilities.
+4. ADRs are not milestone plans, task lists, rollups, or gap ledgers. Use `docs/design/`, `docs/rollups/`, `docs/plan/`, and `docs/review/` for those responsibilities.
 
 ## Freshness Rules
 

@@ -235,7 +235,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
             tmp_root = Path(tmp_name)
             self._write_minimal_release_tree(tmp_root)
             (tmp_root / "frontend/vityo_app/pubspec.yaml").write_text(
-                "name: styio_view_app\n"
+                "name: legacy_view_app\n"
                 "description: old shell\n"
                 "publish_to: \"none\"\n"
                 "version: 0.1.0+1\n",

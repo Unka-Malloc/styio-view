@@ -117,6 +117,18 @@ class DevServerPathUtilityTest(unittest.TestCase):
             dev_server.resolve_existing_path_case_sensitive("workspace", base=self.root),
             self.workspace.resolve(),
         )
+        if os.name == "nt":
+            short_workspace = subprocess.run(
+                ["cmd", "/c", f'for %I in ("{self.workspace}") do @echo %~sI'],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            if short_workspace and Path(short_workspace).exists():
+                self.assertEqual(
+                    dev_server.resolve_existing_path_case_sensitive(short_workspace),
+                    self.workspace.resolve(),
+                )
         self.assertEqual(
             dev_server.resolve_workspace_path("src/lib.styio", require_exists=True),
             (self.workspace / "src" / "lib.styio").resolve(),

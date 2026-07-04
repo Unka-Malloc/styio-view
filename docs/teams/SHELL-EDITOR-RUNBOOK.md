@@ -66,6 +66,7 @@ Key SSOTs:
 18. Prototype editor selftest launcher changes must preserve `PYTHON_BIN`, `STYIO_CHROME_PATH` / `CHROME_EXECUTABLE`, and `STYIO_EDITOR_URL` behavior across Linux, Windows, and macOS CI hosts.
 19. Prototype dev-server workspace root changes must persist resolved physical paths so macOS `/var` and `/private/var` aliases, Windows junctions, and symlinked workspaces compare against one canonical root in API responses and security tests.
 20. Prototype dev-server path assertions must compare resolved physical paths for existing workspace entries, because macOS temp directories can surface through both `/var` and `/private/var` during the same test process.
+21. Prototype dev-server absolute-path resolution must accept existing Windows physical paths that arrive through 8.3 short-name segments, then resolve them before workspace containment checks; relative workspace paths still keep case-sensitive child validation.
 
 ## Change Classes
 

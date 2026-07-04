@@ -125,7 +125,8 @@ jobs:
           node --version | Select-String -Pattern "v$env:STYIO_NODE_VERSION"
           npm --version
           $flutterVersionOutput = flutter --version
-          $flutterVersion = ($flutterVersionOutput -split "`r?`n")[0]
+          $flutterVersion = ($flutterVersionOutput -split "`r?`n" | Where-Object { $_ -like "Flutter *" } | Select-Object -First 1)
+          if (!$flutterVersion) { throw "Flutter version line not found: $flutterVersionOutput" }
           $flutterVersion | Select-String -Pattern "$env:STYIO_FLUTTER_VERSION"
           flutter config --enable-web --enable-windows-desktop
           & "${{ steps.setup-chrome.outputs.chrome-path }}" --version

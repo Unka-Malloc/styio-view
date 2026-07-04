@@ -100,7 +100,7 @@ jobs:
           "$PYTHON_BIN" --version | grep -F "${STYIO_PYTHON_VERSION}"
           node --version | grep -F "v${STYIO_NODE_VERSION}"
           npm --version
-          flutter --version | head -n1 | grep -F "${STYIO_FLUTTER_VERSION}"
+          flutter --version | grep -m1 '^Flutter ' | grep -F "${STYIO_FLUTTER_VERSION}"
           flutter config --enable-web --enable-linux-desktop
           "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
@@ -312,7 +312,8 @@ jobs:
           if ($nodeVersion -ne "v$env:STYIO_NODE_VERSION") { throw "Unexpected Node.js version: $nodeVersion" }
           npm --version
           $flutterVersionOutput = flutter --version
-          $flutterVersion = ($flutterVersionOutput -split "`r?`n")[0]
+          $flutterVersion = ($flutterVersionOutput -split "`r?`n" | Where-Object { $_ -like "Flutter *" } | Select-Object -First 1)
+          if (!$flutterVersion) { throw "Flutter version line not found: $flutterVersionOutput" }
           if ($flutterVersion -notlike "*$env:STYIO_FLUTTER_VERSION*") { throw "Unexpected Flutter version: $flutterVersion" }
           flutter config --enable-web --enable-windows-desktop
           & "${{ steps.setup-chrome.outputs.chrome-path }}" --version
@@ -492,7 +493,7 @@ jobs:
           "$PYTHON_BIN" --version | grep -F "${STYIO_PYTHON_VERSION}"
           node --version | grep -F "v${STYIO_NODE_VERSION}"
           npm --version
-          flutter --version | head -n1 | grep -F "${STYIO_FLUTTER_VERSION}"
+          flutter --version | grep -m1 '^Flutter ' | grep -F "${STYIO_FLUTTER_VERSION}"
           flutter config --enable-web --enable-macos-desktop
           "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 

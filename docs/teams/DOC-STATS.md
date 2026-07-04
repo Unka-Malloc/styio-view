@@ -23,9 +23,9 @@
 | Extension Module | [EXTENSION-MODULE-RUNBOOK.md](./EXTENSION-MODULE-RUNBOOK.md) | 644 | 3,048 |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | 1,303 | 4,638 |
 | Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,119 | 3,490 |
-| Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,332 | 11,827 |
+| Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,378 | 12,090 |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | 1,118 | 2,676 |
-| **Total** | Team runbooks only | **16,843** | **55,614** |
+| **Total** | Team runbooks only | **16,889** | **55,877** |
 
 ## Support File Size
 

@@ -168,6 +168,9 @@ def lookup_case_sensitive_child(parent: Path, name: str) -> Path | None:
 
 def resolve_existing_path_case_sensitive(raw_path: str, *, base: Path | None = None) -> Path:
     candidate = Path(raw_path.strip()).expanduser()
+    if os.name == "nt" and candidate.is_absolute() and candidate.exists():
+        return candidate.resolve()
+
     if candidate.is_absolute():
         current = Path(candidate.anchor)
         parts = list(candidate.parts[1:])

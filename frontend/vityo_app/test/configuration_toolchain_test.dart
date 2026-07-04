@@ -3380,7 +3380,11 @@ REMOVE_ME=from-file
       );
 
       expect(health.healthy, isTrue);
-      expect(health.processResult?.stdout, 'runtime:nightly:${tempRoot.path}');
+      final expectedWorkingDirectory = tempRoot.resolveSymbolicLinksSync();
+      expect(
+        health.processResult?.stdout,
+        'runtime:nightly:$expectedWorkingDirectory',
+      );
     },
     skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
   );

@@ -262,9 +262,15 @@ jobs:
       - name: Install Windows LLVM
         shell: pwsh
         run: |
-          choco install llvm --version=18.1.8 -y --no-progress
           $llvmRoot = Join-Path $env:ProgramFiles "LLVM"
-          "LLVM_DIR=$(Join-Path $llvmRoot 'lib\cmake\llvm')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $llvmConfig = Join-Path $llvmRoot 'lib\cmake\llvm\LLVMConfig.cmake'
+          if (!(Test-Path $llvmConfig)) {
+            choco install llvm -y --no-progress
+          }
+          if (!(Test-Path $llvmConfig)) {
+            throw "LLVMConfig.cmake was not found under $llvmRoot"
+          }
+          "LLVM_DIR=$(Split-Path $llvmConfig -Parent)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Verify standardized Windows toolchain

@@ -130,14 +130,23 @@ main() {
 
   if [[ $SKIP_PLATFORM_BOOTSTRAP -eq 0 ]]; then
     log "generating Flutter runners for platforms: $PLATFORMS"
+    app_root="$ROOT/frontend/vityo_app"
+    default_widget_test="$app_root/test/widget_test.dart"
+    had_default_widget_test=0
+    if [[ -e "$default_widget_test" ]]; then
+      had_default_widget_test=1
+    fi
     (
-      cd "$ROOT/frontend/vityo_app"
+      cd "$app_root"
       "$FLUTTER_BIN" create \
         --platforms="$PLATFORMS" \
         --project-name=vityo_app \
         --org=io.vityo \
         .
     )
+    if [[ $had_default_widget_test -eq 0 && -e "$default_widget_test" ]]; then
+      rm -f "$default_widget_test"
+    fi
   fi
 
   if [[ $SKIP_NPM -eq 0 ]]; then

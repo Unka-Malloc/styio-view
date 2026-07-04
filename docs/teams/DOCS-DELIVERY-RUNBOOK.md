@@ -103,6 +103,7 @@ Key SSOTs:
 26. Better Plan workflow state lives only under `docs/plan/better-plan/` and must be validated with `python3 scripts/manifest_tool.py validate docs/plan/better-plan`; owner facts still belong in design, milestone, rollup, review, audit, specs, or external handoff documents.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
+29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
 
 ## Change Classes
 

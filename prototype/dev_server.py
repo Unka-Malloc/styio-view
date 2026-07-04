@@ -130,9 +130,10 @@ def set_workspace_root(raw_path: str) -> Path:
     if not candidate.is_dir():
         raise ValueError("workspace path must point to an existing directory")
 
-    WORKSPACE_ROOT = candidate
-    persist_workspace_root(candidate)
-    return candidate
+    selected = candidate.resolve()
+    WORKSPACE_ROOT = selected
+    persist_workspace_root(selected)
+    return selected
 
 
 def is_ignored(path: Path) -> bool:

@@ -85,9 +85,10 @@ jobs:
             if (${env:ProgramFiles(x86)}) {
               $candidates += Join-Path ${env:ProgramFiles(x86)} 'LLVM\lib\cmake\llvm\LLVMConfig.cmake'
             }
-            if ($env:ChocolateyInstall) {
-              $candidates += Join-Path $env:ChocolateyInstall 'lib\llvm\tools\LLVM\lib\cmake\llvm\LLVMConfig.cmake'
-              $llvmPackageRoot = Join-Path $env:ChocolateyInstall 'lib\llvm'
+            $chocolateyRoots = @($env:ChocolateyInstall, 'C:\ProgramData\chocolatey') | Where-Object { $_ } | Select-Object -Unique
+            foreach ($chocolateyRoot in $chocolateyRoots) {
+              $candidates += Join-Path $chocolateyRoot 'lib\llvm\tools\LLVM\lib\cmake\llvm\LLVMConfig.cmake'
+              $llvmPackageRoot = Join-Path $chocolateyRoot 'lib\llvm'
               if (Test-Path $llvmPackageRoot) {
                 $candidates += Get-ChildItem -Path $llvmPackageRoot -Filter LLVMConfig.cmake -Recurse -ErrorAction SilentlyContinue |
                   Select-Object -ExpandProperty FullName

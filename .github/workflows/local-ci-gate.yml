@@ -303,6 +303,15 @@ jobs:
           Add-Content $env:GITHUB_ENV "LLVM_DIR=$llvmDir"
           Add-Content $env:GITHUB_ENV "STYIO_NATIVE_TOOLCHAIN_ROOT=$llvmRoot"
 
+          $diaLib = Get-ChildItem -Path (Join-Path $env:ProgramFiles "Microsoft Visual Studio") -Recurse -Filter diaguids.lib -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -like "*\DIA SDK\lib\amd64\diaguids.lib" } |
+            Select-Object -First 1
+          if (!$diaLib) {
+            throw "MSVC DIA SDK diaguids.lib was not found"
+          }
+          $vsInstallDir = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $diaLib.FullName)))
+          Add-Content $env:GITHUB_ENV "VSINSTALLDIR=$vsInstallDir"
+
       - name: Verify standardized Windows toolchain
         shell: pwsh
         run: |

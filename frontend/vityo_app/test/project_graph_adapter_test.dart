@@ -213,7 +213,7 @@ version = "2026.6.19"
       final graph = await adapter.loadProjectGraph();
 
       expect(graph.kind, ProjectKind.scratch);
-      expect(graph.workspaceRoot, tempRoot.absolute.path);
+      expect(graph.workspaceRoot, tempRoot.resolveSymbolicLinksSync());
       expect(graph.toolchain.source, ToolchainResolutionSource.projectPin);
       expect(
         graph.toolchain.detail,

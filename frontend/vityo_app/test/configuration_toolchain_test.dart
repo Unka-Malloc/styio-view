@@ -114,6 +114,15 @@ void main() {
     );
   }
 
+  String existingPosixTool(String preferred, String fallback) {
+    if (File(preferred).existsSync()) {
+      return preferred;
+    }
+    return fallback;
+  }
+
+  String posixCatTool() => existingPosixTool('/usr/bin/cat', '/bin/cat');
+
   test(
     'configuration store persists ordinary settings through foundation datastore',
     () async {
@@ -1120,11 +1129,11 @@ REMOVE_ME=from-file
     () async {
       final catalog = ToolchainCatalog()
         ..register(
-          const ToolchainDescriptor(
+          ToolchainDescriptor(
             id: 'cat',
             kind: ToolchainKind.runner,
             displayName: 'cat',
-            executablePath: '/usr/bin/cat',
+            executablePath: posixCatTool(),
           ),
           activate: true,
         );
@@ -1156,11 +1165,11 @@ REMOVE_ME=from-file
     final platformManagers = await createDetectedPlatformManagerBundle();
     final catalog = ToolchainCatalog()
       ..register(
-        const ToolchainDescriptor(
+        ToolchainDescriptor(
           id: 'cat',
           kind: ToolchainKind.runner,
           displayName: 'cat',
-          executablePath: '/usr/bin/cat',
+          executablePath: posixCatTool(),
         ),
         activate: true,
       );
@@ -3271,13 +3280,24 @@ REMOVE_ME=from-file
         ),
         workspaceId: 'demo',
       );
+      final fakeStyio = File(
+        '${tempRoot.path}${Platform.pathSeparator}fake-styio-service.sh',
+      )..writeAsStringSync(r'''
+#!/bin/sh
+if [ "$1" = "managed-health" ]; then
+  printf %s "$1"
+  exit 0
+fi
+printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"nightly","argv":"%s"}\n' "$*"
+''');
+      await Process.run('chmod', <String>['755', fakeStyio.path]);
       await manager.saveCatalog(
         ToolchainCatalog()..register(
-          const ToolchainDescriptor(
+          ToolchainDescriptor(
             id: 'printf-styio',
             kind: ToolchainKind.languageService,
-            displayName: 'printf Styio',
-            executablePath: '/usr/bin/printf',
+            displayName: 'fake Styio',
+            executablePath: fakeStyio.path,
             metadata: <String, Object?>{'contract': 'styio-cli-jsonl-v1'},
           ),
           activate: true,

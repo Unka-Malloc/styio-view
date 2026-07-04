@@ -1,5 +1,8 @@
 # Architecture
 
+**Purpose:** Define the current architecture and boundaries of the repository delivery convergence planning workspace.
+**Last updated:** 2026-07-04
+
 ## Workspace Boundary
 
 `docs/plan` is the repository planning root. The root `Manifest.json` indexes Plan objects only. Each Plan owns a dedicated directory and a local `Checkpoints.json` execution graph.

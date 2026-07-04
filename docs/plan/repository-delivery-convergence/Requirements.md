@@ -1,5 +1,8 @@
 # Requirements
 
+**Purpose:** Define the requirements for the current repository delivery convergence planning workspace.
+**Last updated:** 2026-07-04
+
 ## Product Problem
 
 `Unka-Malloc/vityo-nightly` had planning material split across old planning directories and document names. The current requirement is a single Better Plan workspace under `docs/plan` that captures open work without preserving duplicate planning roots.

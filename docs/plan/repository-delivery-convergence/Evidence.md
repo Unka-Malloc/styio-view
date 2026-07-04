@@ -1,5 +1,8 @@
 # Evidence
 
+**Purpose:** Capture source inventory and open-work evidence for the repository delivery convergence plan.
+**Last updated:** 2026-07-04
+
 ## Source Inventory
 
 - `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md`: Vityo End To End Mainstream IDE Plan (signal lines captured: 12)
@@ -81,14 +84,14 @@
 - `docs/design/Vityo-Windows-Desktop-Adaptation-Plan.md:72`: Windows-specific implementation must prove:
 - `docs/plan/repository-delivery-convergence/Evidence.md:7`: **Status:** In Progress
 - `docs/plan/repository-delivery-convergence/Evidence.md:7`: **Status:** In Progress
-- `docs/plan/repository-delivery-convergence/Evidence.md:25`: | Execution route split | 建立 scratch single-file route �?project preview-only route 分流 | Semantic surfaces and adapter contracts | capability gap 清晰可见 |
+- `docs/plan/repository-delivery-convergence/Evidence.md:25`: | Execution route split | 建立 scratch single-file route 与 project preview-only route 分流 | Semantic surfaces and adapter contracts | capability gap 清晰可见 |
 - `docs/plan/repository-delivery-convergence/Evidence.md:48`: 2. iOS cloud-only blocked route
 - `docs/plan/repository-delivery-convergence/Evidence.md:7`: **Status:** In Progress
 - `docs/plan/repository-delivery-convergence/Evidence.md:7`: **Status:** In Progress
-- `docs/plan/repository-delivery-convergence/Evidence.md:25`: | Module lifecycle | 实现 mounted / staged / pending-removal 生命周期 | Module type classification | 生命周期可追�?|
+- `docs/plan/repository-delivery-convergence/Evidence.md:25`: | Module lifecycle | 实现 mounted / staged / pending-removal 生命周期 | Module type classification | 生命周期可追踪 |
 - `docs/plan/repository-delivery-convergence/Evidence.md:7`: **Status:** In Progress
 - `docs/plan/repository-delivery-convergence/Evidence.md:7`: **Status:** In Progress
-- `docs/plan/repository-delivery-convergence/Evidence.md:22`: | Adapter capability snapshots | 建立 `CLI / FFI / Cloud` 三类 adapter 的能力快�?| Language service product contract | capability gap 统一表达 |
+- `docs/plan/repository-delivery-convergence/Evidence.md:22`: | Adapter capability snapshots | 建立 `CLI / FFI / Cloud` 三类 adapter 的能力快照 | Language service product contract | capability gap 统一表达 |
 - `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:9`: "description": "Scope: Parent=the Better Plan root Manifest indexes Agent Interaction Protocols; Current=view_ide agent, sessions, turns, tools, permissions, audit events, patch preview/apply plans, provider routing, com
 - `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:13`: "text": "Agent context snapshots include scoped, redacted document, selection, diagnostics, project graph, runtime, settings, toolchain, command, and capability-gap channels."
 - `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:50`: "description": "Scope: Parent=the contract checkpoint defines ownership and boundaries for Agent Interaction Protocols; Current=view_ide agent, sessions, turns, tools, permissions, audit events, patch preview/apply plans

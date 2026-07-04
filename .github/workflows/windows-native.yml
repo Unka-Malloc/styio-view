@@ -38,7 +38,7 @@ jobs:
             requested="${{ github.base_ref }}"
           fi
           for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1; then
+            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1; then
               echo "ref=$ref" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -49,7 +49,7 @@ jobs:
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Styio
+          repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
@@ -74,6 +74,14 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Install Windows LLVM
+        shell: pwsh
+        run: |
+          choco install llvm --version=18.1.8 -y --no-progress
+          $llvmRoot = Join-Path $env:ProgramFiles "LLVM"
+          "LLVM_DIR=$(Join-Path $llvmRoot 'lib\cmake\llvm')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Verify standardized Windows toolchain
         shell: powershell
         run: |
@@ -95,7 +103,7 @@ jobs:
         working-directory: styio-nightly
         shell: powershell
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR="$env:LLVM_DIR"
           cmake --build build/default --target styio --config Debug
 
       - name: Resolve Styio executable path

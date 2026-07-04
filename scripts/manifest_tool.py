@@ -33,6 +33,7 @@ PLAN_REQUIRED_FIELDS = {
 TASK_REQUIRED_FIELDS = {
     "id",
     "status",
+    "role",
     "prerequisites",
     "platform",
     "difficulty",
@@ -420,7 +421,7 @@ def validate_checkpoints_data(path: Path, data: list[Any]) -> tuple[int, list[Is
             values = ", ".join(sorted(VALID_PLATFORMS))
             issues.append(Issue(path, f"{prefix}.platform: must be one of {values}"))
 
-        for field in ("goal", "description"):
+        for field in ("role", "goal", "description"):
             if not isinstance(node.get(field), str) or not node.get(field, "").strip():
                 issues.append(Issue(path, f"{prefix}.{field}: must be a non-empty string"))
 

@@ -1,5 +1,8 @@
 # Validation
 
+**Purpose:** Map repository delivery convergence requirements to validation evidence and checks.
+**Last updated:** 2026-07-04
+
 ## Requirement Mapping
 
 - REQ-001: Check `docs/plan/Manifest.json`, this plan directory, and `Evidence.md` source inventory.

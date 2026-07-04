@@ -39,8 +39,8 @@ jobs:
           fi
 
           for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/SymPolicy/Pafio.git "$ref" >/dev/null 2>&1; then
+            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
+              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
               echo "ref=$ref" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -52,14 +52,14 @@ jobs:
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Styio
+          repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Pafio
+          repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-pafio
 
@@ -88,7 +88,7 @@ jobs:
       - name: Install Linux desktop dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          sudo apt-get install -y clang-18 cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libclang-rt-18-dev lld-18 llvm-18-dev
 
       - name: Verify standardized Linux toolchain
         run: |
@@ -108,7 +108,7 @@ jobs:
       - name: Build Styio language fixture parser
         working-directory: styio-nightly
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build/default -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm
           cmake --build build/default --target styio --config Debug -j2
 
       - name: Resolve Styio executable
@@ -214,8 +214,8 @@ jobs:
           fi
 
           for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/SymPolicy/Pafio.git "$ref" >/dev/null 2>&1; then
+            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
+              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
               echo "ref=$ref" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -227,14 +227,14 @@ jobs:
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Styio
+          repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Pafio
+          repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-pafio
 
@@ -259,6 +259,14 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Install Windows LLVM
+        shell: pwsh
+        run: |
+          choco install llvm --version=18.1.8 -y --no-progress
+          $llvmRoot = Join-Path $env:ProgramFiles "LLVM"
+          "LLVM_DIR=$(Join-Path $llvmRoot 'lib\cmake\llvm')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Verify standardized Windows toolchain
         shell: pwsh
         run: |
@@ -267,7 +275,7 @@ jobs:
           $nodeVersion = node --version
           if ($nodeVersion -ne "v$env:STYIO_NODE_VERSION") { throw "Unexpected Node.js version: $nodeVersion" }
           npm --version
-          $flutterVersion = flutter --version
+          $flutterVersion = flutter --version | Select-Object -First 1
           if ($flutterVersion -notlike "*$env:STYIO_FLUTTER_VERSION*") { throw "Unexpected Flutter version: $flutterVersion" }
           flutter config --enable-web --enable-windows-desktop
           & "${{ steps.setup-chrome.outputs.chrome-path }}" --version
@@ -280,10 +288,10 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\bootstrap-workspace.ps1 -Platforms web,windows
 
       - name: Build Styio language fixture parser
-        shell: bash
+        shell: pwsh
         working-directory: styio-nightly
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR="$env:LLVM_DIR"
           cmake --build build/default --target styio --config Debug -j2
 
       - name: Resolve Styio executable
@@ -391,8 +399,8 @@ jobs:
           fi
 
           for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/SymPolicy/Pafio.git "$ref" >/dev/null 2>&1; then
+            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
+              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
               echo "ref=$ref" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -404,14 +412,14 @@ jobs:
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Styio
+          repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Pafio
+          repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-pafio
 
@@ -436,6 +444,12 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Install macOS LLVM
+        run: |
+          brew install llvm@18
+          echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> "$GITHUB_ENV"
+          echo "$(brew --prefix llvm@18)/bin" >> "$GITHUB_PATH"
+
       - name: Verify standardized macOS toolchain
         run: |
           "$PYTHON_BIN" --version | grep -F "${STYIO_PYTHON_VERSION}"
@@ -454,7 +468,7 @@ jobs:
       - name: Build Styio language fixture parser
         working-directory: styio-nightly
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR="$LLVM_DIR"
           cmake --build build/default --target styio --config Debug -j2
 
       - name: Resolve Styio executable

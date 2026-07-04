@@ -32,8 +32,8 @@ jobs:
           fi
 
           for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/SymPolicy/Pafio.git "$ref" >/dev/null 2>&1; then
+            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
+              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
               echo "ref=$ref" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -45,14 +45,14 @@ jobs:
       - name: Check out Styio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Styio
+          repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
       - name: Check out Pafio sibling repository
         uses: actions/checkout@v5
         with:
-          repository: SymPolicy/Pafio
+          repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-pafio
 

@@ -1,5 +1,8 @@
 # Better Plan Workspace
 
+**Purpose:** Define the current Better Plan planning workspace and its repository-local validation entrypoints.
+**Last updated:** 2026-07-04
+
 This workspace is the only current planning root for `Unka-Malloc/vityo-nightly`.
 
 - Manifest: `Manifest.json`

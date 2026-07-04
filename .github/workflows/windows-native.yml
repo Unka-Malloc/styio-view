@@ -74,47 +74,44 @@ jobs:
         with:
           chrome-version: stable
 
-      - name: Install Windows LLVM
+      - name: Install CMake, Ninja, and LLVM 18 development package
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: styio-llvm18
+          cache-environment: true
+          create-args: >-
+            cmake
+            ninja
+            llvm=18.1.8
+            llvmdev=18.1.8
+            clang-tools=18.1.8
+            zlib
+            libxml2
+            zstd
+
+      - name: Locate LLVM 18
         shell: pwsh
         run: |
-          function Find-LlvmConfig {
-            $candidates = @()
-            if ($env:ProgramFiles) {
-              $candidates += Join-Path $env:ProgramFiles 'LLVM\lib\cmake\llvm\LLVMConfig.cmake'
-            }
-            if (${env:ProgramFiles(x86)}) {
-              $candidates += Join-Path ${env:ProgramFiles(x86)} 'LLVM\lib\cmake\llvm\LLVMConfig.cmake'
-            }
-            $chocolateyRoots = @($env:ChocolateyInstall, 'C:\ProgramData\chocolatey') | Where-Object { $_ } | Select-Object -Unique
-            foreach ($chocolateyRoot in $chocolateyRoots) {
-              $candidates += Join-Path $chocolateyRoot 'lib\llvm\tools\LLVM\lib\cmake\llvm\LLVMConfig.cmake'
-              $llvmPackageRoot = Join-Path $chocolateyRoot 'lib\llvm'
-              if (Test-Path $llvmPackageRoot) {
-                $candidates += Get-ChildItem -Path $llvmPackageRoot -Filter LLVMConfig.cmake -Recurse -ErrorAction SilentlyContinue |
-                  Select-Object -ExpandProperty FullName
-              }
-            }
-            foreach ($candidate in $candidates | Select-Object -Unique) {
-              if ($candidate -and (Test-Path $candidate)) {
-                return (Resolve-Path $candidate).Path
-              }
-            }
-            return $null
+          $condaPrefix = Join-Path $env:MAMBA_ROOT_PREFIX "envs\styio-llvm18"
+          if (!(Test-Path $condaPrefix) -and $env:CONDA_PREFIX) {
+            $condaPrefix = $env:CONDA_PREFIX
+          }
+          if (!(Test-Path $condaPrefix)) {
+            throw "micromamba environment was not found"
           }
 
-          $llvmConfig = Find-LlvmConfig
-          if (-not $llvmConfig) {
-            choco install llvm -y --no-progress --force
-            $llvmConfig = Find-LlvmConfig
+          $llvmRoot = Join-Path $condaPrefix "Library"
+          $llvmConfig = Join-Path $llvmRoot "lib\cmake\llvm\LLVMConfig.cmake"
+          if (!(Test-Path $llvmConfig)) {
+            throw "LLVMConfig.cmake was not found in $llvmRoot"
           }
-          if (-not $llvmConfig) {
-            Write-Host "Searched Program Files and Chocolatey LLVM roots for LLVMConfig.cmake."
-            Get-ChildItem -Path 'C:\ProgramData\chocolatey\lib\llvm' -ErrorAction SilentlyContinue
-            throw "LLVMConfig.cmake was not found under Program Files or Chocolatey LLVM paths"
-          }
-          $llvmRoot = Split-Path (Split-Path (Split-Path (Split-Path $llvmConfig -Parent) -Parent) -Parent) -Parent
-          "LLVM_DIR=$(Split-Path $llvmConfig -Parent)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          (Join-Path $llvmRoot "bin") | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+          $llvmDir = Split-Path -Parent $llvmConfig
+
+          Add-Content $env:GITHUB_PATH (Join-Path $llvmRoot "bin")
+          Add-Content $env:GITHUB_PATH (Join-Path $condaPrefix "Scripts")
+          Add-Content $env:GITHUB_ENV "LLVM_DIR=$llvmDir"
+          Add-Content $env:GITHUB_ENV "STYIO_NATIVE_TOOLCHAIN_ROOT=$llvmRoot"
 
       - name: Verify standardized Windows toolchain
         shell: powershell
@@ -137,7 +134,7 @@ jobs:
         working-directory: styio-nightly
         shell: powershell
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR="$env:LLVM_DIR"
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR="$env:LLVM_DIR" -DSTYIO_NATIVE_TOOLCHAIN_ROOT="$env:STYIO_NATIVE_TOOLCHAIN_ROOT" -DSTYIO_NATIVE_TOOLCHAIN_MODE=auto
           cmake --build build/default --target styio --config Debug
 
       - name: Resolve Styio executable path

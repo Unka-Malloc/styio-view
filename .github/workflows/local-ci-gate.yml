@@ -78,6 +78,11 @@ jobs:
         with:
           flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
 
+      - name: Set up MSVC command environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Install CI Chrome
         id: setup-chrome
         uses: browser-actions/setup-chrome@v2
@@ -306,7 +311,8 @@ jobs:
           $nodeVersion = node --version
           if ($nodeVersion -ne "v$env:STYIO_NODE_VERSION") { throw "Unexpected Node.js version: $nodeVersion" }
           npm --version
-          $flutterVersion = flutter --version | Select-Object -First 1
+          $flutterVersionOutput = flutter --version
+          $flutterVersion = ($flutterVersionOutput -split "`r?`n")[0]
           if ($flutterVersion -notlike "*$env:STYIO_FLUTTER_VERSION*") { throw "Unexpected Flutter version: $flutterVersion" }
           flutter config --enable-web --enable-windows-desktop
           & "${{ steps.setup-chrome.outputs.chrome-path }}" --version

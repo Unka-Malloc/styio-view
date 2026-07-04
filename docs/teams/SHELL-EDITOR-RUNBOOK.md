@@ -65,6 +65,7 @@ Key SSOTs:
 17. Prototype dev-server security tests must cover Windows filesystem behavior with native paths, junction/symlink fallbacks, and retryable cleanup so the handwritten web editor remains safe without WSL or Linux-only path assumptions.
 18. Prototype editor selftest launcher changes must preserve `PYTHON_BIN`, `STYIO_CHROME_PATH` / `CHROME_EXECUTABLE`, and `STYIO_EDITOR_URL` behavior across Linux, Windows, and macOS CI hosts.
 19. Prototype dev-server workspace root changes must persist resolved physical paths so macOS `/var` and `/private/var` aliases, Windows junctions, and symlinked workspaces compare against one canonical root in API responses and security tests.
+20. Prototype dev-server path assertions must compare resolved physical paths for existing workspace entries, because macOS temp directories can surface through both `/var` and `/private/var` during the same test process.
 
 ## Change Classes
 

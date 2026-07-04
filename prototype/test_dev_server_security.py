@@ -113,9 +113,15 @@ class DevServerPathUtilityTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "path casing must match existing entry"):
             dev_server.lookup_case_sensitive_child(self.workspace, "MAIN.STYIO")
         self.assertIsNone(dev_server.lookup_case_sensitive_child(self.workspace / "missing", "x"))
-        self.assertEqual(dev_server.resolve_existing_path_case_sensitive("workspace", base=self.root), self.workspace)
-        self.assertEqual(dev_server.resolve_workspace_path("src/lib.styio", require_exists=True), self.workspace / "src" / "lib.styio")
-        self.assertEqual(dev_server.resolve_workspace_path("new.styio"), self.workspace / "new.styio")
+        self.assertEqual(
+            dev_server.resolve_existing_path_case_sensitive("workspace", base=self.root),
+            self.workspace.resolve(),
+        )
+        self.assertEqual(
+            dev_server.resolve_workspace_path("src/lib.styio", require_exists=True),
+            (self.workspace / "src" / "lib.styio").resolve(),
+        )
+        self.assertEqual(dev_server.resolve_workspace_path("new.styio"), self.workspace.resolve() / "new.styio")
         with self.assertRaisesRegex(ValueError, "path must be a non-empty string"):
             dev_server.resolve_workspace_path("")
         with self.assertRaisesRegex(ValueError, "path not found"):

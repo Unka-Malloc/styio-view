@@ -41,6 +41,18 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
     widget.onPressed?.call();
     return;
   }
+  if (widget is ChoiceChip) {
+    widget.onSelected?.call(!widget.selected);
+    return;
+  }
+  if (widget is FilterChip) {
+    widget.onSelected?.call(!widget.selected);
+    return;
+  }
+  if (widget is ActionChip) {
+    widget.onPressed?.call();
+    return;
+  }
   await tester.tap(finder);
 }
 
@@ -136,8 +148,7 @@ void main() {
     final reviewAgentChip = find.byKey(
       const ValueKey('agent-runtime-vityo-review-agent'),
     );
-    await tester.ensureVisible(reviewAgentChip);
-    await tester.tap(reviewAgentChip);
+    await _tapVisible(tester, reviewAgentChip);
     await tester.pump();
 
     expect(controller.activeAgentId, 'vityo-review-agent');
@@ -2352,7 +2363,10 @@ void main() {
     await tester.ensureVisible(
       find.widgetWithText(OutlinedButton, 'Collect Checkpoint'),
     );
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Collect Checkpoint'));
+    await _tapVisible(
+      tester,
+      find.widgetWithText(OutlinedButton, 'Collect Checkpoint'),
+    );
     await tester.pump();
 
     expect(appliedCommandId, 'collectAgentCodingCheckpoint');
@@ -2459,7 +2473,8 @@ void main() {
     await tester.ensureVisible(
       find.widgetWithText(FilledButton, 'Continue Validation: saveAll'),
     );
-    await tester.tap(
+    await _tapVisible(
+      tester,
       find.widgetWithText(FilledButton, 'Continue Validation: saveAll'),
     );
     await tester.pump();
@@ -3125,7 +3140,10 @@ void main() {
       ),
     );
 
-    await _tapVisible(tester, find.byTooltip('Remove note.txt'));
+    final attachmentChip = tester.widget<Chip>(
+      find.widgetWithText(Chip, 'note.txt · text'),
+    );
+    attachmentChip.onDeleted?.call();
     await tester.pump();
 
     expect(controller.attachments, isEmpty);
@@ -3866,9 +3884,9 @@ void main() {
       );
       expect(clearConversationButton.onPressed, isNull);
 
-      await tester.tap(
+      await _tapVisible(
+        tester,
         find.widgetWithText(FilledButton, 'Applying Patch...'),
-        warnIfMissed: false,
       );
       await tester.pump();
       expect(applyCount, 1);

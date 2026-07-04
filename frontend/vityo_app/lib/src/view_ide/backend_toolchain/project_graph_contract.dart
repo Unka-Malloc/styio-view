@@ -119,6 +119,25 @@ extension ToolchainResolutionSourceX on ToolchainResolutionSource {
   }
 }
 
+enum ProjectGraphFieldSourceConfidence {
+  machinePayload,
+  canonicalFile,
+  inferred,
+  capabilityGap,
+}
+
+extension ProjectGraphFieldSourceConfidenceX
+    on ProjectGraphFieldSourceConfidence {
+  String get wireValue {
+    return switch (this) {
+      ProjectGraphFieldSourceConfidence.machinePayload => 'machine-payload',
+      ProjectGraphFieldSourceConfidence.canonicalFile => 'canonical-file',
+      ProjectGraphFieldSourceConfidence.inferred => 'inferred',
+      ProjectGraphFieldSourceConfidence.capabilityGap => 'capability-gap',
+    };
+  }
+}
+
 enum HostedWorkspaceStatus {
   provisioning,
   active,
@@ -539,6 +558,33 @@ class PublishedPayloadFailure {
 }
 
 class ProjectGraphSnapshot {
+  static const List<String> sourceConfidenceFieldNames = <String>[
+    'id',
+    'title',
+    'kind',
+    'workspaceRoot',
+    'workspaceMembers',
+    'manifestPath',
+    'lockfilePath',
+    'toolchainPinPath',
+    'styioConfigPath',
+    'vendorRoot',
+    'buildRoot',
+    'packages',
+    'dependencies',
+    'targets',
+    'editorFiles',
+    'toolchain',
+    'lockState',
+    'vendorState',
+    'activeCompiler',
+    'toolchainEnvironment',
+    'packageDistribution',
+    'sourceState',
+    'hostedWorkspace',
+    'notes',
+  ];
+
   const ProjectGraphSnapshot({
     required this.id,
     required this.title,
@@ -566,6 +612,8 @@ class ProjectGraphSnapshot {
     this.projectGraphPayloadFailure,
     this.toolchainStatePayloadFailure,
     this.hostedWorkspace,
+    this.sourceConfidenceByField =
+        const <String, ProjectGraphFieldSourceConfidence>{},
   });
 
   final String id;
@@ -593,6 +641,7 @@ class ProjectGraphSnapshot {
   final PublishedPayloadFailure? projectGraphPayloadFailure;
   final PublishedPayloadFailure? toolchainStatePayloadFailure;
   final HostedWorkspaceRecordSnapshot? hostedWorkspace;
+  final Map<String, ProjectGraphFieldSourceConfidence> sourceConfidenceByField;
   final List<String> notes;
 
   bool get hasManifest => manifestPath != null;
@@ -636,6 +685,29 @@ class ProjectGraphSnapshot {
       activeCompiler?.supportsContract('jit') == true ||
       activeCompiler?.supportsContract('jit_route') == true;
 
+  Map<String, ProjectGraphFieldSourceConfidence> get fieldSourceConfidence {
+    final defaults = _defaultSourceConfidenceByField();
+    return <String, ProjectGraphFieldSourceConfidence>{
+      for (final fieldName in sourceConfidenceFieldNames)
+        fieldName:
+            sourceConfidenceByField[fieldName] ??
+            defaults[fieldName] ??
+            ProjectGraphFieldSourceConfidence.capabilityGap,
+    };
+  }
+
+  Map<String, String> get fieldSourceConfidenceWireValues {
+    return <String, String>{
+      for (final entry in fieldSourceConfidence.entries)
+        entry.key: entry.value.wireValue,
+    };
+  }
+
+  ProjectGraphFieldSourceConfidence sourceConfidenceFor(String fieldName) {
+    return fieldSourceConfidence[fieldName] ??
+        ProjectGraphFieldSourceConfidence.capabilityGap;
+  }
+
   ProjectGraphSnapshot copyWith({
     List<String>? editorFiles,
     ToolchainStatusSnapshot? toolchain,
@@ -646,6 +718,7 @@ class ProjectGraphSnapshot {
     PublishedPayloadFailure? projectGraphPayloadFailure,
     PublishedPayloadFailure? toolchainStatePayloadFailure,
     HostedWorkspaceRecordSnapshot? hostedWorkspace,
+    Map<String, ProjectGraphFieldSourceConfidence>? sourceConfidenceByField,
     List<String>? notes,
   }) {
     return ProjectGraphSnapshot(
@@ -676,6 +749,8 @@ class ProjectGraphSnapshot {
       toolchainStatePayloadFailure:
           toolchainStatePayloadFailure ?? this.toolchainStatePayloadFailure,
       hostedWorkspace: hostedWorkspace ?? this.hostedWorkspace,
+      sourceConfidenceByField:
+          sourceConfidenceByField ?? this.sourceConfidenceByField,
       notes: notes ?? this.notes,
     );
   }
@@ -693,6 +768,7 @@ class ProjectGraphSnapshot {
     PublishedPayloadFailure? projectGraphPayloadFailure,
     PublishedPayloadFailure? toolchainStatePayloadFailure,
     HostedWorkspaceRecordSnapshot? hostedWorkspace,
+    Map<String, ProjectGraphFieldSourceConfidence>? sourceConfidenceByField,
   }) {
     return ProjectGraphSnapshot(
       id: 'scratch:${workspaceRoot.hashCode}',
@@ -725,7 +801,54 @@ class ProjectGraphSnapshot {
       projectGraphPayloadFailure: projectGraphPayloadFailure,
       toolchainStatePayloadFailure: toolchainStatePayloadFailure,
       hostedWorkspace: hostedWorkspace,
+      sourceConfidenceByField:
+          sourceConfidenceByField ?? _scratchSourceConfidenceByField,
       notes: notes,
     );
   }
+
+  Map<String, ProjectGraphFieldSourceConfidence>
+  _defaultSourceConfidenceByField() {
+    if (isScratch) {
+      return _scratchSourceConfidenceByField;
+    }
+    if (hasProjectGraphPayloadFailure || hasToolchainStatePayloadFailure) {
+      return _canonicalFileSourceConfidenceByField;
+    }
+    return _machinePayloadSourceConfidenceByField;
+  }
 }
+
+final Map<String, ProjectGraphFieldSourceConfidence>
+_machinePayloadSourceConfidenceByField =
+    <String, ProjectGraphFieldSourceConfidence>{
+      for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
+        fieldName: ProjectGraphFieldSourceConfidence.machinePayload,
+    };
+
+final Map<String, ProjectGraphFieldSourceConfidence>
+_canonicalFileSourceConfidenceByField =
+    <String, ProjectGraphFieldSourceConfidence>{
+      for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
+        fieldName: ProjectGraphFieldSourceConfidence.canonicalFile,
+      'toolchain': ProjectGraphFieldSourceConfidence.inferred,
+      'activeCompiler': ProjectGraphFieldSourceConfidence.capabilityGap,
+      'toolchainEnvironment': ProjectGraphFieldSourceConfidence.capabilityGap,
+      'packageDistribution': ProjectGraphFieldSourceConfidence.capabilityGap,
+      'sourceState': ProjectGraphFieldSourceConfidence.capabilityGap,
+      'hostedWorkspace': ProjectGraphFieldSourceConfidence.capabilityGap,
+      'notes': ProjectGraphFieldSourceConfidence.inferred,
+    };
+
+final Map<String, ProjectGraphFieldSourceConfidence>
+_scratchSourceConfidenceByField = <String, ProjectGraphFieldSourceConfidence>{
+  for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
+    fieldName: ProjectGraphFieldSourceConfidence.inferred,
+  'manifestPath': ProjectGraphFieldSourceConfidence.capabilityGap,
+  'toolchainPinPath': ProjectGraphFieldSourceConfidence.capabilityGap,
+  'activeCompiler': ProjectGraphFieldSourceConfidence.capabilityGap,
+  'toolchainEnvironment': ProjectGraphFieldSourceConfidence.capabilityGap,
+  'packageDistribution': ProjectGraphFieldSourceConfidence.capabilityGap,
+  'sourceState': ProjectGraphFieldSourceConfidence.capabilityGap,
+  'hostedWorkspace': ProjectGraphFieldSourceConfidence.capabilityGap,
+};

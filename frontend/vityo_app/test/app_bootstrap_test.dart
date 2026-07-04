@@ -2,17 +2,32 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/agent/agent_context.dart';
+import 'package:vityo_app/src/agent/agent_profile.dart';
+import 'package:vityo_app/src/agent/agent_provider_adapter.dart';
+import 'package:vityo_app/src/agent/agent_provider_configurator.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
 import 'package:vityo_app/src/app/state/workspace_controller.dart';
+import 'package:vityo_app/src/backend_toolchain/adapter_contracts.dart';
+import 'package:vityo_app/src/backend_toolchain/dependency_source_adapter.dart';
+import 'package:vityo_app/src/backend_toolchain/deployment_adapter.dart';
+import 'package:vityo_app/src/backend_toolchain/execution_adapter.dart';
+import 'package:vityo_app/src/backend_toolchain/project_graph_adapter.dart';
+import 'package:vityo_app/src/backend_toolchain/runtime_event_adapter.dart';
+import 'package:vityo_app/src/backend_toolchain/toolchain_management_adapter.dart';
+import 'package:vityo_app/src/editor/selection_state.dart';
 import 'package:vityo_app/src/integration/hosted_control_plane.dart';
 import 'package:vityo_app/src/integration/project_graph_contract.dart';
+import 'package:vityo_app/src/platform/native_module_loader.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/agent/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/view_ide/editor/editor_controller.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
 import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/service.dart';
+import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store_types.dart';
 
@@ -204,6 +219,193 @@ void main() {
       expect(hostedClient.savedDocuments.single['revision'], 4);
     },
   );
+
+  test('app bootstrap service wiring manifest accounts for injections', () {
+    final bootstrap = _createMinimalBootstrap();
+    addTearDown(bootstrap.dispose);
+
+    final manifest = bootstrap.serviceWiringManifest();
+    final serviceIds = manifest.entries
+        .map((entry) => entry.descriptor.serviceId)
+        .toList(growable: false);
+
+    expect(serviceIds.toSet(), hasLength(serviceIds.length));
+    expect(serviceIds, contains('module.registry'));
+    expect(serviceIds, contains('toolchain.manager'));
+    expect(serviceIds, contains('workspace.diagnostics-controller'));
+    expect(manifest.missingRequiredEntries, isEmpty);
+    expect(manifest.absentWithoutCapabilityGapEntries, isEmpty);
+    expect(manifest.allServicesAccountedFor, isTrue);
+    expect(
+      manifest.entries
+          .where((entry) => !entry.descriptor.requiredInjection)
+          .every(
+            (entry) =>
+                entry.descriptor.capabilityGapCode != null &&
+                entry.descriptor.capabilityGapCode!.isNotEmpty,
+          ),
+      isTrue,
+    );
+
+    final json = manifest.toJson();
+    expect(json['platformTarget'], PlatformTarget.windows.name);
+    expect(json['allServicesAccountedFor'], isTrue);
+    expect(json.toString(), isNot(contains('Instance of')));
+  });
+}
+
+AppBootstrap _createMinimalBootstrap() {
+  const projectGraph = ProjectGraphSnapshot(
+    id: 'bootstrap-fixture',
+    title: 'bootstrap/fixture',
+    kind: ProjectKind.package,
+    workspaceRoot: '/workspace/bootstrap',
+    workspaceMembers: <String>[],
+    manifestPath: '/workspace/bootstrap/pafio.toml',
+    packages: <ProjectPackageSnapshot>[],
+    dependencies: <ProjectDependencySnapshot>[],
+    targets: <ProjectTargetDescriptor>[],
+    editorFiles: <String>['/workspace/bootstrap/src/main.styio'],
+    toolchain: ToolchainStatusSnapshot(
+      source: ToolchainResolutionSource.projectPin,
+      detail: 'bootstrap fixture toolchain',
+    ),
+    lockState: ProjectLockState.fresh,
+    vendorState: ProjectVendorState.present,
+    notes: <String>[],
+  );
+  final workspaceController = WorkspaceController(
+    projectSnapshot: projectGraph,
+  );
+  final editorController = EditorSessionController(
+    initialDocument: const DocumentState(
+      documentId: '/workspace/bootstrap/src/main.styio',
+      text: '#main := () => {}',
+      revision: 1,
+    ),
+    languageService: createRoutedStyioLanguageService(
+      resultCache: StyioServiceResultCache(),
+    ),
+  );
+  final agentController = AgentCodingSessionController(
+    profile: AgentPromptProfile.openAICodexSparkForPlatform(
+      PlatformTarget.windows,
+    ),
+    adapter: const LocalOnlyAgentProviderAdapter(),
+    contextProvider: _emptyAgentContext,
+  );
+  return AppBootstrap(
+    platformTarget: PlatformTarget.windows,
+    moduleRegistry: ModuleRegistry(
+      platformTarget: PlatformTarget.windows,
+      definitions: const <ModuleDefinition>[],
+    ),
+    nativeModuleLoader: const NoopNativeModuleLoader(
+      platformTarget: PlatformTarget.windows,
+    ),
+    projectGraphAdapter: _NoopProjectGraphAdapter(),
+    supplementalAdapterCapabilities: normalizeCapabilitySnapshots(
+      const <AdapterCapabilitySnapshot>[],
+    ),
+    workspaceController: workspaceController,
+    workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+    editorController: editorController,
+    executionAdapter: _NoopExecutionAdapter(),
+    executionAdapterFactory: (_) async => _NoopExecutionAdapter(),
+    runtimeEventAdapter: NoopRuntimeEventAdapter(
+      capabilitySnapshot: _capabilitySnapshot(),
+    ),
+    dependencySourceAdapter: _NoopDependencySourceAdapter(),
+    deploymentAdapter: _NoopDeploymentAdapter(),
+    toolchainManagementAdapter: _NoopToolchainManagementAdapter(),
+    agentCodingController: agentController,
+    agentProviderConfigurator: AgentProviderConfigurator(
+      workspaceId: 'bootstrap-fixture',
+      saveProfile:
+          ({required workspaceId, required key, required profile}) async {},
+      createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
+    ),
+  );
+}
+
+AgentSessionContext _emptyAgentContext() {
+  return AgentSessionContext.fromEditorState(
+    document: const DocumentState(
+      documentId: '/workspace/bootstrap/src/main.styio',
+      text: '#main := () => {}',
+      revision: 1,
+    ),
+    selection: const SelectionState.collapsed(0),
+    diagnostics: const <Diagnostic>[],
+  );
+}
+
+class _NoopProjectGraphAdapter implements ProjectGraphAdapter {
+  @override
+  AdapterCapabilitySnapshot get capabilitySnapshot => _capabilitySnapshot(
+    projectGraph: const AdapterEndpointCapability(
+      level: AdapterCapabilityLevel.available,
+      detail: 'bootstrap fixture project graph',
+    ),
+  );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopExecutionAdapter implements ExecutionAdapter {
+  @override
+  AdapterCapabilitySnapshot get capabilitySnapshot => _capabilitySnapshot(
+    execution: const AdapterEndpointCapability(
+      level: AdapterCapabilityLevel.available,
+      detail: 'bootstrap fixture execution',
+    ),
+  );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopDependencySourceAdapter implements DependencySourceAdapter {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopDeploymentAdapter implements DeploymentAdapter {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopToolchainManagementAdapter implements ToolchainManagementAdapter {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+AdapterCapabilitySnapshot _capabilitySnapshot({
+  AdapterEndpointCapability languageService = const AdapterEndpointCapability(
+    level: AdapterCapabilityLevel.unavailable,
+    detail: 'bootstrap fixture language service unavailable',
+  ),
+  AdapterEndpointCapability projectGraph = const AdapterEndpointCapability(
+    level: AdapterCapabilityLevel.unavailable,
+    detail: 'bootstrap fixture project graph unavailable',
+  ),
+  AdapterEndpointCapability execution = const AdapterEndpointCapability(
+    level: AdapterCapabilityLevel.unavailable,
+    detail: 'bootstrap fixture execution unavailable',
+  ),
+  AdapterEndpointCapability runtimeEvents = const AdapterEndpointCapability(
+    level: AdapterCapabilityLevel.unavailable,
+    detail: 'bootstrap fixture runtime events unavailable',
+  ),
+}) {
+  return AdapterCapabilitySnapshot(
+    adapterKind: AdapterKind.cli,
+    languageService: languageService,
+    projectGraph: projectGraph,
+    execution: execution,
+    runtimeEvents: runtimeEvents,
+  );
 }
 
 class _RecordingStyioConnector implements StyioServiceConnector {
@@ -290,12 +492,12 @@ class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {
 
 ProjectGraphSnapshot _hostedProjectGraph() {
   return ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.hosted,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
+    manifestPath: '/workspace/demo/pafio.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: const <ProjectTargetDescriptor>[],

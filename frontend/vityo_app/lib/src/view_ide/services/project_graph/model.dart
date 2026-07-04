@@ -567,13 +567,13 @@ StyioCanonicalProjectFileKind? styioCanonicalProjectFileKindForPath(
   switch (name) {
     case 'styio.toml':
     case '.styio.toml':
-    case 'spio.toml':
+    case 'pafio.toml':
       return StyioCanonicalProjectFileKind.manifest;
     case 'styio.lock':
-    case 'spio.lock':
+    case 'pafio.lock':
       return StyioCanonicalProjectFileKind.lockfile;
     case 'styio-toolchain.toml':
-    case 'spio-toolchain.toml':
+    case 'pafio-toolchain.toml':
       return StyioCanonicalProjectFileKind.toolchainPin;
     case 'styio.workspace.toml':
       return StyioCanonicalProjectFileKind.workspaceConfig;

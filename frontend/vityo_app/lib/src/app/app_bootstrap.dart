@@ -82,6 +82,107 @@ class AppExtensionStartupPlan {
   }
 }
 
+enum AppBootstrapServiceWiringState { injected, absent }
+
+extension AppBootstrapServiceWiringStateWire on AppBootstrapServiceWiringState {
+  String get wireValue {
+    return switch (this) {
+      AppBootstrapServiceWiringState.injected => 'injected',
+      AppBootstrapServiceWiringState.absent => 'absent',
+    };
+  }
+}
+
+class AppBootstrapServiceDescriptor {
+  const AppBootstrapServiceDescriptor({
+    required this.serviceId,
+    required this.ownerLayer,
+    required this.requiredInjection,
+    this.capabilityGapCode,
+    this.recoveryAction,
+  });
+
+  final String serviceId;
+  final String ownerLayer;
+  final bool requiredInjection;
+  final String? capabilityGapCode;
+  final String? recoveryAction;
+
+  bool get hasAbsentStateContract {
+    return requiredInjection ||
+        (capabilityGapCode != null && capabilityGapCode!.isNotEmpty);
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'serviceId': serviceId,
+      'ownerLayer': ownerLayer,
+      'required': requiredInjection,
+      if (capabilityGapCode != null) 'capabilityGapCode': capabilityGapCode,
+      if (recoveryAction != null) 'recoveryAction': recoveryAction,
+    };
+  }
+}
+
+class AppBootstrapServiceWiringEntry {
+  const AppBootstrapServiceWiringEntry({
+    required this.descriptor,
+    required this.state,
+  });
+
+  final AppBootstrapServiceDescriptor descriptor;
+  final AppBootstrapServiceWiringState state;
+
+  bool get injected => state == AppBootstrapServiceWiringState.injected;
+
+  bool get accountedFor {
+    return injected || descriptor.hasAbsentStateContract;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      ...descriptor.toJson(),
+      'state': state.wireValue,
+      'accountedFor': accountedFor,
+    };
+  }
+}
+
+class AppBootstrapServiceWiringManifest {
+  AppBootstrapServiceWiringManifest({
+    required this.platformTarget,
+    required Iterable<AppBootstrapServiceWiringEntry> entries,
+  }) : entries = List<AppBootstrapServiceWiringEntry>.unmodifiable(entries);
+
+  final PlatformTarget platformTarget;
+  final List<AppBootstrapServiceWiringEntry> entries;
+
+  List<AppBootstrapServiceWiringEntry> get missingRequiredEntries {
+    return entries
+        .where((entry) => entry.descriptor.requiredInjection && !entry.injected)
+        .toList(growable: false);
+  }
+
+  List<AppBootstrapServiceWiringEntry> get absentWithoutCapabilityGapEntries {
+    return entries
+        .where((entry) => !entry.injected && !entry.accountedFor)
+        .toList(growable: false);
+  }
+
+  bool get allServicesAccountedFor {
+    return missingRequiredEntries.isEmpty &&
+        absentWithoutCapabilityGapEntries.isEmpty;
+  }
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'platformTarget': platformTarget.name,
+      'allServicesAccountedFor': allServicesAccountedFor,
+      'entries': entries.map((entry) => entry.toJson()).toList(growable: false),
+    };
+  }
+}
+
 class AppBootstrap {
   AppBootstrap({
     required this.platformTarget,
@@ -180,6 +281,267 @@ class AppBootstrap {
         runtimeEventAdapter.capabilitySnapshot,
         ...supplementalAdapterCapabilities,
       ]);
+
+  static const List<AppBootstrapServiceDescriptor> serviceWiringDescriptors =
+      <AppBootstrapServiceDescriptor>[
+        AppBootstrapServiceDescriptor(
+          serviceId: 'platform.target',
+          ownerLayer: 'app',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'module.registry',
+          ownerLayer: 'module-host',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'module.native-loader',
+          ownerLayer: 'platform',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'project-graph.adapter',
+          ownerLayer: 'backend-toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'adapter.supplemental-capabilities',
+          ownerLayer: 'backend-toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'workspace.controller',
+          ownerLayer: 'app',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'workspace.document-store',
+          ownerLayer: 'app',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'editor.controller',
+          ownerLayer: 'interaction',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'execution.adapter',
+          ownerLayer: 'backend-toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'execution.adapter-factory',
+          ownerLayer: 'backend-toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'runtime.event-adapter',
+          ownerLayer: 'runtime',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'dependency-source.adapter',
+          ownerLayer: 'backend-toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'deployment.adapter',
+          ownerLayer: 'backend-toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'toolchain.management-adapter',
+          ownerLayer: 'toolchain',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'agent.coding-controller',
+          ownerLayer: 'agent',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'agent.provider-configurator',
+          ownerLayer: 'agent',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'runtime.output-buffer',
+          ownerLayer: 'runtime',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'language.status',
+          ownerLayer: 'service',
+          requiredInjection: true,
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'agent.extension-tool-execution-registry',
+          ownerLayer: 'extension',
+          requiredInjection: false,
+          capabilityGapCode: 'agent.extension-tools.unavailable',
+          recoveryAction: 'refreshModules',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'extension.startup-plan',
+          ownerLayer: 'extension',
+          requiredInjection: false,
+          capabilityGapCode: 'extension.startup-plan.unavailable',
+          recoveryAction: 'refreshModules',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'command-palette.preferences-store',
+          ownerLayer: 'interaction',
+          requiredInjection: false,
+          capabilityGapCode: 'command-palette.preferences.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'theme.override-store',
+          ownerLayer: 'appearance',
+          requiredInjection: false,
+          capabilityGapCode: 'theme.override-store.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'language.refresh-active-service',
+          ownerLayer: 'service',
+          requiredInjection: false,
+          capabilityGapCode: 'language.refresh.unavailable',
+          recoveryAction: 'refreshLanguageService',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'language.subscription-controller',
+          ownerLayer: 'service',
+          requiredInjection: false,
+          capabilityGapCode: 'language.subscription.unavailable',
+          recoveryAction: 'refreshLanguageService',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'language.status-controller',
+          ownerLayer: 'service',
+          requiredInjection: false,
+          capabilityGapCode: 'language.status-controller.unavailable',
+          recoveryAction: 'refreshLanguageService',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'toolchain.manager',
+          ownerLayer: 'toolchain',
+          requiredInjection: false,
+          capabilityGapCode: 'toolchain.manager.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'toolchain.status-report',
+          ownerLayer: 'toolchain',
+          requiredInjection: false,
+          capabilityGapCode: 'toolchain.status-report.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'toolchain.clang-cpp-preference',
+          ownerLayer: 'toolchain',
+          requiredInjection: false,
+          capabilityGapCode: 'toolchain.clang-cpp-preference.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'toolchain.catalog-subscription',
+          ownerLayer: 'toolchain',
+          requiredInjection: false,
+          capabilityGapCode: 'toolchain.catalog-subscription.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'language.result-cache-binding',
+          ownerLayer: 'service',
+          requiredInjection: false,
+          capabilityGapCode: 'language.result-cache-binding.unavailable',
+          recoveryAction: 'refreshLanguageService',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'workspace.diagnostics-controller',
+          ownerLayer: 'workspace',
+          requiredInjection: false,
+          capabilityGapCode: 'workspace.diagnostics.unavailable',
+          recoveryAction: 'refreshLanguageService',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'testing.session-controller',
+          ownerLayer: 'testing',
+          requiredInjection: false,
+          capabilityGapCode: 'testing.session.unavailable',
+          recoveryAction: 'runTests',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'source-control.status-controller',
+          ownerLayer: 'source-control',
+          requiredInjection: false,
+          capabilityGapCode: 'source-control.status.unavailable',
+          recoveryAction: 'refreshSourceControl',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'language.project-service',
+          ownerLayer: 'service',
+          requiredInjection: false,
+          capabilityGapCode: 'language.project-service.unavailable',
+          recoveryAction: 'refreshLanguageService',
+        ),
+      ];
+
+  AppBootstrapServiceWiringManifest serviceWiringManifest() {
+    final injectedByServiceId = <String, bool>{
+      'platform.target': true,
+      'module.registry': true,
+      'module.native-loader': true,
+      'project-graph.adapter': true,
+      'adapter.supplemental-capabilities': true,
+      'workspace.controller': true,
+      'workspace.document-store': true,
+      'editor.controller': true,
+      'execution.adapter': true,
+      'execution.adapter-factory': true,
+      'runtime.event-adapter': true,
+      'dependency-source.adapter': true,
+      'deployment.adapter': true,
+      'toolchain.management-adapter': true,
+      'agent.coding-controller': true,
+      'agent.provider-configurator': true,
+      'runtime.output-buffer': true,
+      'language.status': true,
+      'agent.extension-tool-execution-registry':
+          agentExtensionToolExecutionRegistry != null,
+      'extension.startup-plan': extensionStartupPlan != null,
+      'command-palette.preferences-store':
+          commandPalettePreferencesStore != null,
+      'theme.override-store': themeOverrideStore != null,
+      'language.refresh-active-service': refreshActiveLanguageService != null,
+      'language.subscription-controller':
+          styioServiceSubscriptionController != null,
+      'language.status-controller': languageServiceStatusController != null,
+      'toolchain.manager': toolchainManager != null,
+      'toolchain.status-report': toolchainStatusReport != null,
+      'toolchain.clang-cpp-preference': clangCppVersionPreference != null,
+      'toolchain.catalog-subscription': toolchainCatalogSubscription != null,
+      'language.result-cache-binding': languageResultCacheBinding != null,
+      'workspace.diagnostics-controller':
+          workspaceDiagnosticsController != null,
+      'testing.session-controller': testingSessionController != null,
+      'source-control.status-controller': sourceControlStatusController != null,
+      'language.project-service': projectLanguageService != null,
+    };
+    return AppBootstrapServiceWiringManifest(
+      platformTarget: platformTarget,
+      entries: serviceWiringDescriptors.map((descriptor) {
+        final injected = injectedByServiceId[descriptor.serviceId] ?? false;
+        return AppBootstrapServiceWiringEntry(
+          descriptor: descriptor,
+          state: injected
+              ? AppBootstrapServiceWiringState.injected
+              : AppBootstrapServiceWiringState.absent,
+        );
+      }),
+    );
+  }
 
   static Future<AppBootstrap> load() async {
     final platformTarget = detectPlatformTarget();

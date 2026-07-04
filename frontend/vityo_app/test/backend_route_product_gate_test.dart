@@ -5,6 +5,7 @@ import 'package:vityo_app/src/backend_toolchain/execution_route_summary.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/interaction/toolchain_status_surface.dart';
+import 'package:vityo_app/src/view_ide/module_host/android_runtime_package_budget.dart';
 import 'package:vityo_app/src/view_render/native_tool_result_summary.dart';
 import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
 import 'package:vityo_app/src/view_render/runtime/runtime_surface.dart';
@@ -134,6 +135,167 @@ void main() {
       }
     },
   );
+
+  group('2) Android local-first route scenarios', () {
+    test(
+      'Android with CLI execution available resolves to localCli local-first',
+      () {
+        const androidCliAvailable = AdapterCapabilityLevel.partial;
+        final selection = selectBackendExecutionRoute(
+          platformTarget: PlatformTarget.android,
+          projectGraph: ProjectGraphSnapshot.scratch(
+            workspaceRoot: '/workspace/android-local',
+            activeFilePath: '/workspace/android-local/main.styio',
+            title: 'Android Local',
+            activeCompiler: const CompilerHandshakeSnapshot(
+              binaryPath: '/toolchains/styio/bin/styio',
+              tool: 'styio',
+              compilerVersion: '0.1.0',
+              channel: 'stable',
+              variant: 'mobile',
+              capabilities: <String>['machine_info_json', 'single_file_entry'],
+              supportedContractVersions: <String, List<int>>{
+                'machine_info': <int>[1],
+              },
+              integrationPhase: 'single-file-live',
+            ),
+            notes: const <String>[],
+          ),
+          adapterCapabilities: _androidCapabilities(
+            cliExecution: androidCliAvailable,
+          ),
+        );
+
+        expect(selection.routeKind, BackendExecutionRouteKind.localCli);
+        expect(selection.allowed, isTrue);
+        expect(selection.title, contains('Android local-first'));
+        expect(selection.detail, contains('resolved compiler'));
+      },
+    );
+
+    test('Android without CLI but with cloud fallback resolves to hosted', () {
+      const cloudAvailable = AdapterCapabilityLevel.available;
+      final selection = selectBackendExecutionRoute(
+        platformTarget: PlatformTarget.android,
+        projectGraph: ProjectGraphSnapshot.scratch(
+          workspaceRoot: '/workspace/android-cloud-fallback',
+          activeFilePath: '/workspace/android-cloud-fallback/main.styio',
+          title: 'Android Cloud Fallback',
+          notes: const <String>[],
+        ),
+        adapterCapabilities: _androidCapabilities(
+          cloudExecution: cloudAvailable,
+        ),
+      );
+
+      expect(selection.routeKind, BackendExecutionRouteKind.hosted);
+      expect(selection.allowed, isTrue);
+      expect(selection.title, contains('cloud fallback'));
+      expect(selection.detail, contains('fallback route'));
+    });
+
+    test('Android without CLI or cloud is blocked with explicit reason', () {
+      final selection = selectBackendExecutionRoute(
+        platformTarget: PlatformTarget.android,
+        projectGraph: ProjectGraphSnapshot.scratch(
+          workspaceRoot: '/workspace/android-blocked',
+          activeFilePath: '/workspace/android-blocked/main.styio',
+          title: 'Android Blocked',
+          notes: const <String>[],
+        ),
+        adapterCapabilities: _androidCapabilities(),
+      );
+
+      expect(selection.routeKind, BackendExecutionRouteKind.blocked);
+      expect(selection.allowed, isFalse);
+      expect(selection.blockedReason, isNotNull);
+      expect(selection.blockedReason, contains('Android local-first'));
+      expect(selection.blockedReason, contains('blocked'));
+    });
+
+    test(
+      'Android runtime package budget and capability route are validated together',
+      () {
+        const gate = AndroidRuntimeCapabilityRouteJointGate();
+
+        // Scenario A: package within budget + local route available
+        final budgetPass = const AndroidRuntimePackageBudgetGate().evaluate(
+          const AndroidRuntimePackageArtifact(
+            artifactId: 'android-arm64-release',
+            sizeBytes: 30 * 1024 * 1024,
+            moduleIds: <String>['styio_runtime', 'vityo_shell'],
+          ),
+        );
+        expect(
+          gate.evaluate(
+            budgetResult: budgetPass,
+            hasLocalExecutionRoute: true,
+            hasCloudFallbackRoute: false,
+          ),
+          AndroidRuntimeCapabilityRouteStatus.packageReadyRouteLive,
+        );
+
+        // Scenario B: package within budget + no local route = route blocked
+        expect(
+          gate.evaluate(
+            budgetResult: budgetPass,
+            hasLocalExecutionRoute: false,
+            hasCloudFallbackRoute: false,
+          ),
+          AndroidRuntimeCapabilityRouteStatus.packageReadyRouteBlocked,
+        );
+
+        // Scenario C: package within budget + no local + cloud fallback
+        expect(
+          gate.evaluate(
+            budgetResult: budgetPass,
+            hasLocalExecutionRoute: false,
+            hasCloudFallbackRoute: true,
+          ),
+          AndroidRuntimeCapabilityRouteStatus.packageReadyRouteBlocked,
+        );
+
+        // Scenario D: package over budget with cloud fallback
+        final budgetFail = const AndroidRuntimePackageBudgetGate().evaluate(
+          const AndroidRuntimePackageArtifact(
+            artifactId: 'android-arm64-release',
+            sizeBytes: 60 * 1024 * 1024,
+          ),
+        );
+        expect(
+          gate.evaluate(
+            budgetResult: budgetFail,
+            hasLocalExecutionRoute: false,
+            hasCloudFallbackRoute: true,
+          ),
+          AndroidRuntimeCapabilityRouteStatus.packageOverBudgetWithFallback,
+        );
+
+        // Scenario E: package over budget without cloud fallback
+        expect(
+          gate.evaluate(
+            budgetResult: budgetFail,
+            hasLocalExecutionRoute: false,
+            hasCloudFallbackRoute: false,
+          ),
+          AndroidRuntimeCapabilityRouteStatus.packageOverBudget,
+        );
+
+        // Scenario F: invalid artifact
+        final budgetInvalid = const AndroidRuntimePackageBudgetGate().evaluate(
+          const AndroidRuntimePackageArtifact(artifactId: '', sizeBytes: 100),
+        );
+        expect(
+          gate.evaluate(
+            budgetResult: budgetInvalid,
+            hasLocalExecutionRoute: false,
+            hasCloudFallbackRoute: false,
+          ),
+          AndroidRuntimeCapabilityRouteStatus.invalidInput,
+        );
+      },
+    );
+  });
 }
 
 class _BackendRouteScenario {
@@ -161,13 +323,11 @@ ProjectGraphSnapshot _hostedProjectGraph() {
     kind: ProjectKind.hosted,
     workspaceRoot: '/workspace/hosted-route-gate',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/hosted-route-gate/spio.toml',
+    manifestPath: '/workspace/hosted-route-gate/pafio.toml',
     dependencies: const <ProjectDependencySnapshot>[],
     packages: const <ProjectPackageSnapshot>[],
     targets: const <ProjectTargetDescriptor>[],
-    editorFiles: const <String>[
-      '/workspace/hosted-route-gate/src/main.styio',
-    ],
+    editorFiles: const <String>['/workspace/hosted-route-gate/src/main.styio'],
     toolchain: const ToolchainStatusSnapshot(
       source: ToolchainResolutionSource.projectPin,
       detail: 'hosted pin',
@@ -230,6 +390,52 @@ List<AdapterCapabilitySnapshot> _capabilities({
       runtimeEvents: AdapterEndpointCapability(
         level: cloudExecution,
         detail: 'cloud runtime events',
+      ),
+    ),
+  ];
+}
+
+List<AdapterCapabilitySnapshot> _androidCapabilities({
+  AdapterCapabilityLevel cliExecution = AdapterCapabilityLevel.unavailable,
+  AdapterCapabilityLevel cloudExecution = AdapterCapabilityLevel.unavailable,
+}) {
+  return <AdapterCapabilitySnapshot>[
+    AdapterCapabilitySnapshot(
+      adapterKind: AdapterKind.cli,
+      languageService: const AdapterEndpointCapability(
+        level: AdapterCapabilityLevel.partial,
+        detail: 'android cli language',
+      ),
+      projectGraph: const AdapterEndpointCapability(
+        level: AdapterCapabilityLevel.partial,
+        detail: 'android cli project graph',
+      ),
+      execution: AdapterEndpointCapability(
+        level: cliExecution,
+        detail: 'android cli execution',
+      ),
+      runtimeEvents: const AdapterEndpointCapability(
+        level: AdapterCapabilityLevel.unavailable,
+        detail: 'android cli runtime events',
+      ),
+    ),
+    AdapterCapabilitySnapshot(
+      adapterKind: AdapterKind.cloud,
+      languageService: const AdapterEndpointCapability(
+        level: AdapterCapabilityLevel.partial,
+        detail: 'android cloud language',
+      ),
+      projectGraph: AdapterEndpointCapability(
+        level: cloudExecution,
+        detail: 'android cloud project graph',
+      ),
+      execution: AdapterEndpointCapability(
+        level: cloudExecution,
+        detail: 'android cloud execution',
+      ),
+      runtimeEvents: AdapterEndpointCapability(
+        level: cloudExecution,
+        detail: 'android cloud runtime events',
       ),
     ),
   ];

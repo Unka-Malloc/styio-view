@@ -2385,10 +2385,10 @@ value = 1
       expect(implementations.target, isNull);
       expect(
         shell.blockedReasonForCommand(AppCommandId.fetchDependencies),
-        'fetch requires a resolved spio manifest path.',
+        'fetch requires a resolved pafio manifest path.',
       );
       for (final fragment in const <String>[
-        'Fetch blocked: fetch requires a resolved spio manifest path',
+        'Fetch blocked: fetch requires a resolved pafio manifest path',
         'Module host refresh requested',
         'Native bridge local.runtime.desktop',
         'Settings route is reserved',
@@ -2593,7 +2593,7 @@ value = 1
 
     expect(
       shell.blockedReasonForCommand(AppCommandId.fetchDependencies),
-      'fetch requires a resolved spio manifest path.',
+      'fetch requires a resolved pafio manifest path.',
     );
     await shell.executeCommand(AppCommandId.fetchDependencies);
 
@@ -2685,7 +2685,7 @@ value = 1
       for (final fragment in const <String>[
         'fetch packages: 2',
         'vendor root: /workspace/demo/vendor',
-        'vendor metadata: /workspace/demo/vendor/spio-vendor.json',
+        'vendor metadata: /workspace/demo/vendor/pafio-vendor.json',
         'deploy package: demo/app',
         'deploy archive: /workspace/demo/dist/app.tar',
       ]) {
@@ -3034,7 +3034,7 @@ class _PayloadDependencySourceAdapter implements DependencySourceAdapter {
       payload: <String, dynamic>{
         'packages': 2,
         'vendor_root': '/workspace/demo/vendor',
-        'metadata_path': '/workspace/demo/vendor/spio-vendor.json',
+        'metadata_path': '/workspace/demo/vendor/pafio-vendor.json',
       },
     );
   }
@@ -3416,12 +3416,12 @@ ProjectGraphSnapshot _projectGraphWithFiles(
 
 ProjectGraphSnapshot _hostedProjectGraph() {
   return ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.hosted,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
+    manifestPath: '/workspace/demo/pafio.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: const <ProjectTargetDescriptor>[],

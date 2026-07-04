@@ -66,7 +66,7 @@ class EcosystemCliDocGateTest(unittest.TestCase):
                     aliased_root = self.gate.workspace_root_from_args(args)
                     self.assertTrue((aliased_root / "styio-view").is_dir())
                     self.assertTrue((aliased_root / "styio-nightly").is_dir())
-                    self.assertTrue((aliased_root / "styio-spio").is_dir())
+                    self.assertTrue((aliased_root / "styio-pafio").is_dir())
             finally:
                 self.gate.ROOT = original_root
 

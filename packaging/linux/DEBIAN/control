@@ -1,0 +1,14 @@
+Package: vityo
+Version: 0.1.0
+Section: devel
+Priority: optional
+Architecture: amd64
+Depends: libgtk-3-0 (>= 3.24), liblzma5 (>= 5.4), libblkid1 (>= 2.38)
+Recommends: chromium, clang, cmake, ninja-build, pkg-config
+Maintainer: Vityo Team <vityo-dev@example.com>
+Description: Vityo IDE -- Language-first development environment
+ Vityo is a language-first IDE built on the Styio language ecosystem.
+ It provides a native Flutter desktop shell, handwritten web IDE
+ prototype, and a modular extension and contribution model.
+ .
+ This package provides the Linux native Flutter desktop build.

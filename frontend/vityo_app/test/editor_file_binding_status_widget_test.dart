@@ -71,81 +71,82 @@ void main() {
     expect(acceptedExternalChange, isTrue);
   });
 
-  testWidgets('editor surface renders readonly and provider unavailable states', (
-    tester,
-  ) async {
-    const document = DocumentState(
-      documentId: 'fixture://readonly',
-      text: 'value := 1\n',
-      revision: 1,
-    );
+  testWidgets(
+    'editor surface renders readonly and provider unavailable states',
+    (tester) async {
+      const document = DocumentState(
+        documentId: 'fixture://readonly',
+        text: 'value := 1\n',
+        revision: 1,
+      );
 
-    Future<void> pumpStatus(DocumentResourceBindingSnapshot snapshot) {
-      return tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SizedBox(
-              width: 1200,
-              height: 800,
-              child: EditorSurface(
-                controller: EditorSessionController(
-                  initialDocument: document,
-                  languageService: const LocalStyioLanguageService(),
+      Future<void> pumpStatus(DocumentResourceBindingSnapshot snapshot) {
+        return tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SizedBox(
+                width: 1200,
+                height: 800,
+                child: EditorSurface(
+                  controller: EditorSessionController(
+                    initialDocument: document,
+                    languageService: const LocalStyioLanguageService(),
+                  ),
+                  viewportProfile: const ViewportProfile(
+                    family: ViewportFamily.desktop,
+                    width: 1200,
+                    height: 800,
+                  ),
+                  fileBindingSnapshot: snapshot,
+                  onAcceptExternalChange: () {},
                 ),
-                viewportProfile: const ViewportProfile(
-                  family: ViewportFamily.desktop,
-                  width: 1200,
-                  height: 800,
-                ),
-                fileBindingSnapshot: snapshot,
-                onAcceptExternalChange: () {},
               ),
             ),
           ),
+        );
+      }
+
+      await pumpStatus(
+        const DocumentResourceBindingSnapshot(
+          state: DocumentResourceBindingState.readonly,
+          resourceId: 'fixture://readonly',
+          document: document,
+          failureKind: DocumentResourceBindingFailureKind.readonly,
+          failureMessage: 'The backing resource is read-only.',
         ),
       );
-    }
 
-    await pumpStatus(
-      const DocumentResourceBindingSnapshot(
-        state: DocumentResourceBindingState.readonly,
-        resourceId: 'fixture://readonly',
-        document: document,
-        failureKind: DocumentResourceBindingFailureKind.readonly,
-        failureMessage: 'The backing resource is read-only.',
-      ),
-    );
+      expect(find.text('Backing file is read-only'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.byKey(const ValueKey('editor-file-binding-accept-external')),
+            )
+            .onPressed,
+        isNull,
+      );
 
-    expect(find.text('Backing file is read-only'), findsOneWidget);
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.byKey(const ValueKey('editor-file-binding-accept-external')),
-          )
-          .onPressed,
-      isNull,
-    );
+      await pumpStatus(
+        const DocumentResourceBindingSnapshot(
+          state: DocumentResourceBindingState.providerUnavailable,
+          resourceId: 'fixture://readonly',
+          document: document,
+          failureKind: DocumentResourceBindingFailureKind.providerUnavailable,
+          failureMessage: 'The current file provider is unavailable.',
+        ),
+      );
 
-    await pumpStatus(
-      const DocumentResourceBindingSnapshot(
-        state: DocumentResourceBindingState.providerUnavailable,
-        resourceId: 'fixture://readonly',
-        document: document,
-        failureKind: DocumentResourceBindingFailureKind.providerUnavailable,
-        failureMessage: 'The current file provider is unavailable.',
-      ),
-    );
-
-    expect(find.text('File provider unavailable'), findsOneWidget);
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.byKey(const ValueKey('editor-file-binding-accept-external')),
-          )
-          .onPressed,
-      isNull,
-    );
-  });
+      expect(find.text('File provider unavailable'), findsOneWidget);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.byKey(const ValueKey('editor-file-binding-accept-external')),
+            )
+            .onPressed,
+        isNull,
+      );
+    },
+  );
 
   testWidgets('editor surface renders fixed mobile language layout', (
     tester,
@@ -363,7 +364,10 @@ loose
     controller.selectCollapsed(text.indexOf('price'));
     await tester.pump();
     await sendShortcut(LogicalKeyboardKey.keyQ);
-    expect(find.byKey(const ValueKey('source-quick-doc-panel')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('source-quick-doc-panel')),
+      findsOneWidget,
+    );
     await closePanel();
 
     await sendShortcut(LogicalKeyboardKey.keyN, alt: true, shift: true);

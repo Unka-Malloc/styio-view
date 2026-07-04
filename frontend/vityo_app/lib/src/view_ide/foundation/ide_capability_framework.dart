@@ -1,4 +1,4 @@
-enum IdeCapabilityLayer {
+﻿enum IdeCapabilityLayer {
   foundation,
   environment,
   service,
@@ -681,3 +681,5 @@ class VityoIdeCapabilityFramework {
     );
   }
 }
+
+// ---------------------------------------------------------------------------

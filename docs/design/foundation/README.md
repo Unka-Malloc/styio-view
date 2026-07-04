@@ -1,4 +1,4 @@
-# Foundation
+﻿# Foundation
 
 **Purpose:** Document the `docs/design/foundation/` collection scope, ownership, and maintenance rules.
 **Last updated:** 2026-05-17
@@ -810,3 +810,166 @@ foundation/file_system_manager.dart
 foundation/terminal_runtime.dart
 foundation/theme_settings.dart
 ```
+
+
+
+## 15. Foundation Registry DataStore Capability Contract
+
+**Status:** Active contract (checkpoint 96ad0f88-e376-4f2a-855a-c236a36875a2)
+**Last updated:** 2026-06-29
+
+This section records the settled contract for the Foundation Registry DataStore Capability. It identifies owned artifacts, product boundaries, invariants, downstream consumers, and the single current implementation path.
+
+### 15.1 Owned Artifacts
+
+The following artifacts are owned by Foundation and maintained in `frontend/vityo_app/lib/src/view_ide/foundation/`:
+
+| Artifact | Path | Purpose |
+|---|---|---|
+| `FoundationDataStore` | `datastore/datastore.dart` | Ordinary JSON persistence through File System Manager. Lock-serialized reads/writes per record. Named schema migrations. Change observation stream. |
+| `FoundationDataStoreOwner` | `datastore/datastore.dart` | Layer-local owner wrapper that enforces namespace access before delegating to FoundationDataStore. |
+| `FoundationDataStoreOwnerDescriptor` | `datastore/datastore.dart` | Immutable descriptor recording owner identity, layer, state family, and allowed namespace set. |
+| `FoundationDataStoreOwnerRegistry` | `datastore/datastore.dart` | Validates that every persistent product state family has a registered owner or an explicit ephemeral decision. Exposes a manifest projection without runtime values. |
+| `FoundationResourceCoordinator` | `resource_coordinator/resource_coordinator.dart` | Namespace-to-location mapping for datastore/cache/log/index roots. Delegates to Environment ResourceManager. |
+| `FoundationResourceLocation` | `resource_coordinator/resource_coordinator.dart` | Immutable location record with kind, scope, path, and cleanup policy. |
+| `FoundationWorkspaceScope` | `workspace/workspace.dart` | Workspace identity, root path, and remote target binding. |
+| `FoundationWorkspace` | `workspace/workspace.dart` | Workspace lifecycle (open, reload, close, dispose) and cache location routing. |
+| `FoundationRegistry<T>` | `registry/registry.dart` | Scoped contribution registry with stack-based override semantics, manifest projection, and lifecycle state. |
+| `RegistryScope` | `registry/registry.dart` | Scoped batch registration with dispose-reveal semantics. |
+| `ContributionDescriptor<T>` | `registry/registry.dart` | Immutable contribution descriptor for typed registration. |
+| `FoundationRegistryManifest` | `registry/registry.dart` | Runtime-value-free manifest projection for cross-boundary exchange. |
+| `FoundationRegistryValidator` | `registry/registry.dart` | Validates manifest projection completeness for every concrete registry instance. |
+| `IdeServiceRegistry` | `registry/service_registry.dart` | Typed service locator with scope-gated lazy instantiation and dispose lifecycle. |
+| `FoundationLockService` | `lock_service/lock_service.dart` | Same-record exclusive lock for serializing DataStore writes. |
+| `FoundationEventBus` | `event_bus/event_bus.dart` | Topic-based broadcast for shared foundation state events. |
+| `FoundationDiagnosticsSink` | `diagnostics_sink/diagnostics_sink.dart` | Internal infrastructure diagnostic recording with optional event bus routing. |
+| `FoundationLifecycleCoordinator` | `lifecycle_coordinator/lifecycle_coordinator.dart` | Ordered initialize/reload/stop/dispose sequencing for registered components. |
+| `IdeCapabilityDescriptor` | `ide_capability_framework.dart` | Declarative IDE capability entry with layer, status, owner path, and dependencies. |
+| `IdeCapabilityFrameworkSnapshot` | `ide_capability_framework.dart` | Complete capability inventory with required-id validation. |
+| `IdeCapabilityClosureGate` | `ide_capability_closure_gate.dart` | Closure evaluator that produces a severity-classified report from a framework snapshot. |
+| `IdeCapabilityAgentSafeProjector` | `ide_capability_framework.dart` | Strips runtime values from closure reports and produces metadata-only projections safe for agent context. |
+
+### 15.2 Product Boundaries
+
+Foundation owns shared application mechanics only. It must not own:
+
+| Boundary | Correct Owner |
+|---|---|
+| Setting schemas and policy defaults | Configuration |
+| Credential references and secret tokens | Configuration / Credential DataStore |
+| Compiler, runner, shell, terminal semantics | Toolchain |
+| Tool discovery, install, health-check | Toolchain |
+| Language semantics (parse, resolve, complete) | Service / StyioService |
+| Editor document model | Editor (Interaction) |
+| Theme tokens, visual mode, layout | Appearance |
+| OS file-system, process, PTY, shell calls | Environment |
+| Extension activation conditions | Extension |
+| Agent permission decisions | Agent |
+
+### 15.3 Invariants
+
+The following invariants are enforced by Foundation code and tests:
+
+1. **DataStore Owner Completeness**: Every persistent product state family declared in `vityoPersistentStateFamilies` has a registered `FoundationDataStoreOwnerDescriptor` or an explicit ephemeral decision in `FoundationDataStoreOwnerRegistry`. No state family is silently unowned.
+
+2. **Manifest Projection Without Runtime Values**: Every `FoundationRegistry<T>.manifest()` call returns `FoundationRegistryManifestEntry` records that contain only `id`, `kind`, `owner`, `state`, and `metadata`. No concrete `T` values, no runtime instances, no closures, no platform-dependent handles leak into manifest projections.
+
+3. **Registry Lifecycle State**: Every concrete registry instance tracks its lifecycle state through the `FoundationRegistryLifecycleState` enum. Tests assert state transitions: created -> warming -> ready -> (reloading -> ready)* -> stopped -> disposed.
+
+4. **Single Implementation Path**: Foundation has exactly one implementation path per module. No debug-only, prototype-only, lab-only, or experimental code paths exist as final deliverables. All Foundation modules compile into the production Dart library without conditional guard flags.
+
+5. **Capability Gap Serialization Safety**: Every capability gap report is serializable to JSON without runtime values, safe for agent context projection through `IdeCapabilityAgentSafeProjector`, and user-visible through the IDE capability matrix.
+
+6. **Resource Coordinator Does Not Write Files**: `FoundationResourceCoordinator` produces `FoundationResourceLocation` records. It never calls file-system write, delete, or directory creation APIs directly.
+
+7. **Lock-Serialized DataStore Writes**: Every `FoundationDataStore` write, update, and edit operation acquires a per-record exclusive lock through `FoundationLockService` before touching disk.
+
+8. **Contract Version Preservation**: Every public contract type uses `vityoContractSchemaVersion` and `collectUnknownFields` from `contracts/versioned_contract.dart` to preserve forward compatibility.
+
+### 15.4 Cache Ownership
+
+Cache is not a distinct Foundation module. Cache ownership is distributed across layers:
+
+| Cache Family | Owner | Storage |
+|---|---|---|
+| Language result cache (tokens, diagnostics, hover, completion) | Service Layer / Service DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
+| Project graph snapshot cache | Workspace Layer / Workspace DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
+| Workspace file index cache | Workspace Layer / Workspace DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
+| Agent coding loop context cache | Agent Layer / Agent DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
+| Toolchain compiler invocation cache | Toolchain Layer / Toolchain DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
+| Platform capability probe cache | Environment Layer / Environment DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
+| Workspace cache (temporary build artifacts) | Environment / Resource Manager | `FoundationResourceKind.workspaceCache` locations, cleanup-allowed |
+| Log and temp storage | Environment / Resource Manager | `FoundationResourceKind.log` and `FoundationResourceKind.temp`, cleanup-allowed |
+
+Cache cleanup is declared (not executed) by Foundation through `FoundationResourceLocation.cleanupAllowed`. Actual cleanup is performed by the owning subsystem using Environment File System Manager.
+
+### 15.5 Lifecycle State Contract
+
+Every Foundation component registered with `FoundationLifecycleCoordinator` must:
+
+1. Have a stable `id`.
+2. Accept `onInitialize`, `onReload`, `onStop`, and `onDispose` callbacks.
+3. Be initialized in registration order.
+4. Be stopped and disposed in reverse registration order.
+5. Transition through states: `registered` -> `initializing` -> `ready` -> `reloading` -> `ready` -> `stopped` -> `disposed`.
+
+Every concrete `FoundationRegistry<T>` instance must:
+
+1. Track its lifecycle through `FoundationRegistryLifecycleState`.
+2. Emit a valid `FoundationRegistryManifest` at rest.
+3. Refuse registration after dispose.
+
+### 15.6 Downstream Consumers
+
+The following layers consume Foundation contracts. Foundation must not break these consumers without a versioned contract migration:
+
+| Consumer | Foundation Service | Contract Surface |
+|---|---|---|
+| Configuration | `FoundationDataStore`, `FoundationDataStoreOwner` | Schema-owned settings persistence through namespace-gated owner |
+| Toolchain | `FoundationDataStore`, `FoundationRegistry`, `FoundationLockService` | Tool status and compiler cache persistence, tool contribution registration |
+| Interaction | `FoundationWorkspace`, `FoundationRegistry`, `FoundationEventBus` | Editor session persistence, command registration, surface enablement events |
+| Appearance | `FoundationDataStore` | Theme selection and layout persistence |
+| Service / StyioService | `FoundationDataStore`, `FoundationResourceCoordinator` | Language result cache, service status persistence |
+| Extension | `FoundationRegistry`, `FoundationDataStore` | Extension contribution registration, lifecycle state persistence |
+| Agent | `FoundationDataStore`, `FoundationEventBus` | Provider profile persistence, permission audit events |
+| Workspace | `FoundationWorkspaceScope`, `FoundationResourceCoordinator` | Workspace identity and cache routing |
+| Runtime | `FoundationDataStore`, `FoundationEventBus` | Task history persistence, runtime event routing |
+
+### 15.7 Single Implementation Path Enforcement
+
+The following rules prevent multiple implementation paths:
+
+1. Every Foundation `.dart` file exports exactly one implementation class per concept. No `Legacy*`, `Compat*`, `Experimental*`, or `Debug*` variants are shipped.
+
+2. No `debugMode`, `isPrototype`, `experimentalFlag`, or `labFeature` boolean gates exist in Foundation code that would cause branching implementation behavior at runtime.
+
+3. Platform-specific behavior for Foundation is routed through Environment managers (`ResourceManager`, `FileSystemManager`) rather than through `if (Platform.isWindows)` guards in Foundation code.
+
+4. The `IdeCapabilityClosureGate` fails any capability entry whose `ownerPath` is empty, whose `status` is `todo`/`scaffolded` without a `TODO:` marker, or that references a missing dependency. This prevents shipping incomplete or placeholder capabilities as finished.
+
+5. The `FoundationDataStoreOwnerRegistry.isComplete` gate fails if any persistent state family lacks an owner. No silent fallback to default or global owner is permitted.
+
+### 15.8 Verification
+
+Run the following to verify this contract:
+
+```bash
+cd frontend/vityo_app
+flutter test test/foundation_test.dart
+flutter test test/workbench_registry_test.dart
+```
+
+The foundation test must pass:
+- DataStore owner registry completeness
+- Manifest projection without runtime values
+- Lifecycle coordinator ordering
+- Lock service serialization
+- Event bus routing
+- Diagnostics sink recording
+- Resource coordinator mapping
+- Workspace scope and lifecycle
+
+The workbench registry test must pass:
+- Context key service evaluation
+- Context key expression parsing and diagnostics
+- Surface registry filtering and ordering

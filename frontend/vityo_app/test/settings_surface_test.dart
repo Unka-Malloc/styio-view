@@ -21,6 +21,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(
+          useMaterial3: false,
+          splashFactory: NoSplash.splashFactory,
+        ),
         home: Scaffold(
           body: SettingsSurface(
             viewportProfile: resolveViewportProfile(
@@ -76,10 +80,50 @@ void main() {
     );
     expect(savedCommandPalettePreferences?.showRecentCommands, isFalse);
 
+    await tester.tap(
+      find.byKey(const ValueKey('settings-theme-preset-graphite')),
+    );
+    await tester.pump();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-theme-canvas-input')),
+      '#101820',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('settings-theme-panel-input')),
+      '#FAFAFA',
+    );
     await tester.enterText(
       find.byKey(const ValueKey('settings-theme-accent-input')),
       '#00A878',
     );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('settings-theme-preview')),
+      findsOneWidget,
+    );
+    expect(
+      _swatchColor(tester, 'settings-theme-preview-canvas'),
+      const Color(0xFF101820),
+    );
+    expect(
+      _swatchColor(tester, 'settings-theme-preview-panel'),
+      const Color(0xFFFAFAFA),
+    );
+    expect(
+      _swatchColor(tester, 'settings-theme-preview-accent'),
+      const Color(0xFF00A878),
+    );
+    expect(
+      _swatchColor(tester, 'settings-theme-preview-ink'),
+      const Color(0xFF1E252B),
+    );
+    expect(
+      _swatchColor(tester, 'settings-theme-preview-muted'),
+      const Color(0xFF62717C),
+    );
+
     final saveThemeButton = find.byKey(
       const ValueKey('settings-theme-save-button'),
     );
@@ -87,7 +131,16 @@ void main() {
     await tester.tap(saveThemeButton);
     await tester.pump();
 
+    expect(savedOverride?.canvas, const Color(0xFF101820).toARGB32());
+    expect(savedOverride?.panel, const Color(0xFFFAFAFA).toARGB32());
     expect(savedOverride?.accent, const Color(0xFF00A878).toARGB32());
+    expect(savedOverride?.ink, isNull);
+    expect(savedOverride?.muted, isNull);
+    expect(savedOverride?.toJson(), <String, Object?>{
+      'canvas': 0xFF101820,
+      'panel': 0xFFFAFAFA,
+      'accent': 0xFF00A878,
+    });
   });
 
   testWidgets('settings surface renders manager-backed toolchain status', (
@@ -101,6 +154,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(
+          useMaterial3: false,
+          splashFactory: NoSplash.splashFactory,
+        ),
         home: Scaffold(
           body: SettingsSurface(
             viewportProfile: resolveViewportProfile(
@@ -369,9 +426,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text(
-        'Last dispatch: dispatched · install-managed-styio-toolchain',
-      ),
+      find.text('Last dispatch: dispatched · install-managed-styio-toolchain'),
       findsOneWidget,
     );
     expect(
@@ -419,10 +474,10 @@ void main() {
     await tester.tap(installRecoveryButton);
     await tester.pump();
 
-    expect(
-      handledActions,
-      <String>['select-existing-toolchain', 'install-managed-toolchain'],
-    );
+    expect(handledActions, <String>[
+      'select-existing-toolchain',
+      'install-managed-toolchain',
+    ]);
 
     final selectServiceButton = find.byTooltip('Select Styio Service');
     await tester.ensureVisible(selectServiceButton);
@@ -446,6 +501,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(
+          useMaterial3: false,
+          splashFactory: NoSplash.splashFactory,
+        ),
         home: Scaffold(
           body: SettingsSurface(
             viewportProfile: resolveViewportProfile(
@@ -563,4 +622,17 @@ void main() {
 
     expect(selectedClangCppVersions, <String>['clang-17:23', 'clang-18:20']);
   });
+}
+
+Color _swatchColor(WidgetTester tester, String keyName) {
+  final container = tester.widget<Container>(
+    find
+        .descendant(
+          of: find.byKey(ValueKey(keyName)),
+          matching: find.byType(Container),
+        )
+        .first,
+  );
+  final decoration = container.decoration as BoxDecoration;
+  return decoration.color!;
 }

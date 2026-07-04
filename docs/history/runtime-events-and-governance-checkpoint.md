@@ -15,7 +15,7 @@
 
 1. `ExecutionAdapter` 现在会把未保存文档直接写回真实文件，再在执行结束后恢复旧文本；如果 IDE 崩溃、进程被中断，或者执行期间外部工具改了同一文件，恢复逻辑可能覆盖真实新变更。
 2. 非当前文件的结构化 diagnostics 仍会在 IDE 里退化成当前文档内的 `0..0` 伪位置，只是把真实文件路径拼进 message；多文件项目错误仍然不能正确定位。
-3. `spio` 已发布的 `project-graph` / `tool status` payload 若解析失败，shell 会静默回退到本地 canonical file inference；这会把真实的跨仓 contract 回归伪装成“部分可用”。
+3. `pafio` 已发布的 `project-graph` / `tool status` payload 若解析失败，shell 会静默回退到本地 canonical file inference；这会把真实的跨仓 contract 回归伪装成“部分可用”。
 4. 根 `.gitignore` 现已统一忽略 `tmp/`、`build-*`、`*.tmp`、`*.log` 与常见 cache 目录；这有利于清理，但未来若要追踪 temp/build 风格的 repro 资产，需要显式反忽略。
 
 ## 当前证据
@@ -77,7 +77,7 @@ python3 scripts/check_repo_hygiene.py
 
 ### 当前状态
 
-1. `runtime_events` published family 已从 `styio-spio` workflow payload 进入 `Vityo` 的 `ExecutionSession` 生命周期。
+1. `runtime_events` published family 已从 `styio-pafio` workflow payload 进入 `Vityo` 的 `ExecutionSession` 生命周期。
 2. shell state 现在会保留最近一次运行会话的 runtime event replay，并把 session-level 摘要写进 debug log。
 3. runtime surface 与 debug console 已不再只显示占位文案，而是会消费并展示已发布的 runtime replay。
 
@@ -104,7 +104,7 @@ python3 scripts/check_repo_hygiene.py
 13. `Vityo` shell 现已把 `Use Compiler / Pin Compiler / Clear Pin / Pack / Preflight` 接回统一命令流和 sidebar 主操作面，不再只停留在 adapter API。
 14. workspace sidebar 的主线操作面现已升级成统一的 `Project Workflow`：`Execution / Dependencies / Environment / Deployment` 四条 lane 共用同一套 shell state、blocked 判定和最近结果摘要，不再把执行、依赖、环境、部署结果散落在 command strip、debug log 和 adapter 返回值里。
 15. `Vityo` smoke test 现已新增 live mainline fixture，可从 sidebar 直接完成 `Use Compiler -> Fetch -> Vendor -> Run -> Preflight`，并验证 `Execution / Dependencies / Environment / Deployment` 四条 workflow lane 一起收口成成功态。
-16. 三仓现已新增权威 `ecosystem-sample-workflow-gate.py`：它会对真实 `styio + spio` 二进制执行 `check/fetch/vendor/run/test/publish --dry-run`，`view` 侧通过本仓 wrapper 直接复用同一条 gate。
+16. 三仓现已新增权威 `ecosystem-sample-workflow-gate.py`：它会对真实 `styio + pafio` 二进制执行 `check/fetch/vendor/run/test/publish --dry-run`，`view` 侧通过本仓 wrapper 直接复用同一条 gate。
 17. 权威 `ecosystem-sample-workflow-gate.py` 现已从单包 happy path 扩成双场景矩阵：除了原来的 `check/fetch/vendor/run/test/publish --dry-run`，还会覆盖多包 workspace 下 `run/test/publish` 的显式 `--package` 选择与歧义保护；`view` 侧继续只通过 wrapper 复用这条权威 gate。
 18. 三仓权威 `ecosystem-sample-workflow-gate.py` 现已进一步覆盖 managed toolchain switch：真实 `styio` 安装后可切到第二个 managed compiler 身份，再切回真实 compiler，并继续完成 workflow。
 19. 三仓权威 `ecosystem-sample-workflow-gate.py` 现已进一步覆盖 registry-hosted source：本地 filesystem registry 可完成 `publish -> republish conflict -> fetch -> project-graph -> check -> run`。

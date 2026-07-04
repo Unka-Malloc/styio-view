@@ -59,7 +59,7 @@ python3 scripts/release-readiness-gate.py --skip-build
 5. `lib/src/view_ide/shell_runtime/` 作为 shell runtime、命令执行、阻塞原因、日志、运行会话和 workflow state 的功能边界
 6. `lib/src/view_ide/backend_toolchain/` 作为工具链后端与 adapter 实现的显式入口边界
 7. local CLI / FFI / hosted control plane 的能力提供
-8. `spio` / `styio` 的 project graph、toolchain、dependency、execution、deployment、runtime-event 合同
+8. `pafio` / `styio` 的 project graph、toolchain、dependency、execution、deployment、runtime-event 合同
 
 兼容层：
 
@@ -99,11 +99,11 @@ python3 scripts/release-readiness-gate.py --skip-build
 14. inline language feedback 与 language inspector 都已支持直接应用 completion / formatting action，不再只是只读预览
 15. diagnostics 已接入最小 quick-fix 回路，当前可直接修复 `missing assignment / stray brace / unclosed block`
 16. 光标所在 token 现在会在正文中高亮，inline feedback 与 language inspector 也会显示该 token 的 lexeme / kind / semantic 上下文
-17. 工作区已从 seed workspace 切到 canonical project graph 模型，围绕 `spio.toml / spio.lock / spio-toolchain.toml / .spio / styio.toml` 组织 UI
+17. 工作区已从 seed workspace 切到 canonical project graph 模型，围绕 `pafio.toml / pafio.lock / pafio-toolchain.toml / .pafio / styio.toml` 组织 UI
 18. 主线已消费 `ProjectGraphAdapter` 与 `ExecutionAdapter`，并把 `CLI / FFI / Cloud` route 统一折叠为 `AdapterCapabilitySnapshot`
 19. 工作区侧栏现在会显式展示 `Project Workflow` 与 `Compiler Handshake`，把 project preview 限制、toolchain 来源、compiler contracts 和当前主路由直接做成卡片
 20. `Runtime Surface` 已复用同一份 execution route summary，并能显示最近一次执行的 `unit range / stdout / stderr / diagnostics` 统计
-21. 工作区侧栏新增 `Required Handoffs` 卡，只表达 `Vityo` 还需要 `styio` / `spio` 提供哪些 machine contract，不替上游做内部实现规划
+21. 工作区侧栏新增 `Required Handoffs` 卡，只表达 `Vityo` 还需要 `styio` / `pafio` 提供哪些 machine contract，不替上游做内部实现规划
 22. `Project Graph` 现在已细化到 `workspace members / packages / dependencies / targets` 四层展示，并继续保持 canonical file inference 与正式 machine payload 解耦
 23. `lib/src/view_ide/` 已承载 language、editor core、workspace、module host、runtime model、shell runtime、agent profile、commands、platform target 与 backend toolchain；对应旧功能路径收窄为兼容导出层
 24. `lib/src/view_render/` 已承载 shell、editor surface、runtime/debug surface、agent surface、theme 和 viewport profile；对应旧外观路径收窄为兼容导出层

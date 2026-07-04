@@ -102,4 +102,4 @@
 1. `active/history/archive` 生命周期清晰，
 2. docs 索引和 lifecycle 可脚本校验，
 3. repo hygiene 会显式发现 docs/file governance 漂移，
-4. GitHub Ruleset 对 `nightly` 强制要求 PR 合入，以及 `audit`、`styio-audit`、`local-ci-gate` 三个检查。
+4. GitHub Ruleset 对 `nightly` 强制要求 PR 合入，以及 `audit`、`styio-audit`、`local-ci-gate`、`windows-native`、`macos-native` 五个检查。

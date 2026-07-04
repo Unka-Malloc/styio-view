@@ -1,3 +1,4 @@
+import 'document_encoding.dart';
 import 'text_buffer/text_buffer.dart';
 
 class DocumentState {
@@ -5,17 +6,20 @@ class DocumentState {
     required this.documentId,
     required this.text,
     required this.revision,
+    this.encoding,
   });
 
   factory DocumentState.fromTextBuffer({
     required String documentId,
     required TextBufferSnapshot textBufferSnapshot,
     required int revision,
+    DocumentEncoding? encoding,
   }) {
     final document = DocumentState(
       documentId: documentId,
       text: textBufferSnapshot.text,
       revision: revision,
+      encoding: encoding,
     );
     _snapshotCache[document] = textBufferSnapshot;
     return document;
@@ -27,6 +31,7 @@ class DocumentState {
   final String documentId;
   final String text;
   final int revision;
+  final DocumentEncoding? encoding;
 
   int get length => text.length;
 
@@ -58,10 +63,7 @@ class DocumentState {
     return DocumentPosition(line: position.line, column: position.column);
   }
 
-  int offsetForLineColumn({
-    required int line,
-    required int column,
-  }) {
+  int offsetForLineColumn({required int line, required int column}) {
     return textBufferSnapshot.offsetAt(
       TextPosition(line: line < 0 ? 0 : line, column: column < 0 ? 0 : column),
     );
@@ -76,10 +78,7 @@ class DocumentState {
     final normalizedEnd = end.clamp(normalizedStart, length);
     final nextSnapshot = textBuffer
         .replace(
-          TextRange(
-            start: normalizedStart.toInt(),
-            end: normalizedEnd.toInt(),
-          ),
+          TextRange(start: normalizedStart.toInt(), end: normalizedEnd.toInt()),
           replacement,
         )
         .snapshot();
@@ -88,13 +87,11 @@ class DocumentState {
       documentId: documentId,
       textBufferSnapshot: nextSnapshot,
       revision: revision + 1,
+      encoding: encoding,
     );
   }
 }
 
 class DocumentPosition extends TextPosition {
-  const DocumentPosition({
-    required super.line,
-    required super.column,
-  });
+  const DocumentPosition({required super.line, required super.column});
 }

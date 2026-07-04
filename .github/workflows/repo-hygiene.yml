@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   hygiene:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
       STYIO_PYTHON_VERSION: "3.13.5"

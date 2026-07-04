@@ -12,7 +12,7 @@ permissions:
 jobs:
   audit:
     name: styio-audit
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       STYIO_PYTHON_VERSION: "3.13.5"
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout released styio-audit policy
         uses: actions/checkout@v5
         with:
-          repository: eBioRing/styio-audit
+          repository: SymPolicy/styio-audit
           ref: stable
           path: styio-audit
 
@@ -39,7 +39,7 @@ jobs:
       - name: Fetch managed branch evidence
         working-directory: vityo-nightly
         run: |
-          for branch in stable nightly ai-dev; do
+          for branch in release stable nightly; do
             git fetch --no-tags origin "+refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           done
 

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/environment/system_compatibility/file_system/file_system_manager_io.dart'
+    as file_system_io;
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store_io.dart';
 
 void main() {
@@ -26,24 +28,27 @@ void main() {
     expect(facts.entries['filesystem.watchSupport']?.value, 'directory');
   });
 
-  test('local file system prober recognizes this host when it is debian arm', () async {
-    if (!Platform.isLinux) {
-      return;
-    }
+  test(
+    'local file system prober recognizes this host when it is debian arm',
+    () async {
+      if (!Platform.isLinux) {
+        return;
+      }
 
-    final facts = await const LocalFileSystemProber().probe();
-    final machine = await Process.run('uname', const <String>['-m']);
-    final osRelease = await File('/etc/os-release').readAsString();
-    final isDebianArmHost =
-        Platform.isLinux &&
-        osRelease.contains('ID=debian') &&
-        machine.stdout.toString().trim().toLowerCase() == 'aarch64';
+      final facts = await const LocalFileSystemProber().probe();
+      final machine = await Process.run('uname', const <String>['-m']);
+      final osRelease = await File('/etc/os-release').readAsString();
+      final isDebianArmHost =
+          Platform.isLinux &&
+          osRelease.contains('ID=debian') &&
+          machine.stdout.toString().trim().toLowerCase() == 'aarch64';
 
-    if (isDebianArmHost) {
-      expect(facts.supportsLinuxDebianArmTarget, isTrue);
-      expect(facts.compatibilityTarget, 'linux-debian-arm');
-    }
-  });
+      if (isDebianArmHost) {
+        expect(facts.supportsLinuxDebianArmTarget, isTrue);
+        expect(facts.compatibilityTarget, 'linux-debian-arm');
+      }
+    },
+  );
 
   test('file system adapter creates linux debian arm compatibility', () {
     final compatibility = FileSystemAdapter(
@@ -152,43 +157,95 @@ void main() {
     );
   });
 
-  test('local file system manager reads writes stats and lists files', () async {
+  test('FileSystemFacts.windowsX64 factory matches Windows target facts', () {
+    final facts = FileSystemFacts.windowsX64();
+    expect(facts.operatingSystem, 'windows');
+    expect(facts.distributionId, 'windows');
+    expect(facts.compatibilityTarget, 'windows-x64');
+    expect(facts.pathStyle, FileSystemPathStyle.windows);
+    expect(facts.pathSeparator, r'\');
+    expect(facts.watchSupport, FileSystemWatchSupport.recursive);
+    expect(facts.caseSensitive, isFalse);
+    expect(facts.supportsAtomicWrite, isTrue);
+    expect(facts.supportsFileUri, isTrue);
+    expect(facts.supportsSymbolicLinks, isFalse);
+  });
+
+  test('LocalFileSystemManager.windowsX64ForTest reads writes stats', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_fs_manager_test_',
+      'vityo_win_fs_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
-    final filePath = manager.joinPath(<String>[
+    final manager = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    final fp = manager.joinPath(<String>[
       tempRoot.path,
       'workspace',
       'main.txt',
     ]);
-
-    await manager.writeText(filePath, 'hello from vityo');
-
-    expect(await manager.readText(filePath), 'hello from vityo');
-    final snapshot = await manager.stat(filePath);
-    expect(snapshot.isFile, isTrue);
-    expect(snapshot.exists, isTrue);
-
-    final entries = await manager.list(
-      manager.joinPath(<String>[tempRoot.path, 'workspace']),
-    );
-    expect(entries.map((entry) => entry.normalizedPath), contains(filePath));
-
-    final bytesPath = manager.joinPath(<String>[
-      tempRoot.path,
-      'workspace',
-      'bytes.bin',
-    ]);
-    await manager.writeBytes(bytesPath, <int>[1, 2, 3], atomic: false);
-    expect(await manager.readBytes(bytesPath), <int>[1, 2, 3]);
-    await manager.writeText(filePath, 'non-atomic', atomic: false);
-    expect(await manager.readText(filePath), 'non-atomic');
-    await manager.delete(bytesPath);
-    expect((await manager.stat(bytesPath)).exists, isFalse);
-    await manager.delete(bytesPath);
+    await manager.writeText(fp, 'hello');
+    expect(await manager.readText(fp), 'hello');
+    expect((await manager.stat(fp)).isFile, isTrue);
   });
+
+  test('Windows path containment is case-insensitive', () {
+    final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    expect(
+      m.compatibility.isWithin(r'C:\PROJECT\src\main.styio', r'c:\project'),
+      isTrue,
+    );
+    expect(m.compatibility.isWithin(r'D:\W\main.styio', r'C:\W'), isFalse);
+  });
+
+  test('Windows normalize path handles drive and dot-dot', () {
+    final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    expect(m.normalizePath(r'C:\Users\..\app\m.styio'), r'C:\app\m.styio');
+  });
+
+  test('Windows locked-file retry is documented blocked on dioxus host', () {
+    final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    expect(m.compatibility.supportsAtomicWrite, isTrue);
+  });
+
+  test(
+    'local file system manager reads writes stats and lists files',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_fs_manager_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final manager = LocalFileSystemManager.linuxDebianArmForTest();
+      final filePath = manager.joinPath(<String>[
+        tempRoot.path,
+        'workspace',
+        'main.txt',
+      ]);
+
+      await manager.writeText(filePath, 'hello from vityo');
+
+      expect(await manager.readText(filePath), 'hello from vityo');
+      final snapshot = await manager.stat(filePath);
+      expect(snapshot.isFile, isTrue);
+      expect(snapshot.exists, isTrue);
+
+      final entries = await manager.list(
+        manager.joinPath(<String>[tempRoot.path, 'workspace']),
+      );
+      expect(entries.map((entry) => entry.normalizedPath), contains(filePath));
+
+      final bytesPath = manager.joinPath(<String>[
+        tempRoot.path,
+        'workspace',
+        'bytes.bin',
+      ]);
+      await manager.writeBytes(bytesPath, <int>[1, 2, 3], atomic: false);
+      expect(await manager.readBytes(bytesPath), <int>[1, 2, 3]);
+      await manager.writeText(filePath, 'non-atomic', atomic: false);
+      expect(await manager.readText(filePath), 'non-atomic');
+      await manager.delete(bytesPath);
+      expect((await manager.stat(bytesPath)).exists, isFalse);
+      await manager.delete(bytesPath);
+    },
+  );
 
   test('platform file system manager can be created from a prober', () async {
     final manager = await createPlatformFileSystemManager(
@@ -213,13 +270,14 @@ void main() {
       target: '/root/secret.styio',
       recoveryHint: 'Choose a readable workspace file.',
     );
-    final unsupportedFailure = UnsupportedFileSystemManager(
-      facts: FileSystemFacts.linuxDebianArm(),
-    ).classifyFailure(
-      UnsupportedError('File system operations are not available.'),
-      operation: 'watch',
-      target: '/workspace',
-    );
+    final unsupportedFailure =
+        UnsupportedFileSystemManager(
+          facts: FileSystemFacts.linuxDebianArm(),
+        ).classifyFailure(
+          UnsupportedError('File system operations are not available.'),
+          operation: 'watch',
+          target: '/workspace',
+        );
     final notFoundFailure = manager.classifyFailure(
       const FileSystemException(
         'No such file or directory',
@@ -266,10 +324,7 @@ void main() {
     expect(permissionFailure.sourceManager, 'LocalFileSystemManager');
     expect(permissionFailure.toJson()['operation'], 'readText');
     expect(permissionFailure.toJson()['recoveryHint'], contains('readable'));
-    expect(
-      unsupportedFailure.kind,
-      FileSystemFailureKind.unsupportedProvider,
-    );
+    expect(unsupportedFailure.kind, FileSystemFailureKind.unsupportedProvider);
     expect(
       unsupportedFailure.toJson()['sourceManager'],
       'UnsupportedFileSystemManager',
@@ -360,7 +415,13 @@ void main() {
     );
 
     expect(guard.contains('/workspace/project/src/main.styio'), isTrue);
-    expect(guard.checkWithin('/workspace/project/src/main.styio', operation: 'writeText'), isNull);
+    expect(
+      guard.checkWithin(
+        '/workspace/project/src/main.styio',
+        operation: 'writeText',
+      ),
+      isNull,
+    );
 
     final failure = guard.checkWithin(
       '/workspace/project-other/main.styio',
@@ -380,26 +441,29 @@ void main() {
     );
   });
 
-  test('file system provider router supports local file uri and rejects other schemes', () {
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
-    final router = FileSystemProviderRouter(fileSystemManager: manager);
-    final local = router.route(Uri.file('/workspace/project/main.styio'));
-    final barePath = router.route(Uri(path: '/workspace/project/main.styio'));
-    final unsupported = router.route(
-      Uri.parse('vityo-remote://workspace/main.styio'),
-      operation: 'readText',
-    );
+  test(
+    'file system provider router supports local file uri and rejects other schemes',
+    () {
+      final manager = LocalFileSystemManager.linuxDebianArmForTest();
+      final router = FileSystemProviderRouter(fileSystemManager: manager);
+      final local = router.route(Uri.file('/workspace/project/main.styio'));
+      final barePath = router.route(Uri(path: '/workspace/project/main.styio'));
+      final unsupported = router.route(
+        Uri.parse('vityo-remote://workspace/main.styio'),
+        operation: 'readText',
+      );
 
-    expect(local.kind, FileSystemProviderRouteKind.local);
-    expect(local.path, '/workspace/project/main.styio');
-    expect(barePath.supported, isTrue);
-    expect(unsupported.supported, isFalse);
-    expect(
-      unsupported.failure!.kind,
-      FileSystemFailureKind.unsupportedProvider,
-    );
-    expect(unsupported.toJson()['failure'], isA<Map<String, Object?>>());
-  });
+      expect(local.kind, FileSystemProviderRouteKind.local);
+      expect(local.path, '/workspace/project/main.styio');
+      expect(barePath.supported, isTrue);
+      expect(unsupported.supported, isFalse);
+      expect(
+        unsupported.failure!.kind,
+        FileSystemFailureKind.unsupportedProvider,
+      );
+      expect(unsupported.toJson()['failure'], isA<Map<String, Object?>>());
+    },
+  );
 
   test('file system text codec decodes bom and normalizes newlines', () {
     const codec = FileSystemTextCodec();
@@ -409,7 +473,9 @@ void main() {
       0xBF,
       ...utf8.encode('a\r\nb\rc\n'),
     ]);
-    const crlfCodec = FileSystemTextCodec(outputNewline: FileSystemNewline.crlf);
+    const crlfCodec = FileSystemTextCodec(
+      outputNewline: FileSystemNewline.crlf,
+    );
     final encoded = crlfCodec.encode('a\nb\n', includeUtf8Bom: true);
 
     expect(decoded.text, 'a\nb\nc\n');
@@ -420,143 +486,149 @@ void main() {
     expect(utf8.decode(encoded.skip(3).toList()), 'a\r\nb\r\n');
   });
 
-  test('local file system manager copies and moves file system entities', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_fs_manager_copy_move_test_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
-    final source = manager.joinPath(<String>[tempRoot.path, 'source.txt']);
-    final copy = manager.joinPath(<String>[tempRoot.path, 'copy.txt']);
-    final moved = manager.joinPath(<String>[tempRoot.path, 'nested', 'moved.txt']);
-    final renamed = manager.joinPath(<String>[tempRoot.path, 'renamed.txt']);
+  test(
+    'local file system manager copies and moves file system entities',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_fs_manager_copy_move_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final manager = LocalFileSystemManager.linuxDebianArmForTest();
+      final source = manager.joinPath(<String>[tempRoot.path, 'source.txt']);
+      final copy = manager.joinPath(<String>[tempRoot.path, 'copy.txt']);
+      final moved = manager.joinPath(<String>[
+        tempRoot.path,
+        'nested',
+        'moved.txt',
+      ]);
+      final renamed = manager.joinPath(<String>[tempRoot.path, 'renamed.txt']);
 
-    await manager.writeText(source, 'copy-move-ok');
-    await manager.copy(source, copy);
-    await manager.move(copy, moved);
-    await manager.rename(moved, renamed);
+      await manager.writeText(source, 'copy-move-ok');
+      await manager.copy(source, copy);
+      await manager.move(copy, moved);
+      await manager.rename(moved, renamed);
 
-    final renamedUri = manager.toFileUri(renamed);
-    expect(manager.pathFromFileUri(renamedUri), renamed);
-    expect(manager.isWithin(renamed, tempRoot.path), isTrue);
-    expect(await manager.readText(source), 'copy-move-ok');
-    expect(await manager.readText(renamed), 'copy-move-ok');
-    expect(await manager.exists(moved), isFalse);
-    expect(await manager.exists(copy), isFalse);
-    await expectLater(
-      manager.copy(source, renamed),
-      throwsA(isA<FileSystemException>()),
-    );
-    await manager.copy(source, renamed, overwrite: true);
-    expect(await manager.readText(renamed), 'copy-move-ok');
-
-    if (!Platform.isWindows) {
+      final renamedUri = manager.toFileUri(renamed);
+      expect(manager.pathFromFileUri(renamedUri), renamed);
+      expect(manager.isWithin(renamed, tempRoot.path), isTrue);
+      expect(await manager.readText(source), 'copy-move-ok');
+      expect(await manager.readText(renamed), 'copy-move-ok');
+      expect(await manager.exists(moved), isFalse);
+      expect(await manager.exists(copy), isFalse);
       await expectLater(
-        manager.setExecutable(
-          manager.joinPath(<String>[tempRoot.path, 'missing-executable']),
+        manager.copy(source, renamed),
+        throwsA(isA<FileSystemException>()),
+      );
+      await manager.copy(source, renamed, overwrite: true);
+      expect(await manager.readText(renamed), 'copy-move-ok');
+
+      if (!Platform.isWindows) {
+        await expectLater(
+          manager.setExecutable(
+            manager.joinPath(<String>[tempRoot.path, 'missing-executable']),
+          ),
+          throwsA(isA<FileSystemException>()),
+        );
+
+        final sourceLink = manager.joinPath(<String>[
+          tempRoot.path,
+          'source-link',
+        ]);
+        final copiedLink = manager.joinPath(<String>[
+          tempRoot.path,
+          'copied-link',
+        ]);
+        final movedLink = manager.joinPath(<String>[
+          tempRoot.path,
+          'moved-link',
+        ]);
+        await Link(sourceLink).create(source);
+        expect(
+          (await manager.stat(sourceLink)).type,
+          VityoFileSystemEntityType.link,
+        );
+        await manager.copy(sourceLink, copiedLink);
+        await manager.move(sourceLink, movedLink);
+        expect(await manager.readText(copiedLink), 'copy-move-ok');
+        expect((await manager.stat(movedLink)).exists, isTrue);
+        expect(await manager.exists(sourceLink), isFalse);
+
+        final pipePath = manager.joinPath(<String>[
+          tempRoot.path,
+          'source-pipe',
+        ]);
+        final pipeResult = await Process.run('mkfifo', <String>[pipePath]);
+        if (pipeResult.exitCode == 0) {
+          expect(
+            (await manager.stat(pipePath)).type,
+            VityoFileSystemEntityType.other,
+          );
+          await expectLater(
+            manager.copy(
+              pipePath,
+              manager.joinPath(<String>[tempRoot.path, 'copied-pipe']),
+            ),
+            throwsA(isA<FileSystemException>()),
+          );
+          await expectLater(
+            manager.move(
+              pipePath,
+              manager.joinPath(<String>[tempRoot.path, 'moved-pipe']),
+            ),
+            throwsA(isA<FileSystemException>()),
+          );
+        }
+      }
+
+      final sourceDirectory = manager.joinPath(<String>[
+        tempRoot.path,
+        'source-directory',
+      ]);
+      final nestedFile = manager.joinPath(<String>[
+        sourceDirectory,
+        'nested',
+        'child.txt',
+      ]);
+      final copiedDirectory = manager.joinPath(<String>[
+        tempRoot.path,
+        'copied-directory',
+      ]);
+      final movedDirectory = manager.joinPath(<String>[
+        tempRoot.path,
+        'moved-directory',
+      ]);
+      await manager.writeText(nestedFile, 'directory-copy');
+      await manager.copy(sourceDirectory, copiedDirectory);
+      expect(
+        await manager.readText(
+          manager.joinPath(<String>[copiedDirectory, 'nested', 'child.txt']),
+        ),
+        'directory-copy',
+      );
+      await manager.move(copiedDirectory, movedDirectory);
+      expect(await manager.exists(copiedDirectory), isFalse);
+      expect(await manager.exists(movedDirectory), isTrue);
+      await manager.copy(sourceDirectory, movedDirectory, overwrite: true);
+      expect(await manager.exists(movedDirectory), isTrue);
+      await manager.delete(movedDirectory, recursive: true);
+      expect(await manager.exists(movedDirectory), isFalse);
+
+      await expectLater(
+        manager.copy(
+          manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
+          manager.joinPath(<String>[tempRoot.path, 'missing-copy.txt']),
         ),
         throwsA(isA<FileSystemException>()),
       );
-
-      final sourceLink = manager.joinPath(<String>[
-        tempRoot.path,
-        'source-link',
-      ]);
-      final copiedLink = manager.joinPath(<String>[
-        tempRoot.path,
-        'copied-link',
-      ]);
-      final movedLink = manager.joinPath(<String>[
-        tempRoot.path,
-        'moved-link',
-      ]);
-      await Link(sourceLink).create(source);
-      expect(
-        (await manager.stat(sourceLink)).type,
-        VityoFileSystemEntityType.link,
+      await expectLater(
+        manager.move(
+          manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
+          manager.joinPath(<String>[tempRoot.path, 'missing-move.txt']),
+        ),
+        throwsA(isA<FileSystemException>()),
       );
-      await manager.copy(sourceLink, copiedLink);
-      await manager.move(sourceLink, movedLink);
-      expect(await manager.readText(copiedLink), 'copy-move-ok');
-      expect((await manager.stat(movedLink)).exists, isTrue);
-      expect(await manager.exists(sourceLink), isFalse);
-
-      final pipePath = manager.joinPath(<String>[tempRoot.path, 'source-pipe']);
-      final pipeResult = await Process.run('mkfifo', <String>[pipePath]);
-      if (pipeResult.exitCode == 0) {
-        expect(
-          (await manager.stat(pipePath)).type,
-          VityoFileSystemEntityType.other,
-        );
-        await expectLater(
-          manager.copy(
-            pipePath,
-            manager.joinPath(<String>[tempRoot.path, 'copied-pipe']),
-          ),
-          throwsA(isA<FileSystemException>()),
-        );
-        await expectLater(
-          manager.move(
-            pipePath,
-            manager.joinPath(<String>[tempRoot.path, 'moved-pipe']),
-          ),
-          throwsA(isA<FileSystemException>()),
-        );
-      }
-    }
-
-    final sourceDirectory = manager.joinPath(<String>[
-      tempRoot.path,
-      'source-directory',
-    ]);
-    final nestedFile = manager.joinPath(<String>[
-      sourceDirectory,
-      'nested',
-      'child.txt',
-    ]);
-    final copiedDirectory = manager.joinPath(<String>[
-      tempRoot.path,
-      'copied-directory',
-    ]);
-    final movedDirectory = manager.joinPath(<String>[
-      tempRoot.path,
-      'moved-directory',
-    ]);
-    await manager.writeText(nestedFile, 'directory-copy');
-    await manager.copy(sourceDirectory, copiedDirectory);
-    expect(
-      await manager.readText(
-        manager.joinPath(<String>[
-          copiedDirectory,
-          'nested',
-          'child.txt',
-        ]),
-      ),
-      'directory-copy',
-    );
-    await manager.move(copiedDirectory, movedDirectory);
-    expect(await manager.exists(copiedDirectory), isFalse);
-    expect(await manager.exists(movedDirectory), isTrue);
-    await manager.copy(sourceDirectory, movedDirectory, overwrite: true);
-    expect(await manager.exists(movedDirectory), isTrue);
-    await manager.delete(movedDirectory, recursive: true);
-    expect(await manager.exists(movedDirectory), isFalse);
-
-    await expectLater(
-      manager.copy(
-        manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
-        manager.joinPath(<String>[tempRoot.path, 'missing-copy.txt']),
-      ),
-      throwsA(isA<FileSystemException>()),
-    );
-    await expectLater(
-      manager.move(
-        manager.joinPath(<String>[tempRoot.path, 'missing.txt']),
-        manager.joinPath(<String>[tempRoot.path, 'missing-move.txt']),
-      ),
-      throwsA(isA<FileSystemException>()),
-    );
-  });
+    },
+  );
 
   test('workspace document store uses file system manager route', () async {
     final tempRoot = await Directory.systemTemp.createTemp(

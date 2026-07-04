@@ -26,6 +26,7 @@ REQUIRED_COLLECTION_DIRS = [
     DOCS / "history",
     DOCS / "milestones",
     DOCS / "plans",
+    DOCS / "release",
     DOCS / "review",
     DOCS / "rollups",
     DOCS / "specs",

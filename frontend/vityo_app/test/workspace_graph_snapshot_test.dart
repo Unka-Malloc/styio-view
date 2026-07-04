@@ -6,29 +6,29 @@ void main() {
   group('CanonicalFileEntry', () {
     test('creates a canonical file entry with required fields', () {
       final entry = CanonicalFileEntry(
-        filePath: '/workspace/spio.toml',
+        filePath: '/workspace/pafio.toml',
         contentHash: 'abc123',
         lastModifiedAt: DateTime(2026, 6, 24, 12, 0, 0),
       );
 
-      expect(entry.filePath, '/workspace/spio.toml');
+      expect(entry.filePath, '/workspace/pafio.toml');
       expect(entry.contentHash, 'abc123');
       expect(entry.lastModifiedAt, DateTime(2026, 6, 24, 12, 0, 0));
     });
 
     test('equality is based on filePath and contentHash', () {
       final a = CanonicalFileEntry(
-        filePath: '/workspace/spio.toml',
+        filePath: '/workspace/pafio.toml',
         contentHash: 'abc123',
         lastModifiedAt: DateTime(2026, 6, 24),
       );
       final b = CanonicalFileEntry(
-        filePath: '/workspace/spio.toml',
+        filePath: '/workspace/pafio.toml',
         contentHash: 'abc123',
         lastModifiedAt: DateTime(2026, 6, 25), // different time
       );
       final c = CanonicalFileEntry(
-        filePath: '/workspace/spio.toml',
+        filePath: '/workspace/pafio.toml',
         contentHash: 'def456',
         lastModifiedAt: DateTime(2026, 6, 24),
       );
@@ -39,13 +39,13 @@ void main() {
 
     test('copyWith preserves or overrides fields', () {
       final entry = CanonicalFileEntry(
-        filePath: '/workspace/spio.toml',
+        filePath: '/workspace/pafio.toml',
         contentHash: 'abc123',
         lastModifiedAt: DateTime(2026, 6, 24),
       );
 
       final copied = entry.copyWith(contentHash: 'def456');
-      expect(copied.filePath, '/workspace/spio.toml');
+      expect(copied.filePath, '/workspace/pafio.toml');
       expect(copied.contentHash, 'def456');
       expect(copied.lastModifiedAt, DateTime(2026, 6, 24));
     });
@@ -290,7 +290,7 @@ void main() {
         ],
         canonicalFiles: [
           CanonicalFileEntry(
-            filePath: '/workspace/spio.toml',
+            filePath: '/workspace/pafio.toml',
             contentHash: 'h1',
             lastModifiedAt: DateTime(2026, 6, 24),
           ),

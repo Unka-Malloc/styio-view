@@ -25,7 +25,7 @@ void main() {
       lastCommand: const ToolchainCommandResult(
         command: 'tool use',
         status: ToolchainCommandStatus.failed,
-        statusMessage: 'spio tool use failed with exit code 64.',
+        statusMessage: 'pafio tool use failed with exit code 64.',
         stdout: '',
         stderr: 'exit 64',
       ),
@@ -63,7 +63,7 @@ void main() {
     expect(find.byKey(const ValueKey('toolchain-status-card')), findsOneWidget);
     expect(find.text('Toolchain command failed'), findsOneWidget);
     expect(
-      find.text('spio tool use failed with exit code 64.'),
+      find.text('pafio tool use failed with exit code 64.'),
       findsOneWidget,
     );
     expect(find.text('command tool use'), findsOneWidget);
@@ -84,12 +84,12 @@ void main() {
 
 ProjectGraphSnapshot _projectGraph(ToolchainStatusSnapshot toolchain) {
   return ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.package,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
+    manifestPath: '/workspace/demo/pafio.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: const <ProjectTargetDescriptor>[],

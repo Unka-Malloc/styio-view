@@ -41,7 +41,7 @@
 
 当前已发布的 `styio` contract：
 
-1. `styio --compile-plan <path>` 接受 `spio` 输出的 published compile plan
+1. `styio --compile-plan <path>` 接受 `pafio` 输出的 published compile plan
 2. 明确 accept / reject path
 3. 失败时返回 machine-readable payload
 4. `build/check/run/test` 都走同一条 published compile-plan 入口
@@ -59,8 +59,8 @@
 
 当前 `Vityo` 的 project route 已不再停留在 preview-only：
 
-1. 项目图优先消费 `spio project-graph --json`
-2. 项目执行优先消费 `spio build/run/test --json` 的 `workflow_success_payloads` published family
+1. 项目图优先消费 `pafio project-graph --json`
+2. 项目执行优先消费 `pafio build/run/test --json` 的 `workflow_success_payloads` published family
 3. `styio` 继续作为 compile-plan consumer 与 receipt / diagnostics 的真相源
 
 ## 4. Machine-Info Extension
@@ -80,4 +80,4 @@
 1. `Vityo` 不解析人类 stderr 来猜状态。
 2. 未发布的执行路径必须明确返回 `blocked` 原因，而不是让前端猜测。
 3. 上游可以只先交付 `CLI` 或 `FFI` 中的一种，但 shape 必须满足 `docs/contracts/ExecutionAdapter.md` 与 `docs/contracts/RuntimeEventAdapter.md`。
-4. 项目执行主线优先消费 `spio --json build/run/test`，`styio` 继续作为 compile-plan consumer 与 receipt / diagnostics 的真相源。
+4. 项目执行主线优先消费 `pafio --json build/run/test`，`styio` 继续作为 compile-plan consumer 与 receipt / diagnostics 的真相源。

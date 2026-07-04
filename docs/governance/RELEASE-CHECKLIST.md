@@ -14,6 +14,66 @@ A release or checkpoint candidate must prove four things before it is cut:
 3. Sandbox, agent permission, module manifest security, redaction, and secret handling have explicit tests or gate coverage.
 4. Performance-sensitive editor, language, workspace, runtime, AI context, watcher, and UI virtualization paths have benchmark files and a regression gate path.
 
+A formal product release candidate must additionally prove that the launch artifact is the production deliverable, not a debug, prototype, lab, or experimental build. Release closure requires platform release builds, packaging/signing or distribution evidence, release notes, install/update/uninstall behavior, rollback or recovery evidence, and no skipped build evidence for the claimed launch platform.
+
+## CI Gate Classification
+
+Every CI check listed below runs on every PR and push to `nightly`. The distinction between *default CI* and *opt-in product gate* is at the script level, not the workflow level: all workflows are always triggered, but certain gates inside them require explicit environment variables or external fixtures to execute their full product-matrix scope.
+
+### Default CI (always runs, no external fixtures required)
+
+| Workflow / Gate | What It Proves | Evidence Claim |
+|-----------------|----------------|----------------|
+| `repo-hygiene.yml` | Tracked-tree governance, dependency policy, supply chain, GitHub Actions pin, architecture boundary, compat facade, security baseline, performance budget, license policy, import boundary, ecosystem CLI doc, incoming history range | Repository hygiene and policy compliance is maintained |
+| `audit.yml` | Supply chain governance, dependency policy, GitHub Actions pin audit, security baseline, license policy, architecture boundary, compat facade | Security, supply-chain, and architecture policy gates pass |
+| `styio-audit.yml` | External styio-audit gate against released policy | Cross-repository audit policy is satisfied |
+| `project-coverage-gate.yml` | Python coverage >= 95%, Flutter coverage >= 85% | Project coverage floors are met |
+| `local-ci-gate.yml` (linux job) | `delivery-gate.sh --mode push` (no --skip-health, no --skip-ecosystem by default), `flutter build linux --release` | Linux delivery floor + native release build |
+| `local-ci-gate.yml` (windows job) | `delivery-gate.sh --mode push --skip-audit`, `flutter build windows --release` | Windows delivery floor + native release build |
+| `local-ci-gate.yml` (macos job) | `delivery-gate.sh --mode push --skip-audit`, `flutter build macos --release` | macOS delivery floor + native release build |
+| `windows-native.yml` | `delivery-gate.sh --mode push --skip-audit`, `flutter analyze`, `flutter build windows --release`, upload coverage + build artifacts | Windows-specific delivery gate + release build + artifact upload |
+
+### Opt-In Product Gates (require `VITYO_PRODUCT_GATE=1` and external fixtures)
+
+These gates are **not** executed by default CI. They require explicit activation and external fixtures (Styio/Pafio executables, hosted control plane endpoints). Their passing state is **not** part of default CI green.
+
+| Gate Script | What It Proves | Trigger |
+|-------------|----------------|---------|
+| `ecosystem-product-gate.py` | Full product workflow matrix: desktop-local and hosted/cloud lanes complete install/use/pin/fetch/vendor/pack/run/test/preflight; managed toolchain switch; multi-package workspace; filesystem registry distribution; registry conflict and missing-package failure; compile/dependency/preflight structured error return | `VITYO_PRODUCT_GATE=1` + external fixtures |
+| `ecosystem-sample-workflow-gate.py` (styio-pafio sibling) | Cross-repo sample workflow: managed toolchain switch, vendored offline, registry-hosted source, explicit `--package` selection and publish-policy protection | `VITYO_PRODUCT_GATE=1` + styio-pafio checkout |
+| Product coverage gate (within `delivery-gate.sh`) | Product-matrix coverage beyond default CI unit/widget test scope | `VITYO_PRODUCT_GATE=1` + external fixtures |
+
+### What Default CI Green Means
+
+Default CI green means:
+- Repository hygiene, security, architecture, compat facade, performance budgets, and license policy all pass.
+- Linux, Windows, and macOS each complete the delivery floor and produce a native `--release` Flutter build.
+- Project coverage floors (Python 95%, Flutter 85%) are met.
+- External styio-audit policy passes.
+
+Default CI green does **not** mean:
+- Full product workflow matrix has been executed (requires `VITYO_PRODUCT_GATE=1`).
+- Cross-repository ecosystem sample workflows have passed.
+- Platform packaging, signing, distribution, or install/update/uninstall have been verified.
+- The build artifact is a production-signed, distributed release.
+
+## Skip Flags And Closure Evidence
+
+The delivery gate supports several `--skip-*` flags. Each has a narrow legitimate use. Using one in CI does not prove the skipped step passed; it proves only that CI chose not to run it.
+
+| Flag | Legitimate Use | Cannot Claim |
+|------|----------------|--------------|
+| `--skip-build` | Metadata, docs, governance-only changes; non-release checkpoints where Flutter release build is not part of claimed evidence | Release build evidence for any platform being launched |
+| `--skip-health` | Docs/process-only deliveries where checkpoint health (Flutter analyze, tests, coverage, selftest) is verified separately or is out of scope | That Flutter analyze, tests, coverage, or selftest passed |
+| `--skip-audit` | Checkpoints where external styio-audit is enforced by the separate required `styio-audit` check; explicitly scoped docs/process recovery | That external audit policy is satisfied (use the separate styio-audit check for that) |
+| `--skip-ecosystem` | Targeted recovery, not normal CI | That ecosystem CLI doc consistency was checked |
+
+**Rule:** A PR or checkpoint claiming product closure must show positive evidence for every gate relevant to the claimed scope. Relying on `--skip-*` flags as evidence of passing is invalid. The evidence record must include the actual gate output or a reference to the CI run that executed that gate without the skip flag.
+
+## Terminal Closure Constraint
+
+The Better Plan checkpoint `6fd0bfe7-3d65-429f-8a6d-fd0a0fc08092` ("Clarify product gate default-CI evidence policy to launch-ready production release closure") is the terminal governance checkpoint in its chain. It cannot be marked **completed** unless the repository has launch-ready production release evidence meeting all criteria in the [Formal Product Launch Gate](#formal-product-launch-gate) section. Documentation-only clarification of the policy is necessary but not sufficient for closure — the checkpoint requires actual release evidence, not just policy text.
+
 ## Required Commands
 
 Run from the repository root unless a command states otherwise:
@@ -35,9 +95,22 @@ For a full release candidate, also run:
 ./scripts/delivery-gate.sh --mode checkpoint
 python3 scripts/release-readiness-gate.py
 python3 scripts/performance-gate.py --threshold 1.10
+flutter build linux --release
+flutter build windows --release
+flutter build macos --release
 ```
 
-Use `--skip-build` only for metadata, docs, or governance-only changes where a Flutter release build is not part of the evidence being claimed.
+Use `--skip-build` only for metadata, docs, governance-only changes, or non-release checkpoints where a Flutter release build is not part of the evidence being claimed. A formal product release cannot use `--skip-build` as release evidence for any platform being launched.
+
+## Formal Product Launch Gate
+
+Before declaring product launch readiness, the release owner must verify:
+
+1. The launch channel has a production release artifact, not a debug or prototype artifact.
+2. Linux, Windows, and macOS launch claims each have native `--release` build evidence when that platform is included in the release.
+3. Platform-specific packaging, signing/notarization, installer/update/uninstall, release notes, and rollback or recovery evidence are attached to the release record.
+4. Prototype governance and selftest evidence is treated only as regression evidence; it cannot replace release build, packaging, signing, or launch evidence.
+5. Any unsupported or upstream-blocked capability is exposed as a user-visible capability gap with owner, reason, recovery guidance, and release-note coverage.
 
 ## PR Evidence Checklist
 

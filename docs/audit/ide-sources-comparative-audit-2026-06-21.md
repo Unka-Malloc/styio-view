@@ -313,7 +313,7 @@ Permission model:
 
 1. `readOnly`: search, read files, read diagnostics, inspect project graph.
 2. `workspaceWrite`: modify workspace files after diff preview approval.
-3. `toolchainManaged`: run whitelisted Styio/spio/toolchain tasks.
+3. `toolchainManaged`: run whitelisted Styio/pafio/toolchain tasks.
 4. `fullAccessDisabledByDefault`: any non-workspace or unclassified command requires explicit user opt-in.
 
 Approval decisions:

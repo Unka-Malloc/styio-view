@@ -112,7 +112,7 @@ enum IdeCapabilityAvailability {
   /// Available but with limited scope or known issues.
   previewOnly,
 
-  /// Blocked because upstream Styio/Spio hasn't published the contract.
+  /// Blocked because upstream Styio/Pafio hasn't published the contract.
   blockedByUpstreamContract,
 
   /// Blocked because the current platform doesn't support it.

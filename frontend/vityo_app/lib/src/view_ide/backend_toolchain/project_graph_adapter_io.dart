@@ -7,7 +7,7 @@ import 'hosted_control_plane.dart';
 import 'hosted_payload_codec.dart';
 import 'project_graph_adapter.dart';
 import 'project_graph_contract.dart';
-import 'spio_cli_discovery.dart' show appendSpioExecutableCandidates;
+import 'pafio_cli_discovery.dart' show appendPafioExecutableCandidates;
 
 Map<String, String> Function() _environmentProvider = () =>
     Platform.environment;
@@ -31,7 +31,7 @@ Future<ProjectGraphAdapter> createPlatformProjectGraphAdapter({
     );
   }
   final rootDirectory = _discoverProjectRoot(Directory.current);
-  final support = await _probeSpioProjectGraphSupport(
+  final support = await _probePafioProjectGraphSupport(
     startDirectory: rootDirectory,
   );
   return _LocalProjectGraphAdapter(
@@ -95,7 +95,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
   });
 
   final PlatformTarget platformTarget;
-  final _SpioProjectGraphSupport projectGraphSupport;
+  final _PafioProjectGraphSupport projectGraphSupport;
   PublishedPayloadFailure? _lastProjectGraphPayloadFailure;
   PublishedPayloadFailure? _lastToolchainStatePayloadFailure;
 
@@ -130,10 +130,10 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
     _lastProjectGraphPayloadFailure = null;
     _lastToolchainStatePayloadFailure = null;
     final rootDirectory = _discoverProjectRoot(Directory.current);
-    final manifestFile = File(_joinPath(rootDirectory.path, 'spio.toml'));
+    final manifestFile = File(_joinPath(rootDirectory.path, 'pafio.toml'));
     final toolchainPin = _findUpwardFile(
       startDirectory: rootDirectory,
-      candidates: const <String>['spio-toolchain.toml'],
+      candidates: const <String>['pafio-toolchain.toml'],
     );
     final styioConfig = _findUpwardFile(
       startDirectory: rootDirectory,
@@ -145,7 +145,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
     final publishedToolchainEnvironmentResult =
         projectGraphSupport.toolchainStateAvailable
         ? await _loadPublishedToolchainEnvironment(
-            spioBinary: projectGraphSupport.binaryPath,
+            pafioBinary: projectGraphSupport.binaryPath,
             manifestPath: hasManifest ? manifestFile.path : null,
             styioBinaryOverride: styioBinaryOverride,
           )
@@ -176,7 +176,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
                   ? ToolchainResolutionSource.unavailable
                   : ToolchainResolutionSource.projectPin,
               detail: toolchainPin == null
-                  ? 'No spio.toml discovered. The shell is running in scratch mode.'
+                  ? 'No pafio.toml discovered. The shell is running in scratch mode.'
                   : 'Project toolchain pin is present but no manifest was discovered.',
               pinPath: toolchainPin,
             ),
@@ -185,7 +185,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
         toolchainEnvironment: publishedToolchainEnvironment,
         toolchainStatePayloadFailure: _lastToolchainStatePayloadFailure,
         notes: <String>[
-          'No spio.toml was found while scanning upward from ${Directory.current.path}.',
+          'No pafio.toml was found while scanning upward from ${Directory.current.path}.',
           'The editor remains usable in scratch mode and can still target published styio single-file execution.',
           if (_lastToolchainStatePayloadFailure != null)
             _publishedPayloadFailureNote(_lastToolchainStatePayloadFailure!),
@@ -197,7 +197,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
     final publishedSnapshotResult =
         projectGraphSupport.publishedPayloadAvailable
         ? await _loadPublishedProjectGraph(
-            spioBinary: projectGraphSupport.binaryPath,
+            pafioBinary: projectGraphSupport.binaryPath,
             manifestPath: manifestFile.path,
             styioBinaryOverride: styioBinaryOverride,
           )
@@ -249,7 +249,7 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
     for (final member in parsedRoot.workspaceMembers) {
       final memberManifestPath = _joinPath(
         _joinPath(rootDirectory.path, member),
-        'spio.toml',
+        'pafio.toml',
       );
       final memberManifest = File(memberManifestPath);
       if (!await memberManifest.exists()) {
@@ -281,13 +281,13 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
       );
     }
 
-    final lockfilePath = _joinPath(rootDirectory.path, 'spio.lock');
+    final lockfilePath = _joinPath(rootDirectory.path, 'pafio.lock');
     final vendorRoot = _joinPath(
-      _joinPath(rootDirectory.path, '.spio'),
+      _joinPath(rootDirectory.path, '.pafio'),
       'vendor',
     );
     final buildRoot = _joinPath(
-      _joinPath(rootDirectory.path, '.spio'),
+      _joinPath(rootDirectory.path, '.pafio'),
       'build',
     );
     final toolchain = _toolchainFromManifest(
@@ -326,9 +326,9 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
       toolchainStatePayloadFailure: _lastToolchainStatePayloadFailure,
       notes: _mergeNotes(<String>[
         if (projectGraphSupport.publishedPayloadAvailable)
-          'spio advertises a published project graph payload, but the shell fell back to canonical file inference because the published payload could not be loaded.',
+          'pafio advertises a published project graph payload, but the shell fell back to canonical file inference because the published payload could not be loaded.',
         if (!projectGraphSupport.publishedPayloadAvailable)
-          'Project graph is built from canonical spio/styio files until spio publishes a dedicated project graph payload.',
+          'Project graph is built from canonical pafio/styio files until pafio publishes a dedicated project graph payload.',
         ..._publishedPayloadFailureNotes(
           projectGraphPayloadFailure: _lastProjectGraphPayloadFailure,
           toolchainStatePayloadFailure: _lastToolchainStatePayloadFailure,
@@ -351,10 +351,10 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
 
   String _projectGraphCapabilityDetail() {
     if (_lastProjectGraphPayloadFailure != null) {
-      return 'spio advertises the project graph contract, but `${_lastProjectGraphPayloadFailure!.command}` failed so the shell is using canonical file inference instead. ${_lastProjectGraphPayloadFailure!.detail}';
+      return 'pafio advertises the project graph contract, but `${_lastProjectGraphPayloadFailure!.command}` failed so the shell is using canonical file inference instead. ${_lastProjectGraphPayloadFailure!.detail}';
     }
     if (_lastToolchainStatePayloadFailure != null) {
-      return 'spio advertises the toolchain state contract, but `${_lastToolchainStatePayloadFailure!.command}` failed so toolchain state is only partially available. ${_lastToolchainStatePayloadFailure!.detail}';
+      return 'pafio advertises the toolchain state contract, but `${_lastToolchainStatePayloadFailure!.command}` failed so toolchain state is only partially available. ${_lastToolchainStatePayloadFailure!.detail}';
     }
     return projectGraphSupport.detail;
   }
@@ -369,8 +369,8 @@ class _PublishedPayloadLoadResult<T> {
   final PublishedPayloadFailure? failure;
 }
 
-class _SpioProjectGraphSupport {
-  const _SpioProjectGraphSupport({
+class _PafioProjectGraphSupport {
+  const _PafioProjectGraphSupport({
     required this.publishedPayloadAvailable,
     required this.toolchainStateAvailable,
     this.binaryPath,
@@ -753,22 +753,22 @@ Future<CompilerHandshakeSnapshot?> _probeCompiler({
   if (explicit != null) {
     _addStyioExecutableCandidates(candidates, explicit);
   }
-  final spioManaged = _environmentValue('SPIO_STYIO_BIN');
-  if (spioManaged != null) {
-    _addStyioExecutableCandidates(candidates, spioManaged);
+  final pafioManaged = _environmentValue('PAFIO_STYIO_BIN');
+  if (pafioManaged != null) {
+    _addStyioExecutableCandidates(candidates, pafioManaged);
   }
-  final spioHome = _environmentValue('SPIO_HOME');
-  if (spioHome != null) {
+  final pafioHome = _environmentValue('PAFIO_HOME');
+  if (pafioHome != null) {
     _addStyioExecutableCandidates(
       candidates,
-      _joinPath(spioHome, 'tools/styio/current/bin/styio'),
+      _joinPath(pafioHome, 'tools/styio/current/bin/styio'),
     );
   }
   final home = _environmentValue('HOME');
   if (home != null) {
     _addStyioExecutableCandidates(
       candidates,
-      _joinPath(home, '.spio/tools/styio/current/bin/styio'),
+      _joinPath(home, '.pafio/tools/styio/current/bin/styio'),
     );
   }
 
@@ -794,23 +794,23 @@ Future<CompilerHandshakeSnapshot?> _probeCompiler({
       candidates,
       _joinPath(
         current.path,
-        '../../Unka-Malloc/styio-nightly/build/bin/styio',
+        '../../SymPolicy/Styio/build/bin/styio',
       ),
     );
     _addStyioExecutableCandidates(
       candidates,
       _joinPath(
         current.path,
-        '../../Unka-Malloc/styio-nightly/build-codex/bin/styio',
+        '../../SymPolicy/Styio/build-codex/bin/styio',
       ),
     );
     _addStyioExecutableCandidates(
       candidates,
-      _joinPath(current.path, '../../Unka-Malloc/styio/build/bin/styio'),
+      _joinPath(current.path, '../../SymPolicy/Styio/build/bin/styio'),
     );
     _addStyioExecutableCandidates(
       candidates,
-      _joinPath(current.path, '../../Unka-Malloc/styio/build-codex/bin/styio'),
+      _joinPath(current.path, '../../SymPolicy/Styio/build-codex/bin/styio'),
     );
     final parent = current.parent;
     if (parent.path == current.path) {
@@ -895,32 +895,32 @@ bool _hasWindowsExecutableExtension(String path) {
   return RegExp(r'\.(bat|cmd|com|exe)$', caseSensitive: false).hasMatch(path);
 }
 
-Future<_SpioProjectGraphSupport> _probeSpioProjectGraphSupport({
+Future<_PafioProjectGraphSupport> _probePafioProjectGraphSupport({
   required Directory startDirectory,
 }) async {
   final candidates = <String>[];
   final seenCandidates = <String>{};
-  final explicit = _environmentValue('VITYO_SPIO_BIN');
+  final explicit = _environmentValue('VITYO_PAFIO_BIN');
   if (explicit != null) {
-    appendSpioExecutableCandidates(candidates, explicit);
+    appendPafioExecutableCandidates(candidates, explicit);
   }
-  final envBinary = _environmentValue('SPIO_BIN');
+  final envBinary = _environmentValue('PAFIO_BIN');
   if (envBinary != null) {
-    appendSpioExecutableCandidates(candidates, envBinary);
+    appendPafioExecutableCandidates(candidates, envBinary);
   }
-  appendSpioExecutableCandidates(
+  appendPafioExecutableCandidates(
     candidates,
-    _joinPath(_joinPath(startDirectory.path, '.spio'), 'bin/spio'),
+    _joinPath(_joinPath(startDirectory.path, '.pafio'), 'bin/pafio'),
   );
-  appendSpioExecutableCandidates(
+  appendPafioExecutableCandidates(
     candidates,
-    _joinPath(startDirectory.path, 'spio'),
+    _joinPath(startDirectory.path, 'pafio'),
   );
-  appendSpioExecutableCandidates(
+  appendPafioExecutableCandidates(
     candidates,
-    _joinPath(_joinPath(startDirectory.path, 'scripts'), 'spio'),
+    _joinPath(_joinPath(startDirectory.path, 'scripts'), 'pafio'),
   );
-  appendSpioExecutableCandidates(candidates, 'spio');
+  appendPafioExecutableCandidates(candidates, 'pafio');
 
   for (final candidate in candidates) {
     if (!seenCandidates.add(candidate)) {
@@ -948,56 +948,56 @@ Future<_SpioProjectGraphSupport> _probeSpioProjectGraphSupport({
       final versions = rawContracts['project_graph'];
       final toolchainVersions = rawContracts['toolchain_state'];
       if (versions is List && versions.whereType<num>().contains(1)) {
-        return _SpioProjectGraphSupport(
+        return _PafioProjectGraphSupport(
           publishedPayloadAvailable: true,
           toolchainStateAvailable:
               toolchainVersions is List &&
               toolchainVersions.whereType<num>().contains(1),
           binaryPath: candidate,
           detail:
-              'Project graph is available through published spio project-graph payloads.',
+              'Project graph is available through published pafio project-graph payloads.',
         );
       }
-      return _SpioProjectGraphSupport(
+      return _PafioProjectGraphSupport(
         publishedPayloadAvailable: false,
         toolchainStateAvailable:
             toolchainVersions is List &&
             toolchainVersions.whereType<num>().contains(1),
         binaryPath: candidate,
         detail:
-            'spio is available, but the active binary does not advertise the project_graph contract yet.',
+            'pafio is available, but the active binary does not advertise the project_graph contract yet.',
       );
     } catch (_) {
       continue;
     }
   }
 
-  return const _SpioProjectGraphSupport(
+  return const _PafioProjectGraphSupport(
     publishedPayloadAvailable: false,
     toolchainStateAvailable: false,
     detail:
-        'Project graph is currently inferred from canonical project files until spio publishes a success payload.',
+        'Project graph is currently inferred from canonical project files until pafio publishes a success payload.',
   );
 }
 
 Future<_PublishedPayloadLoadResult<ProjectGraphSnapshot>>
 _loadPublishedProjectGraph({
-  required String? spioBinary,
+  required String? pafioBinary,
   required String manifestPath,
   required String? styioBinaryOverride,
 }) async {
-  if (spioBinary == null || spioBinary.isEmpty) {
+  if (pafioBinary == null || pafioBinary.isEmpty) {
     return const _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
       PublishedPayloadFailure(
-        command: 'spio project-graph --json',
+        command: 'pafio project-graph --json',
         detail:
-            'No spio binary was available for the published project graph path.',
+            'No pafio binary was available for the published project graph path.',
       ),
     );
   }
 
   try {
-    final result = await Process.run(spioBinary, <String>[
+    final result = await Process.run(pafioBinary, <String>[
       'project-graph',
       '--json',
       '--manifest-path',
@@ -1010,7 +1010,7 @@ _loadPublishedProjectGraph({
     if (result.exitCode != 0) {
       return _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
         PublishedPayloadFailure(
-          command: 'spio project-graph --json',
+          command: 'pafio project-graph --json',
           detail: _describePayloadCommandFailure(
             exitCode: result.exitCode,
             stdout: result.stdout,
@@ -1023,7 +1023,7 @@ _loadPublishedProjectGraph({
     if (decoded is! Map<String, dynamic>) {
       return const _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
         PublishedPayloadFailure(
-          command: 'spio project-graph --json',
+          command: 'pafio project-graph --json',
           detail:
               'Published project graph payload did not decode into a JSON object.',
         ),
@@ -1032,7 +1032,7 @@ _loadPublishedProjectGraph({
     if (decoded['schema_version'] != 1) {
       return _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
         PublishedPayloadFailure(
-          command: 'spio project-graph --json',
+          command: 'pafio project-graph --json',
           detail:
               'Published project graph payload reported unsupported schema_version `${decoded['schema_version']}`.',
         ),
@@ -1064,7 +1064,7 @@ _loadPublishedProjectGraph({
             )
           : const ToolchainStatusSnapshot(
               source: ToolchainResolutionSource.unavailable,
-              detail: 'spio project-graph did not publish toolchain state.',
+              detail: 'pafio project-graph did not publish toolchain state.',
             );
       final notes = (decoded['notes'] as List? ?? const <Object>[])
           .whereType<String>()
@@ -1141,7 +1141,7 @@ _loadPublishedProjectGraph({
           sourceState: sourceState,
           notes: notes.isEmpty
               ? const <String>[
-                  'Project graph loaded through published spio machine payload.',
+                  'Project graph loaded through published pafio machine payload.',
                 ]
               : notes,
         ),
@@ -1149,7 +1149,7 @@ _loadPublishedProjectGraph({
     } catch (error) {
       return _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
         PublishedPayloadFailure(
-          command: 'spio project-graph --json',
+          command: 'pafio project-graph --json',
           detail: 'Published project graph payload could not be parsed: $error',
         ),
       );
@@ -1157,7 +1157,7 @@ _loadPublishedProjectGraph({
   } on FormatException catch (error) {
     return _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
       PublishedPayloadFailure(
-        command: 'spio project-graph --json',
+        command: 'pafio project-graph --json',
         detail:
             'Published project graph payload emitted invalid JSON: ${_previewPayloadText(error.source?.toString() ?? '')}',
       ),
@@ -1165,7 +1165,7 @@ _loadPublishedProjectGraph({
   } catch (error) {
     return _PublishedPayloadLoadResult<ProjectGraphSnapshot>.failure(
       PublishedPayloadFailure(
-        command: 'spio project-graph --json',
+        command: 'pafio project-graph --json',
         detail: 'Published project graph load failed: $error',
       ),
     );
@@ -1174,18 +1174,18 @@ _loadPublishedProjectGraph({
 
 Future<_PublishedPayloadLoadResult<ToolchainEnvironmentSnapshot>>
 _loadPublishedToolchainEnvironment({
-  required String? spioBinary,
+  required String? pafioBinary,
   required String? manifestPath,
   required String? styioBinaryOverride,
 }) async {
-  if (spioBinary == null || spioBinary.isEmpty) {
+  if (pafioBinary == null || pafioBinary.isEmpty) {
     return const _PublishedPayloadLoadResult<
       ToolchainEnvironmentSnapshot
     >.failure(
       PublishedPayloadFailure(
-        command: 'spio tool status --json',
+        command: 'pafio tool status --json',
         detail:
-            'No spio binary was available for the published toolchain-state path.',
+            'No pafio binary was available for the published toolchain-state path.',
       ),
     );
   }
@@ -1198,11 +1198,11 @@ _loadPublishedToolchainEnvironment({
     if (styioBinaryOverride != null) {
       args.addAll(<String>['--styio-bin', styioBinaryOverride]);
     }
-    final result = await Process.run(spioBinary, args);
+    final result = await Process.run(pafioBinary, args);
     if (result.exitCode != 0) {
       return _PublishedPayloadLoadResult<ToolchainEnvironmentSnapshot>.failure(
         PublishedPayloadFailure(
-          command: 'spio tool status --json',
+          command: 'pafio tool status --json',
           detail: _describePayloadCommandFailure(
             exitCode: result.exitCode,
             stdout: result.stdout,
@@ -1218,7 +1218,7 @@ _loadPublishedToolchainEnvironment({
         ToolchainEnvironmentSnapshot
       >.failure(
         PublishedPayloadFailure(
-          command: 'spio tool status --json',
+          command: 'pafio tool status --json',
           detail:
               'Published toolchain-state payload did not decode into a JSON object.',
         ),
@@ -1227,7 +1227,7 @@ _loadPublishedToolchainEnvironment({
     if (decoded['schema_version'] != 1) {
       return _PublishedPayloadLoadResult<ToolchainEnvironmentSnapshot>.failure(
         PublishedPayloadFailure(
-          command: 'spio tool status --json',
+          command: 'pafio tool status --json',
           detail:
               'Published toolchain-state payload reported unsupported schema_version `${decoded['schema_version']}`.',
         ),
@@ -1240,7 +1240,7 @@ _loadPublishedToolchainEnvironment({
           )
         : const ToolchainStatusSnapshot(
             source: ToolchainResolutionSource.unavailable,
-            detail: 'spio tool status did not publish toolchain state.',
+            detail: 'pafio tool status did not publish toolchain state.',
           );
     final activeCompiler = decoded['active_compiler'] is Map<String, dynamic>
         ? _compilerHandshakeFromPayload(
@@ -1284,7 +1284,7 @@ _loadPublishedToolchainEnvironment({
   } on FormatException catch (error) {
     return _PublishedPayloadLoadResult<ToolchainEnvironmentSnapshot>.failure(
       PublishedPayloadFailure(
-        command: 'spio tool status --json',
+        command: 'pafio tool status --json',
         detail:
             'Published toolchain-state payload emitted invalid JSON: ${_previewPayloadText(error.source?.toString() ?? '')}',
       ),
@@ -1292,7 +1292,7 @@ _loadPublishedToolchainEnvironment({
   } catch (error) {
     return _PublishedPayloadLoadResult<ToolchainEnvironmentSnapshot>.failure(
       PublishedPayloadFailure(
-        command: 'spio tool status --json',
+        command: 'pafio tool status --json',
         detail: 'Published toolchain-state load failed: $error',
       ),
     );
@@ -1716,7 +1716,7 @@ ProjectSourceStateSnapshot _projectSourceStateFromPayload(
 ) {
   return ProjectSourceStateSnapshot(
     schemaVersion: payload['schema_version'] as int? ?? 1,
-    spioHome: payload['spio_home'] as String?,
+    pafioHome: payload['pafio_home'] as String?,
     declaredGitDependencies: payload['declared_git_dependencies'] as int? ?? 0,
     declaredRegistryDependencies:
         payload['declared_registry_dependencies'] as int? ?? 0,
@@ -1779,7 +1779,7 @@ ManagedToolchainStateSnapshot _managedToolchainStateFromPayload(
   Map<String, dynamic> payload,
 ) {
   return ManagedToolchainStateSnapshot(
-    spioHome: payload['spio_home'] as String?,
+    pafioHome: payload['pafio_home'] as String?,
     currentBinaryPath: payload['current_binary'] as String?,
     currentMetadataPath: payload['current_metadata_path'] as String?,
     installed: (payload['installed'] as List? ?? const <Object>[])
@@ -1888,7 +1888,7 @@ String _previewPayloadText(String text) {
 Directory _discoverProjectRoot(Directory startDirectory) {
   var current = startDirectory.absolute;
   while (true) {
-    final manifest = File(_joinPath(current.path, 'spio.toml'));
+    final manifest = File(_joinPath(current.path, 'pafio.toml'));
     final styioConfig = File(_joinPath(current.path, 'styio.toml'));
     final gitDir = Directory(_joinPath(current.path, '.git'));
     if (manifest.existsSync() ||

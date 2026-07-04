@@ -80,7 +80,7 @@ log "release readiness static gate"
 
 if [[ "$RUN_LANGUAGE_FIXTURES" -eq 1 ]]; then
   log "language fixture confidence gate"
-  LANGUAGE_FIXTURE_CMD=(./scripts/language-fixture-gate.sh --flutter-dir "$FLUTTER_DIR")
+  LANGUAGE_FIXTURE_CMD=(bash scripts/language-fixture-gate.sh --flutter-dir "$FLUTTER_DIR")
   if [[ -n "$STYIO_BIN" ]]; then
     LANGUAGE_FIXTURE_CMD+=(--styio-bin "$STYIO_BIN")
   fi
@@ -93,6 +93,6 @@ log "prototype governance"
 (cd "$PROTOTYPE_DIR" && npm run governance)
 
 log "prototype selftest"
-(cd "$PROTOTYPE_DIR" && STYIO_EDITOR_URL="$EDITOR_URL" npm run selftest:editor)
+(cd "$PROTOTYPE_DIR" && PYTHON_BIN="$PYTHON_BIN" STYIO_EDITOR_URL="$EDITOR_URL" npm run selftest:editor)
 
 log "all checks passed"

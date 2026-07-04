@@ -12,7 +12,7 @@ Downstream nightly repository: <https://github.com/Unka-Malloc/vityo-nightly>
 
 1. `Vityo` 先冻结产品合同与 adapter 边界
 2. Flutter 主壳与编辑器核心继续独立推进
-3. 上游 `styio` / `spio` 按 `Vityo` 的合同补齐机器接口
+3. 上游 `styio` / `pafio` 按 `Vityo` 的合同补齐机器接口
 4. 面向人维护的网页入口只保留手写的 `editor.html` 线；`frontend/vityo_app/build/web` 这类 Flutter 生成物只用于构建验证，不作为人工维护页面
 
 文档入口见 [docs/README.md](docs/README.md)。
@@ -34,7 +34,7 @@ Downstream nightly repository: <https://github.com/Unka-Malloc/vityo-nightly>
 ## Frontend / Backend Split
 
 - 前端是面向用户的编辑器、运行视窗和产品交互界面，入口在 `frontend/vityo_app/` 与 `prototype/`。
-- 后端不是单一服务，而是 `Vityo` 背后的整条工具链面：adapter layer、local CLI/FFI、hosted control plane，以及上游 `spio` / `styio` 合同。
+- 后端不是单一服务，而是 `Vityo` 背后的整条工具链面：adapter layer、local CLI/FFI、hosted control plane，以及上游 `pafio` / `styio` 合同。
 - 前端只编排和展示 machine contract；工具链解析、依赖/发布/执行语义、仓库与云平台行为都留在后端。
 
 系统级边界定义见 [docs/design/Vityo-System-Architecture.md](docs/design/Vityo-System-Architecture.md)。

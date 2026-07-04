@@ -66,6 +66,17 @@ class CapabilityRoutedStyioLanguageService implements StyioLanguageService {
       StyioServiceCapability.references.wireValue,
     );
 
+    final collectedGaps = <AnalysisCapabilityGap>[];
+    collectedGaps.addAll(base.capabilityGaps);
+    if (syntax != null) collectedGaps.addAll(syntax.capabilityGaps);
+    if (semantic != null) collectedGaps.addAll(semantic.capabilityGaps);
+    if (diagnostics != null) collectedGaps.addAll(diagnostics.capabilityGaps);
+    if (formatting != null) collectedGaps.addAll(formatting.capabilityGaps);
+    if (semanticBlock != null) collectedGaps.addAll(semanticBlock.capabilityGaps);
+    if (inlayHint != null) collectedGaps.addAll(inlayHint.capabilityGaps);
+    if (documentSymbol != null) collectedGaps.addAll(documentSymbol.capabilityGaps);
+    if (references != null) collectedGaps.addAll(references.capabilityGaps);
+
     return StyioDocumentAnalysis(
       tokenSpans: syntax?.tokenSpans ?? base.tokenSpans,
       semanticSpans: semantic?.semanticSpans ?? base.semanticSpans,
@@ -75,6 +86,7 @@ class CapabilityRoutedStyioLanguageService implements StyioLanguageService {
       inlayHints: inlayHint?.inlayHints ?? base.inlayHints,
       documentSymbols: documentSymbol?.documentSymbols ?? base.documentSymbols,
       referenceSpans: references?.referenceSpans ?? base.referenceSpans,
+      capabilityGaps: collectedGaps,
     );
   }
 

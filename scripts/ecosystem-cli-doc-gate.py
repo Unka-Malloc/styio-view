@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 CANONICAL_GATE = ROOT.parent / "styio-nightly" / "scripts" / "ecosystem-cli-doc-gate.py"
-SIBLING_REPOS = ("styio-nightly", "styio-spio")
+SIBLING_REPOS = ("styio-nightly", "styio-pafio")
 
 
 def workspace_root_from_args(args: list[str]) -> Path:

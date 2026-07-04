@@ -22,7 +22,7 @@ flowchart TB
   Adapters --> Graph["ProjectGraphAdapter"]
   Adapters --> Exec["ExecutionAdapter"]
   Adapters --> Events["RuntimeEventAdapter"]
-  LS --> Upstream["styio / spio / Hosted Services"]
+  LS --> Upstream["styio / pafio / Hosted Services"]
   Graph --> Upstream
   Exec --> Upstream
   Events --> Upstream
@@ -36,7 +36,7 @@ flowchart TB
 这里的“前端 / 后端”不是按单一仓库目录硬切，而是按产品责任切：
 
 - 前端是面向用户的 `Flutter UI Runtime + Custom Editor Engine + Panels + Module Host`，负责编辑、浏览、交互和状态呈现。
-- 后端是 `Vityo` 背后的整条工具链面，包含 adapter layer、local CLI / FFI、hosted control plane，以及上游 `spio` / `styio` 提供的 machine contract。
+- 后端是 `Vityo` 背后的整条工具链面，包含 adapter layer、local CLI / FFI、hosted control plane，以及上游 `pafio` / `styio` 提供的 machine contract。
 - `prototype/` 与 `frontend/vityo_app/lib/src/app|editor|runtime|agent|theme|module_host|platform` 属于前端主面；`frontend/vityo_app/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
 - `frontend/vityo_app/lib/src/backend_toolchain/` 是后端工具链接入的实现根目录，承载 adapter、hosted control plane codec 和产品运维 lane。
 - `frontend/vityo_app/lib/src/integration/` 只保留 legacy compatibility exports；它继续服务旧 import 路径，但不再承载新的后端实现。
@@ -173,8 +173,8 @@ python3 scripts/check_compat_facades.py
 关键原则：
 
 1. `Vityo` 不通过私有目录结构推断业务状态。
-2. `spio.toml / spio.lock / spio-toolchain.toml / .spio / styio.toml` 是当前允许的 canonical files。
-3. 一旦 `spio` 发布正式 project graph payload，主线切到 payload。
+2. `pafio.toml / pafio.lock / pafio-toolchain.toml / .pafio / styio.toml` 是当前允许的 canonical files。
+3. 一旦 `pafio` 发布正式 project graph payload，主线切到 payload。
 
 正式合同见：
 

@@ -269,7 +269,7 @@ Map<String, String> _hostedEnvironmentForServer(
         'http://${server.address.address}:${server.port}$basePath',
     'VITYO_HOSTED_TOKEN': 'test-hosted-token',
     'VITYO_HOSTED_WORKSPACE_ROOT': '/workspace/demo',
-    'VITYO_HOSTED_MANIFEST_PATH': '/workspace/demo/spio.toml',
+    'VITYO_HOSTED_MANIFEST_PATH': '/workspace/demo/pafio.toml',
     ...overrides,
   };
 }

@@ -162,6 +162,46 @@ class FileSystemFacts {
     );
   }
 
+  factory FileSystemFacts.windowsX64({
+    String targetId = 'local',
+    String architecture = 'x64',
+    DateTime? detectedAt,
+  }) {
+    return FileSystemFacts(
+      targetId: targetId,
+      operatingSystem: 'windows',
+      distributionId: 'windows',
+      distributionName: 'Windows',
+      architecture: architecture,
+      pathStyle: FileSystemPathStyle.windows,
+      pathSeparator: r'\',
+      providerKind: FileSystemProviderKind.local,
+      watchSupport: FileSystemWatchSupport.recursive,
+      caseSensitive: false,
+      supportsFileUri: true,
+      supportsSymbolicLinks: false,
+      supportsAtomicWrite: true,
+      detectedAt: detectedAt,
+      entries: buildEntries(
+        targetId: targetId,
+        operatingSystem: 'windows',
+        distributionId: 'windows',
+        distributionName: 'Windows',
+        architecture: architecture,
+        pathStyle: FileSystemPathStyle.windows,
+        pathSeparator: r'\',
+        providerKind: FileSystemProviderKind.local,
+        watchSupport: FileSystemWatchSupport.recursive,
+        caseSensitive: false,
+        supportsFileUri: true,
+        supportsSymbolicLinks: false,
+        supportsAtomicWrite: true,
+        detectedAt: detectedAt,
+        source: 'fixture',
+      ),
+    );
+  }
+
   final String targetId;
   final String operatingSystem;
   final String distributionId;

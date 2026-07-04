@@ -57,6 +57,20 @@ void main() {
     expect(graphite.colorScheme.primary, const Color(0xFF2F6F73));
   });
 
+  test('theme override preserves untouched preset colors', () {
+    const override = VityoThemeOverride(accent: 0xFF00A878);
+    final graphite = VityoTheme.light(
+      preset: VityoThemePreset.graphite,
+      overrides: override,
+    );
+
+    expect(graphite.scaffoldBackgroundColor, const Color(0xFFEDEFF2));
+    expect(graphite.cardColor, const Color(0xFFFFFFFF));
+    expect(graphite.textTheme.bodyMedium?.color, const Color(0xFF1E252B));
+    expect(graphite.textTheme.bodySmall?.color, const Color(0xFF62717C));
+    expect(graphite.colorScheme.primary, const Color(0xFF00A878));
+  });
+
   test('theme override persists through configuration DataStore', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_theme_override_store_test_',
@@ -85,10 +99,33 @@ void main() {
 
     await store.saveOverride(workspaceId: 'demo', override: override);
     final restored = await store.readOverride(workspaceId: 'demo');
+    final reopenedFileSystemManager =
+        LocalFileSystemManager.linuxDebianArmForTest();
+    final reopenedResourceManager = LocalResourceManager(
+      facts: ResourceFacts.linuxDebianArm(
+        systemTempPath: tempRoot.path,
+        homePath: tempRoot.path,
+      ),
+    );
+    final reopenedDataStore = FoundationDataStore(
+      resourceCoordinator: FoundationResourceCoordinator(
+        resourceManager: reopenedResourceManager,
+        fileSystemManager: reopenedFileSystemManager,
+      ),
+      fileSystemManager: reopenedFileSystemManager,
+    );
+    final reopenedStore = VityoThemeOverrideStore.fromDataStore(
+      dataStore: reopenedDataStore,
+    );
+    final restoredAfterReopen = await reopenedStore.readOverride(
+      workspaceId: 'demo',
+    );
 
     expect(restored?.canvas, 0xFF101820);
     expect(restored?.accent, 0xFF00A878);
+    expect(restoredAfterReopen?.canvas, 0xFF101820);
+    expect(restoredAfterReopen?.accent, 0xFF00A878);
     expect(await store.deleteOverride(workspaceId: 'demo'), isTrue);
-    expect(await store.readOverride(workspaceId: 'demo'), isNull);
+    expect(await reopenedStore.readOverride(workspaceId: 'demo'), isNull);
   });
 }

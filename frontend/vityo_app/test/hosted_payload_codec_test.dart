@@ -124,16 +124,16 @@ void main() {
         'entryUrl': 'https://hosted.example/workspaces/demo-workspace',
       },
       'payload': <String, dynamic>{
-        'id': '/workspace/demo/spio.toml',
+        'id': '/workspace/demo/pafio.toml',
         'title': 'demo/app',
         'workspace_root': '/workspace/demo',
         'workspace_members': <String>['packages/render'],
-        'manifest_path': '/workspace/demo/spio.toml',
-        'lockfile_path': '/workspace/demo/spio.lock',
-        'toolchain_pin_path': '/workspace/demo/spio-toolchain.toml',
+        'manifest_path': '/workspace/demo/pafio.toml',
+        'lockfile_path': '/workspace/demo/pafio.lock',
+        'toolchain_pin_path': '/workspace/demo/pafio-toolchain.toml',
         'styio_config_path': '/workspace/demo/styio.toml',
-        'vendor_root': '/workspace/demo/.spio/vendor',
-        'build_root': '/workspace/demo/.spio/build',
+        'vendor_root': '/workspace/demo/.pafio/vendor',
+        'build_root': '/workspace/demo/.pafio/build',
         'lock_state': 'fresh',
         'vendor_state': 'present',
         'editor_files': <String>['/workspace/demo/src/main.styio'],
@@ -164,7 +164,7 @@ void main() {
             'package_name': 'demo/app',
             'version': '0.1.0',
             'root_path': '/workspace/demo',
-            'manifest_path': '/workspace/demo/spio.toml',
+            'manifest_path': '/workspace/demo/pafio.toml',
             'is_workspace_member': true,
             'publish_enabled': true,
             'targets': <Map<String, dynamic>>[
@@ -188,7 +188,7 @@ void main() {
         'toolchain': <String, dynamic>{
           'source': 'project-pin',
           'detail': 'Pinned toolchain is active.',
-          'pin_path': '/workspace/demo/spio-toolchain.toml',
+          'pin_path': '/workspace/demo/pafio-toolchain.toml',
           'channel': 'stable',
           'version': '0.0.5',
         },
@@ -210,44 +210,44 @@ void main() {
           },
         },
         'managed_toolchains': <String, dynamic>{
-          'spio_home': '/workspace/demo/.spio',
-          'current_binary': '/workspace/demo/.spio/bin/styio',
-          'current_metadata_path': '/workspace/demo/.spio/current.json',
+          'pafio_home': '/workspace/demo/.pafio',
+          'current_binary': '/workspace/demo/.pafio/bin/styio',
+          'current_metadata_path': '/workspace/demo/.pafio/current.json',
           'installed': <Map<String, dynamic>>[
             <String, dynamic>{
               'channel': 'stable',
               'compiler_version': '0.0.5',
-              'install_root': '/workspace/demo/.spio/toolchains/stable',
+              'install_root': '/workspace/demo/.pafio/toolchains/stable',
               'install_binary_path':
-                  '/workspace/demo/.spio/toolchains/stable/styio',
+                  '/workspace/demo/.pafio/toolchains/stable/styio',
               'install_metadata_path':
-                  '/workspace/demo/.spio/toolchains/stable/metadata.json',
+                  '/workspace/demo/.pafio/toolchains/stable/metadata.json',
             },
           ],
         },
         'source_state': <String, dynamic>{
           'schema_version': 2,
-          'spio_home': '/workspace/demo/.spio',
+          'pafio_home': '/workspace/demo/.pafio',
           'declared_git_dependencies': 1,
           'declared_registry_dependencies': 2,
           'git_cache': <String, dynamic>{
-            'repos_root': '/workspace/demo/.spio/git/repos',
-            'checkouts_root': '/workspace/demo/.spio/git/checkouts',
+            'repos_root': '/workspace/demo/.pafio/git/repos',
+            'checkouts_root': '/workspace/demo/.pafio/git/checkouts',
             'repos_present': true,
             'checkouts_present': true,
           },
           'registry_cache': <String, dynamic>{
-            'cache_root': '/workspace/demo/.spio/registry',
-            'index_root': '/workspace/demo/.spio/registry/index',
-            'blob_root': '/workspace/demo/.spio/registry/blobs',
-            'checkout_root': '/workspace/demo/.spio/registry/checkouts',
+            'cache_root': '/workspace/demo/.pafio/registry',
+            'index_root': '/workspace/demo/.pafio/registry/index',
+            'blob_root': '/workspace/demo/.pafio/registry/blobs',
+            'checkout_root': '/workspace/demo/.pafio/registry/checkouts',
             'index_present': true,
             'blobs_present': true,
             'checkouts_present': true,
           },
           'vendor': <String, dynamic>{
-            'vendor_root': '/workspace/demo/.spio/vendor',
-            'metadata_path': '/workspace/demo/.spio/vendor/vendor.json',
+            'vendor_root': '/workspace/demo/.pafio/vendor',
+            'metadata_path': '/workspace/demo/.pafio/vendor/vendor.json',
             'vendor_present': true,
             'metadata_present': true,
             'git_snapshots': 1,
@@ -342,7 +342,7 @@ void main() {
 
     final graph = hostedProjectGraphSnapshotFromEnvelope(<String, dynamic>{
       'payload': <String, dynamic>{
-        'manifest_path': '/workspace/demo/spio.toml',
+        'manifest_path': '/workspace/demo/pafio.toml',
         'package_distribution': <String, dynamic>{
           'schema_version': 3,
           'publishable_packages': 1,
@@ -350,7 +350,7 @@ void main() {
           'packages': <Map<String, dynamic>>[
             <String, dynamic>{
               'package_name': 'demo/app',
-              'manifest_path': '/workspace/demo/spio.toml',
+              'manifest_path': '/workspace/demo/pafio.toml',
               'publish_enabled': true,
               'publish_ready': true,
               'runtime_registry_dependencies': 2,
@@ -369,7 +369,7 @@ void main() {
       },
     });
 
-    expect(graph.id, '/workspace/demo/spio.toml');
+    expect(graph.id, '/workspace/demo/pafio.toml');
     expect(graph.toolchain.source, ToolchainResolutionSource.unavailable);
     expect(graph.notes.single, contains('hosted control-plane'));
     expect(graph.packageDistribution!.schemaVersion, 3);

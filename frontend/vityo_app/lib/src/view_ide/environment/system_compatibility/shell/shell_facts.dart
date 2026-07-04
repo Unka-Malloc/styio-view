@@ -180,6 +180,58 @@ class ShellFacts {
     );
   }
 
+
+  factory ShellFacts.windowsX64({
+    String targetId = 'local',
+    String defaultShellPath = 'powershell.exe',
+    String architecture = 'x64',
+    List<ShellExecutableFact>? availableShells,
+    DateTime? detectedAt,
+  }) {
+    final shells = availableShells ??
+        <ShellExecutableFact>[
+          ShellExecutableFact(
+            path: defaultShellPath,
+            family: ShellFamily.powershell,
+            isDefault: true,
+          ),
+          const ShellExecutableFact(
+            path: r'C:\Windows\System32\cmd.exe',
+            family: ShellFamily.cmd,
+          ),
+        ];
+    return ShellFacts(
+      targetId: targetId,
+      operatingSystem: 'windows',
+      distributionId: 'windows',
+      distributionName: 'Windows',
+      architecture: architecture,
+      providerKind: ShellProviderKind.local,
+      availableShells: shells,
+      defaultShellPath: defaultShellPath,
+      supportsPty: false,
+      supportsLoginShell: false,
+      supportsInteractiveShell: true,
+      scriptExtension: '.ps1',
+      detectedAt: detectedAt,
+      entries: buildEntries(
+        targetId: targetId,
+        operatingSystem: 'windows',
+        distributionId: 'windows',
+        distributionName: 'Windows',
+        architecture: architecture,
+        providerKind: ShellProviderKind.local,
+        availableShells: shells,
+        defaultShellPath: defaultShellPath,
+        supportsPty: false,
+        supportsLoginShell: false,
+        supportsInteractiveShell: true,
+        scriptExtension: '.ps1',
+        source: 'fixture',
+        detectedAt: detectedAt,
+      ),
+    );
+  }
   final String targetId;
   final String operatingSystem;
   final String distributionId;

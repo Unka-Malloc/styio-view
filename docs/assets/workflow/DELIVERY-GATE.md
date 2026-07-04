@@ -24,7 +24,7 @@ Docs/process-only delivery:
 ./scripts/delivery-gate.sh --mode checkpoint --skip-health
 ```
 
-Use `--audit-bin ../styio-audit/bin/styio-audit` to force a specific audit checkout. Use `--skip-audit` only for explicitly scoped docs/process recovery where external audit is run separately.
+Use `--audit-bin ../styio-audit/bin/styio-audit` to force a specific audit checkout. Use `--skip-audit` only when external audit is enforced by the separate required `styio-audit` check or for explicitly scoped docs/process recovery where external audit is run separately. The ecosystem CLI doc check runs by default as non-blocking evidence; reserve `--skip-ecosystem` for targeted recovery, not normal CI.
 
 ## What It Runs
 
@@ -34,3 +34,5 @@ Use `--audit-bin ../styio-audit/bin/styio-audit` to force a specific audit check
 4. `./scripts/checkpoint-health.sh`, including the `95%` project coverage gate and release-readiness static checks for `toolchain/maintenance-tools.json`
 
 The standalone `project-coverage-gate` GitHub Actions workflow is the direct coverage evidence lane. It runs `python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85` and uploads the Flutter LCOV report without waiting on sibling repository build steps.
+
+The `local-ci-gate` workflow mirrors this delivery floor on `ubuntu-latest`, `windows-latest`, and `macos-latest`. GitHub Rulesets for `nightly` must require `audit`, `styio-audit`, `local-ci-gate`, `windows-native`, and `macos-native`.

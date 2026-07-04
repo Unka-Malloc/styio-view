@@ -348,19 +348,21 @@ class FileSystemBoundaryGuard {
   }
 }
 
-enum FileSystemProviderRouteKind { local, unsupported }
+enum FileSystemProviderRouteKind { local, hosted, unsupported }
 
 class FileSystemProviderRoute {
   const FileSystemProviderRoute({
     required this.kind,
     required this.uri,
     this.path,
+    this.workspaceId,
     this.failure,
   });
 
   final FileSystemProviderRouteKind kind;
   final Uri uri;
   final String? path;
+  final String? workspaceId;
   final FileSystemOperationFailure? failure;
 
   bool get supported => kind != FileSystemProviderRouteKind.unsupported;
@@ -370,6 +372,7 @@ class FileSystemProviderRoute {
       'kind': kind.name,
       'uri': uri.toString(),
       if (path != null) 'path': path,
+      if (workspaceId != null) 'workspaceId': workspaceId,
       if (failure != null) 'failure': failure!.toJson(),
       'supported': supported,
     };
@@ -398,6 +401,30 @@ class FileSystemProviderRouter {
         kind: FileSystemProviderRouteKind.local,
         uri: uri,
         path: _fileSystemManager.pathFromFileUri(uri),
+      );
+    }
+    if (uri.scheme == 'vityo-hosted') {
+      final workspaceId = uri.host.trim();
+      final path = Uri.decodeComponent(uri.path);
+      if (workspaceId.isEmpty || path.isEmpty || path == '/') {
+        return FileSystemProviderRoute(
+          kind: FileSystemProviderRouteKind.unsupported,
+          uri: uri,
+          failure: FileSystemOperationFailure(
+            kind: FileSystemFailureKind.invalidPath,
+            operation: operation,
+            target: uri.toString(),
+            sourceManager: sourceManager,
+            message:
+                'Hosted workspace URIs require a workspace id and document path.',
+          ),
+        );
+      }
+      return FileSystemProviderRoute(
+        kind: FileSystemProviderRouteKind.hosted,
+        uri: uri,
+        path: path,
+        workspaceId: workspaceId,
       );
     }
     return FileSystemProviderRoute(

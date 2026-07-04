@@ -10,8 +10,8 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `Pafio-Hosted-Control-Plane-Contract.md` | [Pafio Hosted Control-Plane Contract](./Pafio-Hosted-Control-Plane-Contract.md) | Record the frontend-facing hosted workspace API that styio-view consumes from pafio so UI and backend teams can ship independently against a fixed contract package. |
-| `Pafio-Integration-Overview.md` | [Pafio Integration Overview](./Pafio-Integration-Overview.md) | 说明 styio-view 与上游 pafio 的总体责任边界，避免把前端项目模型和包管理器内部实现绑死。 |
-| `Pafio-Project-Graph-Contract.md` | [Pafio Project Graph Contract](./Pafio-Project-Graph-Contract.md) | 冻结 styio-view 对 pafio 项目图 published payload 的 handoff 要求。 |
-| `Pafio-Toolchain-And-Registry-State.md` | [Pafio Toolchain And Registry State](./Pafio-Toolchain-And-Registry-State.md) | 冻结 styio-view 对 pafio toolchain、registry 和 package 状态的 handoff 要求。 |
-| `Pafio-Workflow-Success-Payloads.md` | [Pafio Workflow Success Payloads](./Pafio-Workflow-Success-Payloads.md) | 冻结 styio-view 对 pafio workflow success payload 的 handoff 要求。 |
+| `Pafio-Hosted-Control-Plane-Contract.md` | [Pafio Hosted Control-Plane Contract](./Pafio-Hosted-Control-Plane-Contract.md) | Record the frontend-facing hosted workspace API that Vityo consumes from pafio so UI and backend teams can ship independently against a fixed contract package. |
+| `Pafio-Integration-Overview.md` | [Pafio Integration Overview](./Pafio-Integration-Overview.md) | 说明 Vityo 与上游 pafio 的总体责任边界，避免把前端项目模型和包管理器内部实现绑死。 |
+| `Pafio-Project-Graph-Contract.md` | [Pafio Project Graph Contract](./Pafio-Project-Graph-Contract.md) | 冻结 Vityo 对 pafio 项目图 published payload 的 handoff 要求。 |
+| `Pafio-Toolchain-And-Registry-State.md` | [Pafio Toolchain And Registry State](./Pafio-Toolchain-And-Registry-State.md) | 冻结 Vityo 对 pafio toolchain、registry 和 package 状态的 handoff 要求。 |
+| `Pafio-Workflow-Success-Payloads.md` | [Pafio Workflow Success Payloads](./Pafio-Workflow-Success-Payloads.md) | 冻结 Vityo 对 pafio workflow success payload 的 handoff 要求。 |

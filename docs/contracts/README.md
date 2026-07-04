@@ -22,8 +22,8 @@
 
 1. 合同只定义输入输出、能力等级和失败语义，不绑定具体实现形态。
 2. 任一合同都允许 `CLI Adapter`、`FFI Adapter`、`Cloud Adapter` 三种实现。
-3. `Vityo` 主线只依赖这里的合同，不依赖 `styio` 或 `spio` 的内部目录、类名或私有 ABI。
-4. 需要 `spio` 提供的 hosted/cloud API 路由与 payload，不在这里重复定义；统一指向 `../external/for-spio/Spio-Hosted-Control-Plane-Contract.md` 和后端 published contract package。
-5. 上游缺能力时，不降低产品语义；把缺口记录到 `../external/for-styio/` 或 `../external/for-spio/`。
+3. `Vityo` 主线只依赖这里的合同，不依赖 `styio` 或 `pafio` 的内部目录、类名或私有 ABI。
+4. 需要 `pafio` 提供的 hosted/cloud API 路由与 payload，不在这里重复定义；统一指向 `../external/for-pafio/Pafio-Hosted-Control-Plane-Contract.md` 和后端 published contract package。
+5. 上游缺能力时，不降低产品语义；把缺口记录到 `../external/for-styio/` 或 `../external/for-pafio/`。
 6. adapter 切换不能改变 UI 语义，只能改变实现 route 与能力等级。
 7. 这些合同是前端侧需求声明，不是对上游内部实现的规划文档。

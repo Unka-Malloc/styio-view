@@ -54,7 +54,7 @@ Future<String?> resolvePafioBinary({required String workspaceRoot}) async {
     );
     appendPafioExecutableCandidates(
       candidates,
-      joinPath(current.path, '../../Unka-Malloc/styio-pafio/scripts/pafio'),
+      joinPath(current.path, '../../SymPolicy/Pafio/scripts/pafio'),
     );
     final parent = current.parent;
     if (parent.path == current.path) {

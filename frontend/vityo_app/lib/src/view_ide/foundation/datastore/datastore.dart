@@ -690,3 +690,303 @@ class FoundationDataStore {
     return 'datastore:${namespace.name}:${namespace.scope.name}:${namespace.workspaceId ?? ""}:$key';
   }
 }
+// ---------------------------------------------------------------------------
+// FoundationDataStoreOwnerRegistry -- validates complete DataStore owner coverage
+// for every persistent product state family.
+// ---------------------------------------------------------------------------
+
+/// Describes one product state family that requires a DataStore owner.
+class FoundationPersistentStateFamily {
+  const FoundationPersistentStateFamily({
+    required this.familyId,
+    required this.layer,
+    required this.description,
+    this.persistenceKind = FoundationPersistenceKind.persisted,
+  });
+
+  final String familyId;
+  final String layer;
+  final String description;
+  final FoundationPersistenceKind persistenceKind;
+}
+
+enum FoundationPersistenceKind {
+  persisted,
+  cached,
+  ephemeral,
+}
+
+extension FoundationPersistenceKindX on FoundationPersistenceKind {
+  String get wireValue {
+    return switch (this) {
+      FoundationPersistenceKind.persisted => "persisted",
+      FoundationPersistenceKind.cached => "cached",
+      FoundationPersistenceKind.ephemeral => "ephemeral",
+    };
+  }
+}
+
+/// Every persistent product state family known to the Vityo IDE.
+///
+/// This catalog is the single source of truth for DataStore owner coverage.
+/// Families declared here must have a registered [FoundationDataStoreOwnerDescriptor]
+/// in [FoundationDataStoreOwnerRegistry].
+const List<FoundationPersistentStateFamily> vityoPersistentStateFamilies =
+    <FoundationPersistentStateFamily>[
+  FoundationPersistentStateFamily(
+    familyId: "configuration.settings",
+    layer: "Configuration",
+    description: "IDE settings values, environment-variable overlays, workspace "
+        "overrides, profile overrides, and migration metadata.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "configuration.endpoint-policy",
+    layer: "Configuration",
+    description: "Cloud/hosted endpoint policy and credential references.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "interaction.editor-session",
+    layer: "Interaction",
+    description: "Open documents, tabs, cursor/selection, dirty state, undo/redo "
+        "metadata, focus state.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "interaction.shell-layout",
+    layer: "Interaction",
+    description: "Shell panel layout, visibility, pinning, and collapsed state.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "interaction.command-palette-history",
+    layer: "Interaction",
+    description: "Command palette recent selections and favorites.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "appearance.theme",
+    layer: "Appearance",
+    description: "Theme selection, visual mode, user overrides, and token state.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "service.language-result-cache",
+    layer: "Service",
+    description: "Cached semantic tokens, diagnostics, hover payloads, completion "
+        "snapshots, and resolved references.",
+    persistenceKind: FoundationPersistenceKind.cached,
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "service.remote-service-status",
+    layer: "Service",
+    description: "Degraded service status, provider reachability, and last-known-"
+        "good timestamps.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "environment.toolchain-status",
+    layer: "Environment",
+    description: "Toolchain installation, version, health, and pinning state.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "environment.platform-context",
+    layer: "Environment",
+    description: "Platform detection results, capability probe cache, and native "
+        "feature availability.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "environment.extension-lifecycle",
+    layer: "Environment",
+    description: "Extension enablement, provider state, capability registration, "
+        "lifecycle state, and permission grants.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "environment.fallback-status",
+    layer: "Environment",
+    description: "Fallback reasons, degraded-mode state, and last-known-good "
+        "availability timestamps.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "workspace.project-graph",
+    layer: "Workspace",
+    description: "Canonical project file snapshots, target graph, toolchain "
+        "bindings, and build state.",
+    persistenceKind: FoundationPersistenceKind.cached,
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "workspace.index",
+    layer: "Workspace",
+    description: "Workspace file index, symbol index, and search index metadata.",
+    persistenceKind: FoundationPersistenceKind.cached,
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "runtime.task-history",
+    layer: "Runtime",
+    description: "Task execution history, terminal session metadata, and build "
+        "event logs.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "agent.provider-profile",
+    layer: "Agent",
+    description: "Agent provider profiles, endpoint configuration, permission "
+        "policy, and audit journal settings.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "agent.coding-loop-context",
+    layer: "Agent",
+    description: "Agent context snapshots, prompt history, and coding session "
+        "state.",
+    persistenceKind: FoundationPersistenceKind.cached,
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "debugger.breakpoint-state",
+    layer: "Debugger",
+    description: "Breakpoint configuration, watch expressions, and launch "
+        "configuration state.",
+  ),
+  FoundationPersistentStateFamily(
+    familyId: "toolchain.compiler-cache",
+    layer: "Toolchain",
+    description: "Compiler invocation cache, dependency resolution cache, and "
+        "build artifact metadata.",
+    persistenceKind: FoundationPersistenceKind.cached,
+  ),
+];
+
+/// Validates that every persistent product state family has a registered
+/// DataStore owner or an explicit ephemeral-owner decision.
+///
+/// This registry keeps a single current implementation path; debug,
+/// prototype, lab, and experimental families must not appear here.
+class FoundationDataStoreOwnerRegistry {
+  final Map<String, FoundationDataStoreOwnerDescriptor> _owners =
+      <String, FoundationDataStoreOwnerDescriptor>{};
+  final Set<String> _explicitEphemeralFamilies = <String>{};
+
+  /// Register a DataStore owner descriptor for a state family.
+  void registerOwner(FoundationDataStoreOwnerDescriptor descriptor) {
+    final familyId = _ownerFamilyId(descriptor);
+    if (_owners.containsKey(familyId)) {
+      throw StateError(
+        "DataStore owner for family \"$familyId\" is already registered.",
+      );
+    }
+    _owners[familyId] = descriptor;
+  }
+
+  /// Declare that a state family is intentionally ephemeral (no persisted owner).
+  void declareEphemeral(String familyId, String reason) {
+    if (_owners.containsKey(familyId)) {
+      throw StateError(
+        "State family \"$familyId\" has a registered owner; "
+        "cannot also declare it ephemeral.",
+      );
+    }
+    _explicitEphemeralFamilies.add(familyId);
+  }
+
+  /// Returns the owner descriptor for [familyId] or null if not registered.
+  FoundationDataStoreOwnerDescriptor? ownerFor(String familyId) {
+    return _owners[familyId];
+  }
+
+  /// Whether [familyId] has an explicit ephemeral decision.
+  bool isEphemeral(String familyId) {
+    return _explicitEphemeralFamilies.contains(familyId);
+  }
+
+  /// Returns family ids that lack both a registered owner and an explicit
+  /// ephemeral decision.
+  List<String> missingOwnerFamilyIds() {
+    final covered = <String>{
+      ..._owners.keys,
+      ..._explicitEphemeralFamilies,
+    };
+    return vityoPersistentStateFamilies
+        .where((f) => !covered.contains(f.familyId))
+        .map((f) => f.familyId)
+        .toList(growable: false);
+  }
+
+  /// Whether every persistent product state family has a registered owner or
+  /// an explicit ephemeral decision.
+  bool get isComplete => missingOwnerFamilyIds().isEmpty;
+
+  /// List all registered owner descriptors.
+  List<FoundationDataStoreOwnerDescriptor> get owners =>
+      _owners.values.toList(growable: false);
+
+  /// List all explicitly ephemeral family ids.
+  List<String> get ephemeralFamilies =>
+      _explicitEphemeralFamilies.toList(growable: false);
+
+  /// Produces a serializable manifest projection of the owner registry.
+  /// Contains no runtime values -- only metadata suitable for manifests,
+  /// diagnostics, and agent context.
+  FoundationDataStoreOwnerRegistryManifest manifest() {
+    return FoundationDataStoreOwnerRegistryManifest(
+      owners: _owners.values
+          .map((o) => FoundationDataStoreOwnerManifestEntry(
+                ownerId: o.ownerId,
+                layer: o.layer,
+                stateFamily: o.stateFamily,
+                allowedNamespaces: o.allowedNamespaces.toList(growable: false),
+                allowedNamespacePrefixes:
+                    o.allowedNamespacePrefixes.toList(growable: false),
+              ))
+          .toList(growable: false),
+      ephemeralFamilies: _explicitEphemeralFamilies.toList(growable: false),
+      isComplete: isComplete,
+    );
+  }
+
+  String _ownerFamilyId(FoundationDataStoreOwnerDescriptor descriptor) {
+    return "${descriptor.layer}.${descriptor.stateFamily}";
+  }
+}
+
+/// Manifest projection of the DataStore owner registry.
+///
+/// Contains no runtime values -- safe for serialization, logs, agent context,
+/// and cross-boundary manifest exchange.
+class FoundationDataStoreOwnerRegistryManifest {
+  const FoundationDataStoreOwnerRegistryManifest({
+    required this.owners,
+    required this.ephemeralFamilies,
+    required this.isComplete,
+  });
+
+  final List<FoundationDataStoreOwnerManifestEntry> owners;
+  final List<String> ephemeralFamilies;
+  final bool isComplete;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      "owners": owners.map((o) => o.toJson()).toList(growable: false),
+      "ephemeralFamilies": ephemeralFamilies,
+      "isComplete": isComplete,
+    };
+  }
+}
+
+/// Single owner entry in a manifest projection -- no runtime values.
+class FoundationDataStoreOwnerManifestEntry {
+  const FoundationDataStoreOwnerManifestEntry({
+    required this.ownerId,
+    required this.layer,
+    required this.stateFamily,
+    required this.allowedNamespaces,
+    required this.allowedNamespacePrefixes,
+  });
+
+  final String ownerId;
+  final String layer;
+  final String stateFamily;
+  final List<String> allowedNamespaces;
+  final List<String> allowedNamespacePrefixes;
+
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      "ownerId": ownerId,
+      "layer": layer,
+      "stateFamily": stateFamily,
+      "allowedNamespaces": allowedNamespaces,
+      "allowedNamespacePrefixes": allowedNamespacePrefixes,
+    };
+  }
+}

@@ -204,6 +204,45 @@ ExecutionRouteSummary summarizeExecutionRoute({
     );
   }
 
+  if (platformTarget == PlatformTarget.android) {
+    final localCliReady =
+        cli.execution.level != AdapterCapabilityLevel.unavailable &&
+        projectGraph.hasActiveCompiler;
+    final cloudAvailable = cloud.execution.isAvailable;
+
+    if (localCliReady) {
+      return ExecutionRouteSummary(
+        title: 'Android local-first execution',
+        body: cloudAvailable
+            ? 'Android local-first route: local CLI execution is active with a resolved compiler. Cloud is available as a live fallback route.'
+            : 'Android local-first route: local CLI execution is active with a resolved compiler. No cloud fallback is configured.',
+        primaryAdapterKind: AdapterKind.cli,
+        previewOnly: false,
+        jitRoute: jitRoute,
+      );
+    }
+
+    if (cloudAvailable) {
+      return ExecutionRouteSummary(
+        title: 'Android local-first cloud fallback',
+        body:
+            'Android local-first route is blocked because no resolved local CLI compiler is available. Cloud execution is active as a fallback route.',
+        primaryAdapterKind: AdapterKind.cloud,
+        previewOnly: false,
+        jitRoute: jitRoute,
+      );
+    }
+
+    return ExecutionRouteSummary(
+      title: 'Android local-first blocked',
+      body:
+          'Android local-first route is blocked. No resolved local CLI compiler and no cloud fallback are available. Install styio or configure a cloud adapter before running project workflows.',
+      primaryAdapterKind: AdapterKind.cli,
+      previewOnly: true,
+      jitRoute: jitRoute,
+    );
+  }
+
   if (projectGraph.isScratch) {
     if (cli.execution.level != AdapterCapabilityLevel.unavailable &&
         projectGraph.hasActiveCompiler) {
@@ -241,9 +280,9 @@ ExecutionRouteSummary summarizeExecutionRoute({
   if (projectGraph.compilePlanConsumerAdvertised &&
       cli.execution.level != AdapterCapabilityLevel.unavailable) {
     return ExecutionRouteSummary(
-      title: 'Project route live through spio',
+      title: 'Project route live through pafio',
       body:
-          'The active compiler advertises compile-plan support, so project build/run/test can execute through spio with a live published handoff.',
+          'The active compiler advertises compile-plan support, so project build/run/test can execute through pafio with a live published handoff.',
       primaryAdapterKind: AdapterKind.cli,
       previewOnly: false,
       jitRoute: jitRoute,
@@ -261,25 +300,10 @@ ExecutionRouteSummary summarizeExecutionRoute({
     );
   }
 
-  if (platformTarget == PlatformTarget.android &&
-      cloud.execution.level != AdapterCapabilityLevel.unavailable) {
-    return ExecutionRouteSummary(
-      title: cloud.execution.isAvailable
-          ? 'Project route live with cloud fallback'
-          : 'Project route preview-only',
-      body: cloud.execution.isAvailable
-          ? 'Android keeps local-first intent, while the hosted control plane remains available as a live fallback route.'
-          : 'Android keeps local-first intent, but current project execution still blocks until the active compiler advertises compile-plan support. Cloud remains the fallback route.',
-      primaryAdapterKind: AdapterKind.cli,
-      previewOnly: !cloud.execution.isAvailable,
-      jitRoute: jitRoute,
-    );
-  }
-
   return ExecutionRouteSummary(
     title: 'Project route preview-only',
     body:
-        'The shell can inspect spio projects today, but build/run/test stays blocked until the active compiler advertises compile-plan support.',
+        'The shell can inspect pafio projects today, but build/run/test stays blocked until the active compiler advertises compile-plan support.',
     primaryAdapterKind: AdapterKind.cli,
     previewOnly: true,
     jitRoute: jitRoute,

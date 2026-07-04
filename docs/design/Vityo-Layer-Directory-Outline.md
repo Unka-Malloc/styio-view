@@ -543,7 +543,7 @@ Ownership:
 
 | Module | Owns |
 |---|---|
-| toolchain_manager | Styio/Spio discovery, selected toolchain, managed install, process launch context, and capability handshake. |
+| toolchain_manager | Styio/Pafio discovery, selected toolchain, managed install, process launch context, and capability handshake. |
 | system_compatibility_manager | Platform context, system-specific managers, manager-local permission handling, structured failures, and platform capability. |
 | configuration_store | User/workspace/profile settings, env overlays, cache policy, endpoint policy, and migrations. |
 | extension_manager | Plugin manifests, lifecycle, provider contribution, capability contribution, and extension permissions. |

@@ -77,6 +77,8 @@ class PythonCoverageGateTest(unittest.TestCase):
         self.assertIn(self.gate.SOURCE_SCOPE, run_cmd)
         self.assertIn("-m", run_cmd[run_cmd.index("--source") + 2:])  # -m unittest after source+scope
         self.assertIn("unittest", run_cmd)
+        self.assertIn("tests.test_linux_host_readiness_gate", run_cmd)
+        self.assertIn("tests.test_linux_packaging_gate", run_cmd)
         self.assertIn("prototype.test_dev_server_security", run_cmd)
         self.assertEqual(commands[2][-2:], ["--fail-under", "97"])
 

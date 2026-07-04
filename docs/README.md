@@ -31,7 +31,7 @@
 6. 活跃缺口登记：[design/Vityo-Implementation-Gaps.md](./design/Vityo-Implementation-Gaps.md)
 7. 文档策略：[specs/DOCUMENTATION-POLICY.md](./specs/DOCUMENTATION-POLICY.md)
 8. 当前状态摘要：[rollups/CURRENT-STATE.md](./rollups/CURRENT-STATE.md)
-9. 里程碑入口：[milestones/INDEX.md](./plan/repository-delivery-convergence/Evidence.md)
+9. 里程碑入口：[plan/repository-delivery-convergence/Evidence.md](./plan/repository-delivery-convergence/Evidence.md)
 10. ADR 入口：[adr/INDEX.md](./adr/INDEX.md)
 11. 产品合同入口：[contracts/INDEX.md](./contracts/INDEX.md)
 12. `styio` 对接入口：[external/for-styio/INDEX.md](./external/for-styio/INDEX.md)

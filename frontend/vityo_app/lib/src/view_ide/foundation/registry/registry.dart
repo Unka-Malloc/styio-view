@@ -26,6 +26,105 @@ extension FoundationRegistrationCategoryWire on FoundationRegistrationCategory {
   }
 }
 
+class DisposableRegistration {
+  DisposableRegistration({
+    required this.id,
+    required this.kind,
+    required this.owner,
+    required this.scopeId,
+    required bool Function() onDispose,
+  }) : _onDispose = onDispose;
+
+  final String id;
+  final String kind;
+  final String owner;
+  final String scopeId;
+  final bool Function() _onDispose;
+  bool _disposed = false;
+
+  bool get disposed => _disposed;
+
+  bool dispose() {
+    if (_disposed) {
+      return false;
+    }
+    _disposed = true;
+    return _onDispose();
+  }
+}
+
+class RegistryScope {
+  RegistryScope({required this.id, required this.owner});
+
+  final String id;
+  final String owner;
+  final List<DisposableRegistration> _registrations =
+      <DisposableRegistration>[];
+  bool _disposed = false;
+
+  bool get disposed => _disposed;
+
+  DisposableRegistration register<T>({
+    required FoundationRegistry<T> registry,
+    required ContributionDescriptor<T> contribution,
+  }) {
+    if (_disposed) {
+      throw StateError('Registry scope $id is already disposed.');
+    }
+    final registration = registry.registerContribution(
+      contribution,
+      scopeId: id,
+    );
+    _registrations.add(registration);
+    return registration;
+  }
+
+  void dispose() {
+    if (_disposed) {
+      return;
+    }
+    _disposed = true;
+    for (final registration in _registrations.reversed) {
+      registration.dispose();
+    }
+    _registrations.clear();
+  }
+}
+
+class ContributionDescriptor<T> {
+  const ContributionDescriptor({
+    required this.id,
+    required this.kind,
+    required this.owner,
+    required this.value,
+    this.state = FoundationRegistryEntryState.registered,
+    this.order = 0,
+    this.metadata = const <String, Object?>{},
+  });
+
+  final String id;
+  final String kind;
+  final String owner;
+  final T value;
+  final FoundationRegistryEntryState state;
+  final int order;
+  final Map<String, Object?> metadata;
+
+  FoundationRegistryEntry<T> toRegistryEntry() {
+    return FoundationRegistryEntry<T>(
+      id: id,
+      kind: kind,
+      owner: owner,
+      value: value,
+      state: state,
+      metadata: Map<String, Object?>.unmodifiable(<String, Object?>{
+        ...metadata,
+        'order': order,
+      }),
+    );
+  }
+}
+
 class FoundationRegistryEntry<T> {
   const FoundationRegistryEntry({
     required this.id,
@@ -393,6 +492,50 @@ class FoundationRegistryRegistrar<T> {
     );
   }
 
+  DisposableRegistration registerContribution({
+    required String id,
+    required T value,
+    required String scopeId,
+    FoundationRegistryEntryState state =
+        FoundationRegistryEntryState.registered,
+    int order = 0,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return _registry.registerContribution(
+      ContributionDescriptor<T>(
+        id: id,
+        kind: kind,
+        owner: owner,
+        value: value,
+        state: state,
+        order: order,
+        metadata: metadata,
+      ),
+      scopeId: scopeId,
+    );
+  }
+
+  DisposableRegistration registerScoped({
+    required String id,
+    required T value,
+    required String scopeId,
+    FoundationRegistryEntryState state =
+        FoundationRegistryEntryState.registered,
+    Map<String, Object?> metadata = const <String, Object?>{},
+  }) {
+    return _registry.registerScoped(
+      FoundationRegistryEntry<T>(
+        id: id,
+        kind: kind,
+        owner: owner,
+        value: value,
+        state: state,
+        metadata: metadata,
+      ),
+      scopeId: scopeId,
+    );
+  }
+
   bool unregister(String id) {
     return _registry.unregister(id);
   }
@@ -438,30 +581,93 @@ class FoundationRegistryRegistrar<T> {
   }
 }
 
+class _FoundationRegistryRecord<T> {
+  const _FoundationRegistryRecord({
+    required this.entry,
+    required this.scopeId,
+    required this.sequence,
+  });
+
+  final FoundationRegistryEntry<T> entry;
+  final String scopeId;
+  final int sequence;
+
+  _FoundationRegistryRecord<T> copyWith({FoundationRegistryEntry<T>? entry}) {
+    return _FoundationRegistryRecord<T>(
+      entry: entry ?? this.entry,
+      scopeId: scopeId,
+      sequence: sequence,
+    );
+  }
+}
+
 class FoundationRegistry<T> {
-  final Map<String, FoundationRegistryEntry<T>> _entries =
-      <String, FoundationRegistryEntry<T>>{};
+  final Map<String, List<_FoundationRegistryRecord<T>>> _recordsById =
+      <String, List<_FoundationRegistryRecord<T>>>{};
+  int _sequence = 0;
 
   void register(FoundationRegistryEntry<T> entry) {
     _validateEntry(entry);
-    if (_entries.containsKey(entry.id)) {
+    if (contains(entry.id)) {
       throw StateError('Registry entry ${entry.id} is already registered.');
     }
-    _entries[entry.id] = entry.copyWith(
-      metadata: Map<String, Object?>.unmodifiable(entry.metadata),
+    _pushRecord(entry, scopeId: '');
+  }
+
+  DisposableRegistration registerContribution(
+    ContributionDescriptor<T> contribution, {
+    required String scopeId,
+  }) {
+    final entry = contribution.toRegistryEntry();
+    _validateEntry(entry);
+    final record = _pushRecord(entry, scopeId: scopeId);
+    return DisposableRegistration(
+      id: entry.id,
+      kind: entry.kind,
+      owner: entry.owner,
+      scopeId: scopeId,
+      onDispose: () => _removeRecord(entry.id, record.sequence),
+    );
+  }
+
+  DisposableRegistration registerScoped(
+    FoundationRegistryEntry<T> entry, {
+    required String scopeId,
+  }) {
+    _validateEntry(entry);
+    final record = _pushRecord(entry, scopeId: scopeId);
+    return DisposableRegistration(
+      id: entry.id,
+      kind: entry.kind,
+      owner: entry.owner,
+      scopeId: scopeId,
+      onDispose: () => _removeRecord(entry.id, record.sequence),
     );
   }
 
   bool unregister(String id) {
-    return _entries.remove(id) != null;
+    final records = _recordsById[id];
+    if (records == null || records.isEmpty) {
+      return false;
+    }
+    records.removeLast();
+    if (records.isEmpty) {
+      _recordsById.remove(id);
+    }
+    return true;
   }
 
   bool contains(String id) {
-    return _entries.containsKey(id);
+    final records = _recordsById[id];
+    return records != null && records.isNotEmpty;
   }
 
   FoundationRegistryEntry<T>? lookup(String id) {
-    return _entries[id];
+    final records = _recordsById[id];
+    if (records == null || records.isEmpty) {
+      return null;
+    }
+    return records.last.entry;
   }
 
   FoundationRegistryEntry<T> requireEntry(String id) {
@@ -477,14 +683,20 @@ class FoundationRegistry<T> {
     String? owner,
     FoundationRegistryEntryState? state,
   }) {
-    final entries = _entries.values
+    final entries = _activeEntries
         .where((entry) {
           return (kind == null || entry.kind == kind) &&
               (owner == null || entry.owner == owner) &&
               (state == null || entry.state == state);
         })
         .toList(growable: false);
-    entries.sort((left, right) => left.id.compareTo(right.id));
+    entries.sort((left, right) {
+      final orderCompare = _order(left).compareTo(_order(right));
+      if (orderCompare != 0) {
+        return orderCompare;
+      }
+      return left.id.compareTo(right.id);
+    });
     return entries;
   }
 
@@ -504,7 +716,7 @@ class FoundationRegistry<T> {
 
   void setState(String id, FoundationRegistryEntryState state) {
     final entry = requireEntry(id);
-    _entries[id] = entry.copyWith(state: state);
+    _replaceActiveRecord(id, entry.copyWith(state: state));
   }
 
   void updateMetadata(
@@ -513,9 +725,12 @@ class FoundationRegistry<T> {
     bool merge = true,
   }) {
     final entry = requireEntry(id);
-    _entries[id] = entry.copyWith(
-      metadata: Map<String, Object?>.unmodifiable(
-        merge ? <String, Object?>{...entry.metadata, ...metadata} : metadata,
+    _replaceActiveRecord(
+      id,
+      entry.copyWith(
+        metadata: Map<String, Object?>.unmodifiable(
+          merge ? <String, Object?>{...entry.metadata, ...metadata} : metadata,
+        ),
       ),
     );
   }
@@ -550,5 +765,101 @@ class FoundationRegistry<T> {
         'Registry entry $field is empty.',
       );
     }
+  }
+
+  Iterable<FoundationRegistryEntry<T>> get _activeEntries sync* {
+    for (final records in _recordsById.values) {
+      if (records.isNotEmpty) {
+        yield records.last.entry;
+      }
+    }
+  }
+
+  _FoundationRegistryRecord<T> _pushRecord(
+    FoundationRegistryEntry<T> entry, {
+    required String scopeId,
+  }) {
+    final record = _FoundationRegistryRecord<T>(
+      entry: entry.copyWith(
+        metadata: Map<String, Object?>.unmodifiable(entry.metadata),
+      ),
+      scopeId: scopeId,
+      sequence: _sequence++,
+    );
+    _recordsById.putIfAbsent(entry.id, () => <_FoundationRegistryRecord<T>>[]);
+    _recordsById[entry.id]!.add(record);
+    return record;
+  }
+
+  bool _removeRecord(String id, int sequence) {
+    final records = _recordsById[id];
+    if (records == null) {
+      return false;
+    }
+    final originalLength = records.length;
+    records.removeWhere((record) => record.sequence == sequence);
+    if (records.isEmpty) {
+      _recordsById.remove(id);
+    }
+    return records.length != originalLength;
+  }
+
+  void _replaceActiveRecord(String id, FoundationRegistryEntry<T> entry) {
+    final records = _recordsById[id];
+    if (records == null || records.isEmpty) {
+      throw StateError('Registry entry $id is not registered.');
+    }
+    records[records.length - 1] = records.last.copyWith(entry: entry);
+  }
+}
+
+int _order<T>(FoundationRegistryEntry<T> entry) {
+  final order = entry.metadata['order'];
+  return order is int ? order : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Foundation Registry Lifecycle State -- every concrete registry instance
+// must emit a manifest projection without runtime values and have
+// lifecycle-state tests.
+// ---------------------------------------------------------------------------
+
+/// Lifecycle state of a foundation registry instance.
+enum FoundationRegistryLifecycleState {
+  created,
+  warming,
+  ready,
+  reloading,
+  stopped,
+  disposed,
+}
+
+class FoundationRegistryValidator {
+  const FoundationRegistryValidator();
+
+  /// Validates that every registered entry in [registry] can produce a valid
+  /// manifest entry (no runtime values). Returns diagnostic messages for any
+  /// entry that fails the projection check.
+  List<String> validateManifestProjection<T>(
+    FoundationRegistry<T> registry,
+  ) {
+    final diagnostics = <String>[];
+    final manifest = registry.manifest();
+    for (final entry in manifest.entries) {
+      final json = entry.toJson();
+      if (json['id'] == null || (json['id'] as String).trim().isEmpty) {
+        diagnostics.add('Manifest entry missing id: $json');
+      }
+      if (json['kind'] == null || (json['kind'] as String).trim().isEmpty) {
+        diagnostics.add('Manifest entry ${json['id']} missing kind.');
+      }
+      if (json['owner'] == null || (json['owner'] as String).trim().isEmpty) {
+        diagnostics.add('Manifest entry ${json['id']} missing owner.');
+      }
+      if (json['state'] == null) {
+        diagnostics.add('Manifest entry ${json['id']} missing state.');
+      }
+    }
+    return diagnostics;
   }
 }

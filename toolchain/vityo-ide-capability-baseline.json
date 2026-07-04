@@ -97,10 +97,10 @@
       ],
       "knownGaps": [
         "Canonical-file vs hosted-payload source marking not per-field",
-        "Machine payload consumption waiting on spio formal contract",
+        "Machine payload consumption waiting on pafio formal contract",
         "Package target ambiguity shows generic blocked reason"
       ],
-      "nextMilestone": "L3 — per-field source marking; consume spio published project graph payload"
+      "nextMilestone": "L3 — per-field source marking; consume pafio published project graph payload"
     },
     "run_debug_runtime": {
       "target": "Runtime surface as first-class product: run target selector, minimal compilable unit run, workflow lane summaries, stdout/stderr/diagnostic event stream, runtime graph, event replay, route trace. Breakpoint/run-configuration model as preview-only until Styio backend supports them.",

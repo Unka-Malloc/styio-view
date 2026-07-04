@@ -593,6 +593,20 @@ class ParameterInfoPayload {
   }
 }
 
+class AnalysisCapabilityGap {
+  const AnalysisCapabilityGap({
+    required this.capabilityId,
+    required this.reason,
+    this.detail = '',
+    this.resolution = '',
+  });
+
+  final String capabilityId;
+  final String reason;
+  final String detail;
+  final String resolution;
+}
+
 class StyioDocumentAnalysis {
   const StyioDocumentAnalysis({
     required this.tokenSpans,
@@ -603,6 +617,7 @@ class StyioDocumentAnalysis {
     required this.inlayHints,
     required this.documentSymbols,
     required this.referenceSpans,
+    this.capabilityGaps = const <AnalysisCapabilityGap>[],
   });
 
   final List<TokenSpan> tokenSpans;
@@ -613,6 +628,7 @@ class StyioDocumentAnalysis {
   final List<InlayHint> inlayHints;
   final List<DocumentSymbol> documentSymbols;
   final List<ReferenceSpan> referenceSpans;
+  final List<AnalysisCapabilityGap> capabilityGaps;
 
   int get tokenCount => tokenSpans.length;
   int get semanticCount => semanticSpans.length;

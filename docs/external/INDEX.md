@@ -10,5 +10,5 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `for-spio/` | [For Spio Index](./for-spio/INDEX.md) | 集中维护 Vityo 需要上游 spio 提供、确认或共同定义的 machine contract；凡是会影响项目图、toolchain、workflow success payload、registry/package 状态的内容，统一收在这里。 |
+| `for-pafio/` | [For Pafio Index](./for-pafio/INDEX.md) | 集中维护 Vityo 需要上游 pafio 提供、确认或共同定义的 machine contract；凡是会影响项目图、toolchain、workflow success payload、registry/package 状态的内容，统一收在这里。 |
 | `for-styio/` | [For Styio Index](./for-styio/INDEX.md) | 集中维护 Vityo 需要上游 styio 提供、确认或共同定义的对接内容；凡是会影响语言服务、执行、runtime 事件、compile-plan consumer 与 machine-info 的内容，统一收在这里。 |

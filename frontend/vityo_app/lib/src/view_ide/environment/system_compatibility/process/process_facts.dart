@@ -104,6 +104,42 @@ class ProcessFacts {
     );
   }
 
+  factory ProcessFacts.windowsX64({
+    String targetId = 'local',
+    String architecture = 'x64',
+    DateTime? detectedAt,
+  }) {
+    return ProcessFacts(
+      targetId: targetId,
+      operatingSystem: 'windows',
+      distributionId: 'windows',
+      distributionName: 'Windows',
+      architecture: architecture,
+      providerKind: ProcessProviderKind.local,
+      supportsSpawn: true,
+      supportsSignals: false,
+      supportsProcessGroups: false,
+      supportsEnvironmentOverlay: true,
+      supportsWorkingDirectory: true,
+      detectedAt: detectedAt,
+      entries: buildEntries(
+        targetId: targetId,
+        operatingSystem: 'windows',
+        distributionId: 'windows',
+        distributionName: 'Windows',
+        architecture: architecture,
+        providerKind: ProcessProviderKind.local,
+        supportsSpawn: true,
+        supportsSignals: false,
+        supportsProcessGroups: false,
+        supportsEnvironmentOverlay: true,
+        supportsWorkingDirectory: true,
+        source: 'fixture',
+        detectedAt: detectedAt,
+      ),
+    );
+  }
+
   final String targetId;
   final String operatingSystem;
   final String distributionId;
@@ -121,14 +157,19 @@ class ProcessFacts {
   bool get supportsLinuxDebianArmTarget =>
       operatingSystem == 'linux' &&
       (distributionId == 'debian' || distributionId == 'raspbian') &&
-      (architecture == 'aarch64' || architecture == 'arm64' || architecture.startsWith('armv') || architecture == 'arm');
+      (architecture == 'aarch64' ||
+          architecture == 'arm64' ||
+          architecture.startsWith('armv') ||
+          architecture == 'arm');
 
   String get compatibilityTarget {
     if (supportsLinuxDebianArmTarget) return 'linux-debian-arm';
     if (operatingSystem == 'linux') return 'linux-generic';
     if (operatingSystem == 'windows') {
       final arch = architecture.toLowerCase();
-      if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') return 'windows-x64';
+      if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') {
+        return 'windows-x64';
+      }
       if (arch == 'arm64' || arch == 'aarch64') return 'windows-arm64';
       return 'windows-generic';
     }
@@ -149,7 +190,9 @@ class ProcessFacts {
     'supportsWorkingDirectory': supportsWorkingDirectory,
     'compatibilityTarget': compatibilityTarget,
     if (detectedAt != null) 'detectedAt': detectedAt!.toIso8601String(),
-    'entries': entries.map((key, value) => MapEntry<String, Object?>(key, value.toJson())),
+    'entries': entries.map(
+      (key, value) => MapEntry<String, Object?>(key, value.toJson()),
+    ),
   };
 
   static Map<String, ProcessContextFact> buildEntries({
@@ -180,12 +223,27 @@ class ProcessFacts {
       'host.operatingSystem': fact('host.operatingSystem', operatingSystem),
       'host.distributionId': fact('host.distributionId', distributionId),
       'host.architecture': fact('host.architecture', architecture),
-      'process.providerKind': fact('process.providerKind', providerKind.wireValue),
+      'process.providerKind': fact(
+        'process.providerKind',
+        providerKind.wireValue,
+      ),
       'process.spawnSupported': fact('process.spawnSupported', supportsSpawn),
-      'process.signalsSupported': fact('process.signalsSupported', supportsSignals),
-      'process.processGroupsSupported': fact('process.processGroupsSupported', supportsProcessGroups),
-      'process.environmentOverlaySupported': fact('process.environmentOverlaySupported', supportsEnvironmentOverlay),
-      'process.workingDirectorySupported': fact('process.workingDirectorySupported', supportsWorkingDirectory),
+      'process.signalsSupported': fact(
+        'process.signalsSupported',
+        supportsSignals,
+      ),
+      'process.processGroupsSupported': fact(
+        'process.processGroupsSupported',
+        supportsProcessGroups,
+      ),
+      'process.environmentOverlaySupported': fact(
+        'process.environmentOverlaySupported',
+        supportsEnvironmentOverlay,
+      ),
+      'process.workingDirectorySupported': fact(
+        'process.workingDirectorySupported',
+        supportsWorkingDirectory,
+      ),
     };
   }
 }

@@ -27,6 +27,7 @@ COVERAGE_OMIT = [
     "scripts/ide-product-parity-gate.py",
     "scripts/ide_product_parity_gate_test.py",
     "scripts/import-boundary-gate.py",
+    "scripts/manifest_tool.py",
     "scripts/on2_scanner.py",
     "scripts/performance-gate.py",
     "scripts/public-contract-schema-gate.py",
@@ -45,6 +46,8 @@ TEST_MODULES = (
     "tests.test_performance_budgets",
     "tests.test_dependency_policy_gate",
     "tests.test_supply_chain_governance_gate",
+    "tests.test_linux_host_readiness_gate",
+    "tests.test_linux_packaging_gate",
     "prototype.test_dev_server_security",
 )
 

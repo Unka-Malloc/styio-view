@@ -50,6 +50,10 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(
+          useMaterial3: false,
+          splashFactory: NoSplash.splashFactory,
+        ),
         home: Scaffold(
           body: HostedWorkspaceLifecycleBanner(
             plan: plan,

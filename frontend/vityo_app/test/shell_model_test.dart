@@ -1013,8 +1013,8 @@ void main() {
             sourceState: const ProjectSourceStateSnapshot(
               schemaVersion: 1,
               vendor: VendorSourceStateSnapshot(
-                vendorRoot: '/workspace/demo/.spio/vendor',
-                metadataPath: '/workspace/demo/.spio/vendor/spio-vendor.json',
+                vendorRoot: '/workspace/demo/.pafio/vendor',
+                metadataPath: '/workspace/demo/.pafio/vendor/pafio-vendor.json',
                 vendorPresent: true,
                 metadataPresent: true,
                 gitSnapshots: 1,
@@ -1333,11 +1333,11 @@ void main() {
 
       expect(
         iosShell.blockedReasonForCommand(AppCommandId.useActiveCompiler),
-        contains('does not expose local spio toolchain management'),
+        contains('does not expose local pafio toolchain management'),
       );
       expect(
         iosShell.blockedReasonForCommand(AppCommandId.preparePublish),
-        contains('does not expose local spio deployment commands'),
+        contains('does not expose local pafio deployment commands'),
       );
 
       final blockedDistributionShell = _createShell(
@@ -1347,14 +1347,14 @@ void main() {
             packages: <PackageDistributionPackageSnapshot>[
               PackageDistributionPackageSnapshot(
                 packageName: 'demo/core',
-                manifestPath: '/workspace/demo/spio.toml',
+                manifestPath: '/workspace/demo/pafio.toml',
                 publishEnabled: false,
                 publishReady: false,
                 blockingReasons: <String>['publish disabled'],
               ),
               PackageDistributionPackageSnapshot(
                 packageName: 'demo/cli',
-                manifestPath: '/workspace/demo/cli/spio.toml',
+                manifestPath: '/workspace/demo/cli/pafio.toml',
                 publishEnabled: true,
                 publishReady: false,
               ),
@@ -1378,13 +1378,13 @@ void main() {
             packages: <PackageDistributionPackageSnapshot>[
               PackageDistributionPackageSnapshot(
                 packageName: 'demo/core',
-                manifestPath: '/workspace/demo/spio.toml',
+                manifestPath: '/workspace/demo/pafio.toml',
                 publishEnabled: true,
                 publishReady: true,
               ),
               PackageDistributionPackageSnapshot(
                 packageName: 'demo/cli',
-                manifestPath: '/workspace/demo/cli/spio.toml',
+                manifestPath: '/workspace/demo/cli/pafio.toml',
                 publishEnabled: true,
                 publishReady: true,
               ),
@@ -1631,13 +1631,13 @@ ProjectGraphSnapshot _projectGraph({
       ? editorFiles.first
       : '/workspace/demo/src/main.styio';
   return ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.package,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
-    toolchainPinPath: '/workspace/demo/spio-toolchain.toml',
+    manifestPath: '/workspace/demo/pafio.toml',
+    toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: <ProjectTargetDescriptor>[
@@ -1653,7 +1653,7 @@ ProjectGraphSnapshot _projectGraph({
     toolchain: const ToolchainStatusSnapshot(
       source: ToolchainResolutionSource.projectPin,
       detail: 'Project toolchain pin discovered for shell-model testing.',
-      pinPath: '/workspace/demo/spio-toolchain.toml',
+      pinPath: '/workspace/demo/pafio-toolchain.toml',
       channel: 'stable',
     ),
     lockState: ProjectLockState.unknown,
@@ -1918,8 +1918,8 @@ class _SuccessfulDependencySourceAdapter implements DependencySourceAdapter {
       stderr: '',
       payload: <String, dynamic>{
         'packages': 2,
-        'vendor_root': '/workspace/demo/.spio/vendor',
-        'metadata_path': '/workspace/demo/.spio/vendor/spio-vendor.json',
+        'vendor_root': '/workspace/demo/.pafio/vendor',
+        'metadata_path': '/workspace/demo/.pafio/vendor/pafio-vendor.json',
       },
     );
   }

@@ -1,0 +1,186 @@
+name: windows-native
+
+on:
+  pull_request:
+  push:
+    branches:
+      - nightly
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-native:
+    name: windows-native
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      PYTHON_BIN: python
+      STYIO_PYTHON_VERSION: "3.13.5"
+      STYIO_NODE_VERSION: "24.15.0"
+      STYIO_FLUTTER_VERSION: "3.41.7"
+
+    steps:
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          path: vityo-nightly
+
+      - name: Resolve sibling checkout ref
+        id: sibling-ref
+        shell: bash
+        run: |
+          requested="${GITHUB_REF_NAME}"
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" || "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
+            requested="${{ github.base_ref }}"
+          fi
+          for ref in "$requested" stable nightly; do
+            if git ls-remote --exit-code --heads https://github.com/SymPolicy/Styio.git "$ref" >/dev/null 2>&1; then
+              echo "ref=$ref" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "No common sibling checkout ref found for '$requested' or fallbacks 'stable'/'nightly'." >&2
+          exit 1
+
+      - name: Checkout Styio sibling repository
+        uses: actions/checkout@v5
+        with:
+          repository: SymPolicy/Styio
+          ref: ${{ steps.sibling-ref.outputs.ref }}
+          path: styio-nightly
+
+      - name: Set up standardized Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+
+      - name: Set up standardized Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.STYIO_NODE_VERSION }}
+
+      - name: Set up standardized Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+
+      - name: Install CI Chrome
+        id: setup-chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+
+      - name: Verify standardized Windows toolchain
+        shell: powershell
+        run: |
+          python --version | Select-String -Pattern "$env:STYIO_PYTHON_VERSION"
+          node --version | Select-String -Pattern "v$env:STYIO_NODE_VERSION"
+          npm --version
+          flutter --version | Select-Object -First 1 | Select-String -Pattern "$env:STYIO_FLUTTER_VERSION"
+          flutter config --enable-web --enable-windows-desktop
+          & "${{ steps.setup-chrome.outputs.chrome-path }}" --version
+
+      - name: Restore repository dependencies
+        working-directory: vityo-nightly
+        shell: powershell
+        run: |
+          python -m pip install coverage
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap-workspace.ps1 -Platforms web,windows -SkipPlatformBootstrap
+
+      - name: Build Styio language fixture parser on Windows
+        working-directory: styio-nightly
+        shell: powershell
+        run: |
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/default --target styio --config Debug
+
+      - name: Resolve Styio executable path
+        id: styio-bin
+        shell: bash
+        working-directory: styio-nightly
+        run: |
+          styio_path="$(find build/default -type f -name styio.exe | head -n 1)"
+          if [[ -z "$styio_path" ]]; then
+            echo "No built styio executable found under build/default." >&2
+            exit 1
+          fi
+          absolute_path="$PWD/$styio_path"
+          "$absolute_path" --version || true
+          echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve CI refs
+        id: ci_refs
+        shell: bash
+        working-directory: vityo-nightly
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git fetch --no-tags origin "+refs/heads/${{ github.event.pull_request.base.ref }}:refs/remotes/origin/${{ github.event.pull_request.base.ref }}"
+            BASE_REF="origin/${{ github.event.pull_request.base.ref }}"
+            RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif [[ "${{ github.event_name }}" == "merge_group" ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_REF="HEAD^"
+              RANGE="HEAD^..HEAD"
+            else
+              BASE_REF="HEAD"
+              RANGE="HEAD"
+            fi
+          elif [[ "${{ github.event.before }}" == "0000000000000000000000000000000000000000" ]]; then
+            if git rev-parse --verify HEAD^ >/dev/null 2>&1; then
+              BASE_REF="HEAD^"
+            else
+              BASE_REF="HEAD"
+            fi
+            RANGE="HEAD"
+          else
+            BASE_REF="${{ github.event.before }}"
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          fi
+          echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
+          echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
+
+      - name: Run Vityo nightly Windows CI gate
+        working-directory: vityo-nightly
+        shell: bash
+        env:
+          CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
+          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          STYIO: ${{ steps.styio-bin.outputs.path }}
+        run: >
+          bash scripts/delivery-gate.sh
+          --mode push
+          --base "${{ steps.ci_refs.outputs.base_ref }}"
+          --range "${{ steps.ci_refs.outputs.range }}"
+          --skip-audit
+
+      - name: Run Flutter analyze
+        working-directory: vityo-nightly/frontend/vityo_app
+        shell: powershell
+        run: flutter analyze
+
+      - name: Build native Windows release target
+        working-directory: vityo-nightly/frontend/vityo_app
+        shell: powershell
+        run: flutter build windows --release
+
+      - name: Upload Windows coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vityo-coverage-reports-windows
+          path: |
+            vityo-nightly/.coverage
+            vityo-nightly/frontend/vityo_app/coverage/lcov.info
+          if-no-files-found: ignore
+
+      - name: Upload Windows build artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vityo-windows-release
+          path: vityo-nightly/frontend/vityo_app/build/windows/**/*
+          if-no-files-found: ignore

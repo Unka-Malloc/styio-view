@@ -24,6 +24,30 @@ Future<void> _tapProfileControl(WidgetTester tester, Finder finder) async {
     widget.onPressed?.call();
     return;
   }
+  if (widget is OutlinedButton) {
+    widget.onPressed?.call();
+    return;
+  }
+  if (widget is TextButton) {
+    widget.onPressed?.call();
+    return;
+  }
+  if (widget is IconButton) {
+    widget.onPressed?.call();
+    return;
+  }
+  if (widget is ChoiceChip) {
+    widget.onSelected?.call(!widget.selected);
+    return;
+  }
+  if (widget is FilterChip) {
+    widget.onSelected?.call(!widget.selected);
+    return;
+  }
+  if (widget is ActionChip) {
+    widget.onPressed?.call();
+    return;
+  }
   if (widget is GestureDetector) {
     widget.onTap?.call();
     return;

@@ -2,7 +2,7 @@
 
 **Purpose:** 冻结 `Vityo` 需要的项目图与包管理状态；前端围绕 canonical project files 和 machine payload 工作，而不是读私有缓存目录。
 
-**Last updated:** 2026-04-21
+**Last updated:** 2026-06-29
 
 ## 1. Snapshot Contract
 
@@ -28,6 +28,14 @@
 18. `vendorState`
 19. `activeCompiler`
 20. `notes[]`
+21. `sourceConfidenceByField`
+
+Every standard project graph field must be represented in `sourceConfidenceByField`, using one of these wire values:
+
+1. `machine-payload`
+2. `canonical-file`
+3. `inferred`
+4. `capability-gap`
 
 ### 1.2 Required Nested Types
 
@@ -60,21 +68,22 @@
 
 `Vityo` 允许直接围绕这些 canonical files 和目录做 UI：
 
-1. `spio.toml`
-2. `spio.lock`
-3. `spio-toolchain.toml`
-4. `.spio/vendor/`
-5. `.spio/build/`
+1. `pafio.toml`
+2. `pafio.lock`
+3. `pafio-toolchain.toml`
+4. `.pafio/vendor/`
+5. `.pafio/build/`
 6. `styio.toml`
 7. `.styio.toml`
 
 ## 3. Non-Negotiable Rules
 
-1. `Vityo` 不通过读 `SPIO_HOME` 私有结构来猜测项目状态。
+1. `Vityo` 不通过读 `PAFIO_HOME` 私有结构来猜测项目状态。
 2. workspace members、targets、toolchain、vendor、lock freshness 最终都必须来自 machine payload 或正式命令。
 3. 缺少正式 payload 时，前端可以用 canonical files 做临时推断，但该模式必须清楚标记为 partial。
-4. 如果 shell 设置了 `VITYO_STYIO_BIN`，manifest-mode 的 `spio project-graph` / `spio tool status` 读取必须消费同一个 override；前端不能展示一个 `styio` 来源而让 `spio` 实际使用另一个。
+4. 如果 shell 设置了 `VITYO_STYIO_BIN`，manifest-mode 的 `pafio project-graph` / `pafio tool status` 读取必须消费同一个 override；前端不能展示一个 `styio` 来源而让 `pafio` 实际使用另一个。
 5. hosted 模式下，workspace 生命周期与导出状态必须来自 `hostedWorkspace` 记录，不能靠 URL、缓存目录或本地时间推断。
+6. 字段级来源置信度必须随 snapshot 一起传播；UI、agent context 和 release gates 不得把 `inferred` 或 `capability-gap` 字段显示成 machine payload 事实。
 
 ## 4. Adapter Modes
 

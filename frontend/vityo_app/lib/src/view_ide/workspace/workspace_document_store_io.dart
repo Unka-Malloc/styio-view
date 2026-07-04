@@ -3,7 +3,8 @@ import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
 
-import '../editor/document_state.dart';
+import '../editor/document/document_encoding.dart';
+import '../editor/document/document_state.dart';
 import '../editor/editor_controller.dart';
 import '../environment/environment.dart';
 import 'workspace_document_store_types.dart';
@@ -78,6 +79,7 @@ class FileSystemWorkspaceDocumentStore
 
     final text = await fileSystemManager.readText(sourcePath);
     var revision = 0;
+    DocumentEncoding? encoding;
 
     if (await fileSystemManager.exists(metadataPath)) {
       final metadata = jsonDecode(
@@ -87,10 +89,19 @@ class FileSystemWorkspaceDocumentStore
         revision = metadata['revision'] is int
             ? metadata['revision'] as int
             : 0;
+        final encWire = metadata['encoding'];
+        if (encWire is String) {
+          encoding = DocumentEncoding.fromWireValue(encWire);
+        }
       }
     }
 
-    return DocumentState(documentId: path, text: text, revision: revision);
+    return DocumentState(
+      documentId: path,
+      text: text,
+      revision: revision,
+      encoding: encoding,
+    );
   }
 
   @override
@@ -107,10 +118,13 @@ class FileSystemWorkspaceDocumentStore
     final metadataPath = _metadataPath(document.documentId);
 
     await fileSystemManager.writeText(sourcePath, document.text);
-    await fileSystemManager.writeText(
-      metadataPath,
-      jsonEncode(<String, Object>{'revision': document.revision}),
-    );
+
+    final metadata = <String, Object>{'revision': document.revision};
+    if (document.encoding != null &&
+        document.encoding != DocumentEncoding.utf8) {
+      metadata['encoding'] = document.encoding!.wireValue;
+    }
+    await fileSystemManager.writeText(metadataPath, jsonEncode(metadata));
   }
 
   @override

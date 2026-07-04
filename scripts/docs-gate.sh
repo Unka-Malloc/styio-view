@@ -35,6 +35,7 @@ cd "$ROOT"
 MODE="worktree"
 BASE_REF=""
 SKIP_ECOSYSTEM=0
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -62,7 +63,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-TEAM_CMD=(python3 scripts/team-docs-gate.py)
+TEAM_CMD=("$PYTHON_BIN" scripts/team-docs-gate.py)
 case "$MODE" in
   worktree)
     ;;
@@ -87,10 +88,10 @@ case "$MODE" in
 esac
 
 run_cmd "${TEAM_CMD[@]}"
-run_cmd env STYIO_SKIP_TEAM_DOC_GATE=1 python3 scripts/docs-audit.py
+run_cmd env STYIO_SKIP_TEAM_DOC_GATE=1 "$PYTHON_BIN" scripts/docs-audit.py
 if [[ "$SKIP_ECOSYSTEM" -eq 1 ]]; then
   log "ecosystem CLI doc consistency check skipped"
 else
-  run_cmd python3 scripts/ecosystem-cli-doc-gate.py --non-blocking
+  run_cmd "$PYTHON_BIN" scripts/ecosystem-cli-doc-gate.py --non-blocking
 fi
 log "all checks passed"

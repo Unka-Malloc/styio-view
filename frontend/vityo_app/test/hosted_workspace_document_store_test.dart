@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/integration/hosted_control_plane.dart';
 import 'package:vityo_app/src/view_ide/editor/document_state.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/workspace/workspace_document_store.dart';
 
 void main() {
@@ -41,6 +42,79 @@ void main() {
       });
     },
   );
+
+  test(
+    'hosted workspace file system provider routes vityo-hosted uris',
+    () async {
+      final client = _RecordingHostedControlPlaneClient();
+      final provider = HostedWorkspaceFileSystemProvider(hostedClient: client);
+
+      final uri = provider.uriFor('src/main.styio');
+      expect(uri.toString(), 'vityo-hosted://demo-workspace/src/main.styio');
+
+      final target = provider.route(uri);
+      expect(target.workspaceId, 'demo-workspace');
+      expect(target.documentPath, '/workspace/demo/src/main.styio');
+
+      expect(await provider.readText(uri), 'remote := true\n');
+      await provider.writeText(uri, 'remote := saved\n', revision: 7);
+      expect(await provider.exists(uri), isTrue);
+
+      expect(client.loadedPaths, <String>[
+        '/workspace/demo/src/main.styio',
+        '/workspace/demo/src/main.styio',
+      ]);
+      expect(client.savedDocuments.single, <String, Object?>{
+        'workspaceId': 'demo-workspace',
+        'path': '/workspace/demo/src/main.styio',
+        'documentText': 'remote := saved\n',
+        'revision': 7,
+      });
+    },
+  );
+
+  test(
+    'hosted workspace file system provider reports unsupported operations',
+    () {
+      final client = _RecordingHostedControlPlaneClient();
+      final provider = HostedWorkspaceFileSystemProvider(hostedClient: client);
+      final uri = Uri.parse('vityo-hosted://demo-workspace/src/main.styio');
+
+      final failure = provider.unsupportedOperation(
+        operation: 'delete',
+        target: uri,
+      );
+
+      expect(failure.kind, FileSystemFailureKind.unsupportedProvider);
+      expect(failure.sourceManager, 'HostedWorkspaceFileSystemProvider');
+      expect(failure.recoveryHint, contains('hosted document load/save'));
+    },
+  );
+
+  test('file system provider router recognizes vityo-hosted uri scheme', () {
+    final router = FileSystemProviderRouter(
+      fileSystemManager: UnsupportedFileSystemManager(
+        facts: FileSystemFacts.linuxDebianArm(),
+      ),
+    );
+
+    final route = router.route(
+      Uri.parse('vityo-hosted://demo-workspace/src/main.styio'),
+      operation: 'readText',
+    );
+
+    expect(route.kind, FileSystemProviderRouteKind.hosted);
+    expect(route.workspaceId, 'demo-workspace');
+    expect(route.path, '/src/main.styio');
+    expect(route.supported, isTrue);
+
+    final invalid = router.route(
+      Uri.parse('vityo-hosted:///'),
+      operation: 'readText',
+    );
+    expect(invalid.kind, FileSystemProviderRouteKind.unsupported);
+    expect(invalid.failure?.kind, FileSystemFailureKind.invalidPath);
+  });
 }
 
 class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {

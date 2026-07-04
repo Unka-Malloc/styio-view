@@ -35,6 +35,7 @@ Primary paths:
 21. `prototype/PROTOTYPE-GOVERNANCE.md`
 22. `prototype/prototype-manifest.json`
 23. `prototype/scripts/check-prototype-governance.mjs`
+24. `prototype/scripts/check-editor-load.mjs`
 
 Key SSOTs:
 
@@ -62,6 +63,7 @@ Key SSOTs:
 16. Workspace navigation and command discovery changes must keep `StyioCommandRegistry`, shell bottom-surface routing, command/workspace services, and runtime execution/file loading in one slice. The shell top bar owns current-file breadcrumbs from workspace path segments plus the active document-symbol context, while workspace navigation history owns Go Back / Go Forward and Recent Locations. `Cmd/Ctrl+Shift+P` is reserved for shell Command Palette, `Cmd/Ctrl+P` is reserved for shell Quick Open, `Alt+Left` / `Alt+Right` are reserved for shell workspace navigation history, `Cmd/Ctrl+Shift+E` is reserved for shell Recent Locations, the Document Links route owns active-file `@import` link collection and resolved import opening, the Document Highlights route owns active-file symbol occurrence collection with declaration/read/write/text filters and occurrence opening, the Code Lens route owns active-file symbol lenses with project-visible usage/reference counts and symbol opening, `Ctrl+B` is reserved for shell workspace Go to Declaration, `F12` is reserved for shell workspace Go to Definition, `Ctrl+Shift+B` is reserved for shell workspace Go to Type Definition, `Ctrl+F12` is reserved for shell workspace Go to Implementation, `Ctrl+H` is reserved for shell workspace Type Hierarchy, `Cmd/Ctrl+Shift+O` is reserved for shell workspace Outline, `F2` is reserved for shell workspace Rename Symbol, `Cmd/Ctrl+T` is reserved for shell workspace symbol search, `Shift+F12` is reserved for shell workspace Find Usages with declaration/read/write access filters, `Ctrl+Alt+H` is reserved for shell workspace Call Hierarchy, the shell Problems route owns workspace-wide diagnostics, `Cmd/Ctrl+.` is reserved for shell workspace Code Actions, and `Cmd/Ctrl+Shift+F` is reserved for shell Find in Files plus workspace replace preview/apply, while editor-local `Ctrl+P` parameter info remains scoped to the editor surface.
 
 17. Prototype dev-server security tests must cover Windows filesystem behavior with native paths, junction/symlink fallbacks, and retryable cleanup so the handwritten web editor remains safe without WSL or Linux-only path assumptions.
+18. Prototype editor selftest launcher changes must preserve `PYTHON_BIN`, `STYIO_CHROME_PATH` / `CHROME_EXECUTABLE`, and `STYIO_EDITOR_URL` behavior across Linux, Windows, and macOS CI hosts.
 
 ## Change Classes
 

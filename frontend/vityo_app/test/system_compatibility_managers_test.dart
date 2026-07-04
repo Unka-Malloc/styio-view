@@ -87,19 +87,63 @@ void main() {
     expect(localService.supportsEphemeralPort, isTrue);
   });
 
-  test('process manager writes standard input to commands', () async {
-    final manager = LocalProcessManager.linuxDebianArmForTest();
-
-    final result = await manager.run(
-      const ProcessCommandRequest(
-        executablePath: '/usr/bin/cat',
-        standardInput: 'process-stdin',
-      ),
+  test('Windows process shell and pty facts expose blocked terminal state', () {
+    final process = ProcessFacts.windowsX64();
+    final shell = ShellFacts.windowsX64();
+    final pty = PtyFacts.windowsX64();
+    final context = PlatformContextSnapshot.compose(
+      targetId: 'windows-x64',
+      fileSystem: FileSystemFacts.windowsX64(targetId: 'windows-x64'),
+      shell: shell,
+      process: process,
+      pty: pty,
     );
+    final compatibility = PlatformAdapter(context).adapt();
 
-    expect(result.succeeded, isTrue);
-    expect(result.stdout, 'process-stdin');
-  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
+    expect(process.compatibilityTarget, 'windows-x64');
+    expect(process.supportsSpawn, isTrue);
+    expect(process.supportsSignals, isFalse);
+    expect(process.supportsProcessGroups, isFalse);
+    expect(
+      process.entries['process.environmentOverlaySupported']?.value,
+      isTrue,
+    );
+    expect(shell.compatibilityTarget, 'windows-x64');
+    expect(shell.defaultShell?.family, ShellFamily.powershell);
+    expect(
+      shell.availableShells.map((entry) => entry.family),
+      containsAll(<ShellFamily>[ShellFamily.powershell, ShellFamily.cmd]),
+    );
+    expect(shell.scriptExtension, '.ps1');
+    expect(shell.supportsInteractiveShell, isTrue);
+    expect(shell.supportsPty, isFalse);
+    expect(pty.compatibilityTarget, 'windows-x64');
+    expect(pty.providerKind, PtyProviderKind.unsupported);
+    expect(pty.supportsPty, isFalse);
+    expect(pty.supportsConPty, isFalse);
+    expect(pty.entries['pty.supported']?.value, isFalse);
+    expect(compatibility.process.compatibilityTarget, 'windows-x64');
+    expect(compatibility.shell.compatibilityTarget, 'windows-x64');
+    expect(compatibility.pty.compatibilityTarget, 'windows-x64');
+  });
+
+  test(
+    'process manager writes standard input to commands',
+    () async {
+      final manager = LocalProcessManager.linuxDebianArmForTest();
+
+      final result = await manager.run(
+        const ProcessCommandRequest(
+          executablePath: '/usr/bin/cat',
+          standardInput: 'process-stdin',
+        ),
+      );
+
+      expect(result.succeeded, isTrue);
+      expect(result.stdout, 'process-stdin');
+    },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
+  );
 
   test('process manager classifies command failures structurally', () async {
     final manager = LocalProcessManager.linuxDebianArmForTest();

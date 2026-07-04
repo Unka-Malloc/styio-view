@@ -30,7 +30,7 @@ void main() {
     for (final name in const <String>[
       'VITYO_PRODUCT_WORKSPACE_ROOT',
       'VITYO_PRODUCT_MANIFEST_PATH',
-      'VITYO_SPIO_BIN',
+      'VITYO_PAFIO_BIN',
       'VITYO_PRODUCT_STYIO_BIN',
       'VITYO_PRODUCT_STYIO_ALT_BIN',
     ])
@@ -40,7 +40,7 @@ void main() {
     for (final name in const <String>[
       'VITYO_PRODUCT_WORKSPACE2_ROOT',
       'VITYO_PRODUCT_MANIFEST2_PATH',
-      'VITYO_SPIO_BIN',
+      'VITYO_PAFIO_BIN',
       'VITYO_PRODUCT_STYIO_BIN',
     ])
       if (_env(name) == null) name,
@@ -51,7 +51,7 @@ void main() {
       'VITYO_PRODUCT_MANIFEST3_PATH',
       'VITYO_PRODUCT_WORKSPACE_ROOT',
       'VITYO_PRODUCT_MANIFEST_PATH',
-      'VITYO_SPIO_BIN',
+      'VITYO_PAFIO_BIN',
       'VITYO_PRODUCT_STYIO_BIN',
     ])
       if (_env(name) == null) name,
@@ -65,16 +65,16 @@ void main() {
       'VITYO_PRODUCT_WORKSPACE6_ROOT',
       'VITYO_PRODUCT_MANIFEST6_PATH',
       'VITYO_PRODUCT_REGISTRY_ROOT',
-      'VITYO_SPIO_BIN',
+      'VITYO_PAFIO_BIN',
       'VITYO_PRODUCT_STYIO_BIN',
     ])
       if (_env(name) == null) name,
   ];
   final offlineMissingEnv = <String>[
     for (final name in const <String>[
-      'VITYO_SPIO_BIN',
+      'VITYO_PAFIO_BIN',
       'VITYO_PRODUCT_STYIO_BIN',
-      'SPIO_HOME',
+      'PAFIO_HOME',
     ])
       if (_env(name) == null) name,
   ];
@@ -115,7 +115,7 @@ void main() {
           install.succeeded,
           isTrue,
           reason:
-              'Desktop local workflow should install the primary compiler through local spio.',
+              'Desktop local workflow should install the primary compiler through local pafio.',
         );
         final installedToolchains =
             shell
@@ -802,7 +802,7 @@ void main() {
     'desktop local product workflow stays runnable from vendored sources after registry loss in offline mode',
     () async {
       final styioBinaryPath = _env('VITYO_PRODUCT_STYIO_BIN')!;
-      final spioHome = _env('SPIO_HOME')!;
+      final pafioHome = _env('PAFIO_HOME')!;
       final workspaceRoot = await _createOfflineVendoredWorkspace();
 
       try {
@@ -849,9 +849,9 @@ void main() {
           expect(metadataPath, isNotEmpty);
           expect(File(metadataPath!).existsSync(), isTrue);
 
-          final spioHomeDirectory = Directory(spioHome);
-          if (spioHomeDirectory.existsSync()) {
-            spioHomeDirectory.deleteSync(recursive: true);
+          final pafioHomeDirectory = Directory(pafioHome);
+          if (pafioHomeDirectory.existsSync()) {
+            pafioHomeDirectory.deleteSync(recursive: true);
           }
 
           final offlineFetch = await shell.fetchDependencies(offline: true);
@@ -1104,14 +1104,14 @@ Future<Directory> _createOfflineVendoredWorkspace() async {
   );
   final rev = _createWorkspaceGitRepo(gitRepoRoot);
   final manifestPath = File(
-    '${workspaceRoot.path}${Platform.pathSeparator}spio.toml',
+    '${workspaceRoot.path}${Platform.pathSeparator}pafio.toml',
   );
   final sourcePath = File(
     '${workspaceRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
   );
   sourcePath.parent.createSync(recursive: true);
   manifestPath.writeAsStringSync(
-    '[spio]\n'
+    '[pafio]\n'
     'manifest-version = 1\n\n'
     '[package]\n'
     'name = "acme/app"\n'
@@ -1132,21 +1132,21 @@ Future<Directory> _createOfflineVendoredWorkspace() async {
 }
 
 String _createWorkspaceGitRepo(Directory repoRoot) {
-  File('${repoRoot.path}${Platform.pathSeparator}spio.toml')
+  File('${repoRoot.path}${Platform.pathSeparator}pafio.toml')
     ..createSync(recursive: true)
     ..writeAsStringSync(
-      '[spio]\n'
+      '[pafio]\n'
       'manifest-version = 1\n\n'
       '[workspace]\n'
       'members = ["packages/feed", "packages/util"]\n'
       'resolver = "1"\n',
     );
   File(
-      '${repoRoot.path}${Platform.pathSeparator}packages${Platform.pathSeparator}feed${Platform.pathSeparator}spio.toml',
+      '${repoRoot.path}${Platform.pathSeparator}packages${Platform.pathSeparator}feed${Platform.pathSeparator}pafio.toml',
     )
     ..createSync(recursive: true)
     ..writeAsStringSync(
-      '[spio]\n'
+      '[pafio]\n'
       'manifest-version = 1\n\n'
       '[package]\n'
       'name = "acme/feed"\n'
@@ -1166,11 +1166,11 @@ String _createWorkspaceGitRepo(Directory repoRoot) {
     ..createSync(recursive: true)
     ..writeAsStringSync('// feed fixture\n');
   File(
-      '${repoRoot.path}${Platform.pathSeparator}packages${Platform.pathSeparator}util${Platform.pathSeparator}spio.toml',
+      '${repoRoot.path}${Platform.pathSeparator}packages${Platform.pathSeparator}util${Platform.pathSeparator}pafio.toml',
     )
     ..createSync(recursive: true)
     ..writeAsStringSync(
-      '[spio]\n'
+      '[pafio]\n'
       'manifest-version = 1\n\n'
       '[package]\n'
       'name = "acme/util"\n'

@@ -31,10 +31,10 @@
 
 1. `toolchain/` is not a Flutter UI area and must not accumulate page copy, widget state, or screen-specific view models.
 2. `styio-nightly` remains the compiler and managed-toolchain SSOT.
-3. `styio-spio` remains the backend-service and hosted-control-plane owner for project, dependency, and hosted workspace routes.
+3. `styio-pafio` remains the backend-service and hosted-control-plane owner for project, dependency, and hosted workspace routes.
 4. `Vityo` owns the product-facing backend adapter surface that consumes those upstream machine contracts and hands normalized state to the frontend.
 5. Canonical adapter contracts still live under `docs/contracts/`; files here are a repo-local backend working area, not a replacement SSOT.
 
 ## Frontend Consumption Rule
 
-Frontend teams should consume the backend surface through published adapter contracts and hosted route payloads. Direct reads of raw profile CSVs, `.spio` internals, or compiler install layout are for bootstrap tooling only, not the main product runtime path.
+Frontend teams should consume the backend surface through published adapter contracts and hosted route payloads. Direct reads of raw profile CSVs, `.pafio` internals, or compiler install layout are for bootstrap tooling only, not the main product runtime path.

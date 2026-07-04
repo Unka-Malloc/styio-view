@@ -33,6 +33,10 @@ class LocalFileSystemManager implements FileSystemManager {
     return LocalFileSystemManager(facts: FileSystemFacts.linuxDebianArm());
   }
 
+  factory LocalFileSystemManager.windowsX64ForTest() {
+    return LocalFileSystemManager(facts: FileSystemFacts.windowsX64());
+  }
+
   @override
   final FileSystemFacts facts;
 

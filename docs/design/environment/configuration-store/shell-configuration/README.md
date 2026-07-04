@@ -40,7 +40,7 @@ Configuration / Shell Configuration
 | Convert shell facts into execution context | Platform Adapter / Shell Adapter |
 | Quote arguments or build invocation shape | Platform Manager / Shell Manager |
 | Execute shell commands | Shell Manager / Execution Manager |
-| Select Styio/Spio toolchain version | Toolchain Manager |
+| Select Styio/Pafio toolchain version | Toolchain Manager |
 | Render terminal, recovery, or settings UI | Appearance / App Shell Surface |
 
 ## 4. Stored Shape

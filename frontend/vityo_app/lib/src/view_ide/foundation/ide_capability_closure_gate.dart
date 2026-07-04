@@ -327,3 +327,87 @@ class IdeCapabilityClosureGate {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Agent-safe capability projection -- strips runtime values, keeps only
+// metadata suitable for agent context consumption.
+// ---------------------------------------------------------------------------
+
+/// An agent-safe projection of a capability item.
+///
+/// Strips implementation detail and runtime values; keeps only the metadata
+/// that is safe and useful for agent context (capability existence, status,
+/// blocking facts, owner path, TODO markers).
+class IdeCapabilityAgentSafeProjection {
+  const IdeCapabilityAgentSafeProjection({
+    required this.capabilityId,
+    required this.layer,
+    required this.title,
+    required this.status,
+    required this.isBlocking,
+    required this.ownerPath,
+  });
+
+  final String capabilityId;
+  final String layer;
+  final String title;
+  final String status;
+  final bool isBlocking;
+  final String ownerPath;
+
+  /// Serializes to a plain metadata-only map suitable for agent context.
+  /// No runtime values, no internal paths beyond owner directory, no secrets.
+  Map<String, Object?> toJson() {
+    return <String, Object?>{
+      'capabilityId': capabilityId,
+      'layer': layer,
+      'title': title,
+      'status': status,
+      'isBlocking': isBlocking,
+      'ownerPath': ownerPath,
+    };
+  }
+}
+
+/// Produces an agent-safe projection of the closure report.
+///
+/// The projection excludes internal diagnostic detail, implementation paths,
+/// and raw payloads. Only capability ids, statuses, blocking facts, and
+/// owner-layer metadata are included.
+class IdeCapabilityAgentSafeProjector {
+  const IdeCapabilityAgentSafeProjector();
+
+  /// Project [report] into a list of agent-safe items suitable for
+  /// surfacing to agent context without leaking implementation internals.
+  List<IdeCapabilityAgentSafeProjection> project(
+    IdeCapabilityClosureReport report,
+  ) {
+    return report.items.map((item) {
+      return IdeCapabilityAgentSafeProjection(
+        capabilityId: item.capabilityId,
+        layer: item.layer.wireValue,
+        title: item.title,
+        status: item.status.wireValue,
+        isBlocking: item.blocksRuntimeMaturity,
+        ownerPath: item.ownerPath,
+      );
+    }).toList(growable: false);
+  }
+
+  /// A single metadata-only summary map safe for passing into agent system
+  /// context without leaking runtime values or sensitive paths.
+  Map<String, Object?> summarize(IdeCapabilityClosureReport report) {
+    return <String, Object?>{
+      'version': report.version,
+      'readyCount': report.readyCount,
+      'todoCount': report.todoCount,
+      'failedCount': report.failedCount,
+      'hardFailureCount': report.hardFailureCount,
+      'isFrameworkClosed': report.isFrameworkClosed,
+      'isRuntimeMature': report.isRuntimeMature,
+      'blockingCapabilityIds': report.runtimeMaturityBlockerCapabilityIds,
+      'nonBlockingTodoCapabilityIds': report.nonBlockingTodoCapabilityIds,
+      'items': project(report).map((p) => p.toJson()).toList(growable: false),
+    };
+  }
+}

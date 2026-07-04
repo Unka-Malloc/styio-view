@@ -19,7 +19,7 @@ The repo has a strong amount of surface-area coverage already. During the parall
 3. The execution overlay now snapshots files instead of symlinking back to the source workspace and uses resolved path containment.
 4. Shell-level command gating, web hosted-client hardening, route text precision, and live product gates remain open follow-up areas.
 
-The downstream `nightly` delivery line now uses a repository-local `local-ci-gate` workflow so the default quality signal includes repository hygiene, docs governance, Flutter analyze/test, and the prototype editor selftest.
+The downstream `nightly` delivery line now uses repository-local `local-ci-gate`, `windows-native`, and `macos-native` workflow jobs so the default quality signal includes repository hygiene, docs governance, Flutter analyze/test, prototype editor selftest, and host-native desktop debug builds.
 
 ## Parallel Remediation Shards
 
@@ -147,7 +147,7 @@ Coverage gaps:
 
 Before this audit, `styio-audit` validated the framework and project module, but the full gate was blocked by an ignored open defect queue record in `docs/audit/defects/STYIO-VIEW-2026-04-22.md`. That scratch record has been migrated into this tracked audit report and [NEXT-STAGE-GAP-LEDGER.md](../rollups/NEXT-STAGE-GAP-LEDGER.md), and the ignored scratch file is removed before submission.
 
-The downstream delivery workflow now exposes `local-ci-gate` as the required repository-local CI status for `nightly`, instead of the older `styio-ci` / `build-and-test` naming. It runs the composed delivery gate with external `styio-audit` skipped because the released policy gate runs separately in `.github/workflows/styio-audit.yml`.
+The downstream delivery workflow now exposes `local-ci-gate`, `windows-native`, and `macos-native` as required repository-local CI statuses for `nightly`, instead of the older `styio-ci` / `build-and-test` naming. They run the composed delivery gate with external `styio-audit` skipped because the released policy gate runs separately in `.github/workflows/styio-audit.yml`.
 
 The product workflow tests remain environment-gated, so they should continue to be treated as a release-relevant lane rather than proof from the default test run.
 
@@ -155,8 +155,8 @@ The product workflow tests remain environment-gated, so they should continue to 
 
 - `python3 -m styio_audit.cli list-modules`
 - `python3 -m styio_audit.cli validate-modules`
-- `python3 -m styio_audit.cli gate --repo /home/unka/Unka-Malloc/vityo-nightly --project Vityo --framework-only`
-- `python3 -m styio_audit.cli gate --repo /home/unka/Unka-Malloc/vityo-nightly --project Vityo`
+- `python3 -m styio_audit.cli gate --repo <vityo-workspace> --project Vityo --framework-only`
+- `python3 -m styio_audit.cli gate --repo <vityo-workspace> --project Vityo`
 - `flutter test test/module_lifecycle_test.dart test/runtime_surfaces_test.dart test/hosted_control_plane_client_test.dart test/shell_model_test.dart test/execution_adapter_test.dart test/workspace_document_store_test.dart`
 - `python3 -m unittest prototype/test_dev_server_security.py`
 - `flutter test test/hosted_control_plane_io_hardening_test.dart`
@@ -167,4 +167,4 @@ The product workflow tests remain environment-gated, so they should continue to 
 1. Web hosted-control-plane hardening still needs parity with the IO client.
 2. Product workflow coverage still depends on an env-gated lane, so the full execution matrix is not yet default.
 3. Shell run-route gating, route text precision, and stale async document-load rejection remain follow-up work.
-4. `nightly` merge governance depends on GitHub Rulesets requiring `audit`, `styio-audit`, and `local-ci-gate` checks.
+4. `nightly` merge governance depends on GitHub Rulesets requiring `audit`, `styio-audit`, `local-ci-gate`, `windows-native`, and `macos-native` checks.

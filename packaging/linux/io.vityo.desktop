@@ -1,0 +1,13 @@
+﻿[Desktop Entry]
+Type=Application
+Name=Vityo
+Comment=Vityo IDE — Language-first development environment
+GenericName=Integrated Development Environment
+Categories=Development;IDE;
+Exec=vityo %F
+Icon=io.vityo
+Terminal=false
+StartupNotify=true
+StartupWMClass=vityo
+MimeType=text/plain;text/x-styio;inode/directory;
+Keywords=editor;ide;styio;language;

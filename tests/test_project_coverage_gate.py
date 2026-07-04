@@ -43,10 +43,30 @@ class ProjectCoverageGateTest(unittest.TestCase):
     def test_ci_installs_coverage_and_uploads_reports(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/local-ci-gate.yml").read_text(encoding="utf-8")
 
-        self.assertIn("python3 -m pip install coverage", workflow)
+        self.assertIn('"$PYTHON_BIN" -m pip install coverage', workflow)
+        self.assertIn("python -m pip install coverage", workflow)
         self.assertIn("vityo-coverage-reports", workflow)
+        self.assertIn("vityo-coverage-reports-linux", workflow)
+        self.assertIn("vityo-coverage-reports-windows", workflow)
+        self.assertIn("vityo-coverage-reports-macos", workflow)
         self.assertIn("vityo-nightly/.coverage", workflow)
         self.assertIn("vityo-nightly/frontend/vityo_app/coverage/lcov.info", workflow)
+
+    def test_local_ci_gate_runs_real_platform_delivery_gates(self) -> None:
+        workflow = (REPO_ROOT / ".github/workflows/local-ci-gate.yml").read_text(encoding="utf-8")
+
+        self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertIn("runs-on: windows-latest", workflow)
+        self.assertIn("runs-on: macos-latest", workflow)
+        self.assertEqual(workflow.count("bash scripts/delivery-gate.sh"), 3)
+        self.assertEqual(workflow.count("--skip-audit"), 3)
+        self.assertNotIn("--skip-health", workflow)
+        self.assertNotIn("--skip-ecosystem", workflow)
+        for value in ("STYIO:", "STYIO_CHROME_PATH:", "CHROME_EXECUTABLE:", "PYTHON_BIN:"):
+            self.assertIn(value, workflow)
+        self.assertIn("flutter build linux --release", workflow)
+        self.assertIn("flutter build windows --release", workflow)
+        self.assertIn("flutter build macos --release", workflow)
 
     def test_project_coverage_workflow_runs_gate_and_uploads_lcov(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/project-coverage-gate.yml").read_text(encoding="utf-8")

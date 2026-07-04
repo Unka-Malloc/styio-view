@@ -1023,7 +1023,7 @@ raise SystemExit(64)
     );
     expect(iosSession.sessionId, 'ios-cloud-only');
 
-    final manifestPath = '${tempRoot.path}${Platform.pathSeparator}spio.toml';
+    final manifestPath = '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
     File(manifestPath).writeAsStringSync('''
 [package]
 name = "demo/app"
@@ -1079,7 +1079,7 @@ path = "scratch/main.styio"
     );
     expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
 
-    final missingSpioGraph = _projectGraph(
+    final missingPafioGraph = _projectGraph(
       workspaceRoot: tempRoot.path,
       manifestPath: manifestPath,
       targets: <ProjectTargetDescriptor>[target],
@@ -1093,13 +1093,13 @@ path = "scratch/main.styio"
       ],
       activeCompiler: _compilerSnapshot(fakeStyio.path),
     );
-    final missingSpioAdapter = await createExecutionAdapter(
+    final missingPafioAdapter = await createExecutionAdapter(
       platformTarget: PlatformTarget.macos,
-      projectGraph: missingSpioGraph,
+      projectGraph: missingPafioGraph,
     );
-    final missingSpio = await missingSpioAdapter.runActiveDocument(
+    final missingPafio = await missingPafioAdapter.runActiveDocument(
       platformTarget: PlatformTarget.macos,
-      projectGraph: missingSpioGraph,
+      projectGraph: missingPafioGraph,
       document: const DocumentState(
         documentId: 'scratch',
         text: '>_("demo")\n',
@@ -1107,8 +1107,8 @@ path = "scratch/main.styio"
       ),
       activeFilePath: sourceFile.path,
     );
-    expect(missingSpio.status, ExecutionSessionStatus.blocked);
-    expect(missingSpio.sessionId, 'missing-spio-binary');
+    expect(missingPafio.status, ExecutionSessionStatus.blocked);
+    expect(missingPafio.sessionId, 'missing-pafio-binary');
   });
 
   test('single-file execution writes relative documents to temporary inputs', () async {
@@ -1186,7 +1186,7 @@ raise SystemExit(64)
             )
             ..createSync(recursive: true)
             ..writeAsStringSync('pub fn render() {}\n');
-      final manifestPath = '${tempRoot.path}${Platform.pathSeparator}spio.toml';
+      final manifestPath = '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
       File(manifestPath).writeAsStringSync('''
 [package]
 name = "demo/app"
@@ -1201,14 +1201,14 @@ path = "tests/render_test.styio"
 ''');
       await _writeExecutable(
         File(
-          '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+          '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
         ),
         '''#!/usr/bin/env python3
 import json, os, sys
 
 if sys.argv[1:] == ['machine-info', '--json']:
     print(json.dumps({
-        'tool': 'spio',
+        'tool': 'pafio',
         'supported_contract_versions': {'workflow_success_payloads': [1]},
     }))
     raise SystemExit(0)

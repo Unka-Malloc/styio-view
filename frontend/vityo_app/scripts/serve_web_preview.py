@@ -209,8 +209,8 @@ def _command_response_for(key: str) -> dict | None:
             {
                 "compiler_version": "0.0.1-preview",
                 "channel": "preview",
-                "install_root": "/workspace/demo/.spio/tools/styio/0.0.1-preview",
-                "install_binary_path": "/workspace/demo/.spio/tools/styio/0.0.1-preview/bin/styio",
+                "install_root": "/workspace/demo/.pafio/tools/styio/0.0.1-preview",
+                "install_binary_path": "/workspace/demo/.pafio/tools/styio/0.0.1-preview/bin/styio",
             },
         ),
         f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/tool/use": (
@@ -222,7 +222,7 @@ def _command_response_for(key: str) -> dict | None:
             {
                 "compiler_version": "0.0.1-preview",
                 "channel": "preview",
-                "pin_path": "/workspace/demo/spio-toolchain.toml",
+                "pin_path": "/workspace/demo/pafio-toolchain.toml",
             },
         ),
         f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/tool/clear-pin": (
@@ -235,7 +235,7 @@ def _command_response_for(key: str) -> dict | None:
         ),
         f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/dependencies/vendor": (
             "preview dependency vendor completed",
-            {"packages": 3, "output_path": "/workspace/demo/.spio/vendor"},
+            {"packages": 3, "output_path": "/workspace/demo/.pafio/vendor"},
         ),
         f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/deployment/pack": (
             "preview package archive prepared",
@@ -331,23 +331,23 @@ def _hosted_workspace_record() -> dict:
 
 def _project_graph_payload() -> dict:
     return {
-        "id": "/workspace/demo/spio.toml",
+        "id": "/workspace/demo/pafio.toml",
         "title": "demo/app",
         "kind": "hosted",
         "workspace_root": "/workspace/demo",
         "workspace_members": [],
-        "manifest_path": "/workspace/demo/spio.toml",
-        "lockfile_path": "/workspace/demo/spio.lock",
-        "toolchain_pin_path": "/workspace/demo/spio-toolchain.toml",
+        "manifest_path": "/workspace/demo/pafio.toml",
+        "lockfile_path": "/workspace/demo/pafio.lock",
+        "toolchain_pin_path": "/workspace/demo/pafio-toolchain.toml",
         "styio_config_path": "/workspace/demo/styio.toml",
-        "vendor_root": "/workspace/demo/.spio/vendor",
-        "build_root": "/workspace/demo/.spio/build",
+        "vendor_root": "/workspace/demo/.pafio/vendor",
+        "build_root": "/workspace/demo/.pafio/build",
         "packages": [
             {
                 "package_name": "demo/app",
                 "version": "0.1.0",
                 "root_path": "/workspace/demo",
-                "manifest_path": "/workspace/demo/spio.toml",
+                "manifest_path": "/workspace/demo/pafio.toml",
                 "targets": _targets(),
                 "dependencies": _dependencies(),
                 "is_workspace_member": False,
@@ -364,14 +364,14 @@ def _project_graph_payload() -> dict:
         "toolchain": {
             "source": "managed-current",
             "detail": "Local preview server exposes a mock hosted route; compiler execution is not real.",
-            "pin_path": "/workspace/demo/spio-toolchain.toml",
+            "pin_path": "/workspace/demo/pafio-toolchain.toml",
             "channel": "preview",
             "version": "0.0.1-preview",
         },
         "lock_state": "fresh",
         "vendor_state": "present",
         "active_compiler": {
-            "binary_path": "/workspace/demo/.spio/tools/styio/current/bin/styio",
+            "binary_path": "/workspace/demo/.pafio/tools/styio/current/bin/styio",
             "tool": "styio",
             "compiler_version": "0.0.1-preview",
             "channel": "preview",
@@ -386,16 +386,16 @@ def _project_graph_payload() -> dict:
             "feature_flags": {"runtime_events": True},
         },
         "managed_toolchains": {
-            "spio_home": "/workspace/demo/.spio",
-            "current_binary": "/workspace/demo/.spio/tools/styio/current/bin/styio",
-            "current_metadata_path": "/workspace/demo/.spio/tools/styio/current/metadata.json",
+            "pafio_home": "/workspace/demo/.pafio",
+            "current_binary": "/workspace/demo/.pafio/tools/styio/current/bin/styio",
+            "current_metadata_path": "/workspace/demo/.pafio/tools/styio/current/metadata.json",
             "installed": [
                 {
                     "channel": "preview",
                     "compiler_version": "0.0.1-preview",
-                    "install_root": "/workspace/demo/.spio/tools/styio/0.0.1-preview",
-                    "install_binary_path": "/workspace/demo/.spio/tools/styio/0.0.1-preview/bin/styio",
-                    "install_metadata_path": "/workspace/demo/.spio/tools/styio/0.0.1-preview/metadata.json",
+                    "install_root": "/workspace/demo/.pafio/tools/styio/0.0.1-preview",
+                    "install_binary_path": "/workspace/demo/.pafio/tools/styio/0.0.1-preview/bin/styio",
+                    "install_metadata_path": "/workspace/demo/.pafio/tools/styio/0.0.1-preview/metadata.json",
                 }
             ],
         },
@@ -404,7 +404,7 @@ def _project_graph_payload() -> dict:
             "packages": [
                 {
                     "package_name": "demo/app",
-                    "manifest_path": "/workspace/demo/spio.toml",
+                    "manifest_path": "/workspace/demo/pafio.toml",
                     "publish_enabled": True,
                     "publish_ready": True,
                     "blocking_reasons": [],
@@ -429,27 +429,27 @@ def _project_graph_payload() -> dict:
         },
         "source_state": {
             "schema_version": 1,
-            "spio_home": "/workspace/demo/.spio",
+            "pafio_home": "/workspace/demo/.pafio",
             "declared_git_dependencies": 0,
             "declared_registry_dependencies": 1,
             "git_cache": {
-                "repos_root": "/workspace/demo/.spio/git/repos",
-                "checkouts_root": "/workspace/demo/.spio/git/checkouts",
+                "repos_root": "/workspace/demo/.pafio/git/repos",
+                "checkouts_root": "/workspace/demo/.pafio/git/checkouts",
                 "repos_present": True,
                 "checkouts_present": True,
             },
             "registry_cache": {
-                "cache_root": "/workspace/demo/.spio/registry",
-                "index_root": "/workspace/demo/.spio/registry/index",
-                "blob_root": "/workspace/demo/.spio/registry/blobs",
-                "checkout_root": "/workspace/demo/.spio/registry/checkouts",
+                "cache_root": "/workspace/demo/.pafio/registry",
+                "index_root": "/workspace/demo/.pafio/registry/index",
+                "blob_root": "/workspace/demo/.pafio/registry/blobs",
+                "checkout_root": "/workspace/demo/.pafio/registry/checkouts",
                 "index_present": True,
                 "blobs_present": True,
                 "checkouts_present": True,
             },
             "vendor": {
-                "vendor_root": "/workspace/demo/.spio/vendor",
-                "metadata_path": "/workspace/demo/.spio/vendor/vendor.json",
+                "vendor_root": "/workspace/demo/.pafio/vendor",
+                "metadata_path": "/workspace/demo/.pafio/vendor/vendor.json",
                 "vendor_present": True,
                 "metadata_present": True,
                 "git_snapshots": 0,

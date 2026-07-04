@@ -43,6 +43,7 @@ RUN_HEALTH=1
 RUN_AUDIT=1
 SKIP_ECOSYSTEM=0
 AUDIT_BIN="${STYIO_AUDIT_BIN:-}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -86,9 +87,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-REPO_CMD=(python3 scripts/repo-hygiene-gate.py)
-DOCS_GATE_CMD=(./scripts/docs-gate.sh)
-HEALTH_CMD=(./scripts/checkpoint-health.sh)
+REPO_CMD=("$PYTHON_BIN" scripts/repo-hygiene-gate.py)
+DOCS_GATE_CMD=(bash scripts/docs-gate.sh)
+HEALTH_CMD=(bash scripts/checkpoint-health.sh)
 
 case "$MODE" in
   checkpoint)
@@ -127,21 +128,19 @@ if [[ "$RUN_AUDIT" -eq 1 ]]; then
   if [[ -z "$AUDIT_BIN" ]]; then
     if [[ -x "$ROOT/../styio-audit/bin/styio-audit" ]]; then
       AUDIT_BIN="$ROOT/../styio-audit/bin/styio-audit"
-    elif [[ -x "$ROOT/../../eBioRing/styio-audit/bin/styio-audit" ]]; then
-      AUDIT_BIN="$ROOT/../../eBioRing/styio-audit/bin/styio-audit"
-    elif [[ -x "/home/unka/styio-audit/bin/styio-audit" ]]; then
-      AUDIT_BIN="/home/unka/styio-audit/bin/styio-audit"
+    elif [[ -x "$ROOT/../../SymPolicy/styio-audit/bin/styio-audit" ]]; then
+      AUDIT_BIN="$ROOT/../../SymPolicy/styio-audit/bin/styio-audit"
     elif command -v styio-audit >/dev/null 2>&1; then
       AUDIT_BIN="$(command -v styio-audit)"
     fi
   fi
   if [[ -z "$AUDIT_BIN" || ! -x "$AUDIT_BIN" ]]; then
     log "styio-audit executable not found; running local security audit fallback"
-    run_cmd python3 scripts/check_security_baseline.py
-    run_cmd python3 scripts/check_license_policy.py
-    run_cmd python3 scripts/check_architecture_boundaries.py
-    run_cmd python3 scripts/check_compat_facades.py
-    run_cmd python3 scripts/import-boundary-gate.py
+    run_cmd "$PYTHON_BIN" scripts/check_security_baseline.py
+    run_cmd "$PYTHON_BIN" scripts/check_license_policy.py
+    run_cmd "$PYTHON_BIN" scripts/check_architecture_boundaries.py
+    run_cmd "$PYTHON_BIN" scripts/check_compat_facades.py
+    run_cmd "$PYTHON_BIN" scripts/import-boundary-gate.py
   else
     AUDIT_ROOT="$(cd "$(dirname "$AUDIT_BIN")/.." && pwd)"
     if git -C "$AUDIT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

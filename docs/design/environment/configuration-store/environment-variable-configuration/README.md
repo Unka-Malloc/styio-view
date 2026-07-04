@@ -112,7 +112,7 @@ projection instead of logging raw environment values.
 | Consumer | How it uses environment configuration |
 |---|---|
 | Execution Manager | Launches shell runtime, terminal sessions, tasks, debug sessions, and command workflows with the effective environment. |
-| Toolchain Environment Builder | Builds the environment for `styio`, `styio_lspd`, `spio`, package commands, build, run, and test commands. |
+| Toolchain Environment Builder | Builds the environment for `styio`, `styio_lspd`, `pafio`, package commands, build, run, and test commands. |
 | Styio Service Connector | Receives language-service process env through the toolchain/execution path, not by reading configuration directly. |
 | Extension Manager | May contribute env overlays through declared configuration schema and permission rules. |
 | DataStore | Persists configuration records and may cache resolved env-file metadata, but not the effective environment as truth. |

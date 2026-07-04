@@ -810,7 +810,7 @@ class StyioCommandRegistry {
       id: AppCommandId.fetchDependencies,
       label: 'Fetch',
       shortcutHint: 'Route',
-      description: 'Materialize dependency sources into the local spio cache.',
+      description: 'Materialize dependency sources into the local pafio cache.',
       primary: true,
       permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
@@ -831,7 +831,7 @@ class StyioCommandRegistry {
       label: 'Use Compiler',
       shortcutHint: 'Route',
       description:
-          'Use the currently resolved compiler version as the managed spio compiler.',
+          'Use the currently resolved compiler version as the managed pafio compiler.',
       permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
     AppCommandDescriptor(
@@ -839,7 +839,7 @@ class StyioCommandRegistry {
       label: 'Pin Compiler',
       shortcutHint: 'Route',
       description:
-          'Pin the currently resolved compiler version into spio-toolchain.toml.',
+          'Pin the currently resolved compiler version into pafio-toolchain.toml.',
       permissionRequirement: AppCommandPermissionRequirement.workspaceWrite,
     ),
     AppCommandDescriptor(

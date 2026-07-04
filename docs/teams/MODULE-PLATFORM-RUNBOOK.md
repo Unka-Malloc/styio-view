@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 module host、platform capability、六端 runner 与分发路径的日常维护入口。
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-06-29
 
 ## Mission
 
@@ -13,7 +13,8 @@
 Primary paths:
 
 1. `frontend/vityo_app/lib/src/module_host/`
-2. `frontend/vityo_app/lib/src/platform/`
+2. `frontend/vityo_app/lib/src/view_ide/module_host/`
+3. `frontend/vityo_app/lib/src/platform/`
    - `browser_virtual_file_system_provider.dart` — browser virtual FS provider (Web target)
    - `file_system_operation_result.dart` — structured file system operation result type
    - `file_system_provider.dart` — file system provider abstract contract
@@ -27,7 +28,8 @@ Primary paths:
 9. `frontend/vityo_app/macos/`
 10. `frontend/vityo_app/windows/`
 11. `frontend/vityo_app/web/`
-12. `docs/specs/DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md`
+12. `frontend/vityo_app/scripts/bootstrap_flutter_platforms.sh`
+13. `docs/specs/DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md`
 
 Key SSOTs:
 
@@ -47,6 +49,8 @@ Key SSOTs:
 7. module manifest security 必须在 activation 前完成 schema、permission、capability 和 trust 检查；未知 privileged capability 默认拒绝，不允许由 UI 层临时放行。
 
 8. Browser and memory file-system provider changes must preserve lexical path/URI behavior across Web, Linux, macOS, and Windows; update Windows path tests when provider normalization, separators, or URI handling changes.
+9. Module package store changes must keep the public `src/module_host/` entrypoint and the IDE-owned `src/view_ide/module_host/` implementation in sync; update package-store persistence, validation, and rollback tests together.
+10. Flutter platform bootstrap script changes must preserve Windows host, WSL Debian, and Docker Linux behavior, including executable bits, LF line endings, and explicit toolchain path overrides.
 
 ## Change Classes
 
@@ -60,6 +64,8 @@ Minimum:
 
 ```bash
 cd frontend/vityo_app && flutter analyze && flutter test
+cd frontend/vityo_app && flutter test test/module_package_store_test.dart
+python3 scripts/check-linux-packaging-gate.py
 python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
@@ -74,6 +80,8 @@ python3 scripts/repo-hygiene-gate.py --mode tracked
 ## Handoff / Recovery
 
 Record:
+
+For module package-store and platform bootstrap changes, include the host matrix used for verification: Windows native, WSL Debian, Docker Linux, or the exact blocker for any missing host.
 
 1. 变更影响的平台和 module surface。
 2. 更新过的 manifest、matrix 和 schema。

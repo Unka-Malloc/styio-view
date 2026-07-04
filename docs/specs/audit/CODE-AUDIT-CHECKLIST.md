@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the mandatory audit checklist for agents and reviewers; the first audit items are design-principle compliance, lifecycle test coverage, data lifecycle safety, and delivery-gate strictness.
 
-**Last updated:** 2026-04-22
+**Last updated:** 2026-06-29
 
 ## Agent Compliance Rule
 
@@ -248,3 +248,33 @@ Closed records must include:
 **Data lifecycle evidence:** State machine and cleanup evidence proving valid transitions and invalid-state rejection.
 **Gate evidence:** Gate command or policy proving the issue cannot ship silently.
 ```
+
+
+## Governance Gate Cross-Reference
+
+The following governance gates are the authoritative validation tools for security, permission, audit, and supply-chain evidence. Audit findings that intersect these domains must reference the relevant gate in the Gate impact field.
+
+| Gate | Validates | Exit on failure |
+|------|-----------|-----------------|
+| `scripts/check_security_baseline.py` | Security-critical file existence, forbidden patterns (silent catch, shell mode, string-built argv, literal auth headers, API key literals) | 1 |
+| `scripts/supply-chain-governance-gate.py` | Workflow permissions (`contents: read` baseline), Dependabot ecosystem coverage, SBOM markers in DEPENDENCY-USAGE.md, secret ignore baseline (.gitignore patterns), high-signal secret scan | 1 |
+| `scripts/dependency-policy-gate.py` | All pubspec.yaml and package.json dependencies registered in DEPENDENCY-USAGE.md | 1 |
+| `scripts/github-actions-pin-gate.py` | All GitHub Actions action references pinned to commit SHA (audit mode) or blocked (enforce mode) | 1 |
+| `scripts/check_license_policy.py` | Package license allowlist, forbidden license markers | 1 |
+| `scripts/release-readiness-gate.py` | End-to-end release readiness: gates pass, docs current, artifacts build | 1 |
+
+### Gate Ownership
+
+- Gate scripts live in `scripts/` and are owned by the governance domain (`CODEOWNERS`).
+- CI wiring lives in `.github/workflows/audit.yml` and `.github/workflows/repo-hygiene.yml`.
+- Gate documentation and invariant definitions live in `docs/governance/SECURITY-AND-SUPPLY-CHAIN.md`.
+- Security-critical source files governed by these gates are listed in `docs/governance/SECURITY-AND-SUPPLY-CHAIN.md` §8.1.
+
+### Using Gates During Audit
+
+When recording an audit finding:
+
+1. Run the relevant gate(s) to confirm whether the issue would be caught before release.
+2. If the gate passes but the defect exists, record a gate improvement as part of the closure requirement.
+3. If the gate fails on the current branch due to the defect, record the gate output as evidence.
+4. If no gate covers the defect class, record a new gate requirement in the finding.

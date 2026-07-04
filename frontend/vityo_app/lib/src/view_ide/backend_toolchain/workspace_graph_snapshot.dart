@@ -8,8 +8,8 @@ enum GraphCompleteness { full, partial }
 
 /// Holds a hash for a canonical workspace file.
 ///
-/// Each canonical file (spio.toml, spio.lock, spio-toolchain.toml,
-/// .spio/vendor/, .spio/build/, styio.toml, .styio.toml) is hashed
+/// Each canonical file (pafio.toml, pafio.lock, pafio-toolchain.toml,
+/// .pafio/vendor/, .pafio/build/, styio.toml, .styio.toml) is hashed
 /// so the builder can detect changes for incremental updates.
 class CanonicalFileEntry {
   const CanonicalFileEntry({

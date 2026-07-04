@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the repository-level entry point for bootstrapping a fresh machine, installing shared GUI toolchains, and routing contributors to the correct implementation surface.
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-06-29
 
 ## Who This Is For
 
@@ -32,6 +32,15 @@ Build the Linux + Android combo image:
 ./scripts/bootstrap-dev-container.sh --with-android
 ```
 
+The underlying Dockerfile supports two verified local tags:
+
+```bash
+docker build --build-arg INCLUDE_ANDROID=0 -f docker/dev-env.Dockerfile -t vityo-nightly/dev-env:linux-base .
+docker build --build-arg INCLUDE_ANDROID=1 -f docker/dev-env.Dockerfile -t vityo-nightly/dev-env:linux-android .
+```
+
+`linux-base` is configured for Flutter Linux desktop and web development with Android disabled. `linux-android` adds OpenJDK 21, Android SDK platforms 35 and 36, build-tools 35 and 36, platform-tools, and NDK 28.2.13676358.
+
 For editor-integrated devcontainers, open [../.devcontainer/devcontainer.json](../.devcontainer/devcontainer.json).
 
 ### Host Install Matrix
@@ -53,7 +62,7 @@ Device verification stays host-driven:
 
 ## Standardized Baseline
 
-`Vityo` now follows the same shared project-level version discipline used by `styio-nightly` and `styio-spio` where the tool overlaps:
+`Vityo` now follows the same shared project-level version discipline used by `styio-nightly` and `styio-pafio` where the tool overlaps:
 
 1. Development host standard: Debian `13` (`trixie`).
 2. Compiler helper toolchain standard: LLVM / Clang `18.1.x` and CMake / CTest `3.31.6`.
@@ -63,7 +72,7 @@ Device verification stays host-driven:
 6. Chromium standard for web verification: `147.0.7727.116`.
 7. Android combo add-on standard is profile-driven on Linux, macOS, and Windows: command-line tools `14742923`, shared `platform-tools`, and the standardized profile set `android-35`, `android-36`, each with its own pinned platform/build-tools/NDK tuple from [../toolchain/android-sdk-profiles.csv](../toolchain/android-sdk-profiles.csv).
 8. Apple build profiles on macOS are standardized in [../toolchain/apple-platform-profiles.csv](../toolchain/apple-platform-profiles.csv). These profiles pin iOS/macOS deployment targets and optionally select a specific `DEVELOPER_DIR` / Xcode installation.
-9. CI mirror: GitHub Actions on `ubuntu-24.04` for the existing Linux/Web gates and `windows-latest` for PowerShell bootstrap, analyze, test, and native Windows build coverage, with exact Python, Node.js, Flutter, and Chromium version pins before validation steps.
+9. CI mirror: GitHub Actions on `ubuntu-latest`, `windows-latest`, and `macos-latest` all run the repository delivery health floor with exact Python, Node.js, Flutter, and Chromium version pins, then prove the matching native Flutter debug build for Linux, Windows, or macOS.
 
 ## Required Toolchains
 
@@ -228,6 +237,24 @@ git diff --check
 ```
 
 `check_architecture_boundaries.py` enforces `view_ide/` as the Flutter-free domain/application layer and `view_render/` as the presentation layer. `check_compat_facades.py` keeps migrated legacy roots as one-line `export` facades. `check_security_baseline.py` protects sandbox execution, log redaction, secret storage, module manifest security, and agent permission modeling. `check_performance_budgets.py` verifies benchmark coverage for the performance-sensitive IDE paths.
+
+Linux host readiness gate (run inside WSL or a Linux container before full builds):
+
+```
+python3 scripts/check-linux-host-readiness-gate.py
+python3 scripts/check-linux-host-readiness-gate.py --json
+python3 scripts/check-linux-host-readiness-gate.py --check flutter
+```
+
+This gate detects and reports blocked states for Python, Dart/Flutter, npm,
+Chrome/Chromium, Docker image Flutter availability, and CRLF shell-script
+line-ending blockers.  It never attempts to repair external SDKs or install
+packages.  Exit codes: 0 all clear, 1 blocked items found, 2 warnings only.
+Unit tests:
+
+```
+python3 -m unittest tests.test_linux_host_readiness_gate -v
+```
 
 When Dart or Flutter is available and the change touches editor data structures, language cache, workspace graph, runtime events, AI context packing, watchers, or UI virtualization, run the benchmark regression gate:
 

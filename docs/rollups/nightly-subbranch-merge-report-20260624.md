@@ -11,7 +11,7 @@
 - origin/coverage/project-coverage-gate-20260619205915
 - origin/feature/vityo-ide-capability-upgrade
 - origin/nightly
-- upstream/ai-dev, upstream/main, upstream/nightly, upstream/stable
+- upstream integration branch, upstream/main, upstream/nightly, upstream/stable
 
 ## Nightly Start SHA
 

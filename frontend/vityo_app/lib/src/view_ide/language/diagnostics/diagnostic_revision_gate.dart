@@ -186,7 +186,7 @@ class DiagnosticRevisionGate {
 
 /// Describes why a language capability is unavailable.
 enum CapabilityGapReason {
-  /// Upstream Styio or Spio has not yet published the required contract.
+  /// Upstream Styio or Pafio has not yet published the required contract.
   upstreamBlocked,
 
   /// The capability is designed but not implemented in Vityo.
@@ -299,7 +299,7 @@ class LanguageCapabilityGapSnapshot {
 
   bool get hasGaps => gaps.isNotEmpty;
 
-  /// Gaps that are upstream-blocked (need Styio/Spio contract).
+  /// Gaps that are upstream-blocked (need Styio/Pafio contract).
   List<LanguageCapabilityGap> get upstreamBlocked => gaps
       .where((g) => g.reason == CapabilityGapReason.upstreamBlocked)
       .toList(growable: false);

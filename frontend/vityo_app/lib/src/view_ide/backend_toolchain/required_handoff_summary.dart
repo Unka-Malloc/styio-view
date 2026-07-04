@@ -2,15 +2,15 @@ import '../platform/platform_target.dart';
 import 'adapter_contracts.dart';
 import 'project_graph_contract.dart';
 
-enum HandoffOwner { styio, spio }
+enum HandoffOwner { styio, pafio }
 
 extension HandoffOwnerX on HandoffOwner {
   String get label {
     switch (this) {
       case HandoffOwner.styio:
         return 'styio';
-      case HandoffOwner.spio:
-        return 'spio';
+      case HandoffOwner.pafio:
+        return 'pafio';
     }
   }
 }
@@ -90,11 +90,11 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
   if (projectGraph.hasProjectGraphPayloadFailure) {
     handoffs.add(
       RequiredHandoff(
-        owner: HandoffOwner.spio,
+        owner: HandoffOwner.pafio,
         title: 'Repair published project graph payload',
         detail:
-            'spio already advertises a project graph contract, but Vityo could not consume it cleanly. ${projectGraph.projectGraphPayloadFailure!.detail}',
-        docPath: 'docs/for-spio/Spio-Project-Graph-Contract.md',
+            'pafio already advertises a project graph contract, but Vityo could not consume it cleanly. ${projectGraph.projectGraphPayloadFailure!.detail}',
+        docPath: 'docs/for-pafio/Pafio-Project-Graph-Contract.md',
         blocking: true,
       ),
     );
@@ -104,11 +104,11 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
   )) {
     handoffs.add(
       const RequiredHandoff(
-        owner: HandoffOwner.spio,
+        owner: HandoffOwner.pafio,
         title: 'Publish project graph success payload',
         detail:
-            'Workspace members, packages, targets, and toolchain state are still inferred from canonical files because spio has not published a dedicated project graph payload.',
-        docPath: 'docs/for-spio/Spio-Project-Graph-Contract.md',
+            'Workspace members, packages, targets, and toolchain state are still inferred from canonical files because pafio has not published a dedicated project graph payload.',
+        docPath: 'docs/for-pafio/Pafio-Project-Graph-Contract.md',
         blocking: true,
       ),
     );
@@ -119,11 +119,11 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
           projectGraph.vendorState == ProjectVendorState.unknown)) {
     handoffs.add(
       const RequiredHandoff(
-        owner: HandoffOwner.spio,
+        owner: HandoffOwner.pafio,
         title: 'Publish lock and vendor freshness state',
         detail:
-            'The shell can see canonical files, but freshness and workflow completion state still need stable success payloads from spio.',
-        docPath: 'docs/for-spio/Spio-Workflow-Success-Payloads.md',
+            'The shell can see canonical files, but freshness and workflow completion state still need stable success payloads from pafio.',
+        docPath: 'docs/for-pafio/Pafio-Workflow-Success-Payloads.md',
       ),
     );
   }
@@ -131,21 +131,21 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
   if (projectGraph.hasToolchainStatePayloadFailure) {
     handoffs.add(
       RequiredHandoff(
-        owner: HandoffOwner.spio,
+        owner: HandoffOwner.pafio,
         title: 'Repair published toolchain and registry state',
         detail:
-            'spio already advertises toolchain_state, but Vityo could not consume the published payload cleanly. ${projectGraph.toolchainStatePayloadFailure!.detail}',
-        docPath: 'docs/for-spio/Spio-Toolchain-And-Registry-State.md',
+            'pafio already advertises toolchain_state, but Vityo could not consume the published payload cleanly. ${projectGraph.toolchainStatePayloadFailure!.detail}',
+        docPath: 'docs/for-pafio/Pafio-Toolchain-And-Registry-State.md',
       ),
     );
   } else if (!projectGraph.hasToolchainEnvironment) {
     handoffs.add(
       const RequiredHandoff(
-        owner: HandoffOwner.spio,
+        owner: HandoffOwner.pafio,
         title: 'Publish toolchain and registry state',
         detail:
-            'Toolchain resolution, managed installs, and registry readiness need a machine-readable spio contract instead of filesystem inference.',
-        docPath: 'docs/for-spio/Spio-Toolchain-And-Registry-State.md',
+            'Toolchain resolution, managed installs, and registry readiness need a machine-readable pafio contract instead of filesystem inference.',
+        docPath: 'docs/for-pafio/Pafio-Toolchain-And-Registry-State.md',
       ),
     );
   }
@@ -155,11 +155,11 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
       !projectGraph.hasProjectGraphPayloadFailure) {
     handoffs.add(
       const RequiredHandoff(
-        owner: HandoffOwner.spio,
+        owner: HandoffOwner.pafio,
         title: 'Publish dependency source and cache state',
         detail:
-            'Vendored snapshots, git caches, and registry cache roots still need a machine-readable spio contract instead of filesystem inference.',
-        docPath: 'docs/for-spio/Spio-Toolchain-And-Registry-State.md',
+            'Vendored snapshots, git caches, and registry cache roots still need a machine-readable pafio contract instead of filesystem inference.',
+        docPath: 'docs/for-pafio/Pafio-Toolchain-And-Registry-State.md',
       ),
     );
   }

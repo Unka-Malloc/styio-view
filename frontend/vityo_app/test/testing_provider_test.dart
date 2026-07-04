@@ -719,6 +719,93 @@ The following tests FAILED:
     expect(json['failedTests'], isNotEmpty);
     expect(json['metadata'], <String, Object?>{'exitCode': 8});
   });
+  test(
+    'testing session controller runConfiguration blocks not-ready configuration',
+    () async {
+      final controller = TestingSessionController();
+      addTearDown(controller.dispose);
+      const notReady = TestRunConfiguration(
+        id: '',
+        label: 'Empty config',
+        workspaceRoot: '',
+      );
+      final result = await controller.runConfiguration(notReady);
+
+      expect(result.status, TestRunStatus.error);
+      expect(result.message, contains('not ready'));
+      expect(result.providerId, 'unavailable');
+      expect(controller.lastRunConfiguration, isNull);
+    },
+  );
+
+  test(
+    'testing session controller runConfiguration delegates to run provider when ready',
+    () async {
+      var capturedRequest = const TestRunRequest(workspaceRoot: '');
+      final controller = TestingSessionController(
+        runProvider: _CapturingTestRunProvider(
+          onRun: (request) {
+            capturedRequest = request;
+            return const TestRunResult(
+              providerId: 'capturing',
+              runner: 'capture',
+              status: TestRunStatus.passed,
+              message: 'Configuration run passed.',
+            );
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      const ready = TestRunConfiguration(
+        id: 'ready-config',
+        label: 'Ready config',
+        workspaceRoot: '/workspace/vityo',
+        providerId: 'capturing',
+      );
+      final result = await controller.runConfiguration(ready);
+
+      expect(result.status, TestRunStatus.passed);
+      expect(result.providerId, 'capturing');
+      expect(result.message, 'Configuration run passed.');
+      expect(controller.lastRunConfiguration?.id, 'ready-config');
+      expect(capturedRequest.workspaceRoot, '/workspace/vityo');
+    },
+  );
+
+  test(
+    'testing session controller debugConfiguration sets debug flag',
+    () async {
+      var capturedRequest = const TestRunRequest(workspaceRoot: '');
+      final controller = TestingSessionController(
+        runProvider: _CapturingTestRunProvider(
+          onRun: (request) {
+            capturedRequest = request;
+            return const TestRunResult(
+              providerId: 'capturing',
+              runner: 'capture',
+              status: TestRunStatus.passed,
+              message: 'Debug configuration run passed.',
+            );
+          },
+        ),
+      );
+      addTearDown(controller.dispose);
+      const config = TestRunConfiguration(
+        id: 'debug-config',
+        label: 'Debug config',
+        workspaceRoot: '/workspace/vityo',
+        providerId: 'capturing',
+        debug: false,
+      );
+      final result = await controller.debugConfiguration(config);
+
+      expect(result.status, TestRunStatus.passed);
+      expect(result.providerId, 'capturing');
+      expect(controller.lastRunConfiguration?.id, 'debug-config');
+      expect(capturedRequest.workspaceRoot, '/workspace/vityo');
+      expect(capturedRequest.debug, isTrue);
+    },
+  );
 }
 
 Future<FoundationDataStore> _createDataStore() async {

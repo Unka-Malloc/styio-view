@@ -969,7 +969,7 @@ ProjectGraphSnapshot _hostedProjectGraph() {
     kind: ProjectKind.hosted,
     workspaceRoot: '/workspace/hosted-runtime-demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/hosted-runtime-demo/spio.toml',
+    manifestPath: '/workspace/hosted-runtime-demo/pafio.toml',
     dependencies: const <ProjectDependencySnapshot>[],
     packages: const <ProjectPackageSnapshot>[],
     targets: const <ProjectTargetDescriptor>[],

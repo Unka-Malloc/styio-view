@@ -11,8 +11,8 @@ import 'hosted_execution_codec.dart';
 import 'project_workflow_selection.dart';
 import 'project_graph_contract.dart';
 import 'runtime_event_adapter.dart';
-import 'spio_cli_discovery.dart';
-import 'spio_cli_support.dart';
+import 'pafio_cli_discovery.dart';
+import 'pafio_cli_support.dart';
 
 const AdapterCapabilitySnapshot
 _iosLocalCliExecutionCapabilitySnapshot = AdapterCapabilitySnapshot(
@@ -37,7 +37,7 @@ _iosLocalCliExecutionCapabilitySnapshot = AdapterCapabilitySnapshot(
 );
 
 const String _missingLocalStyioBinaryMessage =
-    'No local styio binary was resolved. Set VITYO_STYIO_BIN or install styio through spio.';
+    'No local styio binary was resolved. Set VITYO_STYIO_BIN or install styio through pafio.';
 
 const int _executionOverlaySnapshotMaxEntries = 20000;
 const int _executionOverlaySnapshotMaxBytes = 256 * 1024 * 1024;
@@ -357,7 +357,7 @@ AdapterCapabilitySnapshot _localCliExecutionCapabilitySnapshot({
       projectGraph.hasManifest && compiler.supportsContract('compile_plan');
   final hasRuntimeEvents = compiler.supportsContract('runtime_events');
   final executionDetail = hasProjectExecution
-      ? 'Project execution routes through spio build/run/test with a live published compile-plan handoff.'
+      ? 'Project execution routes through pafio build/run/test with a live published compile-plan handoff.'
       : projectGraph.hasManifest
       ? 'Project execution remains blocked until the active compiler advertises compile-plan support.'
       : 'CLI execution is available through published single-file entry plus jsonl diagnostics.';
@@ -535,21 +535,21 @@ Future<ExecutionSession> _runProjectWorkflow({
   if (manifestPath == null) {
     return _blockedRunExecutionSession(
       sessionId: 'missing-manifest',
-      message: 'Project execution requires a resolved spio manifest.',
+      message: 'Project execution requires a resolved pafio manifest.',
     );
   }
 
-  final spioBinary = await resolveSpioBinary(
+  final pafioBinary = await resolvePafioBinary(
     workspaceRoot: projectGraph.workspaceRoot,
   );
-  if (spioBinary == null) {
+  if (pafioBinary == null) {
     return _blockedRunExecutionSession(
-      sessionId: 'missing-spio-binary',
-      message: missingLocalSpioBinaryMessage,
+      sessionId: 'missing-pafio-binary',
+      message: missingLocalPafioBinaryMessage,
     );
   }
-  final useWorkflowPayloads = await _supportsSpioWorkflowSuccessPayloads(
-    spioBinary,
+  final useWorkflowPayloads = await _supportsPafioWorkflowSuccessPayloads(
+    pafioBinary,
   );
 
   final workflow = _selectProjectWorkflow(
@@ -573,7 +573,7 @@ Future<ExecutionSession> _runProjectWorkflow({
   final normalizedPath = preparedInput.pathOverlay?.normalize;
 
   try {
-    final result = await Process.run(spioBinary, <String>[
+    final result = await Process.run(pafioBinary, <String>[
       if (useWorkflowPayloads) '--json',
       workflow.command,
       '--manifest-path',
@@ -647,7 +647,7 @@ Future<ExecutionSession> _runProjectWorkflow({
       statusMessage: result.exitCode == 0
           ? workflow.successMessage
           : (failurePayload?['message'] as String? ??
-                'spio ${workflow.command} exited with code ${result.exitCode}.'),
+                'pafio ${workflow.command} exited with code ${result.exitCode}.'),
       diagnostics: <Diagnostic>[
         ...payloadDiagnostics.diagnostics,
         ...stdoutChannel.diagnostics,
@@ -662,10 +662,10 @@ Future<ExecutionSession> _runProjectWorkflow({
     );
   } on ProcessException catch (error) {
     return ExecutionSession(
-      sessionId: 'spio-process-error',
+      sessionId: 'pafio-process-error',
       kind: workflow.kind,
       status: ExecutionSessionStatus.failed,
-      statusMessage: 'Failed to execute spio: ${error.message}',
+      statusMessage: 'Failed to execute pafio: ${error.message}',
       diagnostics: const <Diagnostic>[],
       stdoutEvents: const <ExecutionLogEvent>[],
       stderrEvents: const <ExecutionLogEvent>[],
@@ -676,9 +676,9 @@ Future<ExecutionSession> _runProjectWorkflow({
   }
 }
 
-Future<bool> _supportsSpioWorkflowSuccessPayloads(String spioBinary) async {
+Future<bool> _supportsPafioWorkflowSuccessPayloads(String pafioBinary) async {
   try {
-    final result = await Process.run(spioBinary, const <String>[
+    final result = await Process.run(pafioBinary, const <String>[
       'machine-info',
       '--json',
     ]);
@@ -1071,8 +1071,8 @@ _ProjectWorkflowSelection _selectProjectWorkflow({
             ? const <String>[]
             : _packageArgs(packageName),
         successMessage: packageName == null
-            ? 'Project build completed through spio.'
-            : 'Project package build completed through spio.',
+            ? 'Project build completed through pafio.'
+            : 'Project package build completed through pafio.',
       );
     }
   }
@@ -1087,14 +1087,14 @@ _ProjectWorkflowSelection _selectProjectWorkflow({
           '--test',
           target.name,
         ],
-        successMessage: 'Project test target completed through spio.',
+        successMessage: 'Project test target completed through pafio.',
       );
     case ProjectTargetKind.lib:
       return _ProjectWorkflowSelection(
         command: 'build',
         kind: 'build',
         args: <String>[..._packageArgs(target.packageName), '--lib'],
-        successMessage: 'Project library build completed through spio.',
+        successMessage: 'Project library build completed through pafio.',
       );
     case ProjectTargetKind.bin:
       return _ProjectWorkflowSelection(
@@ -1105,7 +1105,7 @@ _ProjectWorkflowSelection _selectProjectWorkflow({
           '--bin',
           target.name,
         ],
-        successMessage: 'Project binary run completed through spio.',
+        successMessage: 'Project binary run completed through pafio.',
       );
   }
 }

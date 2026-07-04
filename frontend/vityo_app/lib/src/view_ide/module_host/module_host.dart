@@ -11,4 +11,5 @@ export 'module_definition.dart';
 export 'module_lifecycle.dart';
 export 'module_manifest.dart';
 export 'module_manifest_security.dart';
+export 'module_package_store.dart';
 export 'module_registry.dart';

@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/backend_toolchain/hosted_control_plane.dart';
 import 'package:vityo_app/src/backend_toolchain/project_graph_contract.dart';
-import 'package:vityo_app/src/backend_toolchain/spio_cli_support.dart';
+import 'package:vityo_app/src/backend_toolchain/pafio_cli_support.dart';
 import 'package:vityo_app/src/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
-import 'fake_spio_cli.dart';
+import 'fake_pafio_cli.dart';
 
 void main() {
   setUp(() {
@@ -18,24 +18,60 @@ void main() {
     debugOverrideHostedEnvironment(null);
   });
 
-  test('toolchain management adapter executes published spio tool use', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_toolchain_manager_test_',
+  test('project graph exposes source confidence for every standard field', () {
+    final scratch = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/scratch',
+      activeFilePath: '/workspace/scratch/main.styio',
+      title: 'Scratch',
+      notes: const <String>[],
     );
-    addTearDown(() => tempRoot.delete(recursive: true));
 
-    File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
-      ..createSync(recursive: true)
-      ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
-    await writeFakeSpioCli(
-      workspaceRoot: tempRoot,
-      pythonSource: '''#!/usr/bin/env python3
+    expect(
+      scratch.fieldSourceConfidence.keys,
+      containsAll(ProjectGraphSnapshot.sourceConfidenceFieldNames),
+    );
+    expect(
+      scratch.sourceConfidenceFor('manifestPath'),
+      ProjectGraphFieldSourceConfidence.capabilityGap,
+    );
+    expect(
+      scratch.sourceConfidenceFor('editorFiles'),
+      ProjectGraphFieldSourceConfidence.inferred,
+    );
+    expect(
+      scratch.fieldSourceConfidenceWireValues['manifestPath'],
+      'capability-gap',
+    );
+
+    final graph = _projectGraphFor('/workspace/project');
+    expect(
+      graph.sourceConfidenceFor('packages'),
+      ProjectGraphFieldSourceConfidence.machinePayload,
+    );
+  });
+
+  test(
+    'toolchain management adapter executes published pafio tool use',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_toolchain_manager_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+
+      File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+        ..createSync(recursive: true)
+        ..writeAsStringSync(
+          '[package]\nname = "demo/app"\nversion = "0.1.0"\n',
+        );
+      await writeFakePafioCli(
+        workspaceRoot: tempRoot,
+        pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 if sys.argv[1:] == ['--json', 'tool', 'use', '--version', '0.0.5', '--channel', 'stable']:
     print(json.dumps({
         'command': 'tool use',
-        'message': 'activated managed styio compiler: /workspace/.spio/tools/styio/current/bin/styio',
+        'message': 'activated managed styio compiler: /workspace/.pafio/tools/styio/current/bin/styio',
         'compiler_version': '0.0.5',
         'channel': 'stable',
     }))
@@ -43,26 +79,33 @@ if sys.argv[1:] == ['--json', 'tool', 'use', '--version', '0.0.5', '--channel', 
 
 raise SystemExit(64)
 ''',
-    );
+      );
 
-    final adapter = await createToolchainManagementAdapter(
-      platformTarget: PlatformTarget.macos,
-    );
-    final result = await adapter.useManagedCompiler(
-      projectGraph: _projectGraphFor(tempRoot.path),
-      compilerVersion: '0.0.5',
-      channel: 'stable',
-    );
+      final adapter = await createToolchainManagementAdapter(
+        platformTarget: PlatformTarget.macos,
+      );
+      final result = await adapter.useManagedCompiler(
+        projectGraph: _projectGraphFor(tempRoot.path),
+        compilerVersion: '0.0.5',
+        channel: 'stable',
+      );
 
-    expect(result.succeeded, isTrue);
-    expect(result.command, 'tool use');
-    expect(result.payload?['compiler_version'], '0.0.5');
-    expect(result.statusMessage, contains('activated managed styio compiler'));
-  });
+      expect(result.succeeded, isTrue);
+      expect(result.schemaVersion, ToolchainCommandResult.currentSchemaVersion);
+      expect(result.toJson()['schemaVersion'], 1);
+      expect(result.toJson()['status'], 'succeeded');
+      expect(result.command, 'tool use');
+      expect(result.payload?['compiler_version'], '0.0.5');
+      expect(
+        result.statusMessage,
+        contains('activated managed styio compiler'),
+      );
+    },
+  );
 
-  test('spio cli support parses payloads and process failures', () async {
+  test('pafio cli support parses payloads and process failures', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_spio_support_test_',
+      'vityo_pafio_support_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
     final scratch = ProjectGraphSnapshot.scratch(
@@ -73,8 +116,8 @@ raise SystemExit(64)
     );
     final graph = _projectGraphFor(tempRoot.path);
 
-    expect(spioManifestArgs(scratch), isEmpty);
-    expect(spioManifestArgs(graph), <String>[
+    expect(pafioManifestArgs(scratch), isEmpty);
+    expect(pafioManifestArgs(graph), <String>[
       '--manifest-path',
       graph.manifestPath!,
     ]);
@@ -84,21 +127,21 @@ raise SystemExit(64)
     expect(parseJsonObjectPayload('[1]'), isNull);
     expect(parseJsonObjectPayload('{"message":"ok"}')?['message'], 'ok');
 
-    final spioBinary = File(
-      '${tempRoot.path}${Platform.pathSeparator}.spio${Platform.pathSeparator}bin${Platform.pathSeparator}spio',
+    final pafioBinary = File(
+      '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
     );
-    spioBinary.createSync(recursive: true);
-    spioBinary.writeAsStringSync('not executable');
+    pafioBinary.createSync(recursive: true);
+    pafioBinary.writeAsStringSync('not executable');
 
-    final result = await runLocalSpioCommand<_SpioTestResult>(
+    final result = await runLocalPafioCommand<_PafioTestResult>(
       projectGraph: graph,
       command: 'tool use',
       args: const <String>['--json', 'tool', 'use'],
-      factory: _spioTestResult,
+      factory: _pafioTestResult,
     );
 
-    expect(result.outcome, LocalSpioCommandOutcome.failed);
-    expect(result.statusMessage, contains('Failed to execute spio'));
+    expect(result.outcome, LocalPafioCommandOutcome.failed);
+    expect(result.statusMessage, contains('Failed to execute pafio'));
     expect(result.stdout, isEmpty);
     expect(result.stderr, isEmpty);
   });
@@ -109,10 +152,10 @@ raise SystemExit(64)
     );
     addTearDown(() => tempRoot.delete(recursive: true));
 
-    File('${tempRoot.path}${Platform.pathSeparator}spio.toml')
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
       ..createSync(recursive: true)
       ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
-    await writeFakeSpioCli(
+    await writeFakePafioCli(
       workspaceRoot: tempRoot,
       pythonSource: '''#!/usr/bin/env python3
 import json, sys
@@ -188,7 +231,7 @@ raise SystemExit(64)
       projectGraph: scratch,
     );
     expect(clearBlocked.status, ToolchainCommandStatus.blocked);
-    expect(clearBlocked.statusMessage, contains('requires a resolved spio'));
+    expect(clearBlocked.statusMessage, contains('requires a resolved pafio'));
 
     final webAdapter = await createToolchainManagementAdapter(
       platformTarget: PlatformTarget.web,
@@ -217,12 +260,12 @@ raise SystemExit(64)
     );
 
     expect(result.status, ToolchainCommandStatus.blocked);
-    expect(result.statusMessage, contains('requires a resolved spio manifest'));
+    expect(result.statusMessage, contains('requires a resolved pafio manifest'));
   });
 }
 
-class _SpioTestResult {
-  const _SpioTestResult({
+class _PafioTestResult {
+  const _PafioTestResult({
     required this.outcome,
     required this.command,
     required this.statusMessage,
@@ -232,7 +275,7 @@ class _SpioTestResult {
     this.errorPayload,
   });
 
-  final LocalSpioCommandOutcome outcome;
+  final LocalPafioCommandOutcome outcome;
   final String command;
   final String statusMessage;
   final String stdout;
@@ -241,8 +284,8 @@ class _SpioTestResult {
   final Map<String, dynamic>? errorPayload;
 }
 
-_SpioTestResult _spioTestResult({
-  required LocalSpioCommandOutcome outcome,
+_PafioTestResult _pafioTestResult({
+  required LocalPafioCommandOutcome outcome,
   required String command,
   required String statusMessage,
   required String stdout,
@@ -250,7 +293,7 @@ _SpioTestResult _spioTestResult({
   Map<String, dynamic>? payload,
   Map<String, dynamic>? errorPayload,
 }) {
-  return _SpioTestResult(
+  return _PafioTestResult(
     outcome: outcome,
     command: command,
     statusMessage: statusMessage,
@@ -262,7 +305,7 @@ _SpioTestResult _spioTestResult({
 }
 
 ProjectGraphSnapshot _projectGraphFor(String workspaceRoot) {
-  final manifestPath = '$workspaceRoot${Platform.pathSeparator}spio.toml';
+  final manifestPath = '$workspaceRoot${Platform.pathSeparator}pafio.toml';
   return ProjectGraphSnapshot(
     id: manifestPath,
     title: 'demo/app',

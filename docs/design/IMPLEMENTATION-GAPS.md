@@ -88,7 +88,7 @@ flutter test
 Latest upstream Styio CLI boundary check:
 
 ```text
-/home/unka/Unka-Malloc/styio-nightly/build/bin/styio \
+<styio-workspace>/build/bin/styio \
   --parser-engine nightly \
   --error-format jsonl \
   --file test/fixtures/styio_language/syntax_contract/value.true.styio
@@ -99,7 +99,7 @@ stderr_bytes=0
 ```
 
 ```text
-/home/unka/Unka-Malloc/styio-nightly/build/bin/styio \
+<styio-workspace>/build/bin/styio \
   --parser-engine nightly \
   --error-format jsonl \
   --file test/fixtures/styio_language/syntax_contract/unknown-token.false.styio

@@ -46,7 +46,7 @@ Runtime execution calls the top manager surface. Facts are produced bottom-up by
 | Platform Adapter / Shell Adapter | Convert Shell Facts into Shell Manager context for quoting, invocation shape, env handoff, cwd handling, and capability fallback. |
 | Platform Manager / Shell Manager | Expose stable shell operations: build command invocation, quote arguments, select shell profile, prepare cwd/env/stdin/stdout, and return structured failures. |
 | Configuration / Shell Configuration | Own user/workspace shell preferences, environment overlays, default profiles, workspace shell policy, and degraded-mode preferences required by Shell Runtime. |
-| Toolchain / Shell Runtime | Own toolchain-bound shell execution profiles for Styio, Spio, build/run/test, and task commands. |
+| Toolchain / Shell Runtime | Own toolchain-bound shell execution profiles for Styio, Pafio, build/run/test, and task commands. |
 | Extension | Contribute optional shell profiles, tasks, command providers, or runtime integrations through explicit manifests and permissions. |
 
 
@@ -82,7 +82,7 @@ Shell Prober
 | Raw OS probing | Platform Detector |
 | Normalized host/toolchain/workspace facts | Platform Context |
 | Generic process spawning | Platform Manager / Process Manager or Execution Manager |
-| Tool discovery and selected Styio/Spio versions | Toolchain |
+| Tool discovery and selected Styio/Pafio versions | Toolchain |
 | Extension activation and contribution lifecycle | Extension |
 
 ## 5. Shell Runtime Rules

@@ -2,6 +2,8 @@
 
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
+import http from "node:http";
+import https from "node:https";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -16,6 +18,7 @@ const CHROME_PATH =
   process.env.STYIO_CHROME_PATH ??
   process.env.CHROME_EXECUTABLE ??
   "/usr/bin/chromium";
+const PYTHON_BIN = process.env.PYTHON_BIN ?? "python3";
 const ARTIFACT_DIR = path.join(PROTOTYPE_ROOT, ".artifacts");
 const SCREENSHOT_PATH = path.join(ARTIFACT_DIR, "editor-load-failure.png");
 const SERVER_READY_TIMEOUT_MS = 15000;
@@ -35,12 +38,33 @@ async function ensureArtifactDir() {
 }
 
 async function canReach(url) {
-  try {
-    const response = await fetch(url, { redirect: "follow" });
-    return response.ok;
-  } catch {
-    return false;
-  }
+  return new Promise((resolve) => {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      resolve(false);
+      return;
+    }
+    const client = parsed.protocol === "https:" ? https : http;
+    const request = client.request(
+      parsed,
+      { method: "GET", timeout: 2000 },
+      (response) => {
+        response.resume();
+        response.on("end", () => {
+          const status = response.statusCode ?? 0;
+          resolve(status >= 200 && status < 400);
+        });
+      },
+    );
+    request.on("timeout", () => {
+      request.destroy();
+      resolve(false);
+    });
+    request.on("error", () => resolve(false));
+    request.end();
+  });
 }
 
 async function waitForReachable(url, timeoutMs) {
@@ -60,7 +84,7 @@ async function ensureServer(url) {
   }
 
   log("editor url is not reachable, starting prototype/dev_server.py");
-  const child = spawn("python3", ["dev_server.py"], {
+  const child = spawn(PYTHON_BIN, ["dev_server.py"], {
     cwd: PROTOTYPE_ROOT,
     stdio: ["ignore", "pipe", "pipe"],
   });

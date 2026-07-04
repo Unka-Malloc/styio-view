@@ -2,7 +2,7 @@
 
 **Purpose:** Track unfinished Vityo implementation and integration gaps after retiring `docs/plan/` as an active documentation area.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-06-29
 
 **Latest audit run:** 2026-06-25 02:00–02:30 UTC
 
@@ -21,7 +21,7 @@ Status values:
 | Status | Meaning |
 |---|---|
 | Open | Work is not complete. |
-| Upstream blocked | Vityo needs a Styio or Spio machine contract before final closure. |
+| Upstream blocked | Vityo needs a Styio or Pafio machine contract before final closure. |
 | Implementation needed | Design exists, but repo-local implementation is missing or incomplete. |
 | Partially implemented | Repo-local anchors exist, but the full product or integration path is not complete. |
 | Validation needed | Code or design anchors exist, but product-level gates are not proven. |
@@ -46,8 +46,8 @@ Status values:
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
-| Editor File Binding implementation | Implementation needed | Vityo | Implement load, save, watch, conflict detection, deleted-file state, readonly state, provider unavailable state, and structured error mapping. |
-| Editor File Binding tests | Partially implemented | Vityo | Existing tests cover open/save, conflict, deleted-file save failure, readonly save failure, provider-unavailable save failure, resource watch state updates, shell save command persistence, shell-level external-change acceptance, direct resource-watch-to-shell reload of clean external changes, editor conflict recovery banner rendering, readonly/provider-unavailable banner rendering, and readonly-to-writable shell recovery state. Remaining closure: provider reconnect UI and broader product flow coverage. |
+| Editor File Binding implementation | Validation needed | Vityo | Repo-local implementation covers load, save, watch, conflict detection, deleted-file state, readonly state, provider unavailable state, structured error mapping, and provider recovery back to clean bound state. Remaining closure: platform/product release validation across non-local providers as those providers become available. |
+| Editor File Binding tests | Validation needed | Vityo | Existing tests cover open/save, conflict, deleted-file save failure, readonly save failure, provider-unavailable save failure, resource watch state updates, shell save command persistence, shell-level external-change acceptance, direct resource-watch-to-shell reload of clean external changes, editor conflict recovery banner rendering, readonly/provider-unavailable banner rendering, readonly-to-writable shell recovery state, and provider-unavailable-to-clean reconnect UI recovery. Remaining closure: release/product-gate evidence, not missing reconnect coverage. |
 | Document revision to language snapshot binding | Partially implemented | Vityo | `CachedStyioLanguageService` reads cache entries by `documentId`, `revision`, `protocolVersion`, and optional `toolchainId`; `StyioServiceResultAdapter` rejects stale responses before merging analysis. Unit coverage now proves stale cached revisions do not feed diagnostics, hover, completion, semantic spans, references, or rename. Shell-level file binding coverage now proves manual acceptance and resource-watch delivery both reload a new document revision and drop old cached diagnostics. `FileSystemWorkspaceDocumentStore.watchDocument` now proves save/watch/reload delivery of text plus revision through the concrete local File System Manager route. Remaining closure: prove the same behavior across remote/browser/virtual providers when those providers exist. |
 | Project-file vs IDE-state persistence split | Partially implemented | Vityo | User/project files use File System Manager; `EditorSessionDataStore` now persists tabs, active document, cursor offsets, selection anchors, and dirty document ids through an Interaction-owned Foundation DataStore Owner scoped by workspace. `EditorSessionController.toSessionSnapshot` provides the controller-to-store bridge, and `ShellRuntimeModel.persistEditorSession` / `restoreEditorSession` can explicitly save and restore the live shell editor session when the active document matches. Remaining closure: automatic save/restore policy, cross-document reopen behavior, and broader recovery handling. |
 | Cache Contract | Partially implemented | Vityo | Cache contract documented in `docs/contracts/CacheContract.md`. Language cache submodule (`view_ide/language/cache/`) implements `LanguageCache` with Two-Level LRU + dependency invalidation. Cache keys include documentId, revision, workspaceGraphHash, toolchainId, providerId, protocolVersion, semanticPayloadVersion. All cache families identified: language result, semantic snapshot, project graph, file gist, runtime event derived, AI context. Remaining closure: publish the `CacheStore<K,V>` interface that the contract mandates; implement the contract's `observe()` method on LanguageCache; implement DataStore-backed Level 2 persistence; build the Project Graph, File Gist, Runtime Event Derived, and AI Context cache families that the contract lists. |
@@ -68,9 +68,9 @@ Status values:
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
-| File System Manager implementation | Partially implemented | Vityo | Local File System Manager has stable path/stat/read/write/bytes/list/delete/watch/copy/move/rename anchors, file URI conversion, normalized containment checks, `FileSystemBoundaryGuard`, `FileSystemTextCodec`, local/file provider router seed, executable-bit handling, explicit overwrite behavior, manager-local `FileSystemOperationFailure` classification, and workspace document watch integration through `FileSystemWorkspaceDocumentStore.watchDocument`. Remaining closure: concrete remote/browser/virtual/hosted providers, non-file URI scheme implementations, product-specific boundary policy adoption, and wider operation-level structured result adoption. |
+| File System Manager implementation | Partially implemented | Vityo | Local File System Manager has stable path/stat/read/write/bytes/list/delete/watch/copy/move/rename anchors, file URI conversion, normalized containment checks, `FileSystemBoundaryGuard`, `FileSystemTextCodec`, local/file/hosted provider routing, executable-bit handling, explicit overwrite behavior, manager-local `FileSystemOperationFailure` classification, and workspace document watch integration through `FileSystemWorkspaceDocumentStore.watchDocument`. Remaining closure: product-specific boundary policy adoption, broader non-local operation routing beyond hosted document load/save, and wider operation-level structured result adoption. |
 | LocalFileSystemManager | Partially implemented | Vityo | Concrete local desktop implementation exists for path, file IO, directory watch, copy/move/rename, executable bit handling, and failure classification. Remaining closure: platform-matrix verification outside the current local test host and product-specific boundary policy adoption. |
-| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `frontend/vityo_app/lib/src/platform/`. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://. `HostedWorkspaceFileSystemProvider` and the `vityo-hosted://` URI scheme are documented in the abstract `FileSystemProvider` contract as planned capabilities but do not yet have concrete implementations. Remaining closure: implement `HostedWorkspaceFileSystemProvider` with the `vityo-hosted://` scheme; validate FileSystemManager routing for all URI schemes across non-local providers. |
+| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `frontend/vityo_app/lib/src/platform/`. `HostedWorkspaceFileSystemProvider` is implemented in `frontend/vityo_app/lib/src/view_ide/workspace/` for `vityo-hosted://` document load/save routes backed by `HostedWorkspaceDocumentStore`, with unpublished hosted file-system operations represented as structured unsupported failures. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://, vityo-hosted://. Remaining closure: broaden product adoption and validate any future non-document hosted operations only after the hosted control-plane contract publishes them. |
 | File System Prober placement | Decision needed | Vityo | Decide whether it is documented under Platform Detector or File System Manager internals. |
 | `canX` preflight API set | Decision needed | Vityo | Decide which preflight checks are worth exposing before execute-and-classify behavior. |
 | Platform Manager interface implementation | Partially implemented | Vityo | `PlatformManagerBundle` aggregates concrete system-specific managers from `PlatformContextSnapshot`, `PlatformAdapter`, and manager factories, and exposes a thin status snapshot. File System, Process, Network, Resource, Shell, PTY, Clipboard, Notification, and Local Service managers now expose manager-local structured failure envelopes. Remaining closure: product-level adoption and cross-platform provider decisions beyond the current Linux/Debian/ARM anchors. |
@@ -89,7 +89,7 @@ Status values:
 | Install/use/pin result envelopes | Partially implemented | Vityo | Registration, selection, clear-active, runtime, health, install plan, external install execution, staged managed download, tar extraction, extracted executable registration, archive manifest registration, direct/archive install registration envelopes with rollback status, platform failure envelopes, recovery action hints, UI-facing command recovery projection, and retry/log route invocation exist. Remaining closure: partial install state plus selector/installer recovery action flows. |
 | Toolchain backend handoff examples | Implementation needed | Vityo | Keep examples non-authoritative and aligned with contracts. |
 | Build/run/test product gate | Partially implemented | Vityo | `backend_route_product_gate_test.dart` validates local-cli, hosted, and blocked backend route states against `BackendExecutionRouteSelection`, Runtime Surface rendering, and build/test native result summaries without invoking real compilers or cloud providers. Shell runtime tests assert that native build/test result metadata exposes normalized backend route facts for agent coding context. Live local/hosted product workflow gates now assert `selectBackendExecutionRoute` when `VITYO_PRODUCT_GATE=1` supplies the external fixtures. Remaining closure: keep adding concrete workflow fixtures as product lanes mature. |
-| Package/workflow payload maturity | Upstream blocked | styio-spio | Published project graph, toolchain state, registry/package state, dependency, and workflow success payloads. |
+| Package/workflow payload maturity | Upstream blocked | styio-pafio | Published project graph, toolchain state, registry/package state, dependency, and workflow success payloads. |
 
 ## 7. AI, Theme, Module, And Mobile Gaps
 
@@ -103,7 +103,7 @@ Status values:
 | Theme profile store | Implementation needed | Vityo | Persist user theme overrides and cross-session restore. |
 | Module package staging | Implementation needed | Vityo | Real package download/staging/activation path. |
 | Platform file deletion and resource reclaim | Implementation needed | Vityo | Platform-specific package/cache/data cleanup with user-visible recovery behavior. |
-| Android local-first execution | Implementation needed | Vityo | Real local-first execution path and fallback behavior. |
+| Android local-first execution | Partially implemented | Vityo | Backend route selection now keeps Android local-first when a resolved CLI compiler is present, falls back to hosted execution when configured, and blocks with recovery guidance otherwise; remaining closure is Android device/emulator execution evidence. |
 | Mobile interaction matrix | Validation needed | Vityo | Android/iOS input, viewport, commands, editor, runtime, and recovery behavior. |
 | Device/simulator platform gates | Validation needed | Vityo | Android device/emulator and iOS simulator/cloud-route gates. |
 
@@ -115,7 +115,7 @@ Status values:
 | M6 IDE hardening | Validation needed | Vityo | Product-level full UI, contract, sample matrix, and workflow gates. |
 | Runtime event product completeness | Partially implemented | Vityo | `StyioServiceRuntimeSession` emits lifecycle events and metadata-only `StyioServiceRuntimeStatusSnapshot` values that expose provider manifest state plus diagnostics/completion/hover/semantic-token capability states and counts without raw language payloads. Interaction now has `LanguageServiceStatusSurface` to project those snapshots into UI-consumable status models without rendering ownership. `AppBootstrap`, `ShellRuntimeModel`, and `EditorSurface` now carry and render that status in the real editor language pane, with a widget-test anchor for the status card surface. Remaining closure: validate the full app flow against a real asynchronous StyioService update on every supported platform. |
 | Hosted workspace retention/export UX | Validation needed | Vityo | User-visible close/export/retention/delete path. |
-| Documentation automation after plan retirement | Implementation needed | Vityo | Docs index/lifecycle/audit scripts and policies must no longer require `docs/plan/`. |
+| Documentation automation after plan retirement | Resolved | Vityo | Docs scripts, policies, and generated indexes treat `docs/plan/` as retired except for explicit Better Plan workflow state. Verified: `docs-index.py` INDEX_META describes retired status, `docs-audit.py` only checks physical directory existence for `better-plan/`, `DOCUMENTATION-POLICY.md` sections 0.5/3 declare `docs/plan/` retired, and generated INDEX.md only lists `better-plan/`. |
 
 ## 9. Retired Plan Replacement Rule
 
@@ -128,7 +128,7 @@ Use these destinations instead:
 | Stable product/system truth | `docs/design/` |
 | Active implementation or integration gap | `docs/design/Vityo-Implementation-Gaps.md` |
 | Upstream Styio handoff | `docs/external/for-styio/` |
-| Upstream Spio handoff | `docs/external/for-spio/` |
+| Upstream Pafio handoff | `docs/external/for-pafio/` |
 | Frozen milestone batch | `docs/plan/` |
 | Open risk or conflict before decision | `docs/review/` |
 | Final architecture decision | `docs/adr/` |
@@ -174,16 +174,16 @@ All items marked **Upstream blocked** in sections 2–8 remain unchanged. Key it
 - Rename / Code actions / Formatting / Inlay hints — need StyioService machine contract
 - Embedded parser API — needs styio-nightly stable facade
 - Real JIT compiler/backend contract — needs styio-nightly/backend service
-- Package/workflow payload maturity — needs styio-spio
+- Package/workflow payload maturity — needs styio-pafio
 
 ### Remaining Repo-Local Items (Not Addressed This Audit)
 
 Items marked **Implementation needed** or **Partially implemented** that were not addressed:
-- `HostedWorkspaceFileSystemProvider` (vityo-hosted:// scheme) — still unimplemented
+- `HostedWorkspaceFileSystemProvider` (vityo-hosted:// scheme) — implemented for hosted document load/save and structured unsupported operations; live hosted product gate remains opt-in
 - `CacheStore<K,V>` generic interface — not yet published
 - Cache Level 2 persistence (DataStore-backed) — not yet implemented
 - Theme editor UI / Theme profile store — still needed
 - Module package staging / Platform file deletion and resource reclaim — still needed
-- Android local-first execution — still needed
+- Android local-first execution - route and fallback implemented; device/emulator execution evidence still needed
 - Mobile interaction matrix / Device/simulator platform gates — still needed
 - Test file API migration residuals (69 errors in test/) — pre-existing from ongoing refactoring

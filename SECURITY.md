@@ -6,7 +6,7 @@
 
 ## Supported Branch
 
-Security fixes are handled on the active `nightly` integration line unless maintainers explicitly name a release branch. This repository is a downstream nightly repository; upstream contract changes may also require coordinated fixes in `styio` or `spio`.
+Security fixes are handled on the active `nightly` integration line unless maintainers explicitly name a release branch. This repository is a downstream nightly repository; upstream contract changes may also require coordinated fixes in `styio` or `pafio`.
 
 ## Reporting A Vulnerability
 

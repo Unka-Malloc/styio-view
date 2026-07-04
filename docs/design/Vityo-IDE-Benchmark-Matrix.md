@@ -54,9 +54,9 @@ Each row names a modern-IDE capability family, states what the four benchmarks d
 
 | # | Capability Family | Benchmark Standard | Vityo Target | Current | Gap | Repo Anchors | Validation | Non-goals |
 |---|---|---|---|---|---|---|---|---|
-| P1 | Project Graph | Project model, module graph, dependency tree, build targets | Styio project graph as first-class product model: workspace members, packages, dependencies, targets, toolchain, lock/vendor/build state | Project graph snapshot, canonical file inference, workspace members/packages/dependencies/targets display exist | Machine payload consumption (waiting on spio); canonical vs hosted source marking | `view_ide/backend_toolchain/project_graph_contract.dart`, `view_ide/backend_toolchain/project_graph_adapter.dart` | Project graph summary serialization test; source marking test | No reading SPIO_HOME private directories |
+| P1 | Project Graph | Project model, module graph, dependency tree, build targets | Styio project graph as first-class product model: workspace members, packages, dependencies, targets, toolchain, lock/vendor/build state | Project graph snapshot, canonical file inference, workspace members/packages/dependencies/targets display exist | Machine payload consumption (waiting on pafio); canonical vs hosted source marking | `view_ide/backend_toolchain/project_graph_contract.dart`, `view_ide/backend_toolchain/project_graph_adapter.dart` | Project graph summary serialization test; source marking test | No reading PAFIO_HOME private directories |
 | P2 | Workspace Explorer | File tree, project view, dependency view, outline | File tree as one view; project graph as product model; workspace members, dependencies, targets, toolchain state visible | Workspace sidebar with project workflow, compiler handshake, required handoffs cards exist | Graph-first navigation (currently file-tree-first) | `view_ide/workspace/`, `view_render/shell/` | Explorer keyboard navigation test; graph summary test | No private directory structure inference |
-| P3 | Dependency Management | Package manager integration, dependency tree, version resolution | fetch/vendor workflow lanes through DependencySourceAdapter | Dependency source adapter, fetch/vendor commands exist | Upstream spio dependency resolution | `view_ide/backend_toolchain/dependency_source_adapter.dart` | Fetch/vendor lane state test | No Vityo-owned dependency resolver |
+| P3 | Dependency Management | Package manager integration, dependency tree, version resolution | fetch/vendor workflow lanes through DependencySourceAdapter | Dependency source adapter, fetch/vendor commands exist | Upstream pafio dependency resolution | `view_ide/backend_toolchain/dependency_source_adapter.dart` | Fetch/vendor lane state test | No Vityo-owned dependency resolver |
 | P4 | Toolchain Management | Compiler/SDK version management, toolchain pinning | Managed Styio toolchain lifecycle: install, use, pin, clear, health check | Toolchain manager, catalog, install executor, health check exist | Real managed download endpoint; richer selector UX | `view_ide/toolchain/`, `view_ide/backend_toolchain/toolchain_management_adapter.dart` | Toolchain status surface test | No Vityo-owned compiler distribution |
 
 ---
@@ -149,7 +149,7 @@ Every row in this matrix where Current < Target must express the gap through Vit
 
 | Gap Kind | Meaning | UI Behavior |
 |---|---|---|
-| `upstream-blocked` | Styio or Spio must provide a machine contract first | Show blocked reason in relevant panel; do not guess |
+| `upstream-blocked` | Styio or Pafio must provide a machine contract first | Show blocked reason in relevant panel; do not guess |
 | `implementation-needed` | Design exists, repo-local code missing | Show as "coming soon" or hidden behind feature flag |
 | `partially-implemented` | Code exists but product path incomplete | Show available features; mark missing sub-features |
 | `validation-needed` | Code exists but product gate not proven | Feature available; gate pending |

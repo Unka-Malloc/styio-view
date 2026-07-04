@@ -441,17 +441,17 @@ class WorkspaceGraphBuilder {
     }
 
     final hasManifest = canonicalFiles.any(
-      (f) => f.filePath.endsWith('spio.toml'),
+      (f) => f.filePath.endsWith('pafio.toml'),
     );
     if (!hasManifest) {
-      gaps.add('Missing workspace manifest (spio.toml).');
+      gaps.add('Missing workspace manifest (pafio.toml).');
     }
 
     final hasLockfile = canonicalFiles.any(
-      (f) => f.filePath.endsWith('spio.lock'),
+      (f) => f.filePath.endsWith('pafio.lock'),
     );
     if (!hasLockfile) {
-      gaps.add('Missing lockfile (spio.lock).');
+      gaps.add('Missing lockfile (pafio.lock).');
     }
 
     if (toolchain.source == ToolchainResolutionSource.unavailable) {
@@ -541,8 +541,8 @@ class WorkspaceGraphBuilder {
         continue;
       }
       // Check if any previous canonical file path matches.
-      // Root manifest (spio.toml at workspace root) affects all packages.
-      if (file.filePath.endsWith('spio.toml') &&
+      // Root manifest (pafio.toml at workspace root) affects all packages.
+      if (file.filePath.endsWith('pafio.toml') &&
           !file.filePath.contains('/packages/') &&
           !file.filePath.contains('\\packages\\')) {
         // Root manifest change affects all packages.
@@ -550,12 +550,12 @@ class WorkspaceGraphBuilder {
         continue;
       }
       // Lockfile change affects all packages.
-      if (file.filePath.endsWith('spio.lock')) {
+      if (file.filePath.endsWith('pafio.lock')) {
         changedNames.addAll(packages.map((p) => p.packageName));
         continue;
       }
       // Toolchain pin change affects all packages.
-      if (file.filePath.endsWith('spio-toolchain.toml')) {
+      if (file.filePath.endsWith('pafio-toolchain.toml')) {
         changedNames.addAll(packages.map((p) => p.packageName));
         continue;
       }

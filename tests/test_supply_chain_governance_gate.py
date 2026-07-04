@@ -44,7 +44,7 @@ class SupplyChainGovernanceGateTest(unittest.TestCase):
             "  contents: read\n"
             "jobs:\n"
             "  audit:\n"
-            "    runs-on: ubuntu-24.04\n"
+            "    runs-on: ubuntu-latest\n"
             "    steps:\n"
             "      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567\n"
             "      - run: python3 scripts/supply-chain-governance-gate.py\n"

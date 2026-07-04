@@ -253,11 +253,11 @@ void main() {
       packageDistribution: const PackageDistributionSnapshot(schemaVersion: 1),
       sourceState: const ProjectSourceStateSnapshot(schemaVersion: 1),
       projectGraphPayloadFailure: const PublishedPayloadFailure(
-        command: 'spio project-graph',
+        command: 'pafio project-graph',
         detail: 'schema mismatch',
       ),
       toolchainStatePayloadFailure: const PublishedPayloadFailure(
-        command: 'spio toolchain-state',
+        command: 'pafio toolchain-state',
         detail: 'missing contract',
       ),
       hostedWorkspace: HostedWorkspaceRecordSnapshot(

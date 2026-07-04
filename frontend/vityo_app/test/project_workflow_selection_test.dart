@@ -48,7 +48,7 @@ void main() {
     expect(testWorkflow.targetKind, 'test');
     expect(
       testWorkflow.successMessage,
-      'Project test target completed through spio.',
+      'Project test target completed through pafio.',
     );
 
     expect(libWorkflow.command, 'build');
@@ -118,13 +118,13 @@ void main() {
     expect(packageBuild.packageName, 'demo/app');
     expect(
       packageBuild.successMessage,
-      'Project package build completed through spio.',
+      'Project package build completed through pafio.',
     );
 
     expect(projectBuild.command, 'build');
     expect(projectBuild.args, isEmpty);
     expect(projectBuild.packageName, isNull);
-    expect(projectBuild.successMessage, 'Project build completed through spio.');
+    expect(projectBuild.successMessage, 'Project build completed through pafio.');
   });
 
   test('project workflow selection exposes package helpers', () {
@@ -182,12 +182,12 @@ ProjectGraphSnapshot _graph({
   List<ProjectPackageSnapshot>? packages,
 }) {
   return ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.package,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
+    manifestPath: '/workspace/demo/pafio.toml',
     packages:
         packages ??
         <ProjectPackageSnapshot>[
@@ -195,7 +195,7 @@ ProjectGraphSnapshot _graph({
             packageName: 'demo/app',
             version: '0.1.0',
             rootPath: '/workspace/demo',
-            manifestPath: '/workspace/demo/spio.toml',
+            manifestPath: '/workspace/demo/pafio.toml',
             targets: targets,
           ),
         ],

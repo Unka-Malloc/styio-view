@@ -21,10 +21,10 @@ void main() {
     expect(plan.requiresClearConfirmation, isTrue);
     expect(plan.exportReady, isTrue);
     expect(plan.coreFilePaths, <String>[
-      '/workspace/demo/spio.toml',
+      '/workspace/demo/pafio.toml',
       '/workspace/demo/styio.toml',
-      '/workspace/demo/spio-toolchain.toml',
-      '/workspace/demo/spio.lock',
+      '/workspace/demo/pafio-toolchain.toml',
+      '/workspace/demo/pafio.lock',
       '/workspace/demo/src/main.styio',
       '/workspace/demo/src/lib.styio',
     ]);
@@ -196,14 +196,14 @@ ProjectGraphSnapshot _project({
   required HostedWorkspaceRecordSnapshot workspace,
 }) {
   return ProjectGraphSnapshot(
-    id: '/workspace/demo/spio.toml',
+    id: '/workspace/demo/pafio.toml',
     title: 'demo/app',
     kind: ProjectKind.hosted,
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
-    manifestPath: '/workspace/demo/spio.toml',
-    lockfilePath: '/workspace/demo/spio.lock',
-    toolchainPinPath: '/workspace/demo/spio-toolchain.toml',
+    manifestPath: '/workspace/demo/pafio.toml',
+    lockfilePath: '/workspace/demo/pafio.lock',
+    toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
     styioConfigPath: '/workspace/demo/styio.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],

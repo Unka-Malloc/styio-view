@@ -16,7 +16,7 @@ The biggest product gap exposed during manual launch is not syntax highlighting.
 
 Work was kept in the downstream repository:
 
-1. Repository: `/home/unka/Unka-Malloc/vityo-nightly`
+1. Repository: `<vityo-workspace>`
 2. Branch: `codex/Vityo-delivery-closure`
 3. PR target: downstream `nightly`
 4. PR: `Unka-Malloc/vityo-nightly#1`
@@ -94,7 +94,7 @@ The following are still not real IDE capabilities in the production sense:
 1. Compiler-backed parse tree, semantic model, type system, and error recovery for all new Styio syntax.
 2. Full multi-file workspace indexing with stable cross-file symbol resolution.
 3. Real hosted workspace service for Flutter Web startup, persistence, execution, dependency, publish, and runtime-event flows.
-4. Real `spio` and `styio` execution from the browser route.
+4. Real `pafio` and `styio` execution from the browser route.
 5. Project-wide refactors that are backed by compiler-safe symbol identity instead of current-file heuristics.
 6. Durable LSP-like protocol boundary with incremental document sync, workspace diagnostics, and cancellation.
 7. Production-grade file save, conflict handling, trust model, auth/session, and workspace retention behavior for web.
@@ -111,7 +111,7 @@ The corrective direction is:
 
 1. Keep language preview support in `frontend/vityo_app/lib/src/language/`.
 2. Keep compiler truth in upstream `styio`.
-3. Keep package/toolchain truth in `spio` and hosted/control-plane contracts.
+3. Keep package/toolchain truth in `pafio` and hosted/control-plane contracts.
 4. Provide a clear local preview server for Flutter Web that mocks hosted routes only for UI validation.
 5. Do not describe preview execution as real Styio execution.
 
@@ -158,7 +158,7 @@ Required for that milestone:
 3. Correct project-wide refactors.
 4. Robust quick fixes based on semantic diagnostics.
 5. Real build/test/run/debug workflows.
-6. Dependency and toolchain management through `spio`.
+6. Dependency and toolchain management through `pafio`.
 7. Hosted workspace service with auth, persistence, retention, and export.
 8. Stable desktop/web/mobile packaging and performance envelopes.
 

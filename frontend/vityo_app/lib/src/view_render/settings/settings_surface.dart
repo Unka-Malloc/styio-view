@@ -7,6 +7,7 @@ import '../../view_ide/environment/configuration/vityo_theme_override.dart';
 import '../../view_ide/toolchain/toolchain_catalog.dart';
 import '../../view_ide/toolchain/toolchain_manager.dart';
 import '../platform/viewport_profile.dart';
+import '../theme/theme.dart';
 
 class SettingsSurface extends StatelessWidget {
   const SettingsSurface({
@@ -166,116 +167,126 @@ class _CommandPaletteSettingsCardState
         borderRadius: BorderRadius.circular(18),
       ),
       padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Command Palette Settings', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'Workspace command palette display preferences. Persistence is delegated to CommandPaletteDisplayPreferencesStore.',
-            style: theme.textTheme.bodySmall,
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<AppCommandCategory?>(
-            key: const ValueKey('settings-command-palette-default-category'),
-            initialValue: _defaultCategory,
-            isExpanded: true,
-            decoration: const InputDecoration(labelText: 'Default category'),
-            items: <DropdownMenuItem<AppCommandCategory?>>[
-              const DropdownMenuItem<AppCommandCategory?>(
-                value: null,
-                child: Text(
-                  'No default category',
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              ...AppCommandCategory.values.map(
-                (category) => DropdownMenuItem<AppCommandCategory?>(
-                  value: category,
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Command Palette Settings',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Workspace command palette display preferences. Persistence is delegated to CommandPaletteDisplayPreferencesStore.',
+              style: theme.textTheme.bodySmall,
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<AppCommandCategory?>(
+              key: const ValueKey('settings-command-palette-default-category'),
+              initialValue: _defaultCategory,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Default category'),
+              items: <DropdownMenuItem<AppCommandCategory?>>[
+                const DropdownMenuItem<AppCommandCategory?>(
+                  value: null,
                   child: Text(
-                    category.wireValue,
+                    'No default category',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-            ],
-            onChanged: (category) {
-              setState(() {
-                _defaultCategory = category;
-              });
-            },
-          ),
-          const SizedBox(height: 10),
-          SwitchListTile(
-            key: const ValueKey('settings-command-palette-show-filters'),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Show category filters'),
-            value: _showCategoryFilters,
-            onChanged: (value) {
-              setState(() {
-                _showCategoryFilters = value;
-              });
-            },
-          ),
-          SwitchListTile(
-            key: const ValueKey('settings-command-palette-show-recent'),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Show recent commands'),
-            value: _showRecentCommands,
-            onChanged: (value) {
-              setState(() {
-                _showRecentCommands = value;
-              });
-            },
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 8,
-            children: [
-              Chip(label: Text('workspace ${widget.preferences.workspaceId}')),
-              Chip(
-                label: Text('default ${_defaultCategory?.wireValue ?? 'none'}'),
-              ),
-              OutlinedButton(
-                key: const ValueKey('settings-command-palette-save'),
-                onPressed: widget.onSavePreferences == null
-                    ? null
-                    : () {
-                        widget.onSavePreferences!(
-                          CommandPaletteDisplayPreferences(
-                            workspaceId: widget.preferences.workspaceId,
-                            defaultCategory: _defaultCategory,
-                            showCategoryFilters: _showCategoryFilters,
-                            showRecentCommands: _showRecentCommands,
-                            updatedAt: DateTime.now().toUtc(),
-                          ),
-                        );
-                      },
-                child: const Text('Save command palette'),
-              ),
-              OutlinedButton(
-                key: const ValueKey('settings-command-palette-reset'),
-                onPressed: widget.onSavePreferences == null
-                    ? null
-                    : () {
-                        setState(() {
-                          _defaultCategory = null;
-                          _showCategoryFilters = true;
-                          _showRecentCommands = true;
-                        });
-                        widget.onSavePreferences!(
-                          CommandPaletteDisplayPreferences(
-                            workspaceId: widget.preferences.workspaceId,
-                            updatedAt: DateTime.now().toUtc(),
-                          ),
-                        );
-                      },
-                child: const Text('Reset command palette'),
-              ),
-            ],
-          ),
-        ],
+                ...AppCommandCategory.values.map(
+                  (category) => DropdownMenuItem<AppCommandCategory?>(
+                    value: category,
+                    child: Text(
+                      category.wireValue,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: (category) {
+                setState(() {
+                  _defaultCategory = category;
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+            SwitchListTile(
+              key: const ValueKey('settings-command-palette-show-filters'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show category filters'),
+              value: _showCategoryFilters,
+              onChanged: (value) {
+                setState(() {
+                  _showCategoryFilters = value;
+                });
+              },
+            ),
+            SwitchListTile(
+              key: const ValueKey('settings-command-palette-show-recent'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Show recent commands'),
+              value: _showRecentCommands,
+              onChanged: (value) {
+                setState(() {
+                  _showRecentCommands = value;
+                });
+              },
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                Chip(
+                  label: Text('workspace ${widget.preferences.workspaceId}'),
+                ),
+                Chip(
+                  label: Text(
+                    'default ${_defaultCategory?.wireValue ?? 'none'}',
+                  ),
+                ),
+                OutlinedButton(
+                  key: const ValueKey('settings-command-palette-save'),
+                  onPressed: widget.onSavePreferences == null
+                      ? null
+                      : () {
+                          widget.onSavePreferences!(
+                            CommandPaletteDisplayPreferences(
+                              workspaceId: widget.preferences.workspaceId,
+                              defaultCategory: _defaultCategory,
+                              showCategoryFilters: _showCategoryFilters,
+                              showRecentCommands: _showRecentCommands,
+                              updatedAt: DateTime.now().toUtc(),
+                            ),
+                          );
+                        },
+                  child: const Text('Save command palette'),
+                ),
+                OutlinedButton(
+                  key: const ValueKey('settings-command-palette-reset'),
+                  onPressed: widget.onSavePreferences == null
+                      ? null
+                      : () {
+                          setState(() {
+                            _defaultCategory = null;
+                            _showCategoryFilters = true;
+                            _showRecentCommands = true;
+                          });
+                          widget.onSavePreferences!(
+                            CommandPaletteDisplayPreferences(
+                              workspaceId: widget.preferences.workspaceId,
+                              updatedAt: DateTime.now().toUtc(),
+                            ),
+                          );
+                        },
+                  child: const Text('Reset command palette'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -406,43 +417,78 @@ class _ThemeSettingsCard extends StatefulWidget {
   State<_ThemeSettingsCard> createState() => _ThemeSettingsCardState();
 }
 
+enum _ThemeColorField { canvas, panel, ink, accent, muted }
+
+extension _ThemeColorFieldX on _ThemeColorField {
+  String get label => switch (this) {
+    _ThemeColorField.canvas => 'Canvas',
+    _ThemeColorField.panel => 'Panel',
+    _ThemeColorField.ink => 'Ink',
+    _ThemeColorField.accent => 'Accent',
+    _ThemeColorField.muted => 'Muted',
+  };
+
+  String get hint => switch (this) {
+    _ThemeColorField.canvas => '#F7F4EB',
+    _ThemeColorField.panel => '#FFFDF5',
+    _ThemeColorField.ink => '#2D2416',
+    _ThemeColorField.accent => '#C7522A',
+    _ThemeColorField.muted => '#A09880',
+  };
+
+  String get keyName => switch (this) {
+    _ThemeColorField.canvas => 'canvas',
+    _ThemeColorField.panel => 'panel',
+    _ThemeColorField.ink => 'ink',
+    _ThemeColorField.accent => 'accent',
+    _ThemeColorField.muted => 'muted',
+  };
+}
+
 class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
-  late final TextEditingController _accentController;
+  late final Map<_ThemeColorField, TextEditingController> _controllers;
+  late VityoThemePreset _previewPreset;
 
   @override
   void initState() {
     super.initState();
-    _accentController = TextEditingController(
-      text: _colorToHex(
-        widget.themeOverride.accent != null
-            ? Color(widget.themeOverride.accent!)
-            : null,
-      ),
-    );
+    _previewPreset = VityoThemePreset.parchment;
+    _controllers = {
+      for (final field in _ThemeColorField.values)
+        field: TextEditingController(
+          text: _colorToHex(_overrideColor(field, widget.themeOverride)),
+        ),
+    };
   }
 
   @override
   void didUpdateWidget(covariant _ThemeSettingsCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextText = _colorToHex(
-      widget.themeOverride.accent != null
-          ? Color(widget.themeOverride.accent!)
-          : null,
-    );
-    if (_accentController.text != nextText) {
-      _accentController.text = nextText;
+    for (final field in _ThemeColorField.values) {
+      final controller = _controllers[field]!;
+      final nextText = _colorToHex(_overrideColor(field, widget.themeOverride));
+      if (controller.text != nextText) {
+        controller.text = nextText;
+      }
     }
   }
 
   @override
   void dispose() {
-    _accentController.dispose();
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final draftOverride = _draftOverride();
+    final previewTheme = VityoTheme.light(
+      preset: _previewPreset,
+      overrides: draftOverride,
+    );
     return Container(
       key: const ValueKey('settings-theme-card'),
       width: double.infinity,
@@ -457,19 +503,66 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
           Text('Theme Settings', style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
           Text(
-            'Persist a workspace theme override through Configuration DataStore.',
+            'Edit workspace theme colors with a live preview against the active preset.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 10),
-          TextField(
-            key: const ValueKey('settings-theme-accent-input'),
-            controller: _accentController,
-            decoration: const InputDecoration(
-              labelText: 'Accent color',
-              hintText: '#2F6F73',
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final preset in VityoThemePreset.values)
+                ChoiceChip(
+                  key: ValueKey('settings-theme-preset-${preset.name}'),
+                  label: Text(preset.name),
+                  selected: _previewPreset == preset,
+                  onSelected: (selected) {
+                    if (!selected) {
+                      return;
+                    }
+                    setState(() {
+                      _previewPreset = preset;
+                    });
+                  },
+                ),
+            ],
           ),
           const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final fieldWidth = constraints.maxWidth >= 700
+                  ? (constraints.maxWidth - 12) / 2
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final field in _ThemeColorField.values)
+                    SizedBox(
+                      width: fieldWidth,
+                      child: TextField(
+                        key: ValueKey('settings-theme-${field.keyName}-input'),
+                        controller: _controllers[field],
+                        onChanged: (_) {
+                          setState(() {});
+                        },
+                        decoration: InputDecoration(
+                          labelText: field.label,
+                          hintText: field.hint,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _ThemePreviewPanel(
+            theme: previewTheme,
+            preset: _previewPreset,
+            themeOverride: draftOverride,
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 8,
@@ -479,15 +572,7 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
                 onPressed: widget.onSaveThemeOverride == null
                     ? null
                     : () {
-                        final accent = _parseHexColor(_accentController.text);
-                        if (accent == null) {
-                          return;
-                        }
-                        widget.onSaveThemeOverride!(
-                          widget.themeOverride.copyWith(
-                            accent: accent.toARGB32(),
-                          ),
-                        );
+                        widget.onSaveThemeOverride!(_draftOverride());
                       },
                 child: const Text('Save theme override'),
               ),
@@ -496,18 +581,204 @@ class _ThemeSettingsCardState extends State<_ThemeSettingsCard> {
                 onPressed: widget.onSaveThemeOverride == null
                     ? null
                     : () {
+                        setState(() {
+                          _previewPreset = VityoThemePreset.parchment;
+                          for (final field in _ThemeColorField.values) {
+                            _controllers[field]!.text = '';
+                          }
+                        });
                         widget.onSaveThemeOverride!(const VityoThemeOverride());
                       },
                 child: const Text('Reset theme'),
               ),
-              if (widget.themeOverride.accent != null)
-                Chip(
-                  label: Text(
-                    'accent ${_colorToHex(widget.themeOverride.accent != null ? Color(widget.themeOverride.accent!) : null)}',
+              for (final field in _ThemeColorField.values)
+                if (_overrideColor(field, draftOverride) != null)
+                  Chip(
+                    label: Text(
+                      '${field.keyName} ${_colorToHex(_overrideColor(field, draftOverride))}',
+                    ),
                   ),
-                ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  VityoThemeOverride _draftOverride() {
+    return VityoThemeOverride(
+      canvas: _resolvedColor(_ThemeColorField.canvas)?.toARGB32(),
+      panel: _resolvedColor(_ThemeColorField.panel)?.toARGB32(),
+      ink: _resolvedColor(_ThemeColorField.ink)?.toARGB32(),
+      accent: _resolvedColor(_ThemeColorField.accent)?.toARGB32(),
+      muted: _resolvedColor(_ThemeColorField.muted)?.toARGB32(),
+    );
+  }
+
+  Color? _resolvedColor(_ThemeColorField field) {
+    final parsed = _parseHexColor(_controllers[field]!.text);
+    if (parsed != null) {
+      return parsed;
+    }
+    return _overrideColor(field, widget.themeOverride);
+  }
+
+  Color? _overrideColor(_ThemeColorField field, VityoThemeOverride override) {
+    return switch (field) {
+      _ThemeColorField.canvas =>
+        override.canvas != null ? Color(override.canvas!) : null,
+      _ThemeColorField.panel =>
+        override.panel != null ? Color(override.panel!) : null,
+      _ThemeColorField.ink =>
+        override.ink != null ? Color(override.ink!) : null,
+      _ThemeColorField.accent =>
+        override.accent != null ? Color(override.accent!) : null,
+      _ThemeColorField.muted =>
+        override.muted != null ? Color(override.muted!) : null,
+    };
+  }
+}
+
+class _ThemePreviewPanel extends StatelessWidget {
+  const _ThemePreviewPanel({
+    required this.theme,
+    required this.preset,
+    required this.themeOverride,
+  });
+
+  final ThemeData theme;
+  final VityoThemePreset preset;
+  final VityoThemeOverride themeOverride;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('settings-theme-preview'),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Theme(
+        data: theme,
+        child: Builder(
+          builder: (context) {
+            final theme = Theme.of(context);
+            final colorScheme = theme.colorScheme;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${preset.name} preview',
+                  style: theme.textTheme.titleSmall,
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _ThemeSwatch(
+                      key: const ValueKey('settings-theme-preview-canvas'),
+                      label: 'canvas',
+                      color: theme.scaffoldBackgroundColor,
+                    ),
+                    _ThemeSwatch(
+                      key: const ValueKey('settings-theme-preview-panel'),
+                      label: 'panel',
+                      color: theme.cardColor,
+                    ),
+                    _ThemeSwatch(
+                      key: const ValueKey('settings-theme-preview-ink'),
+                      label: 'ink',
+                      color:
+                          theme.textTheme.bodyMedium?.color ??
+                          colorScheme.onSurface,
+                    ),
+                    _ThemeSwatch(
+                      key: const ValueKey('settings-theme-preview-accent'),
+                      label: 'accent',
+                      color: colorScheme.primary,
+                    ),
+                    _ThemeSwatch(
+                      key: const ValueKey('settings-theme-preview-muted'),
+                      label: 'muted',
+                      color:
+                          theme.textTheme.bodySmall?.color ??
+                          colorScheme.onSurface,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Card(
+                  color: theme.cardColor,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Preview card', style: theme.textTheme.titleSmall),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Canvas, panel, ink, accent, and muted values follow the selected preset unless an override edits them.',
+                          style: theme.textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Chip(label: Text('preset ${preset.name}')),
+                            Chip(
+                              label: Text(
+                                'override ${themeOverride.toJson().length}',
+                              ),
+                            ),
+                            const OutlinedButton(
+                              onPressed: null,
+                              child: Text('Action'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeSwatch extends StatelessWidget {
+  const _ThemeSwatch({super.key, required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final onColor = color.computeLuminance() > 0.55
+        ? const Color(0xFF1E252B)
+        : const Color(0xFFFFFFFF);
+    return Container(
+      width: 110,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: onColor.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: onColor)),
+          const SizedBox(height: 4),
+          Text(_colorToHex(color), style: TextStyle(color: onColor)),
         ],
       ),
     );

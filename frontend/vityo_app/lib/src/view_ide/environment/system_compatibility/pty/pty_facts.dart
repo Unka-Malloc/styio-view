@@ -7,13 +7,7 @@ enum PtyProviderKind {
   unknown,
 }
 
-enum PtyFactCertainty {
-  confirmed,
-  inferred,
-  unknown,
-  unsupported,
-  stale,
-}
+enum PtyFactCertainty { confirmed, inferred, unknown, unsupported, stale }
 
 extension PtyProviderKindX on PtyProviderKind {
   String get wireValue => switch (this) {
@@ -137,6 +131,49 @@ class PtyFacts {
     );
   }
 
+  factory PtyFacts.windowsX64({
+    String targetId = 'local',
+    String architecture = 'x64',
+    DateTime? detectedAt,
+  }) {
+    return PtyFacts(
+      targetId: targetId,
+      operatingSystem: 'windows',
+      distributionId: 'windows',
+      distributionName: 'Windows',
+      architecture: architecture,
+      providerKind: PtyProviderKind.unsupported,
+      supportsPty: false,
+      supportsResize: false,
+      supportsRawMode: false,
+      supportsSignals: false,
+      supportsProcessGroup: false,
+      supportsConPty: false,
+      supportsForkPty: false,
+      supportsScriptUtility: false,
+      detectedAt: detectedAt,
+      entries: buildEntries(
+        targetId: targetId,
+        operatingSystem: 'windows',
+        distributionId: 'windows',
+        distributionName: 'Windows',
+        architecture: architecture,
+        providerKind: PtyProviderKind.unsupported,
+        supportsPty: false,
+        supportsResize: false,
+        supportsRawMode: false,
+        supportsSignals: false,
+        supportsProcessGroup: false,
+        supportsConPty: false,
+        supportsForkPty: false,
+        supportsScriptUtility: false,
+        scriptUtilityPath: null,
+        source: 'fixture',
+        detectedAt: detectedAt,
+      ),
+    );
+  }
+
   final String targetId;
   final String operatingSystem;
   final String distributionId;
@@ -172,6 +209,13 @@ class PtyFacts {
       return 'linux-generic';
     }
     if (operatingSystem == 'windows') {
+      final arch = architecture.toLowerCase();
+      if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') {
+        return 'windows-x64';
+      }
+      if (arch == 'arm64' || arch == 'aarch64') {
+        return 'windows-arm64';
+      }
       return 'windows-generic';
     }
     return 'unsupported';

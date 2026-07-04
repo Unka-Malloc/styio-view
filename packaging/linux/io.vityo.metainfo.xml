@@ -1,0 +1,35 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.vityo</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Vityo</name>
+  <summary>Language-first development environment</summary>
+  <description>
+    <p>
+      Vityo is a language-first IDE built on the Styio language ecosystem.
+      It provides a native Flutter desktop shell, handwritten web IDE
+      prototype, and a modular extension and contribution model.
+    </p>
+  </description>
+  <categories>
+    <category>Development</category>
+    <category>IDE</category>
+  </categories>
+  <url type="homepage">https://github.com/Unka-Malloc/vityo-nightly</url>
+  <url type="bugtracker">https://github.com/Unka-Malloc/vityo-nightly/issues</url>
+  <releases>
+    <!-- Populated by the release CI step -->
+  </releases>
+  <provides>
+    <binary>vityo</binary>
+  </provides>
+  <recommends>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </recommends>
+  <launchable type="desktop-id">io.vityo.desktop</launchable>
+  <screenshots>
+    <!-- Populated at release time -->
+  </screenshots>
+</component>

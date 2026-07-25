@@ -425,7 +425,7 @@ void main() {
     );
     expect(
       entriesById['runtime.terminal']?.status,
-      IdeCapabilityStatus.scaffolded,
+      IdeCapabilityStatus.wired,
     );
     expect(
       entriesById['runtime.terminal']?.summary,
@@ -437,7 +437,7 @@ void main() {
     );
     expect(
       entriesById['runtime.terminal']?.summary,
-      contains('script-PTY stdout/stderr merged output streams'),
+      contains('native forkpty/ConPTY execution plans'),
     );
     expect(
       entriesById['runtime.terminal']?.summary,
@@ -445,7 +445,7 @@ void main() {
     );
     expect(
       entriesById['runtime.terminal']?.todo,
-      contains('native OS process signal delivery'),
+      contains('fixed-version macOS and Linux product matrices'),
     );
     expect(
       entriesById['runtime.terminal']?.summary,

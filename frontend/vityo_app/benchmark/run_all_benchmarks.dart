@@ -48,9 +48,9 @@ void main() {
   final jsonOutput = const JsonEncoder.withIndent('  ').convert(results);
   print(jsonOutput);
 
-  // Write results to file
-  final file = File('benchmark_results.json');
+  final file = File('../../build/evidence/benchmark-results.json');
+  file.parent.createSync(recursive: true);
   file.writeAsStringSync(jsonOutput);
   print('');
-  print('Results written to benchmark_results.json');
+  print('Results written to ../../build/evidence/benchmark-results.json');
 }

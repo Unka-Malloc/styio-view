@@ -141,7 +141,12 @@ def check_benchmark_runner(repo_root: Path) -> list[str]:
             errors.append(
                 f"{RUNNER_PATH.as_posix()}: missing runner registration for {spec.alg_id}"
             )
-    for marker in ("JsonEncoder.withIndent", "benchmark_results.json", "'results': allResults"):
+    for marker in (
+        "JsonEncoder.withIndent",
+        "../../build/evidence/benchmark-results.json",
+        "file.parent.createSync(recursive: true)",
+        "'results': allResults",
+    ):
         if marker not in text:
             errors.append(f"{RUNNER_PATH.as_posix()}: missing runner marker `{marker}`")
     return errors

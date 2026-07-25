@@ -70,6 +70,14 @@ if [[ "$BUILD_MODE" != "debug" && "$BUILD_MODE" != "release" ]]; then
   exit 2
 fi
 
+case "$HOST" in
+  127.0.0.1|localhost|::1) ;;
+  *)
+    echo "Preview host must be loopback (127.0.0.1, localhost, or ::1)." >&2
+    exit 2
+    ;;
+esac
+
 port_is_free() {
   python3 - "$HOST" "$1" <<'PY'
 import socket
@@ -110,9 +118,6 @@ select_port() {
 }
 
 check_host="$HOST"
-if [[ "$check_host" == "0.0.0.0" ]]; then
-  check_host="127.0.0.1"
-fi
 
 selected_port="$(select_port)"
 export STYIO_DEV_SERVER_HOST="$HOST"

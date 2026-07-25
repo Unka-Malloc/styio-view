@@ -6,69 +6,36 @@ class PtyAdapter {
 
   final PtyFacts facts;
 
-  PtyCompatibility adapt() {
-    return PtyCompatibility(
-      targetId: facts.targetId,
-      compatibilityTarget: facts.compatibilityTarget,
-      providerKind: facts.providerKind,
-      supportsPty: facts.supportsPty,
-      supportsResize: facts.supportsResize,
-      supportsRawMode: facts.supportsRawMode,
-      supportsSignals: facts.supportsSignals,
-      supportsProcessGroup: facts.supportsProcessGroup,
-      scriptUtilityPath: facts.scriptUtilityPath,
-    );
-  }
+  PtyCompatibility adapt() => PtyCompatibility(
+    targetId: facts.targetId,
+    compatibilityTarget: facts.compatibilityTarget,
+    providerKind: facts.providerKind,
+    supportsPty: facts.supportsPty,
+    supportsResize: facts.supportsResize,
+    supportsRawMode: facts.supportsRawMode,
+    supportsSignals: facts.supportsSignals,
+    supportsProcessGroup: facts.supportsProcessGroup,
+  );
 
   PtyExecutionPlan plan(PtySessionRequest request) {
     final compatibility = adapt();
-    if (!compatibility.supportsPty) {
+    if (!compatibility.supportsPty ||
+        (compatibility.providerKind != PtyProviderKind.posixPty &&
+            compatibility.providerKind != PtyProviderKind.conPty)) {
       return PtyExecutionPlan.unsupported(
         request: request,
-        message: 'PTY allocation is not available on ${facts.targetId}.',
+        message: 'Native PTY allocation is not available on ${facts.targetId}.',
       );
     }
-    if (compatibility.providerKind == PtyProviderKind.scriptUtility) {
-      final scriptPath = compatibility.scriptUtilityPath;
-      if (scriptPath == null || scriptPath.isEmpty) {
-        return PtyExecutionPlan.unsupported(
-          request: request,
-          message: 'The script utility PTY backend has no executable path.',
-        );
-      }
-      return PtyExecutionPlan(
-        request: request,
-        providerKind: PtyProviderKind.scriptUtility,
-        backendExecutablePath: scriptPath,
-        backendArguments: <String>[
-          '-qfec',
-          _composeCommand(request.executablePath, request.arguments),
-          '/dev/null',
-        ],
-        workingDirectory: request.workingDirectory,
-        environment: request.environment,
-        supported: true,
-      );
-    }
-    return PtyExecutionPlan.unsupported(
+    return PtyExecutionPlan(
       request: request,
-      message:
-          'PTY provider ${compatibility.providerKind.wireValue} is not implemented.',
+      providerKind: compatibility.providerKind,
+      backendExecutablePath: request.executablePath,
+      backendArguments: request.arguments,
+      workingDirectory: request.workingDirectory,
+      environment: request.environment,
+      supported: true,
     );
-  }
-
-  String _composeCommand(String executablePath, List<String> arguments) {
-    return <String>[
-      quotePosix(executablePath),
-      ...arguments.map(quotePosix),
-    ].join(' ');
-  }
-
-  String quotePosix(String value) {
-    if (value.isEmpty) {
-      return "''";
-    }
-    return "'${value.replaceAll("'", "'\\''")}'";
   }
 }
 
@@ -82,7 +49,6 @@ class PtyCompatibility {
     required this.supportsRawMode,
     required this.supportsSignals,
     required this.supportsProcessGroup,
-    this.scriptUtilityPath,
   });
 
   final String targetId;
@@ -93,7 +59,6 @@ class PtyCompatibility {
   final bool supportsRawMode;
   final bool supportsSignals;
   final bool supportsProcessGroup;
-  final String? scriptUtilityPath;
 
   bool get isLinuxDebianArm => compatibilityTarget == 'linux-debian-arm';
 }
@@ -113,18 +78,16 @@ class PtyExecutionPlan {
   factory PtyExecutionPlan.unsupported({
     required PtySessionRequest request,
     required String message,
-  }) {
-    return PtyExecutionPlan(
-      request: request,
-      providerKind: PtyProviderKind.unsupported,
-      backendExecutablePath: '',
-      backendArguments: const <String>[],
-      workingDirectory: request.workingDirectory,
-      environment: const <String, String>{},
-      supported: false,
-      unsupportedMessage: message,
-    );
-  }
+  }) => PtyExecutionPlan(
+    request: request,
+    providerKind: PtyProviderKind.unsupported,
+    backendExecutablePath: '',
+    backendArguments: const <String>[],
+    workingDirectory: request.workingDirectory,
+    environment: const <String, String>{},
+    supported: false,
+    unsupportedMessage: message,
+  );
 
   final PtySessionRequest request;
   final PtyProviderKind providerKind;

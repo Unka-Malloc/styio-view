@@ -26,7 +26,7 @@ Instead of raw values, use **credential references**:
 ```dart
 class ProviderEndpoint {
   final String credentialRef;  // ENV_VAR name: "STYIO_API_KEY"
-                                // or secret store ref: "secret://styio/prod/key"
+                                // or an opaque secret-store reference
   // NEVER: final String apiKey; → FORBIDDEN
 }
 ```

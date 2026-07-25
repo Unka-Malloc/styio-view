@@ -69,7 +69,8 @@ class WorkspaceGraphAdapter {
       hostedWorkspace: hostedWorkspace ?? projectSnapshot.hostedWorkspace,
       forcePartial:
           projectSnapshot.hasProjectGraphPayloadFailure == true ||
-          projectSnapshot.kind == ProjectKind.scratch,
+          projectSnapshot.kind == ProjectKind.scratch ||
+          !projectSnapshot.hasAuthoritativeProjectGraphFacts,
       partialReason: _partialReasonFromProjectSnapshot(projectSnapshot),
       upstreamPayloadMissing:
           projectSnapshot.hasProjectGraphPayloadFailure == true,
@@ -170,6 +171,9 @@ class WorkspaceGraphAdapter {
     }
     if (snapshot.kind == ProjectKind.scratch) {
       return 'Running in scratch mode; no manifest available.';
+    }
+    if (!snapshot.hasAuthoritativeProjectGraphFacts) {
+      return 'Project graph uses canonical-file or inferred facts because no compatible machine payload is available.';
     }
     if (snapshot.packages.isEmpty && snapshot.workspaceMembers.isNotEmpty) {
       return 'Workspace has members but none contain a valid package.';

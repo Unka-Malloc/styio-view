@@ -19,19 +19,10 @@ Future<PtyManager> createPlatformPtyManager({
 }
 
 class LocalPtyManager extends UnsupportedPtyManager {
-  LocalPtyManager({
-    required PtyFacts facts,
-    PtyAdapter? adapter,
-    PtyNativeOperationBackendRegistry? nativeOperations,
-  }) : super(facts: facts);
+  LocalPtyManager({required PtyFacts facts, PtyAdapter? adapter})
+    : super(facts: facts);
 
-  factory LocalPtyManager.linuxDebianArmForTest({
-    String scriptUtilityPath = '/usr/bin/script',
-    PtyNativeOperationBackendRegistry? nativeOperations,
-  }) {
-    return LocalPtyManager(
-      facts: PtyFacts.linuxDebianArm(scriptUtilityPath: scriptUtilityPath),
-      nativeOperations: nativeOperations,
-    );
+  factory LocalPtyManager.linuxDebianArmForTest() {
+    return LocalPtyManager(facts: PtyFacts.linuxDebianArm());
   }
 }

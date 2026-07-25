@@ -65,7 +65,7 @@ class TerminalSurface extends StatelessWidget {
               Text('Integrated Terminal', style: theme.textTheme.titleLarge),
               const SizedBox(height: 6),
               Text(
-                'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, explicit start/resize/signal/close controls, recovery action controls, and PTY start-plan readiness. TODO: connect native OS PTY resize/signals.',
+                'Shell/runtime output entry backed by Vityo execution logs, TerminalRuntime session snapshots, RuntimeOutputLiveBuffer panel snapshots, explicit start/resize/signal/close controls, recovery action controls, and PTY start-plan readiness. Unsupported native PTY, resize, and signal routes are reported as capability gaps.',
                 style: theme.textTheme.bodySmall,
               ),
               const SizedBox(height: 10),
@@ -80,7 +80,7 @@ class TerminalSurface extends StatelessWidget {
                     ),
                   ),
                   if (startPlan == null)
-                    const Chip(label: Text('start-plan TODO'))
+                    const Chip(label: Text('start-plan unavailable'))
                   else ...[
                     Chip(
                       label: Text(
@@ -111,7 +111,15 @@ class TerminalSurface extends StatelessWidget {
                       label: Text('recovery ${recoveryPlan!.action.wireValue}'),
                     ),
                   if (sessionSnapshot == null)
-                    const Chip(label: Text('pty scaffolded'))
+                    Chip(
+                      label: Text(
+                        startPlan == null
+                            ? 'pty capability unknown'
+                            : startPlan!.supported
+                            ? 'pty session inactive'
+                            : 'pty capability gap',
+                      ),
+                    )
                   else ...[
                     Chip(label: Text('session ${sessionSnapshot!.sessionId}')),
                     Chip(
@@ -143,7 +151,9 @@ class TerminalSurface extends StatelessWidget {
                 children: [
                   FilledButton.tonalIcon(
                     key: const ValueKey('terminal-start-session'),
-                    onPressed: onStartSession,
+                    onPressed: startPlan?.supported == false
+                        ? null
+                        : onStartSession,
                     icon: const Icon(Icons.terminal_rounded),
                     label: const Text('Start Terminal'),
                   ),
@@ -277,7 +287,8 @@ class TerminalSurface extends StatelessWidget {
                       decoration: InputDecoration(
                         labelText: 'Terminal input',
                         helperText: onSendInput == null
-                            ? 'TODO: enable after interactive PTY sessions are wired.'
+                            ? startPlan?.unsupportedMessage ??
+                                  'Interactive PTY input is unavailable until a supported session is active.'
                             : 'Send input to the active PTY session.',
                         border: const OutlineInputBorder(),
                       ),

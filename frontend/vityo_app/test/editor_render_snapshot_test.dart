@@ -163,7 +163,7 @@ void main() {
 
     expect(snapshot.codeActionWidget.visible, isTrue);
     expect(snapshot.codeActionWidget.actionCount, greaterThanOrEqualTo(1));
-    expect(snapshot.codeActionWidget.serviceFactCount, greaterThanOrEqualTo(1));
+    expect(snapshot.codeActionWidget.serviceFactCount, 0);
     expect(snapshot.codeActionWidget.primaryLabel, isNotEmpty);
     expect(restored.codeActionWidget.visible, isTrue);
     expect(restored.codeActionWidget.primaryLabel, isNotEmpty);

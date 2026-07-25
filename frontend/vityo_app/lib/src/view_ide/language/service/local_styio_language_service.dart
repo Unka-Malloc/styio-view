@@ -11,8 +11,10 @@ import '../features/styio_semantic_token_feature.dart';
 import '../features/styio_syntax_diagnostic_feature.dart';
 import 'language_service_foundation.dart';
 import 'styio_language_service.dart';
+import 'styio_service_capability.dart';
 
-class LocalStyioLanguageService implements StyioLanguageService {
+class LocalStyioLanguageService
+    implements StyioLanguageService, StyioLanguageFactProvenance {
   const LocalStyioLanguageService({
     this.snapshotBuilder = const SemanticSnapshotBuilder(),
     this.completionFeature = const StyioCompletionFeature(),
@@ -38,6 +40,14 @@ class LocalStyioLanguageService implements StyioLanguageService {
   final StyioSyntaxDiagnosticFeature syntaxDiagnosticFeature;
 
   @override
+  bool hasAuthoritativeFactsFor(
+    DocumentState document,
+    StyioServiceCapability capability,
+  ) {
+    return false;
+  }
+
+  @override
   StyioDocumentAnalysis analyzeDocument(DocumentState document) {
     final snapshot = _safeSnapshot(document);
     final tokens = snapshot?.tokens ?? _safeTokenize(document);
@@ -49,7 +59,9 @@ class LocalStyioLanguageService implements StyioLanguageService {
               () => semanticTokenFeature.semanticSpans(snapshot: snapshot),
             ),
       diagnostics: _safeList(() => _diagnostics(document, tokens)),
-      formattingEdits: _safeList(() => formattingFeature.formatDocument(document)),
+      formattingEdits: _safeList(
+        () => formattingFeature.formatDocument(document),
+      ),
       semanticBlocks: snapshot == null
           ? const <SemanticBlockRange>[]
           : _semanticBlocks(snapshot),
@@ -315,7 +327,11 @@ class LocalStyioLanguageService implements StyioLanguageService {
     }
 
     var depth = 0;
-    for (var index = openingBraceIndex; index < snapshot.tokens.length; index += 1) {
+    for (
+      var index = openingBraceIndex;
+      index < snapshot.tokens.length;
+      index += 1
+    ) {
       final token = snapshot.tokens[index];
       if (token.lexeme == '{') {
         depth += 1;

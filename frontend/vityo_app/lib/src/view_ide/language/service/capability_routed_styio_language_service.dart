@@ -4,7 +4,8 @@ import 'language_service_foundation.dart';
 import 'styio_service_capability_detector.dart';
 import 'styio_language_service.dart';
 
-class CapabilityRoutedStyioLanguageService implements StyioLanguageService {
+class CapabilityRoutedStyioLanguageService
+    implements StyioLanguageService, StyioLanguageFactProvenance {
   const CapabilityRoutedStyioLanguageService({
     required LanguageProviderRegistry<StyioLanguageService> registry,
     required StyioLanguageService fallback,
@@ -22,6 +23,18 @@ class CapabilityRoutedStyioLanguageService implements StyioLanguageService {
 
   StyioLanguageService? _providerOrNull(String capability) {
     return _registry.resolve(languageId, capability: capability);
+  }
+
+  @override
+  bool hasAuthoritativeFactsFor(
+    DocumentState document,
+    StyioServiceCapability capability,
+  ) {
+    final provider = _provider(capability.wireValue);
+    final provenance = provider is StyioLanguageFactProvenance
+        ? provider as StyioLanguageFactProvenance
+        : null;
+    return provenance?.hasAuthoritativeFactsFor(document, capability) ?? false;
   }
 
   @override
@@ -72,9 +85,13 @@ class CapabilityRoutedStyioLanguageService implements StyioLanguageService {
     if (semantic != null) collectedGaps.addAll(semantic.capabilityGaps);
     if (diagnostics != null) collectedGaps.addAll(diagnostics.capabilityGaps);
     if (formatting != null) collectedGaps.addAll(formatting.capabilityGaps);
-    if (semanticBlock != null) collectedGaps.addAll(semanticBlock.capabilityGaps);
+    if (semanticBlock != null) {
+      collectedGaps.addAll(semanticBlock.capabilityGaps);
+    }
     if (inlayHint != null) collectedGaps.addAll(inlayHint.capabilityGaps);
-    if (documentSymbol != null) collectedGaps.addAll(documentSymbol.capabilityGaps);
+    if (documentSymbol != null) {
+      collectedGaps.addAll(documentSymbol.capabilityGaps);
+    }
     if (references != null) collectedGaps.addAll(references.capabilityGaps);
 
     return StyioDocumentAnalysis(

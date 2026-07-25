@@ -1,24 +1,13 @@
 import '../backend_toolchain/execution_adapter.dart';
+import 'runtime_event_vocabulary.dart';
+import 'typed_runtime_event_stream.dart';
+
+export 'runtime_event_vocabulary.dart';
+
+String runtimeEventSurfaceSummary(RuntimeEventEnvelope event) =>
+    decodeTypedRuntimeEvent(event).summary;
 
 enum RuntimeAccent { failed, completed, active, observed, thread, test, log }
-
-const Set<String> _knownRuntimeEventKinds = <String>{
-  'compile.started',
-  'compile.finished',
-  'compile.failed',
-  'diagnostic.emitted',
-  'log.emitted',
-  'run.started',
-  'run.finished',
-  'run.failed',
-  'state.changed',
-  'thread.spawned',
-  'transition.fired',
-  'unit.entered',
-  'unit.exited',
-  'unit.test.started',
-  'unit.test.finished',
-};
 
 class RuntimeReplaySummary {
   const RuntimeReplaySummary({
@@ -190,24 +179,6 @@ class RuntimeDebugLaneCheckpoint {
   final String clockLabel;
   final String eventKind;
   final String? detailLabel;
-}
-
-String runtimeEventFamily(String eventKind) {
-  if (!isKnownRuntimeEventKind(eventKind)) {
-    return 'unsupported';
-  }
-  if (eventKind.startsWith('unit.test.')) {
-    return 'unit.test';
-  }
-  final separator = eventKind.indexOf('.');
-  if (separator <= 0) {
-    return eventKind;
-  }
-  return eventKind.substring(0, separator);
-}
-
-bool isKnownRuntimeEventKind(String eventKind) {
-  return _knownRuntimeEventKinds.contains(eventKind);
 }
 
 RuntimeReplaySummary summarizeRuntimeReplay(

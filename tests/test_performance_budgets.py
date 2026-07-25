@@ -67,7 +67,9 @@ class PerformanceBudgetGateTest(unittest.TestCase):
             f"{registrations}\n"
             "  };\n"
             "  final output = JsonEncoder.withIndent('  ').convert({'results': allResults});\n"
-            "  File('benchmark_results.json').writeAsStringSync(output);\n"
+            "  final file = File('../../build/evidence/benchmark-results.json');\n"
+            "  file.parent.createSync(recursive: true);\n"
+            "  file.writeAsStringSync(output);\n"
             "}\n",
         )
 
@@ -157,7 +159,7 @@ class PerformanceGateRunnerTest(unittest.TestCase):
             "{\n"
             '  "results": {"alg01_piece_table": []}\n'
             "}\n"
-            "Results written to benchmark_results.json\n"
+            "Results written to ../../build/evidence/benchmark-results.json\n"
         )
 
         self.assertEqual(payload, {"results": {"alg01_piece_table": []}})
@@ -208,7 +210,7 @@ class PerformanceGateRunnerTest(unittest.TestCase):
                     },
                     indent=2,
                 )
-                + "\nResults written to benchmark_results.json\n"
+                + "\nResults written to ../../build/evidence/benchmark-results.json\n"
             )
             completed = subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
             originals = (

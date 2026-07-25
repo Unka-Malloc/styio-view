@@ -324,6 +324,8 @@ class _LocalProjectGraphAdapter implements ProjectGraphAdapter {
       packageDistribution: _derivePackageDistributionFromPackages(packages),
       projectGraphPayloadFailure: _lastProjectGraphPayloadFailure,
       toolchainStatePayloadFailure: _lastToolchainStatePayloadFailure,
+      sourceConfidenceByField:
+          ProjectGraphSnapshot.canonicalFileSourceConfidence(),
       notes: _mergeNotes(<String>[
         if (projectGraphSupport.publishedPayloadAvailable)
           'pafio advertises a published project graph payload, but the shell fell back to canonical file inference because the published payload could not be loaded.',
@@ -792,17 +794,11 @@ Future<CompilerHandshakeSnapshot?> _probeCompiler({
     );
     _addStyioExecutableCandidates(
       candidates,
-      _joinPath(
-        current.path,
-        '../../SymPolicy/Styio/build/bin/styio',
-      ),
+      _joinPath(current.path, '../../SymPolicy/Styio/build/bin/styio'),
     );
     _addStyioExecutableCandidates(
       candidates,
-      _joinPath(
-        current.path,
-        '../../SymPolicy/Styio/build-codex/bin/styio',
-      ),
+      _joinPath(current.path, '../../SymPolicy/Styio/build-codex/bin/styio'),
     );
     _addStyioExecutableCandidates(
       candidates,
@@ -1139,6 +1135,8 @@ _loadPublishedProjectGraph({
           ),
           packageDistribution: packageDistribution,
           sourceState: sourceState,
+          sourceConfidenceByField:
+              ProjectGraphSnapshot.machinePayloadSourceConfidence(),
           notes: notes.isEmpty
               ? const <String>[
                   'Project graph loaded through published pafio machine payload.',

@@ -72,6 +72,7 @@ Missing or stale lists are audit failures. They block license, commercial-risk, 
 - `cupertino_icons`.
 - `shared_preferences`.
 - `path_provider`.
+- `pty2` 0.5.2 (desktop ConPTY/forkpty transport; Windows use is fail-closed against pipe fallback).
 - `flutter_test`.
 - `flutter_lints`.
 - `crypto` (SHA-256/512 for module manifest checksums and signature verification).

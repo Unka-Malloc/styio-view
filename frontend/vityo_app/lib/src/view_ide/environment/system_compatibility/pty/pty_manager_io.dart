@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 
+import 'package:pty2/pty2.dart' as native;
+
 import '../platform_adapter/platform_adapter.dart';
 import '../platform_context/platform_context.dart';
 import 'pty_adapter.dart';
@@ -23,26 +25,12 @@ Future<PtyManager> createPlatformPtyManager({
 }
 
 class LocalPtyManager implements PtyManager {
-  LocalPtyManager({
-    required this.facts,
-    PtyAdapter? adapter,
-    PtyNativeOperationBackendRegistry? nativeOperations,
-  }) : _nativeOperations =
-           nativeOperations ?? PtyNativeOperationBackendRegistry(),
-       _adapter = adapter ?? PtyAdapter(facts),
-       compatibility = (adapter ?? PtyAdapter(facts)).adapt();
+  LocalPtyManager({required this.facts, PtyAdapter? adapter})
+    : _adapter = adapter ?? PtyAdapter(facts),
+      compatibility = (adapter ?? PtyAdapter(facts)).adapt();
 
-  factory LocalPtyManager.linuxDebianArmForTest({
-    String scriptUtilityPath = '/usr/bin/script',
-    PtyNativeOperationBackendRegistry? nativeOperations,
-  }) {
-    return LocalPtyManager(
-      facts: PtyFacts.linuxDebianArm(scriptUtilityPath: scriptUtilityPath),
-      nativeOperations: nativeOperations,
-    );
-  }
-
-  final PtyNativeOperationBackendRegistry _nativeOperations;
+  factory LocalPtyManager.linuxDebianArmForTest() =>
+      LocalPtyManager(facts: PtyFacts.linuxDebianArm());
 
   final PtyAdapter _adapter;
 
@@ -57,15 +45,9 @@ class LocalPtyManager implements PtyManager {
     PtySession session, {
     String operation = 'pty.start',
     String? recoveryHint,
-  }) {
-    return const PtyFailureClassifier(
-      sourceManager: 'LocalPtyManager',
-    ).classifySession(
-      session,
-      operation: operation,
-      recoveryHint: recoveryHint,
-    );
-  }
+  }) => const PtyFailureClassifier(
+    sourceManager: 'LocalPtyManager',
+  ).classifySession(session, operation: operation, recoveryHint: recoveryHint);
 
   @override
   PtyOperationFailure? failureForResize(
@@ -73,16 +55,13 @@ class LocalPtyManager implements PtyManager {
     String operation = 'pty.resize',
     String target = 'pty',
     String? recoveryHint,
-  }) {
-    return const PtyFailureClassifier(
-      sourceManager: 'LocalPtyManager',
-    ).classifyResize(
-      result,
-      operation: operation,
-      target: target,
-      recoveryHint: recoveryHint,
-    );
-  }
+  }) => const PtyFailureClassifier(sourceManager: 'LocalPtyManager')
+      .classifyResize(
+        result,
+        operation: operation,
+        target: target,
+        recoveryHint: recoveryHint,
+      );
 
   @override
   Future<PtySession> start(PtySessionRequest request) async {
@@ -90,59 +69,99 @@ class LocalPtyManager implements PtyManager {
     if (!plan.supported) {
       return UnsupportedPtySession(
         request: request,
-        message: plan.unsupportedMessage ?? 'PTY sessions are not available.',
+        message:
+            plan.unsupportedMessage ?? 'Native PTY sessions are not available.',
       );
     }
     try {
-      final process = await io.Process.start(
-        plan.backendExecutablePath,
-        plan.backendArguments,
+      final launch = io.Platform.isWindows
+          ? _windowsFailClosedLaunch(plan)
+          : _NativeLaunch(
+              executable: plan.backendExecutablePath,
+              arguments: plan.backendArguments,
+              environment: plan.environment,
+            );
+      final process = native.PseudoTerminal.start(
+        launch.executable,
+        launch.arguments,
         workingDirectory: plan.workingDirectory,
-        environment: plan.environment.isEmpty ? null : plan.environment,
+        environment: launch.environment.isEmpty ? null : launch.environment,
+        raw: true,
       );
-      return ScriptUtilityPtySession(
+      process.resize(request.cols, request.rows);
+      return NativePtySession(
         id: 'pty-${DateTime.now().microsecondsSinceEpoch}',
         process: process,
-        supportsResize: compatibility.supportsResize,
-        nativeOperations: _nativeOperations,
+        providerKind: plan.providerKind,
       );
     } on Object catch (error) {
       return FailedPtySession(request: request, error: error);
     }
   }
+
+  _NativeLaunch _windowsFailClosedLaunch(PtyExecutionPlan plan) {
+    const payloadKey = 'VITYO_CONPTY_LAUNCH_REQUEST';
+    final payload = base64Encode(
+      utf8.encode(
+        jsonEncode(<String, Object?>{
+          'executable': plan.backendExecutablePath,
+          'arguments': plan.backendArguments,
+        }),
+      ),
+    );
+    const script = r'''
+$payload = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:VITYO_CONPTY_LAUNCH_REQUEST))
+Remove-Item Env:VITYO_CONPTY_LAUNCH_REQUEST
+$request = $payload | ConvertFrom-Json
+if ([Console]::IsInputRedirected -or [Console]::IsOutputRedirected) {
+  [Console]::Error.WriteLine('Vityo refused a non-ConPTY terminal backend.')
+  exit 125
+}
+& $request.executable @($request.arguments)
+if ($null -eq $LASTEXITCODE) { exit 0 }
+exit $LASTEXITCODE
+''';
+    final encodedScript = base64Encode(const Utf16Encoder().convert(script));
+    return _NativeLaunch(
+      executable: 'powershell.exe',
+      arguments: <String>[
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-EncodedCommand',
+        encodedScript,
+      ],
+      environment: <String, String>{...plan.environment, payloadKey: payload},
+    );
+  }
 }
 
-class ScriptUtilityPtySession implements PtySession {
-  ScriptUtilityPtySession({
-    required this.id,
-    required io.Process process,
-    required this.supportsResize,
-    required PtyNativeOperationBackendRegistry nativeOperations,
-  }) : _process = process,
-       _nativeOperations = nativeOperations {
-    _outputController = StreamController<String>.broadcast();
-    var pendingStreams = 2;
-    void handleDone() {
-      pendingStreams -= 1;
-      if (pendingStreams == 0 && !_outputController.isClosed) {
-        unawaited(_outputController.close());
-      }
-    }
+class _NativeLaunch {
+  const _NativeLaunch({
+    required this.executable,
+    required this.arguments,
+    required this.environment,
+  });
 
-    _process.stdout
-        .transform(utf8.decoder)
-        .listen(
-          _outputController.add,
-          onError: _outputController.addError,
-          onDone: handleDone,
-        );
-    _process.stderr
-        .transform(utf8.decoder)
-        .listen(
-          _outputController.add,
-          onError: _outputController.addError,
-          onDone: handleDone,
-        );
+  final String executable;
+  final List<String> arguments;
+  final Map<String, String> environment;
+}
+
+class NativePtySession implements PtySession {
+  NativePtySession({
+    required this.id,
+    required native.PseudoTerminal process,
+    required this.providerKind,
+  }) : _process = process {
+    _outputController = StreamController<String>();
+    _process.out.listen(
+      _outputController.add,
+      onError: _outputController.addError,
+      onDone: () {
+        if (!_outputController.isClosed) unawaited(_outputController.close());
+      },
+    );
     _exitCode = _process.exitCode.then((code) {
       if (_state != PtySessionState.closed) {
         _state = code == 0 ? PtySessionState.exited : PtySessionState.failed;
@@ -151,9 +170,8 @@ class ScriptUtilityPtySession implements PtySession {
     });
   }
 
-  final io.Process _process;
-  final PtyNativeOperationBackendRegistry _nativeOperations;
-  final bool supportsResize;
+  final native.PseudoTerminal _process;
+  final PtyProviderKind providerKind;
   late final StreamController<String> _outputController;
   late final Future<int> _exitCode;
   PtySessionState _state = PtySessionState.running;
@@ -171,57 +189,48 @@ class ScriptUtilityPtySession implements PtySession {
   Future<int?> get exitCode => _exitCode;
 
   @override
-  Future<void> write(String input) async {
-    _process.stdin.write(input);
-    await _process.stdin.flush();
-  }
+  Future<void> write(String input) async => _process.write(input);
 
   @override
   Future<PtyResizeResult> resize({required int rows, required int cols}) async {
-    final nativeResult = await _nativeOperations.resize(
-      PtyNativeResizeRequest(
-        sessionId: id,
-        processId: _process.pid,
-        rows: rows,
-        cols: cols,
-      ),
-    );
-    if (nativeResult != null) {
-      return nativeResult;
-    }
-    if (!supportsResize) {
+    try {
+      _process.resize(cols, rows);
       return PtyResizeResult(
-        status: PtyResizeStatus.unsupported,
+        status: PtyResizeStatus.applied,
         rows: rows,
         cols: cols,
-        message: 'The script utility PTY backend does not expose resize.',
+      );
+    } on Object catch (error) {
+      return PtyResizeResult(
+        status: PtyResizeStatus.failed,
+        rows: rows,
+        cols: cols,
+        message: 'Native PTY resize failed: $error',
       );
     }
-    return PtyResizeResult(
-      status: PtyResizeStatus.failed,
-      rows: rows,
-      cols: cols,
-      message: 'PTY resize backend is not wired yet.',
-    );
   }
 
   @override
   Future<PtySignalResult> sendSignal(PtySignal signal) async {
-    final nativeResult = await _nativeOperations.sendSignal(
-      PtyNativeSignalRequest(
-        sessionId: id,
-        processId: _process.pid,
+    try {
+      if (signal == PtySignal.eof) {
+        _process.write(io.Platform.isWindows ? '\u001a\r\n' : '\u0004');
+      } else {
+        _process.kill(switch (signal) {
+          PtySignal.interrupt => io.ProcessSignal.sigint,
+          PtySignal.terminate => io.ProcessSignal.sigterm,
+          PtySignal.kill => io.ProcessSignal.sigkill,
+          PtySignal.eof => io.ProcessSignal.sigterm,
+        });
+      }
+      return PtySignalResult(signal: signal, status: PtySignalStatus.sent);
+    } on Object catch (error) {
+      return PtySignalResult(
         signal: signal,
-      ),
-    );
-    if (nativeResult != null) {
-      return nativeResult;
+        status: PtySignalStatus.failed,
+        message: 'Native PTY signal failed: $error',
+      );
     }
-    return PtySignalResult(
-      signal: signal,
-      status: PtySignalStatus.unsupported,
-      message: 'The script utility PTY backend does not expose native signals.',
-    );
   }
 
   @override
@@ -229,12 +238,8 @@ class ScriptUtilityPtySession implements PtySession {
     if (_state == PtySessionState.closed || _state == PtySessionState.exited) {
       return _exitCode;
     }
-    if (force) {
-      _process.kill();
-    } else {
-      await _process.stdin.close();
-    }
-    final code = await _exitCode;
+    _process.kill(force ? io.ProcessSignal.sigkill : io.ProcessSignal.sigterm);
+    final code = await _exitCode.timeout(const Duration(seconds: 3));
     _state = PtySessionState.closed;
     return code;
   }
@@ -248,40 +253,39 @@ class FailedPtySession implements PtySession {
 
   @override
   String get id => 'failed-pty';
-
   @override
   PtySessionState get state => PtySessionState.failed;
-
   @override
   Stream<String> get output => Stream<String>.value(error.toString());
-
   @override
   Future<int?> get exitCode async => null;
-
   @override
   Future<void> write(String input) async {}
+  @override
+  Future<PtyResizeResult> resize({
+    required int rows,
+    required int cols,
+  }) async => PtyResizeResult(
+    status: PtyResizeStatus.failed,
+    rows: rows,
+    cols: cols,
+    message: error.toString(),
+  );
+  @override
+  Future<PtySignalResult> sendSignal(PtySignal signal) async => PtySignalResult(
+    signal: signal,
+    status: PtySignalStatus.failed,
+    message: error.toString(),
+  );
+  @override
+  Future<int?> close({bool force = false}) async => null;
+}
+
+class Utf16Encoder extends Converter<String, List<int>> {
+  const Utf16Encoder();
 
   @override
-  Future<PtyResizeResult> resize({required int rows, required int cols}) async {
-    return PtyResizeResult(
-      status: PtyResizeStatus.failed,
-      rows: rows,
-      cols: cols,
-      message: error.toString(),
-    );
-  }
-
-  @override
-  Future<PtySignalResult> sendSignal(PtySignal signal) async {
-    return PtySignalResult(
-      signal: signal,
-      status: PtySignalStatus.failed,
-      message: error.toString(),
-    );
-  }
-
-  @override
-  Future<int?> close({bool force = false}) async {
-    return null;
-  }
+  List<int> convert(String input) => <int>[
+    for (final unit in input.codeUnits) ...<int>[unit & 0xff, unit >> 8],
+  ];
 }

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "capability": "trusted-desktop-ide-loop",
+  "repositories": {
+    "styio": "ca631c831b0e93d242183b0f2b5401530e125e93",
+    "pafio": "52e578376667896d00ad619329e381addf9ab465"
+  }
+}

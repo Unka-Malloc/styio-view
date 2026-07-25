@@ -89,6 +89,73 @@ void main() {
     },
   );
 
+  test('StyioService daemon restart dispatches are serialized', () async {
+    final controller = StyioServiceSubscriptionController(
+      driver: StyioServiceAnalysisDriver(connector: _NoopStyioConnector()),
+    );
+    addTearDown(controller.dispose);
+    final firstLaunch = Completer<StyioServiceDaemonLifecycleSnapshot>();
+    final secondLaunch = Completer<StyioServiceDaemonLifecycleSnapshot>();
+    var launchCount = 0;
+
+    Future<StyioServiceDaemonLifecycleSnapshot> restart(
+      StyioServiceDaemonRestartPlan plan,
+    ) {
+      launchCount += 1;
+      return launchCount == 1 ? firstLaunch.future : secondLaunch.future;
+    }
+
+    final first = controller.dispatchDaemonRestart(
+      failedAttempt: 0,
+      reason: StyioServiceDaemonRestartReason.manual,
+      restart: restart,
+    );
+    final second = controller.dispatchDaemonRestart(
+      failedAttempt: 0,
+      reason: StyioServiceDaemonRestartReason.manual,
+      restart: restart,
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(launchCount, 1);
+    firstLaunch.complete(
+      const StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.active,
+        providerId: 'styio-daemon.fixture',
+      ),
+    );
+    await first;
+    await Future<void>.delayed(Duration.zero);
+    expect(launchCount, 2);
+
+    secondLaunch.complete(
+      const StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.active,
+        providerId: 'styio-daemon.fixture',
+      ),
+    );
+    await second;
+  });
+
+  test('StyioService daemon restart timeout is structured', () async {
+    final controller = StyioServiceSubscriptionController(
+      driver: StyioServiceAnalysisDriver(connector: _NoopStyioConnector()),
+    );
+    addTearDown(controller.dispose);
+
+    final result = await controller.dispatchDaemonRestart(
+      failedAttempt: 0,
+      reason: StyioServiceDaemonRestartReason.manual,
+      restart: (_) => Completer<StyioServiceDaemonLifecycleSnapshot>().future,
+      restartTimeout: Duration.zero,
+    );
+
+    expect(result.status, StyioServiceDaemonRestartDispatchStatus.timedOut);
+    expect(result.lifecycle?.state, StyioServiceDaemonLifecycleState.failed);
+    expect(result.message, contains('timed out'));
+    expect(result.toJson()['status'], 'timedOut');
+  });
+
   test(
     'StyioService daemon process adapter launches through registry',
     () async {

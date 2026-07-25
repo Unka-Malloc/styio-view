@@ -1520,6 +1520,16 @@ class StyioCommandRegistry {
 
   static bool isRegisteredName(String name) => descriptorForName(name) != null;
 
+  static bool isRegistered(AppCommandId id) => defaultRegistry.contains(id);
+
+  /// Prefer the registry label; fall back to the enum name for unregistered ids.
+  static String labelFor(AppCommandId id) {
+    if (!defaultRegistry.contains(id)) {
+      return id.name;
+    }
+    return defaultRegistry.descriptorFor(id).label;
+  }
+
   static AppCommandDescriptor descriptorFor(AppCommandId id) =>
       defaultRegistry.descriptorFor(id);
 }

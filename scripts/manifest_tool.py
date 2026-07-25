@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 import uuid
@@ -18,7 +19,7 @@ CHECKPOINTS_NAME = "Checkpoints.json"
 STATE_FILE_NAMES = {MANIFEST_NAME, CHECKPOINTS_NAME}
 VALID_STATUSES = {"pending", "in_progress", "completed", "blocked", "skipped"}
 VALID_DIFFICULTIES = {"low", "medium", "high", "deep"}
-VALID_PLATFORMS = {"linux", "macos", "windows"}
+VALID_PLATFORMS = {"any", "linux", "macos", "windows"}
 UUID4_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 PLAN_REQUIRED_FIELDS = {
     "id",
@@ -43,6 +44,25 @@ TASK_REQUIRED_FIELDS = {
     "commit",
     "next",
 }
+TASK_OPTIONAL_FIELDS = {
+    "design",
+    "latest_progress",
+    "regression",
+    "requirements",
+    "status_reason",
+}
+DESIGN_FIELDS = {
+    "acceptance_paths",
+    "artifact",
+    "decisions",
+    "dependencies",
+    "interfaces",
+    "owned_paths",
+    "scaffold_paths",
+    "symbols",
+    "test_seams",
+}
+REGRESSION_FIELDS = {"commands", "criteria", "paths", "scope"}
 @dataclass(frozen=True)
 class Issue:
     path: Path
@@ -60,6 +80,20 @@ class WorkflowStateMachine:
 
     def can_transition(self, current: str, target: str) -> bool:
         return target in self.transitions.get(current, frozenset())
+
+    def reachable_statuses(self, current: str) -> frozenset[str]:
+        seen = {current}
+        frontier = [current]
+        while frontier:
+            status = frontier.pop()
+            for target in self.transitions.get(status, frozenset()):
+                if target not in seen:
+                    seen.add(target)
+                    frontier.append(target)
+        return frozenset(seen)
+
+    def can_reach(self, current: str, target: str) -> bool:
+        return target in self.reachable_statuses(current)
 
     def status_issue(self, path: Path, prefix: str, value: Any) -> Issue | None:
         if self.is_status(value):
@@ -224,6 +258,124 @@ def is_string_list(value: Any) -> bool:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
 
 
+def has_startable_pending_node(nodes: list[Any]) -> bool:
+    status_by_id = {
+        node["id"]: node["status"]
+        for node in nodes
+        if isinstance(node, dict)
+        and isinstance(node.get("id"), str)
+        and WORKFLOW_STATE_MACHINE.is_status(node.get("status"))
+    }
+    return any(
+        isinstance(node, dict)
+        and node.get("status") == "pending"
+        and is_string_list(node.get("prerequisites"))
+        and all(status_by_id.get(ref) == "completed" for ref in node["prerequisites"])
+        for node in nodes
+    )
+
+
+def derive_plan_status(current: str, nodes: list[Any]) -> str:
+    statuses = [
+        node["status"]
+        for node in nodes
+        if isinstance(node, dict)
+        and WORKFLOW_STATE_MACHINE.is_status(node.get("status"))
+    ]
+    if not statuses:
+        return current
+    if "in_progress" in statuses:
+        return "in_progress"
+    if all(status in WORKFLOW_STATE_MACHINE.terminal_statuses for status in statuses):
+        return "skipped" if all(status == "skipped" for status in statuses) else "completed"
+    if "blocked" in statuses:
+        return "in_progress" if has_startable_pending_node(nodes) else "blocked"
+    if "completed" in statuses:
+        return "in_progress"
+    return "pending"
+
+
+def validate_design(path: Path, prefix: str, value: Any) -> list[Issue]:
+    field_prefix = f"{prefix}.design"
+    if not isinstance(value, dict):
+        return [Issue(path, f"{field_prefix}: must be an object when present")]
+
+    issues: list[Issue] = []
+    for field in sorted(DESIGN_FIELDS - set(value)):
+        issues.append(Issue(path, f"{field_prefix}.{field}: missing required field"))
+    for field in sorted(set(value) - DESIGN_FIELDS):
+        issues.append(Issue(path, f"{field_prefix}.{field}: unknown field"))
+
+    artifact = value.get("artifact")
+    if not is_relative_workspace_path(artifact):
+        issues.append(Issue(path, f"{field_prefix}.artifact: must be a non-empty relative workspace path"))
+
+    for field in (
+        "acceptance_paths",
+        "dependencies",
+        "interfaces",
+        "owned_paths",
+        "scaffold_paths",
+        "test_seams",
+    ):
+        items = value.get(field)
+        if not is_string_list(items) or any(not item.strip() for item in items):
+            issues.append(Issue(path, f"{field_prefix}.{field}: must be an array of non-empty strings"))
+
+    symbols = value.get("symbols")
+    symbol_fields = {"kind", "name", "operation", "path", "signature"}
+    if not isinstance(symbols, list):
+        issues.append(Issue(path, f"{field_prefix}.symbols: must be an array"))
+    else:
+        for index, symbol in enumerate(symbols):
+            symbol_prefix = f"{field_prefix}.symbols[{index}]"
+            if not isinstance(symbol, dict):
+                issues.append(Issue(path, f"{symbol_prefix}: must be an object"))
+                continue
+            for field in sorted(symbol_fields - set(symbol)):
+                issues.append(Issue(path, f"{symbol_prefix}.{field}: missing required field"))
+            for field in sorted(set(symbol) - symbol_fields):
+                issues.append(Issue(path, f"{symbol_prefix}.{field}: unknown field"))
+            for field in symbol_fields:
+                item = symbol.get(field)
+                if not isinstance(item, str) or not item.strip():
+                    issues.append(Issue(path, f"{symbol_prefix}.{field}: must be a non-empty string"))
+
+    decisions = value.get("decisions")
+    if not isinstance(decisions, dict) or any(
+        not isinstance(key, str)
+        or not key.strip()
+        or not isinstance(decision, str)
+        or not decision.strip()
+        for key, decision in decisions.items()
+    ):
+        issues.append(Issue(path, f"{field_prefix}.decisions: must map non-empty strings to non-empty strings"))
+    return issues
+
+
+def validate_regression(path: Path, prefix: str, value: Any) -> list[Issue]:
+    field_prefix = f"{prefix}.regression"
+    if not isinstance(value, dict):
+        return [Issue(path, f"{field_prefix}: must be an object when present")]
+
+    issues: list[Issue] = []
+    for field in sorted(REGRESSION_FIELDS - set(value)):
+        issues.append(Issue(path, f"{field_prefix}.{field}: missing required field"))
+    for field in sorted(set(value) - REGRESSION_FIELDS):
+        issues.append(Issue(path, f"{field_prefix}.{field}: unknown field"))
+    for field in ("commands", "paths"):
+        items = value.get(field)
+        if not is_string_list(items) or any(not item.strip() for item in items):
+            issues.append(Issue(path, f"{field_prefix}.{field}: must be an array of non-empty strings"))
+    criteria = value.get("criteria")
+    if not isinstance(criteria, list) or any(type(item) is not int or item < 0 for item in criteria):
+        issues.append(Issue(path, f"{field_prefix}.criteria: must be an array of non-negative integers"))
+    scope = value.get("scope")
+    if not isinstance(scope, str) or not scope.strip():
+        issues.append(Issue(path, f"{field_prefix}.scope: must be a non-empty string"))
+    return issues
+
+
 def is_manifest_id(value: Any) -> bool:
     return isinstance(value, str) and UUID4_PATTERN.fullmatch(value) is not None
 
@@ -366,7 +518,7 @@ def validate_checkpoints_data(path: Path, data: list[Any]) -> tuple[int, list[Is
         for field in missing:
             issues.append(Issue(path, f"{prefix}.{field}: missing required field"))
 
-        extra = sorted(set(node) - TASK_REQUIRED_FIELDS)
+        extra = sorted(set(node) - TASK_REQUIRED_FIELDS - TASK_OPTIONAL_FIELDS)
         for field in extra:
             issues.append(Issue(path, f"{prefix}.{field}: unknown field"))
 
@@ -408,13 +560,16 @@ def validate_checkpoints_data(path: Path, data: list[Any]) -> tuple[int, list[Is
                 missing_criterion_fields = sorted({"checked", "text"} - set(criterion))
                 for field in missing_criterion_fields:
                     issues.append(Issue(path, f"{criterion_prefix}.{field}: missing required field"))
-                extra_criterion_fields = sorted(set(criterion) - {"checked", "text"})
+                extra_criterion_fields = sorted(set(criterion) - {"checked", "evidence", "text"})
                 for field in extra_criterion_fields:
                     issues.append(Issue(path, f"{criterion_prefix}.{field}: unknown field"))
                 if type(criterion.get("checked")) is not bool:
                     issues.append(Issue(path, f"{criterion_prefix}.checked: must be a boolean"))
                 if not isinstance(criterion.get("text"), str) or not criterion.get("text", "").strip():
                     issues.append(Issue(path, f"{criterion_prefix}.text: must be a non-empty string"))
+                evidence = criterion.get("evidence")
+                if evidence is not None and (not isinstance(evidence, str) or not evidence.strip()):
+                    issues.append(Issue(path, f"{criterion_prefix}.evidence: must be a non-empty string when present"))
 
         platform = node.get("platform")
         if platform not in VALID_PLATFORMS:
@@ -424,6 +579,25 @@ def validate_checkpoints_data(path: Path, data: list[Any]) -> tuple[int, list[Is
         for field in ("role", "goal", "description"):
             if not isinstance(node.get(field), str) or not node.get(field, "").strip():
                 issues.append(Issue(path, f"{prefix}.{field}: must be a non-empty string"))
+
+        for field in ("latest_progress", "status_reason"):
+            value = node.get(field)
+            if value is not None and (not isinstance(value, str) or not value.strip()):
+                issues.append(Issue(path, f"{prefix}.{field}: must be a non-empty string when present"))
+
+        requirements = node.get("requirements")
+        if requirements is not None and (
+            not is_string_list(requirements) or any(not item.strip() for item in requirements)
+        ):
+            issues.append(Issue(path, f"{prefix}.requirements: must be an array of non-empty strings when present"))
+
+        design = node.get("design")
+        if design is not None:
+            issues.extend(validate_design(path, prefix, design))
+
+        regression = node.get("regression")
+        if regression is not None:
+            issues.extend(validate_regression(path, prefix, regression))
 
         commit = node.get("commit")
         if not isinstance(commit, dict):
@@ -582,6 +756,109 @@ def transition_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def load_json_array(path: Path) -> list[Any]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"{path.name}: invalid JSON at line {exc.lineno}, column {exc.colno}: {exc.msg}"
+        ) from exc
+    except OSError as exc:
+        raise ValueError(f"{path.name}: cannot read file") from exc
+    if not isinstance(data, list):
+        raise ValueError(f"{path.name}: top-level value must be an array")
+    return data
+
+
+def write_json_array(path: Path, data: list[Any]) -> None:
+    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    try:
+        temporary.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        os.replace(temporary, path)
+    except OSError as exc:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise ValueError(f"{path.name}: could not write state safely") from exc
+
+
+def resolve_workspace_manifest(root: Path) -> Path:
+    resolved = root.resolve()
+    if resolved.is_file():
+        if resolved.name == MANIFEST_NAME:
+            return resolved
+        raise ValueError(f"workspace file must be named {MANIFEST_NAME}")
+    manifest = resolved / MANIFEST_NAME
+    if not manifest.is_file():
+        raise ValueError(f"workspace directory must contain {MANIFEST_NAME}")
+    return manifest
+
+
+def sync_plan_command(args: argparse.Namespace) -> int:
+    try:
+        manifest = resolve_workspace_manifest(Path(args.root))
+        plans = load_json_array(manifest)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+
+    messages: list[str] = []
+    errors: list[str] = []
+    for index, plan in enumerate(plans):
+        if not isinstance(plan, dict):
+            errors.append(f"plan[{index}]: must be an object")
+            continue
+        current = plan.get("status")
+        label = plan.get("title") if isinstance(plan.get("title"), str) else f"plan[{index}]"
+        if not WORKFLOW_STATE_MACHINE.is_status(current):
+            errors.append(f"plan {label!r}: invalid status {current!r}")
+            continue
+        checkpoints = plan.get("checkpoints")
+        if not is_relative_workspace_path(checkpoints):
+            errors.append(f"plan {label!r}: invalid checkpoints path")
+            continue
+        checkpoint_path = manifest.parent / normalize_workspace_path(str(checkpoints))
+        if checkpoint_path.name != CHECKPOINTS_NAME or not checkpoint_path.is_file():
+            errors.append(f"plan {label!r}: missing referenced {CHECKPOINTS_NAME}")
+            continue
+        try:
+            nodes = load_json_array(checkpoint_path)
+        except ValueError as exc:
+            errors.append(f"plan {label!r}: {exc}")
+            continue
+
+        derived = derive_plan_status(str(current), nodes)
+        if derived == current:
+            continue
+        if not WORKFLOW_STATE_MACHINE.can_reach(str(current), derived):
+            errors.append(
+                f"plan {label!r}: cannot move from {current!r} to derived status {derived!r}"
+            )
+            continue
+        plan["status"] = derived
+        messages.append(f"OK: plan {label!r} {current} -> {derived}")
+
+    if errors:
+        for error in errors:
+            print(error, file=sys.stderr)
+        return 1
+    if messages:
+        try:
+            write_json_array(manifest, plans)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        for message in messages:
+            print(message)
+    else:
+        print("OK: plan statuses already in sync")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Better Plan manifest utility")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -600,6 +877,14 @@ def build_parser() -> argparse.ArgumentParser:
     transition.add_argument("target", help="target status")
     transition.add_argument("--quiet", action="store_true", help="only print transition errors")
     transition.set_defaults(func=transition_command)
+
+    sync_plan = subparsers.add_parser(
+        "sync-plan", help="re-derive every plan status from its checkpoint nodes"
+    )
+    sync_plan.add_argument(
+        "root", nargs="?", default=".", help="Better Plan workspace root or manifest file"
+    )
+    sync_plan.set_defaults(func=sync_plan_command)
 
     return parser
 

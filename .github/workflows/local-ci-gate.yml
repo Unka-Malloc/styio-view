@@ -1,6 +1,8 @@
 name: local-ci-gate
 
 on:
+  schedule:
+    - cron: "37 18 * * *"
   pull_request:
   push:
     branches:
@@ -21,6 +23,7 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
       STYIO_NODE_VERSION: "24.15.0"
       STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -29,38 +32,37 @@ jobs:
           fetch-depth: 0
           path: vityo-nightly
 
-      - name: Resolve sibling checkout ref
-        id: sibling-ref
+      - name: Resolve fixed product matrix
+        id: product-matrix
         shell: bash
+        working-directory: vityo-nightly
         run: |
-          requested="${GITHUB_REF_NAME}"
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" || "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
-            requested="${{ github.base_ref }}"
-          fi
+          "$PYTHON_BIN" - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import re
+          from pathlib import Path
 
-          for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
-              echo "ref=$ref" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          done
-
-          echo "No common sibling checkout ref found for '$requested' or fallbacks 'stable'/'nightly'." >&2
-          exit 1
+          matrix = json.loads(Path("toolchain/product-matrix.json").read_text(encoding="utf-8"))
+          repositories = matrix.get("repositories", {})
+          for name in ("styio", "pafio"):
+              commit = repositories.get(name, "")
+              if not re.fullmatch(r"[0-9a-f]{40}", commit):
+                  raise SystemExit(f"invalid fixed {name} commit")
+              print(f"{name}={commit}")
+          PY
 
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
           repository: Unka-Malloc/styio-nightly
-          ref: ${{ steps.sibling-ref.outputs.ref }}
+          ref: ${{ steps.product-matrix.outputs.styio }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
         uses: actions/checkout@v5
         with:
           repository: Unka-Malloc/pafio-nightly
-          ref: ${{ steps.sibling-ref.outputs.ref }}
+          ref: ${{ steps.product-matrix.outputs.pafio }}
           path: styio-pafio
 
       - name: Set up standardized Python
@@ -133,6 +135,29 @@ jobs:
           "$absolute_path" --version || true
           echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
 
+      - name: Build real Pafio CLI
+        working-directory: styio-pafio
+        run: |
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
+          cmake --build build/default --target spio --config Release -j2
+
+      - name: Resolve Pafio executable
+        id: pafio-bin
+        shell: bash
+        working-directory: styio-pafio
+        run: |
+          pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
+          if [[ -z "$pafio_path" ]]; then
+            echo "No built Pafio executable found under build/default." >&2
+            exit 1
+          fi
+          absolute_path="$PWD/$pafio_path"
+          if command -v cygpath >/dev/null 2>&1; then
+            absolute_path="$(cygpath -m "$absolute_path")"
+          fi
+          "$absolute_path" --version
+          echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
+
       - name: Resolve CI refs
         id: ci_refs
         shell: bash
@@ -171,6 +196,11 @@ jobs:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PRODUCT_PLATFORM: linux
+          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PAFIO_ROOT: ../styio-pafio
+          VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-linux.json
         run: >
           bash scripts/delivery-gate.sh
           --mode push
@@ -182,6 +212,45 @@ jobs:
         working-directory: vityo-nightly/frontend/vityo_app
         run: flutter build linux --release
 
+      - name: Prove native Linux PTY matrix
+        working-directory: vityo-nightly
+        run: >
+          "$PYTHON_BIN" scripts/run-native-pty-matrix.py
+          --platform linux
+          --output build/evidence/native-pty-linux.json
+
+      - name: Package, install, and start Linux Nightly
+        working-directory: vityo-nightly
+        run: |
+          "$PYTHON_BIN" scripts/package-nightly.py --platform linux
+          artifact="$(find build/nightly -maxdepth 1 -name 'vityo-nightly-linux-*.deb' -print -quit)"
+          test -n "$artifact"
+          dpkg-deb --info "$artifact"
+          sudo dpkg -i "$artifact"
+          xvfb-run -a vityo >build/nightly/linux-startup.log 2>&1 &
+          app_pid=$!
+          sleep 5
+          if ! kill -0 "$app_pid" 2>/dev/null; then
+            wait "$app_pid" || true
+            cat build/nightly/linux-startup.log
+            exit 1
+          fi
+          kill "$app_pid"
+          wait "$app_pid" || true
+
+      - name: Record pinned Linux product matrix evidence
+        working-directory: vityo-nightly
+        run: >
+          "$PYTHON_BIN" scripts/record-product-matrix-evidence.py
+          --platform linux
+          --vityo .
+          --styio ../styio-nightly
+          --pafio ../styio-pafio
+          --matrix toolchain/product-matrix.json
+          --gate-report build/evidence/product-gate-linux.json
+          --pty-report build/evidence/native-pty-linux.json
+          --output build/evidence/product-matrix-linux.json
+
       - name: Upload Linux coverage reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -190,7 +259,18 @@ jobs:
           path: |
             vityo-nightly/.coverage
             vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/build/evidence/product-gate-linux.json
+            vityo-nightly/build/evidence/native-pty-linux.json
+            vityo-nightly/build/evidence/product-matrix-linux.json
           if-no-files-found: ignore
+
+      - name: Upload Linux Nightly package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vityo-nightly-linux
+          path: vityo-nightly/build/nightly
+          if-no-files-found: error
 
   windows-native:
     name: windows-native
@@ -201,6 +281,7 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
       STYIO_NODE_VERSION: "24.15.0"
       STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -209,38 +290,37 @@ jobs:
           fetch-depth: 0
           path: vityo-nightly
 
-      - name: Resolve sibling checkout ref
-        id: sibling-ref
+      - name: Resolve fixed product matrix
+        id: product-matrix
         shell: bash
+        working-directory: vityo-nightly
         run: |
-          requested="${GITHUB_REF_NAME}"
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" || "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
-            requested="${{ github.base_ref }}"
-          fi
+          "$PYTHON_BIN" - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import re
+          from pathlib import Path
 
-          for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
-              echo "ref=$ref" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          done
-
-          echo "No common sibling checkout ref found for '$requested' or fallbacks 'stable'/'nightly'." >&2
-          exit 1
+          matrix = json.loads(Path("toolchain/product-matrix.json").read_text(encoding="utf-8"))
+          repositories = matrix.get("repositories", {})
+          for name in ("styio", "pafio"):
+              commit = repositories.get(name, "")
+              if not re.fullmatch(r"[0-9a-f]{40}", commit):
+                  raise SystemExit(f"invalid fixed {name} commit")
+              print(f"{name}={commit}")
+          PY
 
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
           repository: Unka-Malloc/styio-nightly
-          ref: ${{ steps.sibling-ref.outputs.ref }}
+          ref: ${{ steps.product-matrix.outputs.styio }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
         uses: actions/checkout@v5
         with:
           repository: Unka-Malloc/pafio-nightly
-          ref: ${{ steps.sibling-ref.outputs.ref }}
+          ref: ${{ steps.product-matrix.outputs.pafio }}
           path: styio-pafio
 
       - name: Set up standardized Python
@@ -358,6 +438,29 @@ jobs:
           "$absolute_path" --version || true
           echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
 
+      - name: Build real Pafio CLI
+        working-directory: styio-pafio
+        run: |
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
+          cmake --build build/default --target spio --config Release -j2
+
+      - name: Resolve Pafio executable
+        id: pafio-bin
+        shell: bash
+        working-directory: styio-pafio
+        run: |
+          pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
+          if [[ -z "$pafio_path" ]]; then
+            echo "No built Pafio executable found under build/default." >&2
+            exit 1
+          fi
+          absolute_path="$PWD/$pafio_path"
+          if command -v cygpath >/dev/null 2>&1; then
+            absolute_path="$(cygpath -m "$absolute_path")"
+          fi
+          "$absolute_path" --version
+          echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
+
       - name: Resolve CI refs
         id: ci_refs
         shell: bash
@@ -397,6 +500,11 @@ jobs:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PRODUCT_PLATFORM: windows
+          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PAFIO_ROOT: ../styio-pafio
+          VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-windows.json
         run: >
           bash scripts/delivery-gate.sh
           --mode push
@@ -409,6 +517,46 @@ jobs:
         working-directory: vityo-nightly\frontend\vityo_app
         run: flutter build windows --release
 
+      - name: Prove native Windows PTY matrix
+        shell: pwsh
+        working-directory: vityo-nightly
+        run: >
+          python scripts/run-native-pty-matrix.py
+          --platform windows
+          --output build/evidence/native-pty-windows.json
+
+      - name: Package, install, and start Windows Nightly
+        shell: pwsh
+        working-directory: vityo-nightly
+        run: |
+          python scripts/package-nightly.py --platform windows
+          $artifact = Get-ChildItem build/nightly/vityo-nightly-windows-*.zip | Select-Object -First 1
+          if (!$artifact) { throw "Windows Nightly archive was not created" }
+          $extractRoot = Join-Path $env:RUNNER_TEMP "vityo-nightly-package"
+          $installRoot = Join-Path $env:RUNNER_TEMP "vityo-nightly-installed"
+          Expand-Archive -LiteralPath $artifact.FullName -DestinationPath $extractRoot -Force
+          $packageRoot = Join-Path $extractRoot "Vityo-Nightly"
+          & (Join-Path $packageRoot "install.ps1") -Source $packageRoot -Destination $installRoot
+          $process = Start-Process -FilePath (Join-Path $installRoot "vityo_app.exe") -WorkingDirectory $installRoot -WindowStyle Hidden -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) { throw "Installed Windows Nightly exited during startup probe with code $($process.ExitCode)" }
+          Stop-Process -Id $process.Id -Force
+          & (Join-Path $packageRoot "uninstall.ps1") -Destination $installRoot
+
+      - name: Record pinned Windows product matrix evidence
+        shell: bash
+        working-directory: vityo-nightly
+        run: >
+          "$PYTHON_BIN" scripts/record-product-matrix-evidence.py
+          --platform windows
+          --vityo .
+          --styio ../styio-nightly
+          --pafio ../styio-pafio
+          --matrix toolchain/product-matrix.json
+          --gate-report build/evidence/product-gate-windows.json
+          --pty-report build/evidence/native-pty-windows.json
+          --output build/evidence/product-matrix-windows.json
+
       - name: Upload Windows coverage reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -417,7 +565,18 @@ jobs:
           path: |
             vityo-nightly/.coverage
             vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/build/evidence/product-gate-windows.json
+            vityo-nightly/build/evidence/native-pty-windows.json
+            vityo-nightly/build/evidence/product-matrix-windows.json
           if-no-files-found: ignore
+
+      - name: Upload Windows Nightly package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vityo-nightly-windows
+          path: vityo-nightly/build/nightly
+          if-no-files-found: error
 
   macos-native:
     name: macos-native
@@ -428,6 +587,7 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
       STYIO_NODE_VERSION: "24.15.0"
       STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -436,38 +596,37 @@ jobs:
           fetch-depth: 0
           path: vityo-nightly
 
-      - name: Resolve sibling checkout ref
-        id: sibling-ref
+      - name: Resolve fixed product matrix
+        id: product-matrix
         shell: bash
+        working-directory: vityo-nightly
         run: |
-          requested="${GITHUB_REF_NAME}"
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" || "${GITHUB_EVENT_NAME}" == "pull_request_target" ]]; then
-            requested="${{ github.base_ref }}"
-          fi
+          "$PYTHON_BIN" - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import re
+          from pathlib import Path
 
-          for ref in "$requested" stable nightly; do
-            if git ls-remote --exit-code --heads https://github.com/Unka-Malloc/styio-nightly.git "$ref" >/dev/null 2>&1 \
-              && git ls-remote --exit-code --heads https://github.com/Unka-Malloc/pafio-nightly.git "$ref" >/dev/null 2>&1; then
-              echo "ref=$ref" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
-          done
-
-          echo "No common sibling checkout ref found for '$requested' or fallbacks 'stable'/'nightly'." >&2
-          exit 1
+          matrix = json.loads(Path("toolchain/product-matrix.json").read_text(encoding="utf-8"))
+          repositories = matrix.get("repositories", {})
+          for name in ("styio", "pafio"):
+              commit = repositories.get(name, "")
+              if not re.fullmatch(r"[0-9a-f]{40}", commit):
+                  raise SystemExit(f"invalid fixed {name} commit")
+              print(f"{name}={commit}")
+          PY
 
       - name: Checkout Styio sibling repository
         uses: actions/checkout@v5
         with:
           repository: Unka-Malloc/styio-nightly
-          ref: ${{ steps.sibling-ref.outputs.ref }}
+          ref: ${{ steps.product-matrix.outputs.styio }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
         uses: actions/checkout@v5
         with:
           repository: Unka-Malloc/pafio-nightly
-          ref: ${{ steps.sibling-ref.outputs.ref }}
+          ref: ${{ steps.product-matrix.outputs.pafio }}
           path: styio-pafio
 
       - name: Set up standardized Python
@@ -535,6 +694,29 @@ jobs:
           "$absolute_path" --version || true
           echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
 
+      - name: Build real Pafio CLI
+        working-directory: styio-pafio
+        run: |
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
+          cmake --build build/default --target spio --config Release -j2
+
+      - name: Resolve Pafio executable
+        id: pafio-bin
+        shell: bash
+        working-directory: styio-pafio
+        run: |
+          pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
+          if [[ -z "$pafio_path" ]]; then
+            echo "No built Pafio executable found under build/default." >&2
+            exit 1
+          fi
+          absolute_path="$PWD/$pafio_path"
+          if command -v cygpath >/dev/null 2>&1; then
+            absolute_path="$(cygpath -m "$absolute_path")"
+          fi
+          "$absolute_path" --version
+          echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
+
       - name: Resolve CI refs
         id: ci_refs
         shell: bash
@@ -573,6 +755,11 @@ jobs:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PRODUCT_PLATFORM: macos
+          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PAFIO_ROOT: ../styio-pafio
+          VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-macos.json
         run: >
           bash scripts/delivery-gate.sh
           --mode push
@@ -584,6 +771,52 @@ jobs:
         working-directory: vityo-nightly/frontend/vityo_app
         run: flutter build macos --release
 
+      - name: Prove native macOS PTY matrix
+        working-directory: vityo-nightly
+        run: >
+          "$PYTHON_BIN" scripts/run-native-pty-matrix.py
+          --platform macos
+          --output build/evidence/native-pty-macos.json
+
+      - name: Package, install, and start macOS Nightly
+        working-directory: vityo-nightly
+        run: |
+          "$PYTHON_BIN" scripts/package-nightly.py --platform macos
+          artifact="$(find build/nightly -maxdepth 1 -name 'vityo-nightly-macos-*.dmg' -print -quit)"
+          test -n "$artifact"
+          hdiutil verify "$artifact"
+          mount_dir="$(mktemp -d)"
+          install_dir="$(mktemp -d)"
+          hdiutil attach "$artifact" -nobrowse -readonly -mountpoint "$mount_dir"
+          trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true; rm -rf "$mount_dir" "$install_dir"' EXIT
+          cp -R "$mount_dir/Vityo Nightly.app" "$install_dir/Vityo Nightly.app"
+          "$install_dir/Vityo Nightly.app/Contents/MacOS/Vityo" >build/nightly/macos-startup.log 2>&1 &
+          app_pid=$!
+          sleep 5
+          if ! kill -0 "$app_pid" 2>/dev/null; then
+            wait "$app_pid" || true
+            cat build/nightly/macos-startup.log
+            exit 1
+          fi
+          kill "$app_pid"
+          wait "$app_pid" || true
+          hdiutil detach "$mount_dir"
+          trap - EXIT
+          rm -rf "$mount_dir" "$install_dir"
+
+      - name: Record pinned macOS product matrix evidence
+        working-directory: vityo-nightly
+        run: >
+          "$PYTHON_BIN" scripts/record-product-matrix-evidence.py
+          --platform macos
+          --vityo .
+          --styio ../styio-nightly
+          --pafio ../styio-pafio
+          --matrix toolchain/product-matrix.json
+          --gate-report build/evidence/product-gate-macos.json
+          --pty-report build/evidence/native-pty-macos.json
+          --output build/evidence/product-matrix-macos.json
+
       - name: Upload macOS coverage reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -592,4 +825,15 @@ jobs:
           path: |
             vityo-nightly/.coverage
             vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/build/evidence/product-gate-macos.json
+            vityo-nightly/build/evidence/native-pty-macos.json
+            vityo-nightly/build/evidence/product-matrix-macos.json
           if-no-files-found: ignore
+
+      - name: Upload macOS Nightly package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vityo-nightly-macos
+          path: vityo-nightly/build/nightly
+          if-no-files-found: error

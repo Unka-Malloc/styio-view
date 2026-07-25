@@ -145,6 +145,11 @@ path = "src/lib.styio"
     expect(graph.packageDistribution?.blockedPackages, 2);
     expect(graph.sourceState, isNull);
     expect(graph.targets.length, 4);
+    expect(graph.hasAuthoritativeProjectGraphFacts, isFalse);
+    expect(
+      graph.sourceConfidenceFor('packages'),
+      ProjectGraphFieldSourceConfidence.canonicalFile,
+    );
     expect(graph.targets.map((target) => target.kind).toSet(), {
       ProjectTargetKind.lib,
       ProjectTargetKind.bin,
@@ -612,6 +617,11 @@ raise SystemExit(64)
       );
       expect(graph.kind, ProjectKind.package);
       expect(graph.title, 'demo/app');
+      expect(graph.hasAuthoritativeProjectGraphFacts, isTrue);
+      expect(
+        graph.sourceConfidenceFor('packages'),
+        ProjectGraphFieldSourceConfidence.machinePayload,
+      );
       expect(graph.lockState, ProjectLockState.fresh);
       expect(graph.vendorState, ProjectVendorState.present);
       expect(graph.toolchain.source, ToolchainResolutionSource.projectPin);
@@ -1292,7 +1302,9 @@ raise SystemExit(64)
         contains('stderr: project graph exploded'),
       );
       expect(
-        commandFailure.notes.any((note) => note.contains('pafio project-graph')),
+        commandFailure.notes.any(
+          (note) => note.contains('pafio project-graph'),
+        ),
         isTrue,
       );
       expect(schemaFailure.hasProjectGraphPayloadFailure, isTrue);
@@ -1314,7 +1326,8 @@ raise SystemExit(64)
       final previousCurrentDirectory = Directory.current;
       addTearDown(() => Directory.current = previousCurrentDirectory);
 
-      final manifestPath = '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
+      final manifestPath =
+          '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
       final rootJson = jsonEncode(tempRoot.path);
       final manifestJson = jsonEncode(manifestPath);
       final srcPath =

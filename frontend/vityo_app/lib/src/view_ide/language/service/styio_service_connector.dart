@@ -2907,7 +2907,8 @@ class StyioServiceFallbackSnapshot {
   }
 }
 
-class CachedStyioLanguageService implements StyioLanguageService {
+class CachedStyioLanguageService
+    implements StyioLanguageService, StyioLanguageFactProvenance {
   const CachedStyioLanguageService({
     required StyioServiceResultCache cache,
     this.localService = const LocalStyioLanguageService(),
@@ -2927,6 +2928,29 @@ class CachedStyioLanguageService implements StyioLanguageService {
   final String? configPath;
   final String? workingDirectory;
   final bool allowLocalFallback;
+
+  @override
+  bool hasAuthoritativeFactsFor(
+    DocumentState document,
+    StyioServiceCapability capability,
+  ) {
+    final status = fallbackSnapshot(
+      document,
+      capabilities: <StyioServiceCapability>[capability],
+    ).statusOf(capability);
+    if (status == StyioServiceFallbackStatus.servicePayload ||
+        status == StyioServiceFallbackStatus.serviceEmpty) {
+      return true;
+    }
+    if (status != StyioServiceFallbackStatus.serviceDerived) {
+      return false;
+    }
+    if (capability != StyioServiceCapability.rename) {
+      return true;
+    }
+    final response = _cachedResponse(document);
+    return response != null && _hasCompleteRenameReferenceFacts(response);
+  }
 
   StyioServiceFallbackSnapshot fallbackSnapshot(
     DocumentState document, {
@@ -3563,6 +3587,23 @@ class CachedStyioLanguageService implements StyioLanguageService {
     return response.documentSymbols.isNotEmpty ||
         response.referenceSpans.isNotEmpty ||
         response.semanticSpans.isNotEmpty;
+  }
+
+  bool _hasCompleteRenameReferenceFacts(StyioServiceResponse response) {
+    return response.documentSymbols.isNotEmpty &&
+        response.documentSymbols.every(
+          (symbol) => response.referenceSpans.any(
+            (reference) =>
+                reference.isDeclaration &&
+                _sameRange(
+                  _canonicalTargetRange(
+                    response.documentSymbols,
+                    reference.targetRange,
+                  ),
+                  symbol.nameRange,
+                ),
+          ),
+        );
   }
 
   StyioServiceFallbackStatus _fallbackStatusFor(

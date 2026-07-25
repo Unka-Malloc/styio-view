@@ -679,6 +679,7 @@ Map<String, dynamic> _hostedWorkspaceRecord() {
 
 Map<String, dynamic> _projectGraphPayload() {
   return <String, dynamic>{
+    'schema_version': 1,
     'id': '/workspace/demo/pafio.toml',
     'title': 'demo/app',
     'kind': 'hosted',

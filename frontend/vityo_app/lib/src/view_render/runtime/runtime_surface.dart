@@ -448,6 +448,17 @@ class _ExecutionSessionSection extends StatelessWidget {
               'session ${session.sessionId} · $runtimeEventCount runtime event(s)',
               style: theme.textTheme.bodySmall,
             ),
+            if (session.receipt != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'receipt v${session.receipt!.schemaVersion} · '
+                '${session.receipt!.intent} · '
+                '${session.receipt!.executed ? 'executed' : 'not executed'} · '
+                '${session.receipt!.phases.length} phase(s) · '
+                '${session.receipt!.artifacts.length} artifact(s)',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             if (session.unitRange != null) ...[
               const SizedBox(height: 6),
               Text(
@@ -778,7 +789,7 @@ List<RuntimeOutputChannelSummary> _outputChannels({
       eventCount: runtimeEvents.length,
       latestMessage: runtimeEvents.isEmpty
           ? 'No runtime event.'
-          : '${runtimeEvents.last.eventKind} from ${runtimeEvents.last.origin}',
+          : runtimeEventSurfaceSummary(runtimeEvents.last),
     ),
     RuntimeOutputChannelSummary(
       id: 'stdout',

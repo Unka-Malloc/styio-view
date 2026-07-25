@@ -26,7 +26,6 @@ class UnsupportedPtyProber implements PtyProber {
       supportsProcessGroup: false,
       supportsConPty: false,
       supportsForkPty: false,
-      supportsScriptUtility: false,
       detectedAt: DateTime.now().toUtc(),
     );
   }
@@ -38,7 +37,7 @@ class LocalPtyProber extends UnsupportedPtyProber {
     String? operatingSystem,
     Future<String?> Function()? architectureReader,
     Future<Map<String, String>> Function()? osReleaseReader,
-    Future<String?> Function()? scriptPathReader,
+    Future<bool> Function()? conPtyAvailabilityReader,
     DateTime Function()? clock,
   }) : super(targetId: targetId);
 }

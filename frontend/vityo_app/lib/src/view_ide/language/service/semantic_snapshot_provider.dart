@@ -3,6 +3,7 @@ import '../contract/language_contract.dart';
 import 'language_service_foundation.dart';
 import 'project_styio_language_service.dart';
 import 'styio_language_service.dart';
+import 'styio_service_capability.dart';
 
 enum SemanticSnapshotProviderSource { serviceAnalysis, localBuilderFallback }
 
@@ -541,7 +542,14 @@ class SemanticSnapshotProvider {
       document: document,
       diagnostics: serviceAnalysis.diagnostics,
     );
-    if (!_shouldUseFallback(document, serviceSnapshot)) {
+    final hasAuthoritativeSnapshotFacts =
+        _hasAuthoritativeFactsFor(
+          document,
+          StyioServiceCapability.documentSymbols,
+        ) &&
+        _hasAuthoritativeFactsFor(document, StyioServiceCapability.references);
+    if (hasAuthoritativeSnapshotFacts &&
+        !_shouldUseFallback(document, serviceSnapshot)) {
       return SemanticSnapshotProviderResult(
         snapshot: serviceSnapshot,
         source: SemanticSnapshotProviderSource.serviceAnalysis,
@@ -550,13 +558,26 @@ class SemanticSnapshotProvider {
       );
     }
 
+    if (_hasSemanticFacts(serviceSnapshot)) {
+      return SemanticSnapshotProviderResult(
+        snapshot: serviceSnapshot,
+        source: SemanticSnapshotProviderSource.localBuilderFallback,
+        message:
+            'Using local semantic facts because authoritative StyioService symbol and reference facts are unavailable.',
+        codeActionFactCount: codeActionFactCount,
+      );
+    }
+
     final fallbackSnapshot = _tryBuildFallback(document);
     if (fallbackSnapshot == null || !_hasSemanticFacts(fallbackSnapshot)) {
       return SemanticSnapshotProviderResult(
         snapshot: serviceSnapshot,
-        source: SemanticSnapshotProviderSource.serviceAnalysis,
-        message:
-            'Semantic snapshot kept service analysis facts; local fallback produced no additional semantic facts.',
+        source: hasAuthoritativeSnapshotFacts
+            ? SemanticSnapshotProviderSource.serviceAnalysis
+            : SemanticSnapshotProviderSource.localBuilderFallback,
+        message: hasAuthoritativeSnapshotFacts
+            ? 'Semantic snapshot kept authoritative empty StyioService symbol and reference facts.'
+            : 'No authoritative StyioService symbol and reference facts are available; local fallback produced no semantic facts.',
         codeActionFactCount: codeActionFactCount,
       );
     }
@@ -574,6 +595,12 @@ class SemanticSnapshotProvider {
     required DocumentState document,
     required Iterable<Diagnostic> diagnostics,
   }) {
+    if (!_hasAuthoritativeFactsFor(
+      document,
+      StyioServiceCapability.codeActions,
+    )) {
+      return 0;
+    }
     var count = 0;
     for (final diagnostic in diagnostics) {
       count += languageService
@@ -587,6 +614,18 @@ class SemanticSnapshotProvider {
     required DocumentState document,
     required Diagnostic diagnostic,
   }) {
+    if (!_hasAuthoritativeFactsFor(
+      document,
+      StyioServiceCapability.codeActions,
+    )) {
+      return SemanticSnapshotCodeActionResult(
+        source: SemanticSnapshotProviderSource.localBuilderFallback,
+        diagnosticCode: diagnostic.code,
+        actions: const <SemanticSnapshotCodeActionFact>[],
+        message:
+            'Code actions unavailable: only local heuristic edits are available; StyioService raw edit facts are required.',
+      );
+    }
     final fixes = languageService.quickFixesForDiagnostic(document, diagnostic);
     final actions = <SemanticSnapshotCodeActionFact>[
       for (var index = 0; index < fixes.length; index += 1)
@@ -613,6 +652,16 @@ class SemanticSnapshotProvider {
     required int offset,
     required String newName,
   }) {
+    if (!_hasAuthoritativeFactsFor(document, StyioServiceCapability.rename)) {
+      return SemanticSnapshotRenameSafetyResult(
+        source: SemanticSnapshotProviderSource.localBuilderFallback,
+        available: false,
+        safe: false,
+        newName: newName,
+        message:
+            'Rename safety unavailable: only local heuristic facts are available; StyioService compiler facts are required.',
+      );
+    }
     final plan = languageService.renameAt(document, offset, newName);
     if (plan == null) {
       return SemanticSnapshotRenameSafetyResult(
@@ -643,6 +692,16 @@ class SemanticSnapshotProvider {
           ? 'StyioService blocked rename with ${plan.conflicts.length} conflict(s).'
           : 'StyioService produced a safe rename plan.',
     );
+  }
+
+  bool _hasAuthoritativeFactsFor(
+    DocumentState document,
+    StyioServiceCapability capability,
+  ) {
+    final provenance = languageService is StyioLanguageFactProvenance
+        ? languageService as StyioLanguageFactProvenance
+        : null;
+    return provenance?.hasAuthoritativeFactsFor(document, capability) ?? false;
   }
 
   SemanticSnapshotRenameSafetyResult workspaceRenameSafetyFromPreview({

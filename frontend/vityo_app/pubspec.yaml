@@ -13,6 +13,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.5
   path_provider: ^2.1.5
+  pty2: 0.5.2
   cryptography: ^2.9.0
   web: ^1.1.1
 
@@ -26,3 +27,8 @@ flutter:
   assets:
     - assets/module_manifests/
     - assets/capability_matrices/
+
+# pty2 declares its lint preset as a runtime dependency. It is not imported by
+# the package at runtime, so keep Vityo's independently gated lint baseline.
+dependency_overrides:
+  lints: 5.1.1

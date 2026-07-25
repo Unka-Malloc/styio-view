@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "platform": "macos",
+  "package_format": "dmg",
+  "build_relative_path": "frontend/vityo_app/build/macos/Build/Products/Release/Vityo.app",
+  "icon_relative_path": "frontend/vityo_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png",
+  "installer_definition": "packaging/macos/create-dmg.sh",
+  "signing": {"status": "explicit-gap", "reason": "Nightly Developer ID and notarization credentials are not configured."},
+  "automatic_updates": false
+}

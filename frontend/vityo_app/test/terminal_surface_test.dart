@@ -25,15 +25,14 @@ void main() {
       workingDirectory: '/workspace/vityo',
       rows: 24,
       cols: 80,
-      ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm(scriptUtilityPath: '/script'))
-          .plan(
-            const PtySessionRequest(
-              executablePath: '/bin/sh',
-              workingDirectory: '/workspace/vityo',
-              rows: 24,
-              cols: 80,
-            ),
-          ),
+      ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm()).plan(
+        const PtySessionRequest(
+          executablePath: '/bin/sh',
+          workingDirectory: '/workspace/vityo',
+          rows: 24,
+          cols: 80,
+        ),
+      ),
     );
 
     await tester.pumpWidget(
@@ -198,5 +197,54 @@ void main() {
     expect(find.text('live-events 1'), findsOneWidget);
     expect(find.text('live-channels 1'), findsOneWidget);
     expect(find.textContaining('output   stdout live stdout'), findsOneWidget);
+  });
+
+  testWidgets('terminal surface renders unsupported PTY as capability gap', (
+    tester,
+  ) async {
+    var startCount = 0;
+    final startPlan = TerminalRuntimeStartPlan(
+      profileId: 'powershell',
+      executablePath: 'powershell.exe',
+      workingDirectory: null,
+      rows: 24,
+      cols: 80,
+      ptyPlan: PtyAdapter(
+        PtyFacts.windowsX64(supportsConPty: false),
+      ).plan(const PtySessionRequest(executablePath: 'powershell.exe')),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TerminalSurface(
+            viewportProfile: resolveViewportProfile(
+              platformTarget: PlatformTarget.windows,
+              width: 1200,
+              height: 800,
+            ),
+            logEntries: const <String>[],
+            runtimeEventSummaries: const <String>[],
+            startPlan: startPlan,
+            onStartSession: () async {
+              startCount += 1;
+            },
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('start-plan blocked'), findsOneWidget);
+    expect(find.text('pty capability gap'), findsOneWidget);
+    expect(find.text(startPlan.unsupportedMessage!), findsNWidgets(2));
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.byKey(const ValueKey('terminal-start-session')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(startCount, 0);
   });
 }

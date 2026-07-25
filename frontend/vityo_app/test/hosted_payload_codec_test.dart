@@ -124,6 +124,7 @@ void main() {
         'entryUrl': 'https://hosted.example/workspaces/demo-workspace',
       },
       'payload': <String, dynamic>{
+        'schema_version': 1,
         'id': '/workspace/demo/pafio.toml',
         'title': 'demo/app',
         'workspace_root': '/workspace/demo',
@@ -311,13 +312,28 @@ void main() {
       }),
       throwsA(isA<FormatException>()),
     );
+    expect(
+      () => hostedProjectGraphSnapshotFromEnvelope(<String, dynamic>{
+        'payload': <String, dynamic>{'schema_version': 2},
+      }),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          contains('unsupported schema version'),
+        ),
+      ),
+    );
 
     expect(projectKindFromString('package'), ProjectKind.package);
     expect(projectKindFromString('workspace'), ProjectKind.workspace);
     expect(projectKindFromString('combined-root'), ProjectKind.combinedRoot);
     expect(projectKindFromString('scratch'), ProjectKind.scratch);
     expect(projectTargetKindFromString(null), ProjectTargetKind.bin);
-    expect(projectDependencyKindFromString(null), ProjectDependencyKind.runtime);
+    expect(
+      projectDependencyKindFromString(null),
+      ProjectDependencyKind.runtime,
+    );
     expect(
       projectDependencySourceKindFromString('registry'),
       ProjectDependencySourceKind.registry,
@@ -342,6 +358,7 @@ void main() {
 
     final graph = hostedProjectGraphSnapshotFromEnvelope(<String, dynamic>{
       'payload': <String, dynamic>{
+        'schema_version': 1,
         'manifest_path': '/workspace/demo/pafio.toml',
         'package_distribution': <String, dynamic>{
           'schema_version': 3,

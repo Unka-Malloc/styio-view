@@ -351,6 +351,41 @@ void main() {
       expect(controls.toJson()['daemonLifecycle'], isA<Map<String, Object?>>());
     },
   );
+
+  test(
+    'daemon restart timeout invalidates in-flight analysis without hanging',
+    () async {
+      const document = DocumentState(
+        documentId: 'fixture://restart-race',
+        text: 'value := 1\n',
+        revision: 1,
+      );
+      final connector = _CompleterStyioServiceConnector();
+      final controller = StyioServiceSubscriptionController(
+        driver: StyioServiceAnalysisDriver(connector: connector),
+      );
+      addTearDown(controller.dispose);
+      final analysis = controller.refresh(document);
+      await Future<void>.delayed(Duration.zero);
+      var restartCount = 0;
+
+      final restart = await controller.dispatchDaemonRestart(
+        failedAttempt: 0,
+        reason: StyioServiceDaemonRestartReason.manual,
+        restart: (_) {
+          restartCount += 1;
+          return Completer<StyioServiceDaemonLifecycleSnapshot>().future;
+        },
+        restartTimeout: Duration.zero,
+      );
+      connector.completeAt(0);
+      final analysisResult = await analysis;
+
+      expect(restart.status, StyioServiceDaemonRestartDispatchStatus.timedOut);
+      expect(restartCount, 1);
+      expect(analysisResult.kind, StyioServiceSubscriptionEventKind.stale);
+    },
+  );
 }
 
 typedef _StyioServiceResponseFactory =

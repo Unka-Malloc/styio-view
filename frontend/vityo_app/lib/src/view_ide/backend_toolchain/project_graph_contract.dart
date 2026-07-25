@@ -708,6 +708,34 @@ class ProjectGraphSnapshot {
         ProjectGraphFieldSourceConfidence.capabilityGap;
   }
 
+  bool get hasAuthoritativeProjectGraphFacts {
+    return const <String>[
+      'workspaceMembers',
+      'packages',
+      'dependencies',
+      'targets',
+      'editorFiles',
+    ].every(
+      (fieldName) =>
+          sourceConfidenceFor(fieldName) ==
+          ProjectGraphFieldSourceConfidence.machinePayload,
+    );
+  }
+
+  static Map<String, ProjectGraphFieldSourceConfidence>
+  machinePayloadSourceConfidence() {
+    return Map<String, ProjectGraphFieldSourceConfidence>.unmodifiable(
+      _machinePayloadSourceConfidenceByField,
+    );
+  }
+
+  static Map<String, ProjectGraphFieldSourceConfidence>
+  canonicalFileSourceConfidence() {
+    return Map<String, ProjectGraphFieldSourceConfidence>.unmodifiable(
+      _canonicalFileSourceConfidenceByField,
+    );
+  }
+
   ProjectGraphSnapshot copyWith({
     List<String>? editorFiles,
     ToolchainStatusSnapshot? toolchain,
@@ -815,7 +843,7 @@ class ProjectGraphSnapshot {
     if (hasProjectGraphPayloadFailure || hasToolchainStatePayloadFailure) {
       return _canonicalFileSourceConfidenceByField;
     }
-    return _machinePayloadSourceConfidenceByField;
+    return _unspecifiedSourceConfidenceByField;
   }
 }
 
@@ -838,6 +866,13 @@ _canonicalFileSourceConfidenceByField =
       'sourceState': ProjectGraphFieldSourceConfidence.capabilityGap,
       'hostedWorkspace': ProjectGraphFieldSourceConfidence.capabilityGap,
       'notes': ProjectGraphFieldSourceConfidence.inferred,
+    };
+
+final Map<String, ProjectGraphFieldSourceConfidence>
+_unspecifiedSourceConfidenceByField =
+    <String, ProjectGraphFieldSourceConfidence>{
+      for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
+        fieldName: ProjectGraphFieldSourceConfidence.capabilityGap,
     };
 
 final Map<String, ProjectGraphFieldSourceConfidence>

@@ -39,11 +39,8 @@ void main() {
     expect(plan.rows, 30);
     expect(plan.cols, 100);
     expect(plan.supported, isTrue);
-    expect(plan.backendExecutablePath, '/script');
-    expect(
-      plan.backendArguments.any((argument) => argument.contains('/bin/sh')),
-      isTrue,
-    );
+    expect(plan.backendExecutablePath, '/bin/sh');
+    expect(plan.backendArguments, isEmpty);
     expect(plan.toJson()['providerKind'], plan.providerKind);
     expect(plan.toJson()['supported'], isTrue);
   });
@@ -57,15 +54,12 @@ void main() {
         workingDirectory: '/workspace/vityo',
         rows: 24,
         cols: 80,
-        ptyPlan:
-            PtyAdapter(
-              PtyFacts.linuxDebianArm(scriptUtilityPath: '/script'),
-            ).plan(
-              const PtySessionRequest(
-                executablePath: '/bin/sh',
-                workingDirectory: '/workspace/vityo',
-              ),
-            ),
+        ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm()).plan(
+          const PtySessionRequest(
+            executablePath: '/bin/sh',
+            workingDirectory: '/workspace/vityo',
+          ),
+        ),
       );
       final sessionSnapshot = TerminalSessionSnapshot(
         sessionId: 'pty-1',
@@ -123,13 +117,12 @@ void main() {
       workingDirectory: '/workspace/vityo',
       rows: 24,
       cols: 80,
-      ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm(scriptUtilityPath: '/script'))
-          .plan(
-            const PtySessionRequest(
-              executablePath: '/bin/sh',
-              workingDirectory: '/workspace/vityo',
-            ),
-          ),
+      ptyPlan: PtyAdapter(PtyFacts.linuxDebianArm()).plan(
+        const PtySessionRequest(
+          executablePath: '/bin/sh',
+          workingDirectory: '/workspace/vityo',
+        ),
+      ),
     );
     final replay = TerminalSessionRecoveryPlan.fromState(startPlan: startPlan);
     final rebind = TerminalSessionRecoveryPlan.fromState(
@@ -808,7 +801,7 @@ class _FakePtyManager implements PtyManager {
   PtyCompatibility get compatibility => PtyAdapter(facts).adapt();
 
   @override
-  PtyFacts get facts => PtyFacts.linuxDebianArm(scriptUtilityPath: '/script');
+  PtyFacts get facts => PtyFacts.linuxDebianArm();
 
   @override
   Future<PtySession> start(PtySessionRequest request) async => session;

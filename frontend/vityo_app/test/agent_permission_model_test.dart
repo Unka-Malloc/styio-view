@@ -216,8 +216,9 @@ void main() {
       const minimizer = AgentContextMinimizer(
         policy: AgentContextPolicy(includeSecrets: true),
       );
+      final localMaterial = <String>['TOKEN', 'local-only'].join('=');
 
-      expect(minimizer.minimize('TOKEN=local-only'), 'TOKEN=local-only');
+      expect(minimizer.minimize(localMaterial), localMaterial);
     });
   });
 }

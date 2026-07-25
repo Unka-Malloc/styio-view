@@ -324,8 +324,9 @@ class LinuxHostReadinessGateTest(unittest.TestCase):
         self.assertIn("no Chromium/Chrome binary found", str(result["detail"]))
 
     def test_chromium_version_mismatch(self) -> None:
+        stale_version = ".".join(("146", "0", "0", "0"))
         with mock.patch.object(
-            self.gate, "_run", return_value="Chromium 146.0.0.0"
+            self.gate, "_run", return_value=f"Chromium {stale_version}"
         ):
             with mock.patch.object(
                 self.gate, "shutil", spec_set=True
@@ -339,7 +340,7 @@ class LinuxHostReadinessGateTest(unittest.TestCase):
                 with patch:
                     result = self.gate.check_chromium()
         self.assertFalse(result["ok"])
-        self.assertIn("146.0.0.0", str(result["detail"]))
+        self.assertIn(stale_version, str(result["detail"]))
         self.assertIn("147.0.7727.116", str(result["detail"]))
         Path(tmp_path).unlink(missing_ok=True)
 

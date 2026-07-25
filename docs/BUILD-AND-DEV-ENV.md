@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the repository-level entry point for bootstrapping a fresh machine, installing shared GUI toolchains, and routing contributors to the correct implementation surface.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-11
 
 ## Who This Is For
 
@@ -273,6 +273,39 @@ Full checkpoint delivery floor:
 ```bash
 ./scripts/delivery-gate.sh --mode checkpoint
 ```
+
+### Ecosystem product-gate environment
+
+The product gate expects sibling checkouts named `styio-nightly` and
+`styio-pafio` beside this repository. CI and scheduled matrix runs fail closed
+when the canonical `styio-pafio/scripts/ecosystem-product-gate.py` entrypoint is
+missing. Local runs may omit the siblings, but the result is reported as
+`ok=false`, `skipped=true`; set `VITYO_PRODUCT_GATE=1` to make the same condition
+fatal locally.
+
+The scheduled Linux, Windows, and macOS jobs run independently and publish a
+platform-specific matrix evidence JSON containing the exact Vityo, Styio, and
+Pafio commits. That evidence proves the Vityo adapter matrix only; it keeps
+`productCapabilityComplete=false` until the separately versioned real product
+matrix satisfies the product capability claim.
+
+## Repository-Local Developer Cache
+
+Use the repository-root `.cache/` directory for project-specific development
+materials that are useful locally but must not be committed. Suitable contents
+include downloaded source archives or checkouts, reusable installers, portable
+developer tools, and expensive download caches.
+
+The cache is optional and reconstructible. Do not place canonical source,
+configuration, credentials, release evidence, or the only copy of an artifact
+under `.cache/`. Scripts that consume cached material must resolve the directory
+relative to the repository root, create missing subdirectories, and either
+re-download missing inputs or report a clear recovery action.
+
+Normal build and package-manager working directories keep their established
+locations: Flutter `.dart_tool/` and build output, Node `node_modules/`, and
+platform-generated state remain in their conventional project directories. The
+root `.gitignore` excludes `.cache/` from commits.
 
 ## Subsystem-Specific Follow-Ups
 

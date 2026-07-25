@@ -39,6 +39,18 @@ ProjectGraphSnapshot hostedProjectGraphSnapshotFromEnvelope(
       'Hosted project-graph response is missing payload.',
     );
   }
+  final rawSchemaVersion =
+      payload['schema_version'] ?? payload['schemaVersion'];
+  final schemaMajor = rawSchemaVersion is num
+      ? rawSchemaVersion.toInt()
+      : int.tryParse(
+          rawSchemaVersion?.toString().trim().split('.').first ?? '',
+        );
+  if (schemaMajor != 1) {
+    throw FormatException(
+      'Hosted project-graph payload has unsupported schema version `${rawSchemaVersion ?? 'missing'}`.',
+    );
+  }
 
   final packages = (payload['packages'] as List? ?? const <Object>[])
       .whereType<Map<String, dynamic>>()
@@ -139,6 +151,8 @@ ProjectGraphSnapshot hostedProjectGraphSnapshotFromEnvelope(
     packageDistribution: packageDistribution,
     sourceState: sourceState,
     hostedWorkspace: hostedWorkspace,
+    sourceConfidenceByField:
+        ProjectGraphSnapshot.machinePayloadSourceConfidence(),
     notes: notes.isEmpty
         ? const <String>[
             'Project graph loaded through the hosted control-plane route.',

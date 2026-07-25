@@ -1,4 +1,4 @@
-﻿enum IdeCapabilityLayer {
+enum IdeCapabilityLayer {
   foundation,
   environment,
   service,
@@ -536,12 +536,12 @@ class VityoIdeCapabilityFramework {
           id: 'runtime.terminal',
           layer: IdeCapabilityLayer.runtime,
           title: 'Terminal, PTY, and task runner',
-          status: IdeCapabilityStatus.scaffolded,
+          status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/toolchain/terminal_runtime.dart',
           summary:
-              'Terminal surface is wired to shell/runtime output, RuntimeOutputLiveBuffer panel snapshots, TerminalRuntimeStartPlan readiness, PtyExecutionPlan backend details, PtyNativeOperationBackendRegistry resize/signal backend delegation, TerminalRuntimeOutputBinding start-plan/session output snapshots, TerminalSessionRecoveryPlan replay/rebind/stale-close recovery facts, recovery action controls, TerminalInteractionController live RuntimeOutputEvent streams, RuntimeOutputProducerEmission adapter binding, ShellManager runtime output adapter bindings, line-chunked ShellCommandResult stdout/stderr events, run handoff, PTY session snapshots, script-PTY stdout/stderr merged output streams, explicit start/resize/signal/close UI controls, TerminalInteractionController input/resize/signal/close contracts, serializable interaction events, terminal-to-runtime-output event conversion, ShellCommandResult output binding, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
+              'Terminal surface is wired to shell/runtime output, RuntimeOutputLiveBuffer panel snapshots, TerminalRuntimeStartPlan readiness, native forkpty/ConPTY execution plans, fail-closed ConPTY validation, native resize and signal delivery, TerminalRuntimeOutputBinding start-plan/session output snapshots, TerminalSessionRecoveryPlan replay/rebind/stale-close recovery facts, recovery action controls, TerminalInteractionController live RuntimeOutputEvent streams, RuntimeOutputProducerEmission adapter binding, ShellManager runtime output adapter bindings, line-chunked ShellCommandResult stdout/stderr events, run handoff, PTY session snapshots, explicit start/resize/signal/close UI controls, serializable interaction events, terminal-to-runtime-output event conversion, shared runtime task lifecycle snapshots on start/close, and persisted terminal task history.',
           todo:
-              'TODO: register native POSIX PTY/ConPTY resize and native OS process signal delivery backends to replace script-PTY placeholders where available.',
+              'TODO: run the fixed-version macOS and Linux product matrices before claiming those platform product capabilities complete.',
           runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code integrated terminal',

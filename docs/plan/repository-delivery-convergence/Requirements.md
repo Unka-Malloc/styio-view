@@ -20,6 +20,7 @@
 - REQ-003: Open or uncertain work extracted from prior planning sources is represented as current Better Plan acceptance criteria rather than as old checklist files.
 - REQ-004: The workspace uses current project naming and does not retain separate planning roots named `docs/plan`, `docs/plan`, or `docs/plan`.
 - REQ-005: Validation evidence maps every requirement to concrete repository checks.
+- REQ-006: Every extracted open-work signal tracked by an implementation node is closed with delivery evidence or explicitly skipped with a recorded rationale.
 
 ## Non-Goals
 

@@ -16,3 +16,4 @@
 1. Manifest validation passes for `docs/plan`.
 2. No old planning root remains at `docs/plan`, `docs/plan`, or `docs/plan`.
 3. Product implementation remains represented as open Better Plan work unless direct code and test evidence proves completion.
+- REQ-006: Every implementation node in `Checkpoints.json` that closes an extracted open-work signal is `completed` with checked acceptance criteria and evidence, or `skipped` with a `status_reason`; verified by `manifest_tool.py validate docs/plan` plus review of node statuses.

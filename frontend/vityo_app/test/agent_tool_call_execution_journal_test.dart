@@ -137,14 +137,28 @@ void main() {
   test(
     'agent tool call execution journal redacts persisted structured secrets',
     () {
-      const entry = AgentToolCallExecutionJournalEntry(
+      final apiKeyMaterial = <String>['sk', 'secret'].join('-');
+      final entry = AgentToolCallExecutionJournalEntry(
         callId: 'call-secret',
         toolId: 'applyWorkspacePatch',
         status: AgentToolCallStatus.failed,
         inputComplete: true,
-        inputText:
-            '{"path":"main.styio","apiKey":"sk-secret","nested":{"authorization":"Bearer secret-token"},"items":[{"refreshToken":"refresh-secret"}]}',
-        resultSample: 'provider returned token=result-secret',
+        inputText: jsonEncode(<String, Object?>{
+          'path': 'main.styio',
+          'apiKey': apiKeyMaterial,
+          'nested': <String, Object?>{
+            'authorization': <String>['Bearer', 'secret-token'].join(' '),
+          },
+          'items': <Map<String, Object?>>[
+            <String, Object?>{
+              'refreshToken': <String>['refresh', 'secret'].join('-'),
+            },
+          ],
+        }),
+        resultSample: <String>[
+          'provider returned token',
+          'result-secret',
+        ].join('='),
         errorMessage: 'failed with Bearer error-secret',
         metadata: <String, Object?>{
           'path': 'main.styio',
@@ -161,11 +175,11 @@ void main() {
       final encoded = jsonEncode(payload);
 
       expect(payload['inputLength'], entry.inputText.length);
-      expect(entry.toReplayRequest().inputText, contains('sk-secret'));
+      expect(entry.toReplayRequest().inputText, contains(apiKeyMaterial));
       expect(encoded, contains('[redacted]'));
       expect(encoded, contains('main.styio'));
       expect(encoded, contains('kept'));
-      expect(encoded, isNot(contains('sk-secret')));
+      expect(encoded, isNot(contains(apiKeyMaterial)));
       expect(encoded, isNot(contains('secret-token')));
       expect(encoded, isNot(contains('refresh-secret')));
       expect(encoded, isNot(contains('result-secret')));

@@ -12,12 +12,21 @@ import 'package:vityo_app/src/language/language_contract.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
 void main() {
+  test('execution receipt decoder fails closed on unknown schema', () {
+    expect(
+      ExecutionReceiptSnapshot.decode(const <String, Object?>{
+        'schema_version': 2,
+        'intent': 'run',
+        'executed': true,
+      }, fallbackSessionId: 'session'),
+      isNull,
+    );
+  });
+
   test(
     'execution adapter prefers published pafio workflow payloads and preserves JSON program output',
     () async {
-      final tempRoot = await _createTempRoot(
-        'vityo_execution_payload_test_',
-      );
+      final tempRoot = await _createTempRoot('vityo_execution_payload_test_');
       final sourceFile =
           File(
               '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
@@ -181,6 +190,9 @@ raise SystemExit(64)
       );
 
       expect(session.status, ExecutionSessionStatus.succeeded);
+      expect(session.receipt?.schemaVersion, 1);
+      expect(session.receipt?.intent, 'run');
+      expect(session.receipt?.executed, isTrue);
       expect(session.sessionId, 'runtime-session-1');
       expect(
         session.statusMessage,
@@ -213,9 +225,7 @@ raise SystemExit(64)
   test(
     'execution adapter falls back to package build for non-entry project files',
     () async {
-      final tempRoot = await _createTempRoot(
-        'vityo_execution_non_entry_test_',
-      );
+      final tempRoot = await _createTempRoot('vityo_execution_non_entry_test_');
       final helperFile =
           File(
               '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}helper.styio',
@@ -916,115 +926,118 @@ raise SystemExit(64)
     );
   });
 
-  test('execution adapter exposes blocked platform and compiler branches', () async {
-    final tempRoot = await _createTempRoot('vityo_execution_blocked_test_');
-    final sourceFile =
-        File(
-            '${tempRoot.path}${Platform.pathSeparator}scratch${Platform.pathSeparator}main.styio',
-          )
-          ..createSync(recursive: true)
-          ..writeAsStringSync('>_("demo")\n');
+  test(
+    'execution adapter exposes blocked platform and compiler branches',
+    () async {
+      final tempRoot = await _createTempRoot('vityo_execution_blocked_test_');
+      final sourceFile =
+          File(
+              '${tempRoot.path}${Platform.pathSeparator}scratch${Platform.pathSeparator}main.styio',
+            )
+            ..createSync(recursive: true)
+            ..writeAsStringSync('>_("demo")\n');
 
-    debugOverrideHostedEnvironment(const <String, String>{
-      'VITYO_HOSTED_URL': 'http://127.0.0.1:1/api/styio-hosted/v1',
-      'VITYO_HOSTED_TOKEN': 'test-hosted-token',
-      'VITYO_HOSTED_WORKSPACE_ROOT': '/workspace/hosted',
-    });
-    final hostedAdapter = await createExecutionAdapter(
-      platformTarget: PlatformTarget.ios,
-      projectGraph: ProjectGraphSnapshot.scratch(
+      debugOverrideHostedEnvironment(const <String, String>{
+        'VITYO_HOSTED_URL': 'http://127.0.0.1:1/api/styio-hosted/v1',
+        'VITYO_HOSTED_TOKEN': 'test-hosted-token',
+        'VITYO_HOSTED_WORKSPACE_ROOT': '/workspace/hosted',
+      });
+      final hostedAdapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.ios,
+        projectGraph: ProjectGraphSnapshot.scratch(
+          workspaceRoot: tempRoot.path,
+          activeFilePath: sourceFile.path,
+          title: 'Scratch Project',
+          notes: const <String>[],
+        ),
+      );
+      addTearDown(() => debugOverrideHostedEnvironment(null));
+      expect(
+        hostedAdapter.capabilitySnapshot.execution.level,
+        AdapterCapabilityLevel.available,
+      );
+      final missingHostedWorkspace = await hostedAdapter.runActiveDocument(
+        platformTarget: PlatformTarget.ios,
+        projectGraph: ProjectGraphSnapshot.scratch(
+          workspaceRoot: tempRoot.path,
+          activeFilePath: sourceFile.path,
+          title: 'Scratch Project',
+          notes: const <String>[],
+        ),
+        document: const DocumentState(
+          documentId: 'scratch',
+          text: '>_("demo")\n',
+          revision: 1,
+        ),
+        activeFilePath: sourceFile.path,
+      );
+      expect(missingHostedWorkspace.status, ExecutionSessionStatus.blocked);
+      expect(missingHostedWorkspace.sessionId, 'missing-hosted-workspace');
+
+      debugOverrideHostedEnvironment(null);
+      final missingCompilerGraph = ProjectGraphSnapshot.scratch(
         workspaceRoot: tempRoot.path,
         activeFilePath: sourceFile.path,
         title: 'Scratch Project',
         notes: const <String>[],
-      ),
-    );
-    addTearDown(() => debugOverrideHostedEnvironment(null));
-    expect(
-      hostedAdapter.capabilitySnapshot.execution.level,
-      AdapterCapabilityLevel.available,
-    );
-    final missingHostedWorkspace = await hostedAdapter.runActiveDocument(
-      platformTarget: PlatformTarget.ios,
-      projectGraph: ProjectGraphSnapshot.scratch(
-        workspaceRoot: tempRoot.path,
+      );
+      final missingCompilerAdapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: missingCompilerGraph,
+      );
+      expect(
+        missingCompilerAdapter.capabilitySnapshot.execution.level,
+        AdapterCapabilityLevel.unavailable,
+      );
+      final missingCompiler = await missingCompilerAdapter.runActiveDocument(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: missingCompilerGraph,
+        document: const DocumentState(
+          documentId: 'scratch',
+          text: '>_("demo")\n',
+          revision: 1,
+        ),
         activeFilePath: sourceFile.path,
-        title: 'Scratch Project',
-        notes: const <String>[],
-      ),
-      document: const DocumentState(
-        documentId: 'scratch',
-        text: '>_("demo")\n',
-        revision: 1,
-      ),
-      activeFilePath: sourceFile.path,
-    );
-    expect(missingHostedWorkspace.status, ExecutionSessionStatus.blocked);
-    expect(missingHostedWorkspace.sessionId, 'missing-hosted-workspace');
+      );
+      expect(missingCompiler.status, ExecutionSessionStatus.blocked);
+      expect(missingCompiler.sessionId, 'missing-styio-binary');
 
-    debugOverrideHostedEnvironment(null);
-    final missingCompilerGraph = ProjectGraphSnapshot.scratch(
-      workspaceRoot: tempRoot.path,
-      activeFilePath: sourceFile.path,
-      title: 'Scratch Project',
-      notes: const <String>[],
-    );
-    final missingCompilerAdapter = await createExecutionAdapter(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: missingCompilerGraph,
-    );
-    expect(
-      missingCompilerAdapter.capabilitySnapshot.execution.level,
-      AdapterCapabilityLevel.unavailable,
-    );
-    final missingCompiler = await missingCompilerAdapter.runActiveDocument(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: missingCompilerGraph,
-      document: const DocumentState(
-        documentId: 'scratch',
-        text: '>_("demo")\n',
-        revision: 1,
-      ),
-      activeFilePath: sourceFile.path,
-    );
-    expect(missingCompiler.status, ExecutionSessionStatus.blocked);
-    expect(missingCompiler.sessionId, 'missing-styio-binary');
-
-    final fakeStyio = await _writeExecutable(
-      File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
-      '''#!/usr/bin/env python3
+      final fakeStyio = await _writeExecutable(
+        File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
+        '''#!/usr/bin/env python3
 raise SystemExit(64)
 ''',
-    );
-    final iosGraph = ProjectGraphSnapshot.scratch(
-      workspaceRoot: tempRoot.path,
-      activeFilePath: sourceFile.path,
-      title: 'Scratch Project',
-      notes: const <String>[],
-      activeCompiler: _compilerSnapshot(fakeStyio.path),
-    );
-    final iosAdapter = await createExecutionAdapter(
-      platformTarget: PlatformTarget.ios,
-      projectGraph: iosGraph,
-    );
-    expect(
-      iosAdapter.capabilitySnapshot.execution.level,
-      AdapterCapabilityLevel.unavailable,
-    );
-    final iosSession = await iosAdapter.runActiveDocument(
-      platformTarget: PlatformTarget.ios,
-      projectGraph: iosGraph,
-      document: const DocumentState(
-        documentId: 'scratch',
-        text: '>_("demo")\n',
-        revision: 1,
-      ),
-      activeFilePath: sourceFile.path,
-    );
-    expect(iosSession.sessionId, 'ios-cloud-only');
+      );
+      final iosGraph = ProjectGraphSnapshot.scratch(
+        workspaceRoot: tempRoot.path,
+        activeFilePath: sourceFile.path,
+        title: 'Scratch Project',
+        notes: const <String>[],
+        activeCompiler: _compilerSnapshot(fakeStyio.path),
+      );
+      final iosAdapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.ios,
+        projectGraph: iosGraph,
+      );
+      expect(
+        iosAdapter.capabilitySnapshot.execution.level,
+        AdapterCapabilityLevel.unavailable,
+      );
+      final iosSession = await iosAdapter.runActiveDocument(
+        platformTarget: PlatformTarget.ios,
+        projectGraph: iosGraph,
+        document: const DocumentState(
+          documentId: 'scratch',
+          text: '>_("demo")\n',
+          revision: 1,
+        ),
+        activeFilePath: sourceFile.path,
+      );
+      expect(iosSession.sessionId, 'ios-cloud-only');
 
-    final manifestPath = '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
-    File(manifestPath).writeAsStringSync('''
+      final manifestPath =
+          '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
+      File(manifestPath).writeAsStringSync('''
 [package]
 name = "demo/app"
 version = "0.1.0"
@@ -1033,89 +1046,93 @@ version = "0.1.0"
 name = "demo"
 path = "scratch/main.styio"
 ''');
-    final target = ProjectTargetDescriptor(
-      id: 'demo/app:bin:demo',
-      packageName: 'demo/app',
-      kind: ProjectTargetKind.bin,
-      name: 'demo',
-      filePath: sourceFile.path,
-    );
-    final blockedCompilePlanGraph = _projectGraph(
-      workspaceRoot: tempRoot.path,
-      manifestPath: manifestPath,
-      targets: <ProjectTargetDescriptor>[target],
-      packages: <ProjectPackageSnapshot>[
-        _packageSnapshot(
-          packageName: 'demo/app',
-          rootPath: tempRoot.path,
-          manifestPath: manifestPath,
-          targets: <ProjectTargetDescriptor>[target],
+      final target = ProjectTargetDescriptor(
+        id: 'demo/app:bin:demo',
+        packageName: 'demo/app',
+        kind: ProjectTargetKind.bin,
+        name: 'demo',
+        filePath: sourceFile.path,
+      );
+      final blockedCompilePlanGraph = _projectGraph(
+        workspaceRoot: tempRoot.path,
+        manifestPath: manifestPath,
+        targets: <ProjectTargetDescriptor>[target],
+        packages: <ProjectPackageSnapshot>[
+          _packageSnapshot(
+            packageName: 'demo/app',
+            rootPath: tempRoot.path,
+            manifestPath: manifestPath,
+            targets: <ProjectTargetDescriptor>[target],
+          ),
+        ],
+        activeCompiler: _compilerSnapshot(
+          fakeStyio.path,
+          contracts: const <String, List<int>>{
+            'machine_info': <int>[1],
+          },
         ),
-      ],
-      activeCompiler: _compilerSnapshot(
-        fakeStyio.path,
-        contracts: const <String, List<int>>{
-          'machine_info': <int>[1],
-        },
-      ),
-    );
-    final blockedCompilePlanAdapter = await createExecutionAdapter(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: blockedCompilePlanGraph,
-    );
-    expect(
-      blockedCompilePlanAdapter.capabilitySnapshot.execution.level,
-      AdapterCapabilityLevel.partial,
-    );
-    final blockedCompilePlan = await blockedCompilePlanAdapter.runActiveDocument(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: blockedCompilePlanGraph,
-      document: const DocumentState(
-        documentId: 'scratch',
-        text: '>_("demo")\n',
-        revision: 1,
-      ),
-      activeFilePath: sourceFile.path,
-    );
-    expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
+      );
+      final blockedCompilePlanAdapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: blockedCompilePlanGraph,
+      );
+      expect(
+        blockedCompilePlanAdapter.capabilitySnapshot.execution.level,
+        AdapterCapabilityLevel.partial,
+      );
+      final blockedCompilePlan = await blockedCompilePlanAdapter
+          .runActiveDocument(
+            platformTarget: PlatformTarget.macos,
+            projectGraph: blockedCompilePlanGraph,
+            document: const DocumentState(
+              documentId: 'scratch',
+              text: '>_("demo")\n',
+              revision: 1,
+            ),
+            activeFilePath: sourceFile.path,
+          );
+      expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
 
-    final missingPafioGraph = _projectGraph(
-      workspaceRoot: tempRoot.path,
-      manifestPath: manifestPath,
-      targets: <ProjectTargetDescriptor>[target],
-      packages: <ProjectPackageSnapshot>[
-        _packageSnapshot(
-          packageName: 'demo/app',
-          rootPath: tempRoot.path,
-          manifestPath: manifestPath,
-          targets: <ProjectTargetDescriptor>[target],
+      final missingPafioGraph = _projectGraph(
+        workspaceRoot: tempRoot.path,
+        manifestPath: manifestPath,
+        targets: <ProjectTargetDescriptor>[target],
+        packages: <ProjectPackageSnapshot>[
+          _packageSnapshot(
+            packageName: 'demo/app',
+            rootPath: tempRoot.path,
+            manifestPath: manifestPath,
+            targets: <ProjectTargetDescriptor>[target],
+          ),
+        ],
+        activeCompiler: _compilerSnapshot(fakeStyio.path),
+      );
+      final missingPafioAdapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: missingPafioGraph,
+      );
+      final missingPafio = await missingPafioAdapter.runActiveDocument(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: missingPafioGraph,
+        document: const DocumentState(
+          documentId: 'scratch',
+          text: '>_("demo")\n',
+          revision: 1,
         ),
-      ],
-      activeCompiler: _compilerSnapshot(fakeStyio.path),
-    );
-    final missingPafioAdapter = await createExecutionAdapter(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: missingPafioGraph,
-    );
-    final missingPafio = await missingPafioAdapter.runActiveDocument(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: missingPafioGraph,
-      document: const DocumentState(
-        documentId: 'scratch',
-        text: '>_("demo")\n',
-        revision: 1,
-      ),
-      activeFilePath: sourceFile.path,
-    );
-    expect(missingPafio.status, ExecutionSessionStatus.blocked);
-    expect(missingPafio.sessionId, 'missing-pafio-binary');
-  });
+        activeFilePath: sourceFile.path,
+      );
+      expect(missingPafio.status, ExecutionSessionStatus.blocked);
+      expect(missingPafio.sessionId, 'missing-pafio-binary');
+    },
+  );
 
-  test('single-file execution writes relative documents to temporary inputs', () async {
-    final tempRoot = await _createTempRoot('vityo_execution_relative_test_');
-    final fakeStyio = await _writeExecutable(
-      File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
-      '''#!/usr/bin/env python3
+  test(
+    'single-file execution writes relative documents to temporary inputs',
+    () async {
+      final tempRoot = await _createTempRoot('vityo_execution_relative_test_');
+      final fakeStyio = await _writeExecutable(
+        File('${tempRoot.path}${Platform.pathSeparator}fake-styio'),
+        '''#!/usr/bin/env python3
 import json, os, sys
 
 if len(sys.argv) >= 4 and sys.argv[1] == '--file' and sys.argv[3] == '--error-format=jsonl':
@@ -1131,42 +1148,44 @@ if len(sys.argv) >= 4 and sys.argv[1] == '--file' and sys.argv[3] == '--error-fo
 
 raise SystemExit(64)
 ''',
-    );
-    final projectGraph = ProjectGraphSnapshot.scratch(
-      workspaceRoot: tempRoot.path,
-      activeFilePath: 'scratch/relative.styio',
-      title: 'Scratch Project',
-      notes: const <String>[],
-      activeCompiler: _compilerSnapshot(
-        fakeStyio.path,
-        contracts: const <String, List<int>>{
-          'machine_info': <int>[1],
-        },
-      ),
-    );
-    final adapter = await createExecutionAdapter(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: projectGraph,
-    );
+      );
+      final projectGraph = ProjectGraphSnapshot.scratch(
+        workspaceRoot: tempRoot.path,
+        activeFilePath: 'scratch/relative.styio',
+        title: 'Scratch Project',
+        notes: const <String>[],
+        activeCompiler: _compilerSnapshot(
+          fakeStyio.path,
+          contracts: const <String, List<int>>{
+            'machine_info': <int>[1],
+          },
+        ),
+      );
+      final adapter = await createExecutionAdapter(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: projectGraph,
+      );
 
-    final session = await adapter.runActiveDocument(
-      platformTarget: PlatformTarget.macos,
-      projectGraph: projectGraph,
-      document: const DocumentState(
-        documentId: 'scratch/relative.styio',
-        text: '>_("relative")\n',
-        revision: 1,
-      ),
-      activeFilePath: 'scratch/relative.styio',
-    );
+      final session = await adapter.runActiveDocument(
+        platformTarget: PlatformTarget.macos,
+        projectGraph: projectGraph,
+        document: const DocumentState(
+          documentId: 'scratch/relative.styio',
+          text: '>_("relative")\n',
+          revision: 1,
+        ),
+        activeFilePath: 'scratch/relative.styio',
+      );
 
-    expect(session.status, ExecutionSessionStatus.succeeded);
-    final payload =
-        jsonDecode(session.stdoutEvents.single.message) as Map<String, dynamic>;
-    expect(payload['basename'], 'main.styio');
-    expect(payload['text'], '>_("relative")\n');
-    expect(File(payload['path'] as String).existsSync(), isFalse);
-  });
+      expect(session.status, ExecutionSessionStatus.succeeded);
+      final payload =
+          jsonDecode(session.stdoutEvents.single.message)
+              as Map<String, dynamic>;
+      expect(payload['basename'], 'main.styio');
+      expect(payload['text'], '>_("relative")\n');
+      expect(File(payload['path'] as String).existsSync(), isFalse);
+    },
+  );
 
   test(
     'project workflow reads artifact diagnostics and runtime events for test and lib targets',
@@ -1186,7 +1205,8 @@ raise SystemExit(64)
             )
             ..createSync(recursive: true)
             ..writeAsStringSync('pub fn render() {}\n');
-      final manifestPath = '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
+      final manifestPath =
+          '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
       File(manifestPath).writeAsStringSync('''
 [package]
 name = "demo/app"
@@ -1263,7 +1283,14 @@ if '--json' in sys.argv and 'test' in sys.argv:
         }) + '\\n',
         'diagnostics_path': 'artifacts/diagnostics.jsonl',
         'runtime_events_path': 'artifacts/events.jsonl',
-        'receipt': {'sessionId': 'artifact-session'},
+        'receipt': {
+            'schema_version': 1,
+            'intent': 'test',
+            'session_id': 'artifact-session',
+            'executed': True,
+            'phases': ['compile', 'test'],
+            'artifacts': ['artifacts/diagnostics.jsonl', 'artifacts/events.jsonl'],
+        },
     }))
     raise SystemExit(0)
 
@@ -1341,7 +1368,10 @@ raise SystemExit(64)
       ]) {
         expect(diagnosticMessages, anyElement(contains(expectedMessage)));
       }
-      expect(testSession.diagnostics.first.severity, DiagnosticSeverity.warning);
+      expect(
+        testSession.diagnostics.first.severity,
+        DiagnosticSeverity.warning,
+      );
       expect(testSession.diagnostics.first.code, '99');
       expect(testSession.diagnostics.first.range.start, 4);
       expect(testSession.diagnostics.first.range.end, 8);
@@ -1501,7 +1531,9 @@ Future<File> _writeExecutable(File file, String contents) async {
     await script.create(recursive: true);
     await script.writeAsString(contents);
     final launcher = File('${file.path}.cmd');
-    await launcher.writeAsString('@echo off\r\npython "%~dp0${script.uri.pathSegments.last}" %*\r\n');
+    await launcher.writeAsString(
+      '@echo off\r\npython "%~dp0${script.uri.pathSegments.last}" %*\r\n',
+    );
     return launcher;
   }
 

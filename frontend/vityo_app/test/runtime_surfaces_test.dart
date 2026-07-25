@@ -135,6 +135,14 @@ void main() {
             diagnostics: [],
             stdoutEvents: <ExecutionLogEvent>[],
             stderrEvents: <ExecutionLogEvent>[],
+            receipt: ExecutionReceiptSnapshot(
+              schemaVersion: 1,
+              intent: 'test',
+              sessionId: 'runtime-session-test',
+              executed: true,
+              phases: <String>['compile', 'test'],
+              artifacts: <String>['events.jsonl'],
+            ),
           ),
           outputChannelFilter: const RuntimeOutputChannelFilterState(
             kinds: <RuntimeOutputChannelKind>[
@@ -256,6 +264,10 @@ void main() {
     );
 
     expect(find.text('Runtime Event Replay'), findsOneWidget);
+    expect(
+      find.text('receipt v1 · test · executed · 2 phase(s) · 1 artifact(s)'),
+      findsOneWidget,
+    );
     expect(find.text('Output Channels'), findsOneWidget);
     expect(
       find.textContaining('runtime-surface -> output-panel'),

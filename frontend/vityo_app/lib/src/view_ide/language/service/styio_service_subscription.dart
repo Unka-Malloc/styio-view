@@ -28,6 +28,7 @@ enum StyioServiceDaemonRestartDispatchStatus {
   blocked,
   scheduled,
   dispatched,
+  timedOut,
   failed,
 }
 
@@ -377,6 +378,7 @@ class StyioServiceSubscriptionController {
 
   StreamSubscription<DocumentState>? _documentSubscription;
   StreamSubscription<StyioServiceDaemonEvent>? _daemonSubscription;
+  Future<void> _daemonRestartTail = Future<void>.value();
   StyioServiceDaemonLifecycleSnapshot _daemonLifecycle =
       const StyioServiceDaemonLifecycleSnapshot(
         state: StyioServiceDaemonLifecycleState.detached,
@@ -497,6 +499,30 @@ class StyioServiceSubscriptionController {
     StyioServiceDaemonRestartPolicy policy =
         const StyioServiceDaemonRestartPolicy(),
     StyioServiceDaemonRestartHandler? restart,
+    Duration restartTimeout = const Duration(seconds: 10),
+  }) {
+    final operation = _daemonRestartTail.then(
+      (_) => _dispatchDaemonRestart(
+        failedAttempt: failedAttempt,
+        reason: reason,
+        policy: policy,
+        restart: restart,
+        restartTimeout: restartTimeout,
+      ),
+    );
+    _daemonRestartTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<StyioServiceDaemonRestartDispatchResult> _dispatchDaemonRestart({
+    required int failedAttempt,
+    required StyioServiceDaemonRestartReason reason,
+    required StyioServiceDaemonRestartPolicy policy,
+    required StyioServiceDaemonRestartHandler? restart,
+    required Duration restartTimeout,
   }) async {
     final plan = planDaemonRestart(
       failedAttempt: failedAttempt,
@@ -519,10 +545,13 @@ class StyioServiceSubscriptionController {
       );
     }
     try {
+      // A daemon restart invalidates analysis produced by the previous process
+      // generation, even when termination or relaunch later times out.
+      _generation += 1;
       if (plan.delayBeforeRestart > Duration.zero) {
         await Future<void>.delayed(plan.delayBeforeRestart);
       }
-      final lifecycle = await restart(plan);
+      final lifecycle = await restart(plan).timeout(restartTimeout);
       _daemonLifecycle = lifecycle;
       return StyioServiceDaemonRestartDispatchResult(
         status: StyioServiceDaemonRestartDispatchStatus.dispatched,
@@ -531,6 +560,20 @@ class StyioServiceSubscriptionController {
         message: lifecycle.message.isEmpty
             ? 'StyioService daemon restart dispatched.'
             : lifecycle.message,
+      );
+    } on TimeoutException catch (error) {
+      _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(
+        state: StyioServiceDaemonLifecycleState.failed,
+        providerId: plan.providerId,
+        message:
+            'StyioService daemon restart timed out after ${restartTimeout.inMilliseconds}ms.',
+      );
+      return StyioServiceDaemonRestartDispatchResult(
+        status: StyioServiceDaemonRestartDispatchStatus.timedOut,
+        plan: plan,
+        lifecycle: _daemonLifecycle,
+        message: _daemonLifecycle.message,
+        error: error.toString(),
       );
     } on Object catch (error) {
       _daemonLifecycle = StyioServiceDaemonLifecycleSnapshot(

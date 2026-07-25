@@ -2781,6 +2781,40 @@ value = 1
       }
     },
   );
+
+  test('shell agent session context composes current typed domain facts', () {
+    final projectGraph = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/context',
+      activeFilePath: 'src/main.styio',
+      title: 'Context',
+      notes: const <String>[],
+    );
+    const document = DocumentState(
+      documentId: 'src/main.styio',
+      text: 'value := 1\n',
+      revision: 3,
+    );
+    final shell = _createNoopShellRuntime(
+      projectGraph: projectGraph,
+      documentStore: InMemoryWorkspaceDocumentStore(
+        seededDocuments: const <String, DocumentState>{
+          'src/main.styio': document,
+        },
+      ),
+      initialDocument: document,
+    );
+    addTearDown(shell.dispose);
+
+    final context = shell.agentSessionContext;
+
+    expect(context.document.documentId, document.documentId);
+    expect(context.document.revision, document.revision);
+    expect(context.workspace.workspaceRoot, projectGraph.workspaceRoot);
+    expect(context.workspace.activeFilePath, 'src/main.styio');
+    expect(context.debug.status, 'idle');
+    expect(context.language.serviceStatus?.severity, 'unavailable');
+    expect(context.agent.savedProviderProfiles, isEmpty);
+  });
 }
 
 ShellRuntimeModel _createNoopShellRuntime({

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 
 void main() {
-  test('pty prober classifies linux debian arm script backend facts', () async {
+  test('pty prober classifies Linux as native forkpty', () async {
     final facts = await LocalPtyProber(
       operatingSystem: 'linux',
       architectureReader: () async => 'aarch64',
@@ -12,222 +12,186 @@ void main() {
         'ID': 'debian',
         'PRETTY_NAME': 'Debian GNU/Linux',
       },
-      scriptPathReader: () async => '/usr/bin/script',
       clock: () => DateTime.utc(2026, 5, 16),
     ).probe();
 
     expect(facts.supportsLinuxDebianArmTarget, isTrue);
-    expect(facts.compatibilityTarget, 'linux-debian-arm');
-    expect(facts.providerKind, PtyProviderKind.scriptUtility);
-    expect(facts.supportsPty, isTrue);
-    expect(facts.supportsResize, isFalse);
-    expect(facts.entries['pty.scriptUtilityPath']?.value, '/usr/bin/script');
+    expect(facts.providerKind, PtyProviderKind.posixPty);
+    expect(facts.supportsForkPty, isTrue);
+    expect(facts.supportsResize, isTrue);
   });
 
-  test('pty adapter creates script utility execution plan', () {
-    final facts = PtyFacts.linuxDebianArm(scriptUtilityPath: '/usr/bin/script');
-    final adapter = PtyAdapter(facts);
-    final plan = adapter.plan(
+  test('pty prober detects ConPTY API fail-closed', () async {
+    final supported = await LocalPtyProber(
+      operatingSystem: 'windows',
+      architectureReader: () async => 'x64',
+      osReleaseReader: () async => const <String, String>{},
+      conPtyAvailabilityReader: () async => true,
+    ).probe();
+    final unavailable = await LocalPtyProber(
+      operatingSystem: 'windows',
+      architectureReader: () async => 'x64',
+      osReleaseReader: () async => const <String, String>{},
+      conPtyAvailabilityReader: () async => false,
+    ).probe();
+
+    expect(supported.providerKind, PtyProviderKind.conPty);
+    expect(supported.supportsConPty, isTrue);
+    expect(unavailable.providerKind, PtyProviderKind.unsupported);
+    expect(unavailable.supportsPty, isFalse);
+  });
+
+  test('pty adapter creates a native execution plan without a shell', () {
+    final plan = PtyAdapter(PtyFacts.linuxDebianArm()).plan(
       const PtySessionRequest(
         executablePath: '/bin/sh',
         arguments: <String>['-c', 'printf adapter-ok'],
       ),
     );
 
-    expect(adapter.adapt().isLinuxDebianArm, isTrue);
     expect(plan.supported, isTrue);
-    expect(plan.backendExecutablePath, '/usr/bin/script');
-    expect(plan.backendArguments, contains('-qfec'));
-    expect(plan.backendArguments.join(' '), contains('/bin/sh'));
+    expect(plan.providerKind, PtyProviderKind.posixPty);
+    expect(plan.backendExecutablePath, '/bin/sh');
+    expect(plan.backendArguments, <String>['-c', 'printf adapter-ok']);
   });
 
   test(
-    'pty manager runs command inside a real tty on linux script backend',
+    'pty manager runs a command inside a real desktop PTY',
     () async {
       final facts = await const LocalPtyProber().probe();
       final manager = LocalPtyManager(facts: facts);
-
-      expect(facts.supportsPty, isTrue);
-      expect(manager.compatibility.providerKind, PtyProviderKind.scriptUtility);
-
-      final session = await manager.start(
-        const PtySessionRequest(
-          executablePath: '/bin/sh',
-          arguments: <String>[
-            '-c',
-            'test -t 1 && printf tty-ok || printf no-tty',
-          ],
-        ),
-      );
+      final session = await manager.start(_ttyProbeRequest());
       final outputFuture = session.output.join();
       final exitCode = await session.exitCode.timeout(
-        const Duration(seconds: 5),
+        const Duration(seconds: 10),
       );
-      final output = await outputFuture.timeout(const Duration(seconds: 5));
+      final output = await outputFuture.timeout(const Duration(seconds: 10));
 
-      expect(session.state, PtySessionState.exited);
       expect(exitCode, 0);
       expect(output, contains('tty-ok'));
       expect(output, isNot(contains('no-tty')));
+      expect(session.state, PtySessionState.exited);
     },
-    skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false,
+    skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
   );
 
-  test('pty manager exposes structured resize degradation', () async {
-    final manager = LocalPtyManager.linuxDebianArmForTest(
-      scriptUtilityPath: '/usr/bin/script',
-    );
-    final session = await manager.start(
-      const PtySessionRequest(
-        executablePath: '/usr/bin/printf',
-        arguments: <String>['resize-test'],
-      ),
-    );
-    final outputFuture = session.output.join();
-    final resize = await session.resize(rows: 40, cols: 120);
-    final exitCode = await session.exitCode.timeout(const Duration(seconds: 5));
-    final output = await outputFuture.timeout(const Duration(seconds: 5));
+  test(
+    'native PTY applies resize and reports it to the child',
+    () async {
+      final facts = await const LocalPtyProber().probe();
+      final manager = LocalPtyManager(facts: facts);
+      final session = await manager.start(_resizeProbeRequest());
+      final outputFuture = session.output.join();
+      final resize = await session.resize(rows: 40, cols: 120);
+      final exitCode = await session.exitCode.timeout(
+        const Duration(seconds: 10),
+      );
+      final output = await outputFuture.timeout(const Duration(seconds: 10));
 
-    expect(resize.status, PtyResizeStatus.unsupported);
-    final resizeFailure = manager.failureForResize(resize, target: session.id);
-    expect(resizeFailure, isNotNull);
-    expect(resizeFailure!.kind, PtyFailureKind.resizeUnsupported);
-    expect(exitCode, 0);
-    expect(output, contains('resize-test'));
-  }, skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false);
-
-  test('pty manager delegates native resize and signal backends', () async {
-    final resizeRequests = <PtyNativeResizeRequest>[];
-    final signalRequests = <PtyNativeSignalRequest>[];
-    final manager = LocalPtyManager.linuxDebianArmForTest(
-      scriptUtilityPath: '/usr/bin/script',
-      nativeOperations: PtyNativeOperationBackendRegistry(
-        backends: <PtyNativeOperationBackend>[
-          PtyNativeOperationBackend(
-            backendId: 'native-fixture',
-            label: 'Native Fixture',
-            resize: (request) async {
-              resizeRequests.add(request);
-              return PtyResizeResult(
-                status: PtyResizeStatus.applied,
-                rows: request.rows,
-                cols: request.cols,
-                message: 'native resize applied',
-              );
-            },
-            signal: (request) async {
-              signalRequests.add(request);
-              return PtySignalResult(
-                signal: request.signal,
-                status: PtySignalStatus.sent,
-                message: 'native signal sent',
-              );
-            },
-          ),
-        ],
-      ),
-    );
-    final session = await manager.start(
-      const PtySessionRequest(
-        executablePath: '/usr/bin/printf',
-        arguments: <String>['native-ops'],
-      ),
-    );
-    final outputFuture = session.output.join();
-
-    final resize = await session.resize(rows: 42, cols: 132);
-    final signal = await session.sendSignal(PtySignal.interrupt);
-    final exitCode = await session.exitCode.timeout(const Duration(seconds: 5));
-    final output = await outputFuture.timeout(const Duration(seconds: 5));
-
-    expect(resize.applied, isTrue);
-    expect(signal.sent, isTrue);
-    expect(resizeRequests.single.rows, 42);
-    expect(resizeRequests.single.processId, isNotNull);
-    expect(signalRequests.single.signal, PtySignal.interrupt);
-    expect(signalRequests.single.processId, isNotNull);
-    expect(exitCode, 0);
-    expect(output, contains('native-ops'));
-  }, skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false);
+      expect(resize.applied, isTrue);
+      expect(exitCode, 0);
+      expect(output, contains('120x40'));
+      expect(manager.failureForResize(resize, target: session.id), isNull);
+    },
+    skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
+  );
 
   test(
-    'pty manager merges backend stdout and stderr into terminal output',
+    'native PTY close terminates the process lifecycle',
     () async {
-      final tempRoot = await Directory.systemTemp.createTemp(
-        'vityo_fake_script_pty_test_',
-      );
-      addTearDown(() async {
-        if (await tempRoot.exists()) {
-          await tempRoot.delete(recursive: true);
-        }
-      });
-      final fakeScript = File('${tempRoot.path}/fake-script.sh');
-      await fakeScript.writeAsString('''
-#!/bin/sh
-printf "fake-stdout\\n"
-printf "fake-stderr\\n" >&2
-''');
-      await Process.run('chmod', <String>['+x', fakeScript.path]);
-      final manager = LocalPtyManager.linuxDebianArmForTest(
-        scriptUtilityPath: fakeScript.path,
-      );
+      final facts = await const LocalPtyProber().probe();
+      final manager = LocalPtyManager(facts: facts);
+      final session = await manager.start(_longRunningRequest());
 
-      final session = await manager.start(
-        const PtySessionRequest(
-          executablePath: '/bin/echo',
-          arguments: <String>['ignored'],
-        ),
-      );
-      final outputFuture = session.output.join();
-      final exitCode = await session.exitCode.timeout(
-        const Duration(seconds: 5),
-      );
-      final output = await outputFuture.timeout(const Duration(seconds: 5));
+      final exitCode = await session
+          .close(force: true)
+          .timeout(const Duration(seconds: 10));
 
-      expect(exitCode, 0);
-      expect(output, contains('fake-stdout'));
-      expect(output, contains('fake-stderr'));
+      expect(exitCode, isNotNull);
+      expect(session.state, PtySessionState.closed);
     },
-    skip: !Platform.isLinux ? 'Linux script PTY backend only.' : false,
+    skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
   );
 
   test('pty manager classifies unsupported sessions structurally', () async {
-    final manager = UnsupportedPtyManager(
-      facts: PtyFacts.linuxDebianArm(scriptUtilityPath: '/usr/bin/script'),
-    );
+    final facts = PtyFacts.windowsX64(supportsConPty: false);
+    final manager = UnsupportedPtyManager(facts: facts);
     final session = await manager.start(
-      const PtySessionRequest(executablePath: '/bin/sh'),
-    );
-    final sessionFailure = manager.failureForSession(session);
-    final resizeFailure = manager.failureForResize(
-      await session.resize(rows: 40, cols: 120),
-      target: session.id,
+      const PtySessionRequest(executablePath: 'powershell.exe'),
     );
 
-    expect(sessionFailure, isNotNull);
-    expect(sessionFailure!.kind, PtyFailureKind.unsupported);
-    expect(sessionFailure.sourceManager, 'UnsupportedPtyManager');
-    expect(resizeFailure!.kind, PtyFailureKind.resizeUnsupported);
-    expect(resizeFailure.toJson()['target'], 'unsupported-pty');
+    expect(
+      manager.failureForSession(session)?.kind,
+      PtyFailureKind.unsupported,
+    );
+    expect(
+      manager
+          .failureForResize(
+            await session.resize(rows: 40, cols: 120),
+            target: session.id,
+          )
+          ?.kind,
+      PtyFailureKind.resizeUnsupported,
+    );
   });
+}
 
-  test('local host remains debian arm for pty prober target', () async {
-    if (!Platform.isLinux) {
-      return;
-    }
+bool get _isDesktopHost =>
+    Platform.isWindows || Platform.isLinux || Platform.isMacOS;
 
-    final machine = await Process.run('uname', const <String>['-m']);
-    final osRelease = await File('/etc/os-release').readAsString();
-    final isDebianArmHost =
-        Platform.isLinux &&
-        osRelease.contains('ID=debian') &&
-        machine.stdout.toString().trim().toLowerCase() == 'aarch64';
+PtySessionRequest _ttyProbeRequest() {
+  if (Platform.isWindows) {
+    return const PtySessionRequest(
+      executablePath: 'powershell.exe',
+      arguments: <String>[
+        '-NoLogo',
+        '-NoProfile',
+        '-Command',
+        "if ([Console]::IsOutputRedirected) { 'no-tty' } else { 'tty-ok' }",
+      ],
+    );
+  }
+  return const PtySessionRequest(
+    executablePath: '/bin/sh',
+    arguments: <String>['-c', 'test -t 1 && printf tty-ok || printf no-tty'],
+  );
+}
 
-    if (isDebianArmHost) {
-      final facts = await const LocalPtyProber().probe();
-      expect(facts.supportsLinuxDebianArmTarget, isTrue);
-      expect(facts.supportsScriptUtility, isTrue);
-      expect(facts.scriptUtilityPath, isNotNull);
-    }
-  });
+PtySessionRequest _resizeProbeRequest() {
+  if (Platform.isWindows) {
+    return const PtySessionRequest(
+      executablePath: 'powershell.exe',
+      arguments: <String>[
+        '-NoLogo',
+        '-NoProfile',
+        '-Command',
+        r"for ($i = 0; $i -lt 100; $i++) { $s = [Console]::WindowWidth.ToString() + 'x' + [Console]::WindowHeight.ToString(); if ($s -eq '120x40') { $s; exit 0 }; Start-Sleep -Milliseconds 25 }; $s; exit 1",
+      ],
+    );
+  }
+  return const PtySessionRequest(
+    executablePath: '/bin/sh',
+    arguments: <String>[
+      '-c',
+      r'''for i in `seq 1 100`; do s=`stty size`; [ "$s" = '40 120' ] && { printf 120x40; exit 0; }; sleep .025; done; exit 1''',
+    ],
+  );
+}
+
+PtySessionRequest _longRunningRequest() {
+  if (Platform.isWindows) {
+    return const PtySessionRequest(
+      executablePath: 'powershell.exe',
+      arguments: <String>[
+        '-NoLogo',
+        '-NoProfile',
+        '-Command',
+        'Start-Sleep 30',
+      ],
+    );
+  }
+  return const PtySessionRequest(
+    executablePath: '/bin/sh',
+    arguments: <String>['-c', 'sleep 30'],
+  );
 }

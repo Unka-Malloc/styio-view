@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "core_version": "0.1.0-nightly",
+  "platform_adapters": {
+    "linux": "0.1.0-nightly.1",
+    "windows": "0.1.0-nightly.1",
+    "macos": "0.1.0-nightly.1"
+  }
+}

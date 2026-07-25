@@ -175,19 +175,50 @@ void main() {
   );
 
   test('semantic snapshot provider exposes StyioService code action facts', () {
-    const service = LocalStyioLanguageService();
     const document = DocumentState(
       documentId: 'fixture://semantic-provider-code-actions',
-      text: '#main := () => {\n  value := 1\n',
+      text: 'bad\n',
       revision: 1,
     );
-    final diagnostic = service
-        .analyzeDocument(document)
-        .diagnostics
-        .singleWhere(
-          (diagnostic) => diagnostic.code == 'local.unclosed-delimiter',
-        );
-    const provider = SemanticSnapshotProvider(languageService: service);
+    const diagnostic = Diagnostic(
+      severity: DiagnosticSeverity.error,
+      code: 'service.invalid-token',
+      message: 'Invalid token.',
+      range: SourceRange(start: 0, end: 3),
+    );
+    final cache = StyioServiceResultCache();
+    cache.store(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://semantic-provider-code-actions',
+        revision: 1,
+        diagnostics: <StyioServiceDiagnosticDto>[
+          StyioServiceDiagnosticDto(
+            severity: DiagnosticSeverity.error,
+            code: 'service.invalid-token',
+            message: 'Invalid token.',
+            range: SourceRange(start: 0, end: 3),
+          ),
+        ],
+        codeActions: <DiagnosticQuickFix>[
+          DiagnosticQuickFix(
+            label: 'Replace invalid token',
+            edits: <FormattingEdit>[
+              FormattingEdit(
+                range: SourceRange(start: 0, end: 3),
+                newText: 'good',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+    final provider = SemanticSnapshotProvider(
+      languageService: CachedStyioLanguageService(
+        cache: cache,
+        allowLocalFallback: false,
+      ),
+    );
 
     final snapshotResult = provider.snapshotFor(document);
     final result = provider.codeActionsForDiagnostic(
@@ -213,9 +244,9 @@ void main() {
     expect(snapshotResult.featureMatrix.toJson()['codeActionFactCount'], 1);
     expect(result.source, SemanticSnapshotProviderSource.serviceAnalysis);
     expect(result.available, isTrue);
-    expect(result.actions.single.diagnosticCode, 'local.unclosed-delimiter');
+    expect(result.actions.single.diagnosticCode, 'service.invalid-token');
     expect(result.actions.single.hasEdits, isTrue);
-    expect(result.actions.single.edits.single.range.start, document.length);
+    expect(result.actions.single.edits.single.range.start, 0);
     final applyResult = result.actions.single.reportApplyResult(
       status: SemanticSnapshotCodeActionApplyStatus.applied,
       appliedEditCount: 1,
@@ -242,15 +273,96 @@ void main() {
   });
 
   test(
-    'semantic snapshot provider exposes StyioService rename safety facts',
+    'semantic snapshot provider labels and blocks local heuristic facts',
     () {
       const service = LocalStyioLanguageService();
+      const document = DocumentState(
+        documentId: 'fixture://semantic-provider-local-facts',
+        text: '#main := () => {\n  value := 1\n',
+        revision: 1,
+      );
+      final diagnostic = service
+          .analyzeDocument(document)
+          .diagnostics
+          .singleWhere(
+            (diagnostic) => diagnostic.code == 'local.unclosed-delimiter',
+          );
+      const provider = SemanticSnapshotProvider(languageService: service);
+
+      final snapshotResult = provider.snapshotFor(document);
+      final actionResult = provider.codeActionsForDiagnostic(
+        document: document,
+        diagnostic: diagnostic,
+      );
+
+      expect(
+        snapshotResult.source,
+        SemanticSnapshotProviderSource.localBuilderFallback,
+      );
+      expect(snapshotResult.codeActionFactCount, 0);
+      expect(
+        snapshotResult.featureMatrix.supportsFeature(
+          SemanticSnapshotConsumerFeature.codeActions,
+        ),
+        isFalse,
+      );
+      expect(
+        actionResult.source,
+        SemanticSnapshotProviderSource.localBuilderFallback,
+      );
+      expect(actionResult.available, isFalse);
+      expect(actionResult.actions, isEmpty);
+      expect(actionResult.message, contains('raw edit facts are required'));
+    },
+  );
+
+  test(
+    'semantic snapshot provider exposes StyioService rename safety facts',
+    () {
       const document = DocumentState(
         documentId: 'fixture://semantic-provider-rename',
         text: 'value := 1\nvalue\n',
         revision: 1,
       );
-      const provider = SemanticSnapshotProvider(languageService: service);
+      final cache = StyioServiceResultCache();
+      cache.store(
+        const StyioServiceResponse(
+          status: StyioServiceStatus.succeeded,
+          documentId: 'fixture://semantic-provider-rename',
+          revision: 1,
+          documentSymbols: <DocumentSymbol>[
+            DocumentSymbol(
+              name: 'value',
+              kind: SymbolKind.variable,
+              nameRange: SourceRange(start: 0, end: 5),
+              declarationRange: SourceRange(start: 0, end: 10),
+            ),
+          ],
+          referenceSpans: <ReferenceSpan>[
+            ReferenceSpan(
+              name: 'value',
+              kind: SymbolKind.variable,
+              range: SourceRange(start: 0, end: 5),
+              targetRange: SourceRange(start: 0, end: 5),
+              access: ReferenceAccess.write,
+              isDeclaration: true,
+            ),
+            ReferenceSpan(
+              name: 'value',
+              kind: SymbolKind.variable,
+              range: SourceRange(start: 11, end: 16),
+              targetRange: SourceRange(start: 0, end: 5),
+              access: ReferenceAccess.read,
+            ),
+          ],
+        ),
+      );
+      final provider = SemanticSnapshotProvider(
+        languageService: CachedStyioLanguageService(
+          cache: cache,
+          allowLocalFallback: false,
+        ),
+      );
       final referenceOffset = document.text.lastIndexOf('value') + 1;
 
       final result = provider.renameSafetyAt(
@@ -281,6 +393,78 @@ void main() {
       expect(event.message, contains('is safe'));
     },
   );
+
+  test('semantic snapshot provider blocks heuristic-only rename safety', () {
+    const document = DocumentState(
+      documentId: 'fixture://semantic-provider-local-rename',
+      text: 'value := 1\nvalue\n',
+      revision: 1,
+    );
+    const provider = SemanticSnapshotProvider(
+      languageService: LocalStyioLanguageService(),
+    );
+
+    final result = provider.renameSafetyAt(
+      document: document,
+      offset: document.text.lastIndexOf('value') + 1,
+      newName: 'nextValue',
+    );
+
+    expect(result.source, SemanticSnapshotProviderSource.localBuilderFallback);
+    expect(result.available, isFalse);
+    expect(result.safe, isFalse);
+    expect(result.canApply, isFalse);
+    expect(result.message, contains('compiler facts are required'));
+  });
+
+  test('semantic snapshot provider blocks incomplete service rename facts', () {
+    const document = DocumentState(
+      documentId: 'fixture://semantic-provider-incomplete-rename',
+      text: 'value := 1\nvalue\n',
+      revision: 1,
+    );
+    final cache = StyioServiceResultCache();
+    cache.store(
+      const StyioServiceResponse(
+        status: StyioServiceStatus.succeeded,
+        documentId: 'fixture://semantic-provider-incomplete-rename',
+        revision: 1,
+        documentSymbols: <DocumentSymbol>[
+          DocumentSymbol(
+            name: 'value',
+            kind: SymbolKind.variable,
+            nameRange: SourceRange(start: 0, end: 5),
+            declarationRange: SourceRange(start: 0, end: 10),
+          ),
+        ],
+        referenceSpans: <ReferenceSpan>[
+          ReferenceSpan(
+            name: 'value',
+            kind: SymbolKind.variable,
+            range: SourceRange(start: 11, end: 16),
+            targetRange: SourceRange(start: 0, end: 5),
+            access: ReferenceAccess.read,
+          ),
+        ],
+      ),
+    );
+    final provider = SemanticSnapshotProvider(
+      languageService: CachedStyioLanguageService(
+        cache: cache,
+        allowLocalFallback: false,
+      ),
+    );
+
+    final result = provider.renameSafetyAt(
+      document: document,
+      offset: document.text.lastIndexOf('value') + 1,
+      newName: 'nextValue',
+    );
+
+    expect(result.source, SemanticSnapshotProviderSource.localBuilderFallback);
+    expect(result.available, isFalse);
+    expect(result.canApply, isFalse);
+  });
 
   test('semantic snapshot provider exposes workspace rename safety facts', () {
     const projectService = ProjectStyioLanguageService();

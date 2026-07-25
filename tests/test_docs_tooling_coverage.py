@@ -641,66 +641,40 @@ class TeamDocsGateToolTest(unittest.TestCase):
 
 
 class FacadeGateToolTest(unittest.TestCase):
-    def test_ecosystem_facades_emit_json_skip_when_canonical_gate_is_absent(self) -> None:
-        for name, relative_path in (
-            ("ecosystem_product_gate_under_test", "scripts/ecosystem-product-gate.py"),
-            ("ecosystem_sample_workflow_gate_under_test", "scripts/ecosystem-sample-workflow-gate.py"),
-        ):
-            tool = load_script_module(name, relative_path)
-            with tempfile.TemporaryDirectory(prefix="facade-gate-", dir=REPO_ROOT) as tmp_name:
-                tool.CANONICAL_GATE = Path(tmp_name) / "missing.py"
-                stdout = io.StringIO()
-                with redirect_stdout(stdout):
-                    code = tool.main(["--json"])
-
-            payload = json.loads(stdout.getvalue())
-            self.assertEqual(code, 0)
-            self.assertTrue(payload["ok"])
-            self.assertTrue(payload["skipped"])
-
-    def test_ecosystem_facades_emit_text_skip_when_canonical_gate_is_absent(self) -> None:
-        for name, relative_path in (
-            ("ecosystem_product_gate_text_skip_under_test", "scripts/ecosystem-product-gate.py"),
-            ("ecosystem_sample_workflow_gate_text_skip_under_test", "scripts/ecosystem-sample-workflow-gate.py"),
-        ):
-            tool = load_script_module(name, relative_path)
-            with tempfile.TemporaryDirectory(prefix="facade-gate-", dir=REPO_ROOT) as tmp_name:
-                tool.CANONICAL_GATE = Path(tmp_name) / "missing.py"
-                stdout = io.StringIO()
-                with redirect_stdout(stdout):
-                    code = tool.main([])
-
-            self.assertEqual(code, 0)
-            self.assertIn("[SKIP] canonical gate not found", stdout.getvalue())
-
-    def test_ecosystem_facades_delegate_to_canonical_gate(self) -> None:
-        facades = (
-            ("ecosystem_product_gate_delegate_under_test", "scripts/ecosystem-product-gate.py"),
-            (
-                "ecosystem_sample_workflow_gate_delegate_under_test",
-                "scripts/ecosystem-sample-workflow-gate.py",
-            ),
-        )
-        for name, relative_path in facades:
-            tool = load_script_module(name, relative_path)
-            with tempfile.TemporaryDirectory(prefix="facade-gate-", dir=REPO_ROOT) as tmp_name:
-                gate = Path(tmp_name) / "gate.py"
-                gate.write_text("import sys\nraise SystemExit(7)\n", encoding="utf-8")
-                tool.CANONICAL_GATE = gate
-                with mock.patch.object(tool.subprocess, "run") as run:
-                    run.return_value.returncode = 7
-                    code = tool.main(["--json"])
-
-            self.assertEqual(code, 7)
-            command = run.call_args.args[0]
-            self.assertEqual(command[:2], [sys.executable, str(gate)])
-            self.assertEqual(command[2:], ["--json"])
-            self.assertEqual(run.call_args.kwargs["cwd"], tool.ROOT.parent)
-
-    def test_ecosystem_product_facade_delegates_to_canonical_gate(self) -> None:
+    def test_ecosystem_sample_facade_emits_json_skip_without_canonical_gate(self) -> None:
         tool = load_script_module(
-            "ecosystem_product_gate_delegate_legacy_under_test",
-            "scripts/ecosystem-product-gate.py",
+            "ecosystem_sample_workflow_gate_under_test",
+            "scripts/ecosystem-sample-workflow-gate.py",
+        )
+        with tempfile.TemporaryDirectory(prefix="facade-gate-", dir=REPO_ROOT) as tmp_name:
+            tool.CANONICAL_GATE = Path(tmp_name) / "missing.py"
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                code = tool.main(["--json"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(code, 0)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["skipped"])
+
+    def test_ecosystem_sample_facade_emits_text_skip_without_canonical_gate(self) -> None:
+        tool = load_script_module(
+            "ecosystem_sample_workflow_gate_text_skip_under_test",
+            "scripts/ecosystem-sample-workflow-gate.py",
+        )
+        with tempfile.TemporaryDirectory(prefix="facade-gate-", dir=REPO_ROOT) as tmp_name:
+            tool.CANONICAL_GATE = Path(tmp_name) / "missing.py"
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                code = tool.main([])
+
+        self.assertEqual(code, 0)
+        self.assertIn("[SKIP] canonical gate not found", stdout.getvalue())
+
+    def test_ecosystem_sample_facade_delegates_to_canonical_gate(self) -> None:
+        tool = load_script_module(
+            "ecosystem_sample_workflow_gate_delegate_under_test",
+            "scripts/ecosystem-sample-workflow-gate.py",
         )
         with tempfile.TemporaryDirectory(prefix="facade-gate-", dir=REPO_ROOT) as tmp_name:
             gate = Path(tmp_name) / "gate.py"
@@ -711,7 +685,25 @@ class FacadeGateToolTest(unittest.TestCase):
                 code = tool.main(["--json"])
 
         self.assertEqual(code, 7)
-        run.assert_called_once()
+        command = run.call_args.args[0]
+        self.assertEqual(command[:2], [sys.executable, str(gate)])
+        self.assertEqual(command[2:], ["--json"])
+        self.assertEqual(run.call_args.kwargs["cwd"], tool.ROOT.parent)
+
+    def test_ecosystem_product_gate_has_no_canonical_compatibility_path(self) -> None:
+        tool = load_script_module(
+            "ecosystem_product_gate_current_under_test",
+            "scripts/ecosystem-product-gate.py",
+        )
+        stdout = io.StringIO()
+        with mock.patch.dict("os.environ", {}, clear=True), redirect_stdout(stdout):
+            code = tool.main(["--require-real-matrix", "--json"])
+
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(code, 1)
+        self.assertFalse(payload["ok"])
+        self.assertTrue(payload["required"])
+        self.assertNotIn("CANONICAL_GATE", vars(tool))
 
     def test_check_repo_hygiene_delegates_to_canonical_gate(self) -> None:
         tool = load_script_module("check_repo_hygiene_under_test", "scripts/check_repo_hygiene.py")

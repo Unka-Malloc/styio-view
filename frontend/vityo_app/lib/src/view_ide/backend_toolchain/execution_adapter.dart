@@ -9,6 +9,70 @@ import 'project_graph_contract.dart';
 
 enum ExecutionSessionStatus { blocked, running, succeeded, failed }
 
+class ExecutionReceiptSnapshot {
+  const ExecutionReceiptSnapshot({
+    required this.schemaVersion,
+    required this.intent,
+    required this.sessionId,
+    required this.executed,
+    this.phases = const <String>[],
+    this.artifacts = const <String>[],
+  });
+
+  final int schemaVersion;
+  final String intent;
+  final String sessionId;
+  final bool executed;
+  final List<String> phases;
+  final List<String> artifacts;
+
+  static ExecutionReceiptSnapshot? decode(
+    Object? payload, {
+    required String fallbackSessionId,
+  }) {
+    if (payload is! Map) return null;
+    final schemaValue = payload['schema_version'] ?? payload['schemaVersion'];
+    final schemaVersion = schemaValue is int
+        ? schemaValue
+        : int.tryParse('$schemaValue');
+    final intentValue = payload['intent'];
+    final executedValue = payload['executed'];
+    if (schemaVersion != 1 ||
+        intentValue is! String ||
+        intentValue.trim().isEmpty ||
+        executedValue is! bool) {
+      return null;
+    }
+    final sessionValue = payload['session_id'] ?? payload['sessionId'];
+    List<String> strings(Object? value) => value is List
+        ? value
+              .whereType<String>()
+              .map((item) => item.trim())
+              .where((item) => item.isNotEmpty)
+              .toList(growable: false)
+        : const <String>[];
+    return ExecutionReceiptSnapshot(
+      schemaVersion: 1,
+      intent: intentValue.trim(),
+      sessionId: sessionValue is String && sessionValue.trim().isNotEmpty
+          ? sessionValue.trim()
+          : fallbackSessionId,
+      executed: executedValue,
+      phases: strings(payload['phases']),
+      artifacts: strings(payload['artifacts']),
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'schemaVersion': schemaVersion,
+    'intent': intent,
+    'sessionId': sessionId,
+    'executed': executed,
+    'phases': phases,
+    'artifacts': artifacts,
+  };
+}
+
 class ExecutionLogEvent {
   const ExecutionLogEvent({required this.message});
 
@@ -29,6 +93,7 @@ class ExecutionSession {
     required this.stdoutEvents,
     required this.stderrEvents,
     this.unitRange,
+    this.receipt,
   });
 
   final String sessionId;
@@ -39,6 +104,7 @@ class ExecutionSession {
   final List<Diagnostic> diagnostics;
   final List<ExecutionLogEvent> stdoutEvents;
   final List<ExecutionLogEvent> stderrEvents;
+  final ExecutionReceiptSnapshot? receipt;
 
   ExecutionResultContract toResultContract({
     String source = 'execution-session',
@@ -53,7 +119,10 @@ class ExecutionSession {
       diagnosticCount: diagnostics.length,
       stdoutCount: stdoutEvents.length,
       stderrCount: stderrEvents.length,
-      metadata: metadata,
+      metadata: <String, Object?>{
+        ...metadata,
+        if (receipt != null) 'receipt': receipt!.toJson(),
+      },
     );
   }
 
@@ -75,6 +144,7 @@ class ExecutionSession {
         'stdout': stdoutEvents.map((event) => event.toJson()).toList(),
       if (stderrEvents.isNotEmpty)
         'stderr': stderrEvents.map((event) => event.toJson()).toList(),
+      if (receipt != null) 'receipt': receipt!.toJson(),
     };
   }
 }

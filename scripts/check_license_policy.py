@@ -17,6 +17,7 @@ ALLOWED_DART_PACKAGES = {
     "cupertino_icons",
     "shared_preferences",
     "path_provider",
+    "pty2",
     "cryptography",
     "web",
     "flutter_test",

@@ -6,7 +6,9 @@ usage() {
 Usage: scripts/delivery-gate.sh [options]
 
 Run the common Styio delivery floor by composing repository hygiene, the docs
-gate, external audit, and checkpoint health into one entrypoint.
+gate, external audit, checkpoint health, and the ecosystem product gate into
+one entrypoint. CI and VITYO_PRODUCT_GATE=1 require the product gate; local
+runs without that opt-in record an explicit skip.
 
 Options:
   --mode <checkpoint|push>  Delivery mode (default: checkpoint)
@@ -27,6 +29,13 @@ log() {
 run_cmd() {
   log "$*"
   "$@"
+}
+
+is_true() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+    *) return 1 ;;
+  esac
 }
 
 default_upstream_base() {
@@ -146,7 +155,11 @@ if [[ "$RUN_AUDIT" -eq 1 ]]; then
     if git -C "$AUDIT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
       log "styio-audit commit: $(git -C "$AUDIT_ROOT" rev-parse HEAD)"
     fi
-    run_cmd "$AUDIT_BIN" gate --repo "$ROOT" --project Vityo
+    AUDIT_CMD=("$AUDIT_BIN")
+    if IFS= read -r AUDIT_SHEBANG < "$AUDIT_BIN" && [[ "$AUDIT_SHEBANG" == *python* ]]; then
+      AUDIT_CMD=("$PYTHON_BIN" "$AUDIT_BIN")
+    fi
+    run_cmd "${AUDIT_CMD[@]}" gate --repo "$ROOT" --project Vityo
   fi
 else
   log "styio-audit skipped"
@@ -158,4 +171,21 @@ else
   log "checkpoint-health skipped"
 fi
 
-log "all checks passed"
+PRODUCT_GATE_STATUS="skipped"
+if is_true "${CI:-}" || is_true "${GITHUB_ACTIONS:-}" || is_true "${VITYO_PRODUCT_GATE:-}"; then
+  log "ecosystem product gate is required"
+  if PRODUCT_GATE_OUTPUT="$($PYTHON_BIN scripts/ecosystem-product-gate.py --require-real-matrix --json 2>&1)"; then
+    PRODUCT_GATE_STATUS="proven"
+    log "$PRODUCT_GATE_OUTPUT"
+  else
+    PRODUCT_GATE_STATUS="failed"
+    log "$PRODUCT_GATE_OUTPUT"
+    log "product-gate-status=$PRODUCT_GATE_STATUS"
+    exit 1
+  fi
+else
+  log "ecosystem product gate skipped locally; set VITYO_PRODUCT_GATE=1 to require it"
+fi
+
+log "product-gate-status=$PRODUCT_GATE_STATUS"
+log "all required checks passed"

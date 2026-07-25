@@ -15,6 +15,44 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_FLUTTER_DIR = Path("frontend/vityo_app")
 TOOLING_MANIFEST_PATH = Path("toolchain/maintenance-tools.json")
 TOOLING_POLICY_MIN_UPDATED = date(2026, 6, 19)
+NIGHTLY_PLATFORMS = ("linux", "windows", "macos")
+NIGHTLY_PACKAGE_FORMATS = {
+    "linux": "deb",
+    "windows": "zip-powershell",
+    "macos": "dmg",
+}
+NIGHTLY_WORKFLOW_MARKERS = {
+    "linux": ("package-nightly.py --platform linux", "sudo dpkg -i", "xvfb-run -a vityo"),
+    "windows": ("package-nightly.py --platform windows", "install.ps1", "Start-Process"),
+    "macos": ("package-nightly.py --platform macos", "hdiutil attach", "Contents/MacOS/Vityo"),
+}
+PRODUCT_MATRIX_WORKFLOW_MARKERS = {
+    "linux": (
+        "VITYO_PRODUCT_PLATFORM: linux",
+        "product-gate-linux.json",
+        "scripts/run-native-pty-matrix.py",
+        "--platform linux",
+        "--pty-report build/evidence/native-pty-linux.json",
+        "product-matrix-linux.json",
+    ),
+    "windows": (
+        "VITYO_PRODUCT_PLATFORM: windows",
+        "product-gate-windows.json",
+        "scripts/run-native-pty-matrix.py",
+        "--platform windows",
+        "--pty-report build/evidence/native-pty-windows.json",
+        "product-matrix-windows.json",
+    ),
+    "macos": (
+        "VITYO_PRODUCT_PLATFORM: macos",
+        "product-gate-macos.json",
+        "scripts/run-native-pty-matrix.py",
+        "--platform macos",
+        "--pty-report build/evidence/native-pty-macos.json",
+        "product-matrix-macos.json",
+    ),
+}
+RELEASE_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?")
 
 REQUIRED_RELEASE_FILES = (
     Path("scripts/delivery-gate.sh"),
@@ -23,6 +61,12 @@ REQUIRED_RELEASE_FILES = (
     Path(".github/workflows/project-coverage-gate.yml"),
     Path("frontend/vityo_app/README.md"),
     Path("frontend/vityo_app/pubspec.yaml"),
+    Path("scripts/package-nightly.py"),
+    Path("scripts/ecosystem-product-gate.py"),
+    Path("scripts/run-native-pty-matrix.py"),
+    Path("scripts/record-product-matrix-evidence.py"),
+    Path("packaging/README.md"),
+    Path("toolchain/product-matrix.json"),
     TOOLING_MANIFEST_PATH,
 )
 
@@ -483,6 +527,137 @@ def check_tooling_manifest(repo_root: Path) -> list[CheckResult]:
     return results
 
 
+def load_json_object(path: Path) -> tuple[dict[str, object] | None, str | None]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, str(exc)
+    if not isinstance(payload, dict):
+        return None, "root must be an object"
+    return payload, None
+
+
+def check_nightly_packaging(repo_root: Path) -> list[CheckResult]:
+    versions_path = repo_root / "packaging/release-versions.json"
+    versions, versions_error = load_json_object(versions_path)
+    if versions is None:
+        return [CheckResult("Nightly release versions", False, versions_error or "invalid")]
+
+    adapters = versions.get("platform_adapters")
+    adapters = adapters if isinstance(adapters, dict) else {}
+    core_version = versions.get("core_version")
+    results = [
+        CheckResult("Nightly release versions schema", versions.get("schema_version") == 1, str(versions.get("schema_version", "missing"))),
+        CheckResult("Nightly core version", isinstance(core_version, str) and bool(RELEASE_VERSION_PATTERN.fullmatch(core_version)), str(core_version or "missing")),
+    ]
+
+    workflow_path = repo_root / ".github/workflows/local-ci-gate.yml"
+    workflow_text = read_text(workflow_path) if workflow_path.is_file() else ""
+    matrix, matrix_error = load_json_object(repo_root / "toolchain/product-matrix.json")
+    matrix = matrix if matrix is not None else {}
+    repositories = matrix.get("repositories")
+    repositories = repositories if isinstance(repositories, dict) else {}
+    fixed_commits_ok = all(
+        isinstance(repositories.get(name), str)
+        and bool(re.fullmatch(r"[0-9a-f]{40}", str(repositories.get(name))))
+        for name in ("styio", "pafio")
+    )
+    results.extend(
+        [
+            CheckResult(
+                "Product matrix schema",
+                matrix.get("schema_version") == 1,
+                matrix_error or str(matrix.get("schema_version", "missing")),
+            ),
+            CheckResult(
+                "Product matrix capability",
+                matrix.get("capability") == "trusted-desktop-ide-loop",
+                str(matrix.get("capability", "missing")),
+            ),
+            CheckResult(
+                "Product matrix fixed upstream commits",
+                fixed_commits_ok,
+                "fixed" if fixed_commits_ok else "missing or mutable",
+            ),
+            CheckResult(
+                "Product matrix pinned checkouts",
+                "steps.product-matrix.outputs.styio" in workflow_text
+                and "steps.product-matrix.outputs.pafio" in workflow_text,
+                "present" if "steps.product-matrix.outputs.styio" in workflow_text
+                and "steps.product-matrix.outputs.pafio" in workflow_text else "missing",
+            ),
+            CheckResult(
+                "Independent platform jobs",
+                all(f"  {job}:" in workflow_text for job in ("local-ci-gate", "windows-native", "macos-native"))
+                and "needs:" not in workflow_text,
+                "independent" if "needs:" not in workflow_text else "cross-platform dependency present",
+            ),
+        ]
+    )
+    for platform in NIGHTLY_PLATFORMS:
+        adapter_version = adapters.get(platform)
+        results.append(
+            CheckResult(
+                f"Nightly {platform} adapter version",
+                isinstance(adapter_version, str) and bool(RELEASE_VERSION_PATTERN.fullmatch(adapter_version)),
+                str(adapter_version or "missing"),
+            )
+        )
+        missing_workflow_markers = [
+            marker
+            for marker in (*NIGHTLY_WORKFLOW_MARKERS[platform], *PRODUCT_MATRIX_WORKFLOW_MARKERS[platform])
+            if marker not in workflow_text
+        ]
+        results.append(
+            CheckResult(
+                f"Nightly {platform} install/start workflow",
+                not missing_workflow_markers,
+                "present" if not missing_workflow_markers else "missing: " + ", ".join(missing_workflow_markers),
+            )
+        )
+        config_path = repo_root / f"packaging/{platform}/nightly.json"
+        config, error = load_json_object(config_path)
+        if config is None:
+            results.append(CheckResult(f"Nightly {platform} package definition", False, error or "invalid"))
+            continue
+
+        signing = config.get("signing")
+        signing = signing if isinstance(signing, dict) else {}
+        signing_status = signing.get("status")
+        signing_reason = signing.get("reason")
+        automatic_updates = config.get("automatic_updates")
+        source_keys = ["icon_relative_path", "installer_definition"]
+        if platform == "windows":
+            source_keys.append("uninstaller_definition")
+        sources_ok = True
+        source_detail: list[str] = []
+        for key in source_keys:
+            relative = config.get(key)
+            valid = is_safe_relative_path(relative) and (repo_root / Path(str(relative))).is_file()
+            sources_ok = sources_ok and valid
+            if not valid:
+                source_detail.append(f"{key}={relative or 'missing'}")
+        build_path = config.get("build_relative_path")
+        signing_ok = signing_status in {"configured", "explicit-gap"} and (
+            signing_status == "configured" or isinstance(signing_reason, str) and bool(signing_reason.strip())
+        )
+        update_policy_ok = isinstance(automatic_updates, bool) and (
+            signing_status == "configured" or automatic_updates is False
+        )
+        results.extend(
+            [
+                CheckResult(f"Nightly {platform} package schema", config.get("schema_version") == 1 and config.get("platform") == platform, str(config.get("schema_version", "missing"))),
+                CheckResult(f"Nightly {platform} package format", config.get("package_format") == NIGHTLY_PACKAGE_FORMATS[platform], str(config.get("package_format", "missing"))),
+                CheckResult(f"Nightly {platform} build path", is_safe_relative_path(build_path), str(build_path or "missing")),
+                CheckResult(f"Nightly {platform} package sources", sources_ok, "present" if sources_ok else ", ".join(source_detail)),
+                CheckResult(f"Nightly {platform} signing policy", signing_ok, str(signing_status or "missing")),
+                CheckResult(f"Nightly {platform} automatic update policy", update_policy_ok, str(automatic_updates).lower()),
+            ]
+        )
+
+    return results
+
+
 def collect_static_checks(repo_root: Path, flutter_dir: Path) -> list[CheckResult]:
     return [
         *check_required_files(repo_root),
@@ -490,6 +665,7 @@ def collect_static_checks(repo_root: Path, flutter_dir: Path) -> list[CheckResul
         *check_readme(repo_root, flutter_dir),
         *check_capability_tests(repo_root),
         *check_tooling_manifest(repo_root),
+        *check_nightly_packaging(repo_root),
     ]
 
 

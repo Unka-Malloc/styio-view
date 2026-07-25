@@ -1,11 +1,4 @@
-enum PtyProviderKind {
-  posixPty,
-  conPty,
-  scriptUtility,
-  hosted,
-  unsupported,
-  unknown,
-}
+enum PtyProviderKind { posixPty, conPty, hosted, unsupported, unknown }
 
 enum PtyFactCertainty { confirmed, inferred, unknown, unsupported, stale }
 
@@ -13,7 +6,6 @@ extension PtyProviderKindX on PtyProviderKind {
   String get wireValue => switch (this) {
     PtyProviderKind.posixPty => 'posix-pty',
     PtyProviderKind.conPty => 'conpty',
-    PtyProviderKind.scriptUtility => 'script-utility',
     PtyProviderKind.hosted => 'hosted',
     PtyProviderKind.unsupported => 'unsupported',
     PtyProviderKind.unknown => 'unknown',
@@ -75,8 +67,6 @@ class PtyFacts {
     required this.supportsProcessGroup,
     required this.supportsConPty,
     required this.supportsForkPty,
-    required this.supportsScriptUtility,
-    this.scriptUtilityPath,
     this.detectedAt,
     this.entries = const <String, PtyContextFact>{},
   });
@@ -84,91 +74,82 @@ class PtyFacts {
   factory PtyFacts.linuxDebianArm({
     String targetId = 'local',
     String architecture = 'aarch64',
-    String? scriptUtilityPath = '/usr/bin/script',
     DateTime? detectedAt,
-  }) {
-    final supportsScriptUtility = scriptUtilityPath != null;
-    return PtyFacts(
-      targetId: targetId,
-      operatingSystem: 'linux',
-      distributionId: 'debian',
-      distributionName: 'Debian GNU/Linux',
-      architecture: architecture,
-      providerKind: supportsScriptUtility
-          ? PtyProviderKind.scriptUtility
-          : PtyProviderKind.unsupported,
-      supportsPty: supportsScriptUtility,
-      supportsResize: false,
-      supportsRawMode: supportsScriptUtility,
-      supportsSignals: supportsScriptUtility,
-      supportsProcessGroup: false,
-      supportsConPty: false,
-      supportsForkPty: false,
-      supportsScriptUtility: supportsScriptUtility,
-      scriptUtilityPath: scriptUtilityPath,
-      detectedAt: detectedAt,
-      entries: buildEntries(
-        targetId: targetId,
-        operatingSystem: 'linux',
-        distributionId: 'debian',
-        distributionName: 'Debian GNU/Linux',
-        architecture: architecture,
-        providerKind: supportsScriptUtility
-            ? PtyProviderKind.scriptUtility
-            : PtyProviderKind.unsupported,
-        supportsPty: supportsScriptUtility,
-        supportsResize: false,
-        supportsRawMode: supportsScriptUtility,
-        supportsSignals: supportsScriptUtility,
-        supportsProcessGroup: false,
-        supportsConPty: false,
-        supportsForkPty: false,
-        supportsScriptUtility: supportsScriptUtility,
-        scriptUtilityPath: scriptUtilityPath,
-        source: 'fixture',
-        detectedAt: detectedAt,
-      ),
-    );
-  }
+  }) => PtyFacts.native(
+    targetId: targetId,
+    operatingSystem: 'linux',
+    distributionId: 'debian',
+    distributionName: 'Debian GNU/Linux',
+    architecture: architecture,
+    detectedAt: detectedAt,
+    source: 'fixture',
+  );
 
   factory PtyFacts.windowsX64({
     String targetId = 'local',
     String architecture = 'x64',
+    bool supportsConPty = true,
     DateTime? detectedAt,
+  }) => PtyFacts.native(
+    targetId: targetId,
+    operatingSystem: 'windows',
+    distributionId: 'windows',
+    distributionName: 'Windows',
+    architecture: architecture,
+    available: supportsConPty,
+    detectedAt: detectedAt,
+    source: 'fixture',
+  );
+
+  factory PtyFacts.native({
+    required String targetId,
+    required String operatingSystem,
+    required String distributionId,
+    required String distributionName,
+    required String architecture,
+    bool available = true,
+    DateTime? detectedAt,
+    String source = 'prober',
   }) {
+    final isWindows = operatingSystem == 'windows';
+    final isPosixDesktop =
+        operatingSystem == 'linux' || operatingSystem == 'macos';
+    final supported = available && (isWindows || isPosixDesktop);
+    final providerKind = !supported
+        ? PtyProviderKind.unsupported
+        : isWindows
+        ? PtyProviderKind.conPty
+        : PtyProviderKind.posixPty;
     return PtyFacts(
       targetId: targetId,
-      operatingSystem: 'windows',
-      distributionId: 'windows',
-      distributionName: 'Windows',
+      operatingSystem: operatingSystem,
+      distributionId: distributionId,
+      distributionName: distributionName,
       architecture: architecture,
-      providerKind: PtyProviderKind.unsupported,
-      supportsPty: false,
-      supportsResize: false,
-      supportsRawMode: false,
-      supportsSignals: false,
-      supportsProcessGroup: false,
-      supportsConPty: false,
-      supportsForkPty: false,
-      supportsScriptUtility: false,
+      providerKind: providerKind,
+      supportsPty: supported,
+      supportsResize: supported,
+      supportsRawMode: supported,
+      supportsSignals: supported,
+      supportsProcessGroup: isPosixDesktop && supported,
+      supportsConPty: isWindows && supported,
+      supportsForkPty: isPosixDesktop && supported,
       detectedAt: detectedAt,
       entries: buildEntries(
         targetId: targetId,
-        operatingSystem: 'windows',
-        distributionId: 'windows',
-        distributionName: 'Windows',
+        operatingSystem: operatingSystem,
+        distributionId: distributionId,
+        distributionName: distributionName,
         architecture: architecture,
-        providerKind: PtyProviderKind.unsupported,
-        supportsPty: false,
-        supportsResize: false,
-        supportsRawMode: false,
-        supportsSignals: false,
-        supportsProcessGroup: false,
-        supportsConPty: false,
-        supportsForkPty: false,
-        supportsScriptUtility: false,
-        scriptUtilityPath: null,
-        source: 'fixture',
+        providerKind: providerKind,
+        supportsPty: supported,
+        supportsResize: supported,
+        supportsRawMode: supported,
+        supportsSignals: supported,
+        supportsProcessGroup: isPosixDesktop && supported,
+        supportsConPty: isWindows && supported,
+        supportsForkPty: isPosixDesktop && supported,
+        source: source,
         detectedAt: detectedAt,
       ),
     );
@@ -187,35 +168,27 @@ class PtyFacts {
   final bool supportsProcessGroup;
   final bool supportsConPty;
   final bool supportsForkPty;
-  final bool supportsScriptUtility;
-  final String? scriptUtilityPath;
   final DateTime? detectedAt;
   final Map<String, PtyContextFact> entries;
 
-  bool get supportsLinuxDebianArmTarget {
-    return operatingSystem == 'linux' &&
-        (distributionId == 'debian' || distributionId == 'raspbian') &&
-        (architecture == 'aarch64' ||
-            architecture == 'arm64' ||
-            architecture.startsWith('armv') ||
-            architecture == 'arm');
-  }
+  bool get supportsLinuxDebianArmTarget =>
+      operatingSystem == 'linux' &&
+      (distributionId == 'debian' || distributionId == 'raspbian') &&
+      (architecture == 'aarch64' ||
+          architecture == 'arm64' ||
+          architecture.startsWith('armv') ||
+          architecture == 'arm');
 
   String get compatibilityTarget {
-    if (supportsLinuxDebianArmTarget) {
-      return 'linux-debian-arm';
-    }
-    if (operatingSystem == 'linux') {
-      return 'linux-generic';
-    }
+    if (supportsLinuxDebianArmTarget) return 'linux-debian-arm';
+    if (operatingSystem == 'linux') return 'linux-generic';
+    if (operatingSystem == 'macos') return 'macos';
     if (operatingSystem == 'windows') {
       final arch = architecture.toLowerCase();
       if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') {
         return 'windows-x64';
       }
-      if (arch == 'arm64' || arch == 'aarch64') {
-        return 'windows-arm64';
-      }
+      if (arch == 'arm64' || arch == 'aarch64') return 'windows-arm64';
       return 'windows-generic';
     }
     return 'unsupported';
@@ -235,8 +208,6 @@ class PtyFacts {
     'supportsProcessGroup': supportsProcessGroup,
     'supportsConPty': supportsConPty,
     'supportsForkPty': supportsForkPty,
-    'supportsScriptUtility': supportsScriptUtility,
-    if (scriptUtilityPath != null) 'scriptUtilityPath': scriptUtilityPath,
     'compatibilityTarget': compatibilityTarget,
     if (detectedAt != null) 'detectedAt': detectedAt!.toIso8601String(),
     'entries': entries.map(
@@ -258,26 +229,20 @@ class PtyFacts {
     required bool supportsProcessGroup,
     required bool supportsConPty,
     required bool supportsForkPty,
-    required bool supportsScriptUtility,
-    required String? scriptUtilityPath,
     required String source,
     DateTime? detectedAt,
   }) {
-    PtyContextFact fact(
-      String key,
-      Object? value, {
-      PtyFactCertainty certainty = PtyFactCertainty.confirmed,
-    }) {
-      return PtyContextFact(
-        key: key,
-        value: value,
-        source: source,
-        scope: 'pty',
-        certainty: certainty,
-        targetId: targetId,
-        detectedAt: detectedAt,
-      );
-    }
+    PtyContextFact fact(String key, Object? value) => PtyContextFact(
+      key: key,
+      value: value,
+      source: source,
+      scope: 'pty',
+      certainty: supportsPty
+          ? PtyFactCertainty.confirmed
+          : PtyFactCertainty.unsupported,
+      targetId: targetId,
+      detectedAt: detectedAt,
+    );
 
     return <String, PtyContextFact>{
       'host.operatingSystem': fact('host.operatingSystem', operatingSystem),
@@ -295,17 +260,6 @@ class PtyFacts {
       ),
       'pty.conPtySupported': fact('pty.conPtySupported', supportsConPty),
       'pty.forkPtySupported': fact('pty.forkPtySupported', supportsForkPty),
-      'pty.scriptUtilitySupported': fact(
-        'pty.scriptUtilitySupported',
-        supportsScriptUtility,
-      ),
-      'pty.scriptUtilityPath': fact(
-        'pty.scriptUtilityPath',
-        scriptUtilityPath,
-        certainty: scriptUtilityPath == null
-            ? PtyFactCertainty.unknown
-            : PtyFactCertainty.confirmed,
-      ),
     };
   }
 }

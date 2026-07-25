@@ -739,6 +739,24 @@ Future<ExecutionSession?> _sessionFromWorkflowSuccessPayload({
     final sessionId =
         _workflowSessionIdFromPayload(decoded) ??
         DateTime.now().microsecondsSinceEpoch.toString();
+    final receiptPayload = decoded['receipt'];
+    final receipt = ExecutionReceiptSnapshot.decode(
+      receiptPayload,
+      fallbackSessionId: sessionId,
+    );
+    if (receiptPayload != null && receipt == null) {
+      return ExecutionSession(
+        sessionId: sessionId,
+        kind: workflow.kind,
+        status: ExecutionSessionStatus.failed,
+        statusMessage:
+            'Workflow receipt rejected: only receipt schema version 1 is supported.',
+        diagnostics: const <Diagnostic>[],
+        stdoutEvents: const <ExecutionLogEvent>[],
+        stderrEvents: const <ExecutionLogEvent>[],
+        unitRange: SourceRange(start: 0, end: document.length),
+      );
+    }
     final runtimeEvents = await _readWorkflowRuntimeEvents(
       rawRuntimeEvents: decoded['runtime_events'],
       runtimeEventsPath: decoded['runtime_events_path'],
@@ -797,6 +815,7 @@ Future<ExecutionSession?> _sessionFromWorkflowSuccessPayload({
         ...payloadStderrChannel.logEvents,
         ...stderrChannel.logEvents,
       ],
+      receipt: receipt,
       unitRange: SourceRange(start: 0, end: document.length),
     );
   } on FormatException {

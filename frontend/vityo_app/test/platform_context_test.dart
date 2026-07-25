@@ -45,11 +45,7 @@ void main() {
         ),
       ),
       ptyProber: StaticPtyProber(
-        PtyFacts.linuxDebianArm(
-          targetId: 'ctx',
-          architecture: 'aarch64',
-          scriptUtilityPath: '/usr/bin/script',
-        ),
+        PtyFacts.linuxDebianArm(targetId: 'ctx', architecture: 'aarch64'),
       ),
       targetId: 'ctx',
     );
@@ -260,10 +256,7 @@ void main() {
       ),
     );
     final updated = await controller.applyPtyFacts(
-      PtyFacts.linuxDebianArm(
-        targetId: 'foreign-pty',
-        scriptUtilityPath: null,
-      ),
+      PtyFacts.linuxDebianArm(targetId: 'foreign-pty'),
     );
 
     expect(updated.fileSystem.targetId, 'ctx');
@@ -274,32 +267,37 @@ void main() {
     expect(updated.clipboard.supportsSystemClipboard, isFalse);
     expect(updated.notification.supportsDesktopNotifications, isFalse);
     expect(updated.localService.architecture, 'armv7l');
-    expect(updated.pty.supportsRawMode, isFalse);
+    expect(updated.pty.supportsRawMode, isTrue);
     expect(controller.currentSnapshot, same(updated));
   });
 
-  test('platform context controller reports missing context and probers', () async {
-    final controller = PlatformContextController(
-      store: InMemoryPlatformContextStore(),
-      detector: StaticPlatformDetector(
-        PlatformContextSnapshot.compose(
-          targetId: 'missing-load',
-          fileSystem: FileSystemFacts.linuxDebianArm(targetId: 'missing-load'),
-          shell: ShellFacts.linuxDebianArm(targetId: 'missing-load'),
+  test(
+    'platform context controller reports missing context and probers',
+    () async {
+      final controller = PlatformContextController(
+        store: InMemoryPlatformContextStore(),
+        detector: StaticPlatformDetector(
+          PlatformContextSnapshot.compose(
+            targetId: 'missing-load',
+            fileSystem: FileSystemFacts.linuxDebianArm(
+              targetId: 'missing-load',
+            ),
+            shell: ShellFacts.linuxDebianArm(targetId: 'missing-load'),
+          ),
         ),
-      ),
-      targetId: 'missing-load',
-    );
+        targetId: 'missing-load',
+      );
 
-    await expectLater(
-      controller.load(refreshIfMissing: false),
-      throwsStateError,
-    );
-    expect(
-      () => PlatformContextController(store: InMemoryPlatformContextStore()),
-      throwsA(isA<ArgumentError>()),
-    );
-  });
+      await expectLater(
+        controller.load(refreshIfMissing: false),
+        throwsStateError,
+      );
+      expect(
+        () => PlatformContextController(store: InMemoryPlatformContextStore()),
+        throwsA(isA<ArgumentError>()),
+      );
+    },
+  );
 
   test('platform context file store persists and reloads all facts', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
@@ -329,10 +327,7 @@ void main() {
       clipboard: ClipboardFacts.linuxDebianArm(targetId: 'ctx'),
       notification: NotificationFacts.linuxDebianArm(targetId: 'ctx'),
       localService: LocalServiceFacts.linuxDebianArm(targetId: 'ctx'),
-      pty: PtyFacts.linuxDebianArm(
-        targetId: 'ctx',
-        scriptUtilityPath: '/usr/bin/script',
-      ),
+      pty: PtyFacts.linuxDebianArm(targetId: 'ctx'),
       overrides: const <String, Object?>{'scope': 'test'},
     );
 
@@ -349,7 +344,7 @@ void main() {
     expect(loaded.clipboard.supportsMemoryFallback, isTrue);
     expect(loaded.notification.supportsInAppFallback, isTrue);
     expect(loaded.localService.supportsLoopbackHttpServer, isTrue);
-    expect(loaded.pty.supportsScriptUtility, isTrue);
+    expect(loaded.pty.supportsForkPty, isTrue);
     expect(loaded.overrides['scope'], 'test');
   });
 
@@ -454,7 +449,7 @@ void main() {
       'process': <String, Object?>{'providerKind': 'virtual'},
       'resource': <String, Object?>{'providerKind': 'hosted'},
       'network': <String, Object?>{'providerKind': 'hosted'},
-      'pty': <String, Object?>{'providerKind': 'script-utility'},
+      'pty': <String, Object?>{'providerKind': 'posix-pty'},
     });
     final remote = PlatformContextSnapshot.fromJson(<String, Object?>{
       'targetId': 'remote-context',
@@ -477,7 +472,10 @@ void main() {
     expect(snapshot.resource.processorCount, 4);
     expect(snapshot.network.providerKind, NetworkProviderKind.virtual);
     expect(snapshot.network.proxyEnvironment['1'], 'http://proxy.example');
-    expect(snapshot.clipboard.providerKind, ClipboardProviderKind.memoryFallback);
+    expect(
+      snapshot.clipboard.providerKind,
+      ClipboardProviderKind.memoryFallback,
+    );
     expect(
       snapshot.notification.providerKind,
       NotificationProviderKind.inAppFallback,
@@ -485,7 +483,10 @@ void main() {
     expect(snapshot.localService.providerKind, LocalServiceProviderKind.hosted);
     expect(snapshot.pty.providerKind, PtyProviderKind.conPty);
     expect(snapshot.overrides['1'], 'one');
-    expect(alternate.fileSystem.providerKind, FileSystemProviderKind.browserSandbox);
+    expect(
+      alternate.fileSystem.providerKind,
+      FileSystemProviderKind.browserSandbox,
+    );
     expect(alternate.fileSystem.watchSupport, FileSystemWatchSupport.polling);
     expect(alternate.shell.providerKind, ShellProviderKind.virtual);
     expect(
@@ -495,108 +496,114 @@ void main() {
     expect(alternate.process.providerKind, ProcessProviderKind.virtual);
     expect(alternate.resource.providerKind, ResourceProviderKind.hosted);
     expect(alternate.network.providerKind, NetworkProviderKind.hosted);
-    expect(alternate.pty.providerKind, PtyProviderKind.scriptUtility);
+    expect(alternate.pty.providerKind, PtyProviderKind.posixPty);
     expect(remote.fileSystem.providerKind, FileSystemProviderKind.remote);
     expect(remote.pty.providerKind, PtyProviderKind.hosted);
   });
 
-  test('platform context feeds all platform managers', () async {
-    final context = PlatformContextSnapshot.compose(
-      targetId: 'ctx',
-      fileSystem: FileSystemFacts.linuxDebianArm(targetId: 'ctx'),
-      shell: ShellFacts.linuxDebianArm(
+  test(
+    'platform context feeds all platform managers',
+    () async {
+      final context = PlatformContextSnapshot.compose(
         targetId: 'ctx',
-        defaultShellPath: '/bin/sh',
-      ),
-      process: ProcessFacts.linuxDebianArm(targetId: 'ctx'),
-      resource: ResourceFacts.linuxDebianArm(targetId: 'ctx'),
-      network: NetworkFacts.linuxDebianArm(targetId: 'ctx'),
-      clipboard: ClipboardFacts.linuxDebianArm(targetId: 'ctx'),
-      notification: NotificationFacts.linuxDebianArm(targetId: 'ctx'),
-      localService: LocalServiceFacts.linuxDebianArm(targetId: 'ctx'),
-      pty: PtyFacts.linuxDebianArm(targetId: 'ctx'),
-    );
-    final compatibility = PlatformAdapter(context).adapt();
+        fileSystem: FileSystemFacts.linuxDebianArm(targetId: 'ctx'),
+        shell: ShellFacts.linuxDebianArm(
+          targetId: 'ctx',
+          defaultShellPath: '/bin/sh',
+        ),
+        process: ProcessFacts.linuxDebianArm(targetId: 'ctx'),
+        resource: ResourceFacts.linuxDebianArm(targetId: 'ctx'),
+        network: NetworkFacts.linuxDebianArm(targetId: 'ctx'),
+        clipboard: ClipboardFacts.linuxDebianArm(targetId: 'ctx'),
+        notification: NotificationFacts.linuxDebianArm(targetId: 'ctx'),
+        localService: LocalServiceFacts.linuxDebianArm(targetId: 'ctx'),
+        pty: PtyFacts.linuxDebianArm(targetId: 'ctx'),
+      );
+      final compatibility = PlatformAdapter(context).adapt();
 
-    final fileSystemManager = await createPlatformFileSystemManager(
-      platformContext: context,
-    );
-    final shellManager = await createPlatformShellManager(
-      platformContext: context,
-    );
-    final processManager = await createPlatformProcessManager(
-      platformContext: context,
-    );
-    final resourceManager = await createPlatformResourceManager(
-      platformContext: context,
-    );
-    final networkManager = await createPlatformNetworkManager(
-      platformContext: context,
-    );
-    final clipboardManager = await createPlatformClipboardManager(
-      platformContext: context,
-    );
-    final notificationManager = await createPlatformNotificationManager(
-      platformContext: context,
-    );
-    final localServiceManager = await createPlatformLocalServiceManager(
-      platformContext: context,
-    );
-    final ptyManager = await createPlatformPtyManager(platformContext: context);
+      final fileSystemManager = await createPlatformFileSystemManager(
+        platformContext: context,
+      );
+      final shellManager = await createPlatformShellManager(
+        platformContext: context,
+      );
+      final processManager = await createPlatformProcessManager(
+        platformContext: context,
+      );
+      final resourceManager = await createPlatformResourceManager(
+        platformContext: context,
+      );
+      final networkManager = await createPlatformNetworkManager(
+        platformContext: context,
+      );
+      final clipboardManager = await createPlatformClipboardManager(
+        platformContext: context,
+      );
+      final notificationManager = await createPlatformNotificationManager(
+        platformContext: context,
+      );
+      final localServiceManager = await createPlatformLocalServiceManager(
+        platformContext: context,
+      );
+      final ptyManager = await createPlatformPtyManager(
+        platformContext: context,
+      );
 
-    expect(fileSystemManager.facts.targetId, 'ctx');
-    expect(shellManager.facts.targetId, 'ctx');
-    expect(processManager.facts.targetId, 'ctx');
-    expect(resourceManager.facts.targetId, 'ctx');
-    expect(networkManager.facts.targetId, 'ctx');
-    expect(clipboardManager.facts.targetId, 'ctx');
-    expect(notificationManager.facts.targetId, 'ctx');
-    expect(localServiceManager.facts.targetId, 'ctx');
-    expect(ptyManager.facts.targetId, 'ctx');
-    expect(compatibility.supportsLinuxDebianArmTarget, isTrue);
-    expect(
-      fileSystemManager.compatibility.compatibilityTarget,
-      compatibility.fileSystem.compatibilityTarget,
-    );
-    expect(
-      shellManager.compatibility.compatibilityTarget,
-      compatibility.shell.compatibilityTarget,
-    );
-    expect(
-      processManager.compatibility.compatibilityTarget,
-      compatibility.process.compatibilityTarget,
-    );
-    expect(
-      resourceManager.compatibility.compatibilityTarget,
-      compatibility.resource.compatibilityTarget,
-    );
-    expect(
-      networkManager.compatibility.compatibilityTarget,
-      compatibility.network.compatibilityTarget,
-    );
-    expect(
-      clipboardManager.compatibility.compatibilityTarget,
-      compatibility.clipboard.compatibilityTarget,
-    );
-    expect(
-      notificationManager.compatibility.compatibilityTarget,
-      compatibility.notification.compatibilityTarget,
-    );
-    expect(
-      localServiceManager.compatibility.compatibilityTarget,
-      compatibility.localService.compatibilityTarget,
-    );
-    expect(
-      ptyManager.compatibility.compatibilityTarget,
-      compatibility.pty.compatibilityTarget,
-    );
+      expect(fileSystemManager.facts.targetId, 'ctx');
+      expect(shellManager.facts.targetId, 'ctx');
+      expect(processManager.facts.targetId, 'ctx');
+      expect(resourceManager.facts.targetId, 'ctx');
+      expect(networkManager.facts.targetId, 'ctx');
+      expect(clipboardManager.facts.targetId, 'ctx');
+      expect(notificationManager.facts.targetId, 'ctx');
+      expect(localServiceManager.facts.targetId, 'ctx');
+      expect(ptyManager.facts.targetId, 'ctx');
+      expect(compatibility.supportsLinuxDebianArmTarget, isTrue);
+      expect(
+        fileSystemManager.compatibility.compatibilityTarget,
+        compatibility.fileSystem.compatibilityTarget,
+      );
+      expect(
+        shellManager.compatibility.compatibilityTarget,
+        compatibility.shell.compatibilityTarget,
+      );
+      expect(
+        processManager.compatibility.compatibilityTarget,
+        compatibility.process.compatibilityTarget,
+      );
+      expect(
+        resourceManager.compatibility.compatibilityTarget,
+        compatibility.resource.compatibilityTarget,
+      );
+      expect(
+        networkManager.compatibility.compatibilityTarget,
+        compatibility.network.compatibilityTarget,
+      );
+      expect(
+        clipboardManager.compatibility.compatibilityTarget,
+        compatibility.clipboard.compatibilityTarget,
+      );
+      expect(
+        notificationManager.compatibility.compatibilityTarget,
+        compatibility.notification.compatibilityTarget,
+      );
+      expect(
+        localServiceManager.compatibility.compatibilityTarget,
+        compatibility.localService.compatibilityTarget,
+      );
+      expect(
+        ptyManager.compatibility.compatibilityTarget,
+        compatibility.pty.compatibilityTarget,
+      );
 
-    final result = await shellManager.run(
-      const ShellCommandRequest(command: 'printf platform-context'),
-    );
-    expect(result.succeeded, isTrue);
-    expect(result.stdout, 'platform-context');
-  }, skip: Platform.isWindows ? 'POSIX shell fixture.' : false);
+      final result = await shellManager.run(
+        const ShellCommandRequest(command: 'printf platform-context'),
+      );
+      expect(result.succeeded, isTrue);
+      expect(result.stdout, 'platform-context');
+    },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
+  );
 
   test(
     'platform manager bundle composes all managers from one context',

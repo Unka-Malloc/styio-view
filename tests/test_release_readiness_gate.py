@@ -128,6 +128,73 @@ class ReleaseReadinessGateTest(unittest.TestCase):
                 path.write_text("// test placeholder\n", encoding="utf-8")
 
         self._write_minimal_tooling_manifest(root)
+        workflow_path = root / ".github/workflows/local-ci-gate.yml"
+        workflow_path.write_text(
+            "\n".join(
+                marker
+                for markers in (
+                    *self.gate.NIGHTLY_WORKFLOW_MARKERS.values(),
+                    *self.gate.PRODUCT_MATRIX_WORKFLOW_MARKERS.values(),
+                )
+                for marker in markers
+            )
+            + "\n  local-ci-gate:\n  windows-native:\n  macos-native:\n"
+            + "steps.product-matrix.outputs.styio\n"
+            + "steps.product-matrix.outputs.pafio\n"
+            + "\n",
+            encoding="utf-8",
+        )
+        matrix_path = root / "toolchain/product-matrix.json"
+        matrix_path.parent.mkdir(parents=True, exist_ok=True)
+        matrix_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "capability": "trusted-desktop-ide-loop",
+                    "repositories": {"styio": "a" * 40, "pafio": "b" * 40},
+                }
+            ),
+            encoding="utf-8",
+        )
+        versions = {
+            "schema_version": 1,
+            "core_version": "0.1.0-nightly",
+            "platform_adapters": {
+                platform: "0.1.0-nightly.1"
+                for platform in self.gate.NIGHTLY_PLATFORMS
+            },
+        }
+        versions_path = root / "packaging/release-versions.json"
+        versions_path.parent.mkdir(parents=True, exist_ok=True)
+        versions_path.write_text(json.dumps(versions), encoding="utf-8")
+        formats = self.gate.NIGHTLY_PACKAGE_FORMATS
+        for platform in self.gate.NIGHTLY_PLATFORMS:
+            platform_root = root / "packaging" / platform
+            platform_root.mkdir(parents=True, exist_ok=True)
+            icon = platform_root / "icon.bin"
+            installer = platform_root / "installer.txt"
+            icon.write_bytes(b"icon")
+            installer.write_text("installer\n", encoding="utf-8")
+            config = {
+                "schema_version": 1,
+                "platform": platform,
+                "package_format": formats[platform],
+                "build_relative_path": f"build/{platform}/release",
+                "icon_relative_path": f"packaging/{platform}/icon.bin",
+                "installer_definition": f"packaging/{platform}/installer.txt",
+                "signing": {
+                    "status": "explicit-gap",
+                    "reason": "Test signing credentials are intentionally absent.",
+                },
+                "automatic_updates": False,
+            }
+            if platform == "windows":
+                uninstaller = platform_root / "uninstaller.txt"
+                uninstaller.write_text("uninstaller\n", encoding="utf-8")
+                config["uninstaller_definition"] = "packaging/windows/uninstaller.txt"
+            (platform_root / "nightly.json").write_text(
+                json.dumps(config), encoding="utf-8"
+            )
 
     def test_static_checks_accept_release_tree(self) -> None:
         with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
@@ -183,6 +250,68 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         failed_names = {result.name for result in results if not result.ok}
         self.assertIn("pubspec name", failed_names)
         self.assertIn("pubspec description", failed_names)
+
+    def test_static_checks_reject_unsigned_automatic_updates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
+            tmp_root = Path(tmp_name)
+            self._write_minimal_release_tree(tmp_root)
+            config_path = tmp_root / "packaging/windows/nightly.json"
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+            config["automatic_updates"] = True
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+
+            results = self.gate.collect_static_checks(
+                tmp_root,
+                Path("frontend/vityo_app"),
+            )
+
+        self.assertTrue(
+            any(
+                not result.ok
+                and result.name == "Nightly windows automatic update policy"
+                for result in results
+            ),
+            results,
+        )
+
+    def test_static_checks_report_each_platform_independently(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
+            tmp_root = Path(tmp_name)
+            self._write_minimal_release_tree(tmp_root)
+            (tmp_root / "packaging/linux/installer.txt").unlink()
+
+            results = self.gate.collect_static_checks(
+                tmp_root,
+                Path("frontend/vityo_app"),
+            )
+
+        by_name = {result.name: result for result in results}
+        self.assertFalse(by_name["Nightly linux package sources"].ok)
+        self.assertTrue(by_name["Nightly windows package sources"].ok)
+        self.assertTrue(by_name["Nightly macos package sources"].ok)
+
+    def test_static_checks_reject_mutable_or_coupled_product_matrix(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
+            tmp_root = Path(tmp_name)
+            self._write_minimal_release_tree(tmp_root)
+            matrix_path = tmp_root / "toolchain/product-matrix.json"
+            matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+            matrix["repositories"]["styio"] = "nightly"
+            matrix_path.write_text(json.dumps(matrix), encoding="utf-8")
+            workflow_path = tmp_root / ".github/workflows/local-ci-gate.yml"
+            workflow_path.write_text(
+                workflow_path.read_text(encoding="utf-8") + "needs: windows-native\n",
+                encoding="utf-8",
+            )
+
+            results = self.gate.collect_static_checks(
+                tmp_root,
+                Path("frontend/vityo_app"),
+            )
+
+        by_name = {result.name: result for result in results}
+        self.assertFalse(by_name["Product matrix fixed upstream commits"].ok)
+        self.assertFalse(by_name["Independent platform jobs"].ok)
 
     def test_static_checks_reject_stale_tool_status(self) -> None:
         with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:

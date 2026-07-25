@@ -888,15 +888,15 @@ class CredentialSecretInjector {
         metadata: record.toMetadata(),
       );
     } else {
-      final secret = record.secretValue.trim();
-      final redacted = _redactSecret(secret);
+      final material = record.secretValue.trim();
+      final redacted = _redactSecret(material);
       result = CredentialInjectionResult(
         binding: binding,
         status: CredentialInjectionStatus.injected,
         injectedValue: CredentialInjectedValue(
           targetName: binding.targetName,
           reference: binding.reference,
-          value: '${binding.valuePrefix}$secret',
+          value: '${binding.valuePrefix}$material',
           redactedValue: '${binding.valuePrefix}$redacted',
         ),
         metadata: record.toMetadata(),

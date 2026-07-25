@@ -939,21 +939,26 @@ class _HistoryEntryTile extends StatelessWidget {
       if (entry.authoredAt.isNotEmpty) 'authored ${entry.authoredAt}',
       'TODO: wire commit diff preview for this history row.',
     ];
-    return ExpansionTile(
-      key: ValueKey('source-control-history-entry-${entry.shortRevision}'),
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(left: 8, bottom: 6),
-      title: Text(
-        '${entry.shortRevision} · ${entry.summary}',
-        style: theme.textTheme.bodySmall,
+    // Material localizes ink/splash so ExpansionTile's ListTile is not
+    // obscured by the parent history card's colored DecoratedBox.
+    return Material(
+      type: MaterialType.transparency,
+      child: ExpansionTile(
+        key: ValueKey('source-control-history-entry-${entry.shortRevision}'),
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(left: 8, bottom: 6),
+        title: Text(
+          '${entry.shortRevision} · ${entry.summary}',
+          style: theme.textTheme.bodySmall,
+        ),
+        children: [
+          for (final line in detailLines)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(line, style: theme.textTheme.bodySmall),
+            ),
+        ],
       ),
-      children: [
-        for (final line in detailLines)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(line, style: theme.textTheme.bodySmall),
-          ),
-      ],
     );
   }
 }

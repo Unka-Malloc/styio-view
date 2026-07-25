@@ -1,6 +1,14 @@
 import '../../editor/document_state.dart';
 import '../contract/language_contract.dart';
 import 'language_service_foundation.dart';
+import 'styio_service_capability.dart';
+
+abstract interface class StyioLanguageFactProvenance {
+  bool hasAuthoritativeFactsFor(
+    DocumentState document,
+    StyioServiceCapability capability,
+  );
+}
 
 abstract class StyioLanguageService {
   StyioDocumentAnalysis analyzeDocument(DocumentState document);

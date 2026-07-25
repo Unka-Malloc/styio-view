@@ -732,11 +732,6 @@ class PlatformContextSnapshot {
     );
     final supportsConPty = _boolValue(json['supportsConPty'], false);
     final supportsForkPty = _boolValue(json['supportsForkPty'], false);
-    final supportsScriptUtility = _boolValue(
-      json['supportsScriptUtility'],
-      false,
-    );
-    final scriptUtilityPath = json['scriptUtilityPath'] as String?;
     return PtyFacts(
       targetId: targetId,
       operatingSystem: operatingSystem,
@@ -751,8 +746,6 @@ class PlatformContextSnapshot {
       supportsProcessGroup: supportsProcessGroup,
       supportsConPty: supportsConPty,
       supportsForkPty: supportsForkPty,
-      supportsScriptUtility: supportsScriptUtility,
-      scriptUtilityPath: scriptUtilityPath,
       detectedAt: detectedAt,
       entries: PtyFacts.buildEntries(
         targetId: targetId,
@@ -768,8 +761,6 @@ class PlatformContextSnapshot {
         supportsProcessGroup: supportsProcessGroup,
         supportsConPty: supportsConPty,
         supportsForkPty: supportsForkPty,
-        supportsScriptUtility: supportsScriptUtility,
-        scriptUtilityPath: scriptUtilityPath,
         source: 'config',
         detectedAt: detectedAt,
       ),
@@ -856,8 +847,8 @@ class PlatformContextSnapshot {
         detectedAt: host.detectedAt,
       );
     }
-    final supportsSystemClipboard = host.operatingSystem == 'windows' ||
-        host.operatingSystem == 'macos';
+    final supportsSystemClipboard =
+        host.operatingSystem == 'windows' || host.operatingSystem == 'macos';
     return ClipboardFacts(
       targetId: host.targetId,
       operatingSystem: host.operatingSystem,
@@ -881,8 +872,8 @@ class PlatformContextSnapshot {
         detectedAt: host.detectedAt,
       );
     }
-    final supportsDesktopNotifications = host.operatingSystem == 'windows' ||
-        host.operatingSystem == 'macos';
+    final supportsDesktopNotifications =
+        host.operatingSystem == 'windows' || host.operatingSystem == 'macos';
     return NotificationFacts(
       targetId: host.targetId,
       operatingSystem: host.operatingSystem,
@@ -922,29 +913,18 @@ class PlatformContextSnapshot {
       return PtyFacts.linuxDebianArm(
         targetId: host.targetId,
         architecture: host.architecture,
-        scriptUtilityPath: shell.supportsPty ? '/usr/bin/script' : null,
         detectedAt: host.detectedAt,
       );
     }
-    final supportsConPty = host.operatingSystem == 'windows' && shell.supportsPty;
-    return PtyFacts(
+    return PtyFacts.native(
       targetId: host.targetId,
       operatingSystem: host.operatingSystem,
       distributionId: host.distributionId,
       distributionName: host.distributionName,
       architecture: host.architecture,
-      providerKind: supportsConPty
-          ? PtyProviderKind.conPty
-          : PtyProviderKind.unsupported,
-      supportsPty: supportsConPty,
-      supportsResize: supportsConPty,
-      supportsRawMode: supportsConPty,
-      supportsSignals: false,
-      supportsProcessGroup: false,
-      supportsConPty: supportsConPty,
-      supportsForkPty: false,
-      supportsScriptUtility: false,
+      available: shell.supportsPty,
       detectedAt: host.detectedAt,
+      source: 'config-default',
     );
   }
 
@@ -1125,7 +1105,6 @@ class PlatformContextSnapshot {
     return switch (value) {
       'posix-pty' => PtyProviderKind.posixPty,
       'conpty' => PtyProviderKind.conPty,
-      'script-utility' => PtyProviderKind.scriptUtility,
       'hosted' => PtyProviderKind.hosted,
       'unsupported' => PtyProviderKind.unsupported,
       _ => PtyProviderKind.unknown,

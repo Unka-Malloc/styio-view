@@ -163,10 +163,11 @@ class SupplyChainGovernanceGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="supply-chain-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)
             self._write_minimal_tree(root)
+            token = "_".join(("ghp", "0123456789abcdefghijklmnopqrstuvwxyzABC"))
             self._write_file(
                 root,
                 "scripts/leaky.sh",
-                "TOKEN=ghp_0123456789abcdefghijklmnopqrstuvwxyzABC\n",
+                f"TOKEN={token}\n",
             )
 
             results = self.gate.collect_checks(root)

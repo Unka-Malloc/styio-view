@@ -115,7 +115,7 @@ class _FakePtyManager implements PtyManager {
 
   final _FakePtySession session;
   @override
-  final PtyFacts facts = PtyFacts.linuxDebianArm(scriptUtilityPath: '/script');
+  final PtyFacts facts = PtyFacts.linuxDebianArm();
   @override
   late final PtyCompatibility compatibility = PtyAdapter(facts).adapt();
 

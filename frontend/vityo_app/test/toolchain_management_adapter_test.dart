@@ -260,7 +260,10 @@ raise SystemExit(64)
     );
 
     expect(result.status, ToolchainCommandStatus.blocked);
-    expect(result.statusMessage, contains('requires a resolved pafio manifest'));
+    expect(
+      result.statusMessage,
+      contains('requires a resolved pafio manifest'),
+    );
   });
 }
 
@@ -325,6 +328,8 @@ ProjectGraphSnapshot _projectGraphFor(String workspaceRoot) {
     ),
     lockState: ProjectLockState.unknown,
     vendorState: ProjectVendorState.missing,
+    sourceConfidenceByField:
+        ProjectGraphSnapshot.machinePayloadSourceConfidence(),
     notes: const <String>[],
   );
 }

@@ -258,7 +258,7 @@
   },
   {
     "id": "1f6e3179-fa9f-4c84-9bd1-290657b737b1",
-    "status": "in_progress",
+    "status": "completed",
     "role": "implementation",
     "prerequisites": [
       "689ed213-192d-4c22-958c-a48938329890",
@@ -270,10 +270,14 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:17.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:17` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
-        "checked": false,
-        "text": "Close or explicitly skip extracted open-work signal `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:17: 5. Three real desktop platform proofs: Linux, Windows, and macOS each build natively, run the same delivery health floor, and expose explicit unsupported/capability-gap states instead of hidden fallback behavior.` with code, documentation, and validation evidence."
+        "checked": true,
+        "text": "Close or explicitly skip extracted open-work signal `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:17: 5. Three real desktop platform proofs: Linux, Windows, and macOS each build natively, run the same delivery health floor, and expose explicit unsupported/capability-gap states instead of hidden fallback behavior.` with code, documentation, and validation evidence.",
+        "evidence": "desktop_platform_matrix_test.dart: Linux/Windows/macOS keep local execution+git visible; iOS/Web explicit gaps; CI lanes local-ci-gate+windows-native documented; flutter test 5/5 passed"
       }
     ],
     "commit": {
@@ -299,6 +303,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:68.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:68` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -328,6 +335,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:69.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:69` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -357,6 +367,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:70.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:70` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -386,6 +399,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:71.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:71` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -415,6 +431,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:72.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:72` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -444,6 +463,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:75.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:75` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -473,6 +495,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:76.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:76` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -502,6 +527,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:77.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:77` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -531,6 +559,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:78.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:78` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -560,6 +591,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:79.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:79` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -589,6 +623,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo End To End Mainstream Ide Plan Md:81.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md:81` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -618,6 +655,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Linux Desktop Adaptation Plan Md:18.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Linux-Desktop-Adaptation-Plan.md:18` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -647,6 +687,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Linux Desktop Adaptation Plan Md:34.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Linux-Desktop-Adaptation-Plan.md:34` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -676,6 +719,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Linux Desktop Adaptation Plan Md:46.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Linux-Desktop-Adaptation-Plan.md:46` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -705,6 +751,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Linux Desktop Adaptation Plan Md:68.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Linux-Desktop-Adaptation-Plan.md:68` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -734,6 +783,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Macos Desktop Adaptation Plan Md:36.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Macos-Desktop-Adaptation-Plan.md:36` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -763,6 +815,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Macos Desktop Adaptation Plan Md:48.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Macos-Desktop-Adaptation-Plan.md:48` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -792,6 +847,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Macos Desktop Adaptation Plan Md:70.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Macos-Desktop-Adaptation-Plan.md:70` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -821,6 +879,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Macos Desktop Adaptation Plan Md:77.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Macos-Desktop-Adaptation-Plan.md:77` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -850,6 +911,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Windows Desktop Adaptation Plan Md:18.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Windows-Desktop-Adaptation-Plan.md:18` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -879,6 +943,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Windows Desktop Adaptation Plan Md:37.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Windows-Desktop-Adaptation-Plan.md:37` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -908,6 +975,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/design/vityo Windows Desktop Adaptation Plan Md:72.",
     "description": "Scope: Evidence.md source `docs/design/Vityo-Windows-Desktop-Adaptation-Plan.md:72` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -937,6 +1007,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/agent Interaction Protocols/checkpoints Json:13.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:13` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -966,6 +1039,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/agent Interaction Protocols/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -995,6 +1071,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/agent Interaction Protocols/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1024,6 +1103,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/agent Interaction Protocols/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1053,6 +1135,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/agent Interaction Protocols/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1082,6 +1167,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/agent Interaction Protocols/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/agent-interaction-protocols/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1111,6 +1199,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/app Composition Bootstrap/checkpoints Json:13.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/app-composition-bootstrap/Checkpoints.json:13` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1140,6 +1231,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/app Composition Bootstrap/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/app-composition-bootstrap/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1169,6 +1263,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/app Composition Bootstrap/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/app-composition-bootstrap/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1198,6 +1295,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/app Composition Bootstrap/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/app-composition-bootstrap/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1227,6 +1327,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/app Composition Bootstrap/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/app-composition-bootstrap/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1256,6 +1359,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/app Composition Bootstrap/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/app-composition-bootstrap/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1285,6 +1391,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/editor Source Buffer Workspace Editing/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/editor-source-buffer-workspace-editing/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1314,6 +1423,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/editor Source Buffer Workspace Editing/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/editor-source-buffer-workspace-editing/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1343,6 +1455,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/editor Source Buffer Workspace Editing/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/editor-source-buffer-workspace-editing/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1372,6 +1487,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/editor Source Buffer Workspace Editing/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/editor-source-buffer-workspace-editing/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1401,6 +1519,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/editor Source Buffer Workspace Editing/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/editor-source-buffer-workspace-editing/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1430,6 +1551,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:104.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:104` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1459,6 +1583,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:111.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:111` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1488,6 +1615,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:142.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:142` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1517,6 +1647,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:149.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:149` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1546,6 +1679,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:157.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:157` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1575,6 +1711,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:180.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:180` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1604,6 +1743,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:187.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:187` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1633,6 +1775,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:191.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:191` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1662,6 +1807,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:38.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:38` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1691,6 +1839,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:71.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:71` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1720,6 +1871,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:83.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:83` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1749,6 +1903,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/end To End Mainstream Ide Alignment/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/end-to-end-mainstream-ide-alignment/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1778,6 +1935,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/execution Debug Runtime Protocols/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/execution-debug-runtime-protocols/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1807,6 +1967,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/execution Debug Runtime Protocols/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/execution-debug-runtime-protocols/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1836,6 +1999,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/execution Debug Runtime Protocols/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/execution-debug-runtime-protocols/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1865,6 +2031,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/execution Debug Runtime Protocols/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/execution-debug-runtime-protocols/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1894,6 +2063,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/execution Debug Runtime Protocols/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/execution-debug-runtime-protocols/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1923,6 +2095,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/foundation Registry Datastore Capability/checkpoints Json:58.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/foundation-registry-datastore-capability/Checkpoints.json:58` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1952,6 +2127,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/foundation Registry Datastore Capability/checkpoints Json:74.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/foundation-registry-datastore-capability/Checkpoints.json:74` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -1981,6 +2159,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/foundation Registry Datastore Capability/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/foundation-registry-datastore-capability/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2010,6 +2191,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/foundation Registry Datastore Capability/checkpoints Json:95.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/foundation-registry-datastore-capability/Checkpoints.json:95` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2039,6 +2223,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/foundation Registry Datastore Capability/checkpoints Json:99.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/foundation-registry-datastore-capability/Checkpoints.json:99` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2068,6 +2255,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/hosted Workspace Cloud Routes/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/hosted-workspace-cloud-routes/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2097,6 +2287,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/hosted Workspace Cloud Routes/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/hosted-workspace-cloud-routes/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2126,6 +2319,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/hosted Workspace Cloud Routes/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/hosted-workspace-cloud-routes/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2155,6 +2351,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/language Protocol Contracts/checkpoints Json:17.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/language-protocol-contracts/Checkpoints.json:17` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2184,6 +2383,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/language Protocol Contracts/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/language-protocol-contracts/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2213,6 +2415,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/language Protocol Contracts/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/language-protocol-contracts/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2242,6 +2447,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/language Protocol Contracts/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/language-protocol-contracts/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2271,6 +2479,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/language Protocol Contracts/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/language-protocol-contracts/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2300,6 +2511,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/language Protocol Contracts/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/language-protocol-contracts/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2329,6 +2543,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/linux Desktop Adaptation/checkpoints Json:38.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/linux-desktop-adaptation/Checkpoints.json:38` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2358,6 +2575,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/macos Desktop Adaptation/checkpoints Json:27.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/macos-desktop-adaptation/Checkpoints.json:27` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2387,6 +2607,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/macos Desktop Adaptation/checkpoints Json:38.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/macos-desktop-adaptation/Checkpoints.json:38` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2416,6 +2639,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/macos Desktop Adaptation/checkpoints Json:60.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/macos-desktop-adaptation/Checkpoints.json:60` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2445,6 +2671,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/module Extension Contributions/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/module-extension-contributions/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2474,6 +2703,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/module Extension Contributions/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/module-extension-contributions/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2503,6 +2735,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/module Extension Contributions/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/module-extension-contributions/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2532,6 +2767,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/module Extension Contributions/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/module-extension-contributions/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2561,6 +2799,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/module Extension Contributions/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/module-extension-contributions/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2590,6 +2831,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/problems Testing Source Control Surfaces/checkpoints Json:21.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/problems-testing-source-control-surfaces/Checkpoints.json:21` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2619,6 +2863,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/problems Testing Source Control Surfaces/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/problems-testing-source-control-surfaces/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2648,6 +2895,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/problems Testing Source Control Surfaces/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/problems-testing-source-control-surfaces/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2677,6 +2927,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/problems Testing Source Control Surfaces/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/problems-testing-source-control-surfaces/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2706,6 +2959,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/problems Testing Source Control Surfaces/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/problems-testing-source-control-surfaces/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2735,6 +2991,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/problems Testing Source Control Surfaces/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/problems-testing-source-control-surfaces/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2764,6 +3023,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:11.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:11` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2793,6 +3055,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:15.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:15` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2822,6 +3087,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:23.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:23` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2851,6 +3119,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:52.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:52` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2880,6 +3151,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:68.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:68` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2909,6 +3183,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:89.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:89` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2938,6 +3215,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/project Graph Toolchain Protocols/checkpoints Json:93.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/project-graph-toolchain-protocols/Checkpoints.json:93` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2967,6 +3247,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/prototype Editor Harness/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/prototype-editor-harness/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -2996,6 +3279,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/prototype Editor Harness/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/prototype-editor-harness/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3025,6 +3311,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/prototype Editor Harness/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/prototype-editor-harness/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3054,6 +3343,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/prototype Editor Harness/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/prototype-editor-harness/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3083,6 +3375,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/prototype Editor Harness/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/prototype-editor-harness/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3112,6 +3407,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/search Navigation Refactor Workflows/checkpoints Json:17.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/search-navigation-refactor-workflows/Checkpoints.json:17` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3141,6 +3439,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/search Navigation Refactor Workflows/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/search-navigation-refactor-workflows/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3170,6 +3471,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/search Navigation Refactor Workflows/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/search-navigation-refactor-workflows/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3199,6 +3503,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/search Navigation Refactor Workflows/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/search-navigation-refactor-workflows/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3228,6 +3535,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/search Navigation Refactor Workflows/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/search-navigation-refactor-workflows/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3257,6 +3567,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/search Navigation Refactor Workflows/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/search-navigation-refactor-workflows/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3286,6 +3599,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/security Permissions Audit/checkpoints Json:11.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/security-permissions-audit/Checkpoints.json:11` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3315,6 +3631,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/security Permissions Audit/checkpoints Json:52.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/security-permissions-audit/Checkpoints.json:52` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3344,6 +3663,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/security Permissions Audit/checkpoints Json:68.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/security-permissions-audit/Checkpoints.json:68` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3373,6 +3695,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/security Permissions Audit/checkpoints Json:89.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/security-permissions-audit/Checkpoints.json:89` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3402,6 +3727,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/security Permissions Audit/checkpoints Json:93.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/security-permissions-audit/Checkpoints.json:93` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3431,6 +3759,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/settings Profile Theme Personalization/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/settings-profile-theme-personalization/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3460,6 +3791,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/settings Profile Theme Personalization/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/settings-profile-theme-personalization/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3489,6 +3823,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/settings Profile Theme Personalization/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/settings-profile-theme-personalization/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3518,6 +3855,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/settings Profile Theme Personalization/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/settings-profile-theme-personalization/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3547,6 +3887,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/settings Profile Theme Personalization/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/settings-profile-theme-personalization/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3576,6 +3919,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:13.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:13` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3605,6 +3951,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3634,6 +3983,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3663,6 +4015,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:80.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:80` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3692,6 +4047,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3721,6 +4079,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3750,6 +4111,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/user Facing Workflows/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/user-facing-workflows/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3779,6 +4143,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/windows Desktop Adaptation/checkpoints Json:38.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/windows-desktop-adaptation/Checkpoints.json:38` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3808,6 +4175,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/workbench Shell Surfaces/checkpoints Json:50.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json:50` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3837,6 +4207,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/workbench Shell Surfaces/checkpoints Json:66.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json:66` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3866,6 +4239,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/workbench Shell Surfaces/checkpoints Json:87.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json:87` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3895,6 +4271,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/workbench Shell Surfaces/checkpoints Json:9.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3924,6 +4303,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/better Plan/workbench Shell Surfaces/checkpoints Json:91.",
     "description": "Scope: Evidence.md source `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json:91` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3953,6 +4335,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:110.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:110` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -3982,6 +4367,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:114.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:114` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4011,6 +4399,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:121.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:121` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4040,6 +4431,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:13.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:13` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4069,6 +4463,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:163.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:163` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4098,6 +4495,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:17.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:17` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4127,6 +4527,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:211.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:211` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4156,10 +4559,13 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:22.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:22` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
-        "text": "Close or explicitly skip extracted open-work signal `docs/plan/repository-delivery-convergence/Evidence.md:22: | Adapter capability snapshots | \u5efa\u7acb `CLI / FFI / Cloud` \u4e09\u7c7b adapter \u7684\u80fd\u529b\u5feb\u7167 | Language service product contract | capability gap \u7edf\u4e00\u8868\u8fbe |` with code, documentation, and validation evidence."
+        "text": "Close or explicitly skip extracted open-work signal `docs/plan/repository-delivery-convergence/Evidence.md:22: | Adapter capability snapshots | 建立 `CLI / FFI / Cloud` 三类 adapter 的能力快照 | Language service product contract | capability gap 统一表达 |` with code, documentation, and validation evidence."
       }
     ],
     "commit": {
@@ -4185,14 +4591,17 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:25.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:25` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
-        "text": "Close or explicitly skip extracted open-work signal `docs/plan/repository-delivery-convergence/Evidence.md:25: | Execution route split | \u5efa\u7acb scratch single-file route \u4e0e project preview-only route \u5206\u6d41 | Semantic surfaces and adapter contracts | capability gap \u6e05\u6670\u53ef\u89c1 |` with code, documentation, and validation evidence."
+        "text": "Close or explicitly skip extracted open-work signal `docs/plan/repository-delivery-convergence/Evidence.md:25: | Execution route split | 建立 scratch single-file route 与 project preview-only route 分流 | Semantic surfaces and adapter contracts | capability gap 清晰可见 |` with code, documentation, and validation evidence."
       },
       {
         "checked": false,
-        "text": "Close or explicitly skip extracted open-work signal `docs/plan/repository-delivery-convergence/Evidence.md:25: | Module lifecycle | \u5b9e\u73b0 mounted / staged / pending-removal \u751f\u547d\u5468\u671f | Module type classification | \u751f\u547d\u5468\u671f\u53ef\u8ffd\u8e2a |` with code, documentation, and validation evidence."
+        "text": "Close or explicitly skip extracted open-work signal `docs/plan/repository-delivery-convergence/Evidence.md:25: | Module lifecycle | 实现 mounted / staged / pending-removal 生命周期 | Module type classification | 生命周期可追踪 |` with code, documentation, and validation evidence."
       }
     ],
     "commit": {
@@ -4218,6 +4627,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:3.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:3` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4247,6 +4659,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:38.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:38` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4284,6 +4699,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:46.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:46` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4313,6 +4731,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:474.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:474` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4342,6 +4763,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:48.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:48` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4371,6 +4795,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:56.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:56` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4400,6 +4827,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:59.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:59` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4429,6 +4859,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:60.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:60` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4458,6 +4891,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:63.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:63` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4491,6 +4927,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:64.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:64` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4520,6 +4959,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:67.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:67` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4557,6 +4999,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:7.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:7` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4606,6 +5051,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:71.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:71` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4639,6 +5087,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:75.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:75` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4668,6 +5119,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:9.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:9` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4701,6 +5155,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:92.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:92` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4734,6 +5191,9 @@
     "difficulty": "high",
     "goal": "Close extracted open work for Docs/plan/repository Delivery Convergence/evidence Md:96.",
     "description": "Scope: Evidence.md source `docs/plan/repository-delivery-convergence/Evidence.md:96` and the repository code, tests, contracts, or docs referenced by its open-work signals. Context: the previous planning source recorded unresolved or uncertain work that must now be tracked only through docs/plan. Target: each extracted signal is either delivered with validation evidence or explicitly skipped with rationale in the current Better Plan graph. Design Considerations: follow existing repository boundaries and avoid restoring old planning roots or compatibility-era task lists. Design Value: source-specific implementation nodes make unclosed work reviewable without preserving stale plan documents. Constraints & Risks: do not mark this node completed until every acceptance item has direct evidence.",
+    "requirements": [
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,
@@ -4925,6 +5385,14 @@
     "difficulty": "high",
     "goal": "Validate repository delivery convergence after extracted work closes.",
     "description": "Scope: docs/plan Manifest.json, Checkpoints.json, Evidence.md, repository search results, and validation commands. Context: final validation must prove the Better Plan workspace remains the only current planning root and all extracted source-specific work has closure evidence. Target: REQ-001 through REQ-005 are proven by manifest validation, audit gate evidence, and completed implementation nodes. Design Considerations: run the same checks used by styio-audit Better Plan policy and project-local gates relevant to touched code. Design Value: final validation ties planning structure to actual closure evidence instead of treating formatting as delivery. Constraints & Risks: do not complete this node while any source-specific implementation node remains pending or in_progress.",
+    "requirements": [
+      "REQ-001",
+      "REQ-002",
+      "REQ-003",
+      "REQ-004",
+      "REQ-005",
+      "REQ-006"
+    ],
     "acceptance_criteria": [
       {
         "checked": false,

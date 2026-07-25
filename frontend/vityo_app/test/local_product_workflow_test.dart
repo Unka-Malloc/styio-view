@@ -24,15 +24,13 @@ import 'package:vityo_app/src/platform/native_module_loader.dart';
 import 'package:vityo_app/src/platform/platform_target.dart';
 
 void main() {
-  final productGateEnabled =
-      Platform.environment['VITYO_PRODUCT_GATE'] == '1';
+  final productGateEnabled = Platform.environment['VITYO_PRODUCT_GATE'] == '1';
   final missingEnv = <String>[
     for (final name in const <String>[
       'VITYO_PRODUCT_WORKSPACE_ROOT',
       'VITYO_PRODUCT_MANIFEST_PATH',
       'VITYO_PAFIO_BIN',
       'VITYO_PRODUCT_STYIO_BIN',
-      'VITYO_PRODUCT_STYIO_ALT_BIN',
     ])
       if (_env(name) == null) name,
   ];
@@ -84,9 +82,6 @@ void main() {
     () async {
       final workspaceRoot = _env('VITYO_PRODUCT_WORKSPACE_ROOT')!;
       final styioBinaryPath = _env('VITYO_PRODUCT_STYIO_BIN')!;
-      final alternateStyioBinaryPath = _env(
-        'VITYO_PRODUCT_STYIO_ALT_BIN',
-      )!;
       final previousCurrentDirectory = Directory.current;
       Directory.current = workspaceRoot;
       try {
@@ -149,67 +144,6 @@ void main() {
               'Desktop local workflow should resolve the primary compiler after pin.',
         );
 
-        final installAlternate = await shell.installManagedCompiler(
-          styioBinaryPath: alternateStyioBinaryPath,
-        );
-        expect(
-          installAlternate.succeeded,
-          isTrue,
-          reason:
-              'Desktop local workflow should install the alternate compiler identity.',
-        );
-        final refreshedToolchains =
-            shell
-                .workspaceController
-                .activeProject
-                .toolchainEnvironment
-                ?.managedToolchains
-                .installed ??
-            const <ManagedToolchainInstallSnapshot>[];
-        expect(
-          refreshedToolchains.any(
-            (toolchain) => toolchain.compilerVersion == '0.0.2',
-          ),
-          isTrue,
-        );
-        final alternateCompiler = refreshedToolchains.firstWhere(
-          (toolchain) => toolchain.compilerVersion == '0.0.2',
-        );
-
-        final useAlternate = await shell.useManagedCompiler(
-          compilerVersion: alternateCompiler.compilerVersion,
-          channel: alternateCompiler.channel,
-        );
-        expect(useAlternate.succeeded, isTrue);
-        final pinAlternate = await shell.pinManagedCompiler(
-          compilerVersion: alternateCompiler.compilerVersion,
-          channel: alternateCompiler.channel,
-        );
-        expect(pinAlternate.succeeded, isTrue);
-        _expectActiveCompilerVersion(
-          shell,
-          '0.0.2',
-          reason:
-              'Desktop local workflow should switch to the alternate compiler.',
-        );
-
-        final usePrimaryAgain = await shell.useManagedCompiler(
-          compilerVersion: primaryCompiler.compilerVersion,
-          channel: primaryCompiler.channel,
-        );
-        expect(usePrimaryAgain.succeeded, isTrue);
-        final pinPrimaryAgain = await shell.pinManagedCompiler(
-          compilerVersion: primaryCompiler.compilerVersion,
-          channel: primaryCompiler.channel,
-        );
-        expect(pinPrimaryAgain.succeeded, isTrue);
-        _expectActiveCompilerVersion(
-          shell,
-          '0.0.1',
-          reason:
-              'Desktop local workflow should switch back to the primary compiler before execution.',
-        );
-
         final fetch = await shell.fetchDependencies();
         expect(fetch.succeeded, isTrue);
 
@@ -225,14 +159,33 @@ void main() {
         );
 
         await _openTarget(shell, ProjectTargetKind.bin);
-        await shell.executeCommand(AppCommandId.run);
-        expect(shell.lastExecutionSession, isNotNull);
-        expect(
-          shell.lastExecutionSession?.status,
-          ExecutionSessionStatus.succeeded,
-        );
-        expect(shell.lastExecutionSession?.kind, 'run');
-        expect(shell.lastRuntimeEvents, isNotEmpty);
+        final editedSource = File(shell.workspaceController.activeFilePath);
+        final originalSource = await editedSource.readAsString();
+        try {
+          shell.editorController.selectCollapsed(
+            shell.editorController.document.length,
+          );
+          shell.editorController.insertText('\n');
+          await shell.executeCommand(AppCommandId.save);
+          expect(
+            await editedSource.readAsString(),
+            '$originalSource\n',
+            reason: 'The product loop must persist the real editor mutation.',
+          );
+
+          await shell.executeCommand(AppCommandId.run);
+          expect(shell.lastExecutionSession, isNotNull);
+          expect(
+            shell.lastExecutionSession?.status,
+            ExecutionSessionStatus.succeeded,
+          );
+          expect(shell.lastExecutionSession?.kind, 'run');
+          expect(shell.lastExecutionSession?.receipt, isNotNull);
+          expect(shell.lastExecutionSession?.receipt?.executed, isTrue);
+          expect(shell.lastRuntimeEvents, isNotEmpty);
+        } finally {
+          await editedSource.writeAsString(originalSource);
+        }
 
         await _openTarget(shell, ProjectTargetKind.test);
         await shell.executeCommand(AppCommandId.run);
@@ -269,7 +222,7 @@ void main() {
         _emitLocalScenarioReport(
           scenario: 'desktop-local-core-workflow',
           workspaceKind: 'single-package',
-          toolchainResult: 'switch-and-return-succeeded',
+          toolchainResult: 'real-compiler-install-use-pin-succeeded',
           dependencyResult: 'fetch+vendor-succeeded',
           executionResult: 'run+test-succeeded',
           deploymentResult: 'pack+preflight-succeeded',

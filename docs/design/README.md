@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 `docs/design/` 作为产品、系统架构、已交付设计基线和活跃缺口登记的 SSOT 范围；具体文件见 [INDEX.md](./INDEX.md)。
 
-**Last updated:** 2026-05-16
+**Last updated:** 2026-07-26
 
 ## Scope
 
@@ -13,13 +13,15 @@
 5. `frontend_shell/` 与 `backend_toolchain/` 这类物理目录边界如何表达产品壳层和工具链后端切面。
 6. 不承载临时任务清单和执行排期。
 
-## Retired Planning Rule
+## Planning Boundary
 
-`docs/plan/` has been retired for repo-local Vityo implementation tracking.
+`docs/design/` owns current product and architecture facts. `docs/plan/` owns Better Plan workflow
+state and contains exactly the independent Styio IDE and Styio Coding Agent plans.
 
 Use:
 
 1. [Vityo-Delivered-Design-Baseline.md](./Vityo-Delivered-Design-Baseline.md) for completed design baseline.
 2. [Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md) for unfinished implementation and integration gaps.
-
-3. [Vityo-Layer-Directory-Outline.md](./Vityo-Layer-Directory-Outline.md) for architecture-layer directory ownership.
+3. [Styio IDE plan](../plan/styio-ide/Requirements.md) for IDE delivery workflow state.
+4. [Styio Coding Agent plan](../plan/styio-coding-agent/Requirements.md) for Agent delivery workflow state.
+5. [Vityo-Layer-Directory-Outline.md](./Vityo-Layer-Directory-Outline.md) for current architecture-layer directory ownership.

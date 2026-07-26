@@ -22,9 +22,9 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BENCHMARK_DIR = ROOT / "frontend" / "vityo_app" / "benchmark"
+BENCHMARK_DIR = ROOT / "products" / "styio_ide" / "benchmark"
 BASELINE_FILE = ROOT / "docs" / "review" / "performance-baseline.json"
-FLUTTER_APP_DIR = ROOT / "frontend" / "vityo_app"
+FLUTTER_APP_DIR = ROOT / "products" / "styio_ide"
 BENCHMARK_RUNNER = BENCHMARK_DIR / "run_all_benchmarks.dart"
 BENCHMARK_RUNNER_RELATIVE = Path("benchmark") / "run_all_benchmarks.dart"
 BENCHMARK_MEASURE_FIELDS = ("p95Ms", "p99Ms", "meanMs", "maxMs")

@@ -1,4 +1,4 @@
-# Vityo Contributor And Agent Spec
+# Styio IDE Contributor And Agent Spec
 
 **Purpose:** 定义人类贡献者与代码 agent 在 `Vityo` 仓库中的协作规则、联动更新要求与交付边界。
 
@@ -37,7 +37,7 @@
 9. Agent 修改 `prototype/editor.html` 这条手写 Web IDE 主线前，应先遵守 [HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md](./HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md) 中的分层、渲染与工作流约束。
 10. Agent 若调整团队 owned surface、review 路由或 handoff 路径，必须同步更新受影响的 `docs/teams/*.md` 与 `docs/teams/COORDINATION-RUNBOOK.md`。
 11. Agent 开始修改前必须查看 `git status --short`，把无关 dirty files 视为并发改动，不得回滚、覆盖或重排他人工作。
-12. Agent 若修改 `view_ide` / `view_render` 边界、legacy compatibility façade、sandbox/security、performance gate 或 release gate，必须同步更新 `docs/governance/` 和本地开发入口。
+12. Agent 若修改 `view_ide` / `view_render` 边界、产品线依赖方向、sandbox/security、performance gate 或 release gate，必须同步更新 `docs/governance/` 和本地开发入口。
 13. Agent must write new documentation prose in English unless the target file's `Purpose` explicitly declares a Chinese-localized or Chinese user-facing product/marketing scope. When materially editing legacy Chinese prose in non-localized owner docs, convert the touched passage to English instead of extending it.
 
 ## 4. 人类审阅重点

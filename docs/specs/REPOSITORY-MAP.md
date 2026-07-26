@@ -1,4 +1,4 @@
-# Vityo Repository Map
+# Styio IDE Repository Map
 
 **Purpose:** 说明 `Vityo` 与上游 `styio` 主仓库之间的职责边界，以及本仓库当前和未来可能承担的内容；本文件不追踪具体实现进度。
 

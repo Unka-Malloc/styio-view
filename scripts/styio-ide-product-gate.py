@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Vityo IDE Product Gate.
+"""Styio IDE Product Gate.
 
 Checks that Vityo's IDE capability upgrade baseline is present and correctly
 structured.  This is a product-level gate, not a build gate — it verifies
 documentation, test anchors, architecture boundaries, and hygiene invariants.
 
 Usage:
-    python3 scripts/vityo-ide-product-gate.py
-    python3 scripts/vityo-ide-product-gate.py --mode checkpoint
+    python3 scripts/styio-ide-product-gate.py
+    python3 scripts/styio-ide-product-gate.py --mode checkpoint
 
 Returns 0 when all checks pass.
 """
@@ -88,7 +88,7 @@ def check_test_anchor(rel_glob: str, description: str) -> bool:
 
 def check_view_ide_no_flutter_presentation() -> bool:
     """view_ide must not import Flutter Material presentation APIs."""
-    view_ide_dir = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_ide"
+    view_ide_dir = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
     if not view_ide_dir.is_dir():
         fail("view_ide directory missing")
         return False
@@ -134,7 +134,7 @@ def check_view_ide_no_flutter_presentation() -> bool:
 def check_view_render_imports_view_ide() -> bool:
     """view_render may import view_ide; this just confirms view_render exists."""
     view_render_dir = (
-        REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_render"
+        REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_render"
     )
     if not view_render_dir.is_dir():
         fail("view_render directory missing")
@@ -147,9 +147,9 @@ def check_no_legacy_implementation() -> bool:
     """integration/, legacy backend_toolchain/, legacy language/ must not have
     new real business implementations."""
     legacy_dirs = [
-        "frontend/vityo_app/lib/src/integration/",
-        "frontend/vityo_app/lib/src/backend_toolchain/",
-        "frontend/vityo_app/lib/src/language/",
+        "products/styio_ide/lib/src/integration/",
+        "products/styio_ide/lib/src/backend_toolchain/",
+        "products/styio_ide/lib/src/language/",
     ]
 
     all_ok = True
@@ -204,7 +204,7 @@ def check_no_secrets_in_tracked() -> bool:
         "docs/",
         "scripts/",
         "toolchain/",
-        "frontend/vityo_app/lib/src/view_ide/",
+        "products/styio_ide/lib/src/view_ide/",
     ]
 
     all_ok = True
@@ -245,8 +245,8 @@ def check_no_secrets_in_tracked() -> bool:
     }
     # Only check source code directories for home paths
     source_search_dirs = [
-        "frontend/vityo_app/lib/src/view_ide/",
-        "frontend/vityo_app/lib/src/view_render/",
+        "products/styio_ide/lib/src/view_ide/",
+        "products/styio_ide/lib/src/view_render/",
     ]
     for search_dir in source_search_dirs:
         path = REPO_ROOT / search_dir
@@ -349,7 +349,7 @@ def check_maintenance_tools_registered() -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Vityo IDE Product Gate")
+    parser = argparse.ArgumentParser(description="Styio IDE Product Gate")
     parser.add_argument(
         "--mode",
         choices=["checkpoint", "strict"],
@@ -361,7 +361,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    print("=== Vityo IDE Product Gate ===")
+    print("=== Styio IDE Product Gate ===")
     print(f"Mode: {args.mode}")
     print()
 
@@ -406,17 +406,17 @@ def main() -> int:
     print()
     print("── Test Anchors ──")
     if not check_test_anchor(
-        "frontend/vityo_app/test/*command*",
+        "products/styio_ide/test/*command*",
         "Command registry tests",
     ):
         failures += 1
     if not check_test_anchor(
-        "frontend/vityo_app/test/*agent*",
+        "products/styio_ide/test/*agent*",
         "Agent context/permission/patch tests",
     ):
         failures += 1
     if not check_test_anchor(
-        "frontend/vityo_app/test/*diagnostic*",
+        "products/styio_ide/test/*diagnostic*",
         "Diagnostic/project graph/runtime surface tests",
     ):
         failures += 1
@@ -451,7 +451,7 @@ def main() -> int:
     if failures > 0:
         print(f"{failures} check(s) failed.")
     else:
-        print("All Vityo IDE product gate checks passed.")
+        print("All Styio IDE product gate checks passed.")
 
     return 0 if failures == 0 else 1
 

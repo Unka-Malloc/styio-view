@@ -1,4 +1,4 @@
-# Vityo Linux Desktop Adaptation Plan
+# Styio IDE Linux Desktop Adaptation Plan
 
 **Purpose:** Preserve Linux desktop open-work signals cited by convergence checkpoints; platform differences stay in managers/adapters.
 

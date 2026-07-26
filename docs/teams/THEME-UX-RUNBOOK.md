@@ -12,10 +12,10 @@
 
 Primary paths:
 
-1. `frontend/vityo_app/lib/src/view_render/theme/`
-2. `frontend/vityo_app/lib/src/view_render/platform/`
-3. `frontend/vityo_app/lib/src/theme/`
-4. `frontend/vityo_app/lib/src/platform/viewport_profile.dart`
+1. `products/styio_ide/lib/src/view_render/theme/`
+2. `products/styio_ide/lib/src/view_render/platform/`
+3. `products/styio_ide/lib/src/theme/`
+4. `products/styio_ide/lib/src/platform/viewport_profile.dart`
 5. `prototype/styles.css`
 6. `prototype/editor-styles/`
 7. `prototype/theme-config.example.jsonc`
@@ -55,7 +55,7 @@ Minimum:
 ```bash
 cd prototype && npm run governance
 cd prototype && npm run selftest:editor
-cd frontend/vityo_app && flutter analyze && flutter test
+cd products/styio_ide && flutter analyze && flutter test
 ```
 
 ## Cross-Team Dependencies

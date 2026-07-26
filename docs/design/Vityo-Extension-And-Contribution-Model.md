@@ -1,4 +1,4 @@
-# Vityo Extension and Contribution Model
+# Styio IDE Extension and Contribution Model
 
 **Purpose:** Define Vityo's Styio-native extension and contribution model — how modules declare capabilities, how contributions are routed, and how the extension host isolates and activates extensions. This is NOT a VS Code extension API clone.
 
@@ -34,7 +34,7 @@ class ExtensionManifest {
 }
 ```
 
-Reference: `frontend/vityo_app/lib/src/view_ide/module_host/extension_manifest_contract.dart`
+Reference: `products/styio_ide/lib/src/view_ide/module_host/extension_manifest_contract.dart`
 
 ### 2.2 Manifest Validation
 
@@ -63,7 +63,7 @@ Vityo defines typed contribution points, each owned by a domain:
 
 ### 3.2 Contribution Router
 
-The `ExtensionContributionRouter` (at `frontend/vityo_app/lib/src/view_ide/module_host/extension_contribution_router.dart`) routes contributions to their domain owners. Each domain owner validates and registers the contribution.
+The `ExtensionContributionRouter` (at `products/styio_ide/lib/src/view_ide/module_host/extension_contribution_router.dart`) routes contributions to their domain owners. Each domain owner validates and registers the contribution.
 
 ### 3.3 Contribution Lifecycle
 
@@ -90,7 +90,7 @@ The `ExtensionContributionRouter` (at `frontend/vityo_app/lib/src/view_ide/modul
 - `process` extensions communicate via stdin/stdout or socket with typed codecs.
 - `hosted` extensions require network permission and health monitoring.
 
-Reference: `frontend/vityo_app/lib/src/view_ide/module_host/extension_host_isolation.dart`
+Reference: `products/styio_ide/lib/src/view_ide/module_host/extension_host_isolation.dart`
 
 ## 5. Extension Lifecycle
 
@@ -127,7 +127,7 @@ Activation events (modeled after Theia/VS Code concepts but Styio-native):
 
 ## 6. Extension Marketplace
 
-The `ExtensionMarketplace` (at `frontend/vityo_app/lib/src/view_ide/module_host/extension_marketplace.dart`) provides:
+The `ExtensionMarketplace` (at `products/styio_ide/lib/src/view_ide/module_host/extension_marketplace.dart`) provides:
 
 - Discovery of available extensions
 - Installation with dependency resolution
@@ -137,7 +137,7 @@ The `ExtensionMarketplace` (at `frontend/vityo_app/lib/src/view_ide/module_host/
 
 ## 7. Capability Matrix Integration
 
-Extensions declare `requiredCapabilities` in their manifest. The `ModuleCapabilityMatrix` (at `frontend/vityo_app/lib/src/view_ide/module_host/module_capability_matrix.dart`) gates activation:
+Extensions declare `requiredCapabilities` in their manifest. The `ModuleCapabilityMatrix` (at `products/styio_ide/lib/src/view_ide/module_host/module_capability_matrix.dart`) gates activation:
 
 - If a required capability is unavailable, the extension is blocked.
 - If a required capability is degraded, the extension activates with limited functionality.

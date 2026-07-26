@@ -148,7 +148,7 @@ if [[ "$RUN_AUDIT" -eq 1 ]]; then
     run_cmd "$PYTHON_BIN" scripts/check_security_baseline.py
     run_cmd "$PYTHON_BIN" scripts/check_license_policy.py
     run_cmd "$PYTHON_BIN" scripts/check_architecture_boundaries.py
-    run_cmd "$PYTHON_BIN" scripts/check_compat_facades.py
+    run_cmd "$PYTHON_BIN" scripts/check_product_line_boundaries.py
     run_cmd "$PYTHON_BIN" scripts/import-boundary-gate.py
   else
     AUDIT_ROOT="$(cd "$(dirname "$AUDIT_BIN")/.." && pwd)"

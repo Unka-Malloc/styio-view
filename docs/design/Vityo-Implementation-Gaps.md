@@ -1,8 +1,8 @@
-# Vityo Implementation Gaps
+# Styio IDE Implementation Gaps
 
-**Purpose:** Track unfinished Vityo implementation and integration gaps after retiring `docs/plan/` as an active documentation area.
+**Purpose:** Track current implementation and integration facts that ground the Styio IDE and Coding Agent delivery plans without duplicating their workflow state.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-26
 
 **Latest audit run:** 2026-06-25 02:00–02:30 UTC
 
@@ -12,7 +12,8 @@
 
 ## 1. Scope
 
-This document replaces local implementation-plan tracking.
+This document is the owner register for current gaps. Better Plan workflow state and execution
+ordering live only in `docs/plan/styio-ide/` and `docs/plan/styio-coding-agent/`.
 
 Completed or accepted design baselines live in [Vityo-Delivered-Design-Baseline.md](./Vityo-Delivered-Design-Baseline.md). This document only records missing implementation, missing integration, unresolved upstream contracts, missing validation, or unsettled design decisions.
 
@@ -70,7 +71,7 @@ Status values:
 |---|---|---|---|
 | File System Manager implementation | Partially implemented | Vityo | Local File System Manager has stable path/stat/read/write/bytes/list/delete/watch/copy/move/rename anchors, file URI conversion, normalized containment checks, `FileSystemBoundaryGuard`, `FileSystemTextCodec`, local/file/hosted provider routing, executable-bit handling, explicit overwrite behavior, manager-local `FileSystemOperationFailure` classification, and workspace document watch integration through `FileSystemWorkspaceDocumentStore.watchDocument`. Remaining closure: product-specific boundary policy adoption, broader non-local operation routing beyond hosted document load/save, and wider operation-level structured result adoption. |
 | LocalFileSystemManager | Partially implemented | Vityo | Concrete local desktop implementation exists for path, file IO, directory watch, copy/move/rename, executable bit handling, and failure classification. Remaining closure: platform-matrix verification outside the current local test host and product-specific boundary policy adoption. |
-| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `frontend/vityo_app/lib/src/platform/`. `HostedWorkspaceFileSystemProvider` is implemented in `frontend/vityo_app/lib/src/view_ide/workspace/` for `vityo-hosted://` document load/save routes backed by `HostedWorkspaceDocumentStore`, with unpublished hosted file-system operations represented as structured unsupported failures. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://, vityo-hosted://. Remaining closure: broaden product adoption and validate any future non-document hosted operations only after the hosted control-plane contract publishes them. |
+| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `products/styio_ide/lib/src/platform/`. `HostedWorkspaceFileSystemProvider` is implemented in `products/styio_ide/lib/src/ide/workspace/` for `vityo-hosted://` document load/save routes backed by `HostedWorkspaceDocumentStore`, with unpublished hosted file-system operations represented as structured unsupported failures. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://, vityo-hosted://. Remaining closure: broaden product adoption and validate any future non-document hosted operations only after the hosted control-plane contract publishes them. |
 | File System Prober placement | Decision needed | Vityo | Decide whether it is documented under Platform Detector or File System Manager internals. |
 | `canX` preflight API set | Decision needed | Vityo | Decide which preflight checks are worth exposing before execute-and-classify behavior. |
 | Platform Manager interface implementation | Partially implemented | Vityo | `PlatformManagerBundle` aggregates concrete system-specific managers from `PlatformContextSnapshot`, `PlatformAdapter`, and manager factories, and exposes a thin status snapshot. File System, Process, Network, Resource, Shell, PTY, Clipboard, Notification, and Local Service managers now expose manager-local structured failure envelopes. Remaining closure: product-level adoption and cross-platform provider decisions beyond the current Linux/Debian/ARM anchors. |
@@ -115,21 +116,24 @@ Status values:
 | M6 IDE hardening | Validation needed | Vityo | Product-level full UI, contract, sample matrix, and workflow gates. |
 | Runtime event product completeness | Partially implemented | Vityo | `StyioServiceRuntimeSession` emits lifecycle events and metadata-only `StyioServiceRuntimeStatusSnapshot` values that expose provider manifest state plus diagnostics/completion/hover/semantic-token capability states and counts without raw language payloads. Interaction now has `LanguageServiceStatusSurface` to project those snapshots into UI-consumable status models without rendering ownership. `AppBootstrap`, `ShellRuntimeModel`, and `EditorSurface` now carry and render that status in the real editor language pane, with a widget-test anchor for the status card surface. Remaining closure: validate the full app flow against a real asynchronous StyioService update on every supported platform. |
 | Hosted workspace retention/export UX | Validation needed | Vityo | User-visible close/export/retention/delete path. |
-| Documentation automation after plan retirement | Resolved | Vityo | Docs scripts, policies, and generated indexes treat `docs/plan/` as retired except for explicit Better Plan workflow state. Verified: `docs-index.py` INDEX_META describes retired status, `docs-audit.py` only checks physical directory existence for `better-plan/`, `DOCUMENTATION-POLICY.md` sections 0.5/3 declare `docs/plan/` retired, and generated INDEX.md only lists `better-plan/`. |
+| Dual-line Better Plan documentation routing | Resolved | Styio IDE and Coding Agent | `docs/plan/` is the canonical workflow root and contains exactly the independent `styio-ide` and `styio-coding-agent` plans. Current owner facts stay in design, contract, ADR, review, and validation documents; the current Better Plan tool validates the root manifest, both state files, and requirement labels. |
 
-## 9. Retired Plan Replacement Rule
+## 9. Plan and Owner Routing Rule
 
-No new local `docs/plan/` document should be added for Vityo implementation tracking.
+Do not create a third product plan or duplicate workflow state in owner documents. Route work by
+product line and keep shared protocol changes inside the consuming IDE and Coding Agent lifecycles.
 
-Use these destinations instead:
+Use these destinations:
 
 | Need | Destination |
 |---|---|
 | Stable product/system truth | `docs/design/` |
-| Active implementation or integration gap | `docs/design/Vityo-Implementation-Gaps.md` |
+| Current implementation or integration fact | `docs/design/Vityo-Implementation-Gaps.md` |
+| Styio IDE workflow state | `docs/plan/styio-ide/` |
+| Styio Coding Agent workflow state | `docs/plan/styio-coding-agent/` |
 | Upstream Styio handoff | `docs/external/for-styio/` |
 | Upstream Pafio handoff | `docs/external/for-pafio/` |
-| Frozen milestone batch | `docs/plan/` |
+| Workspace-wide Better Plan manifest and policy | `docs/plan/` |
 | Open risk or conflict before decision | `docs/review/` |
 | Final architecture decision | `docs/adr/` |
 

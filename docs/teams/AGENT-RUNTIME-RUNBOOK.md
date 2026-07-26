@@ -1,22 +1,26 @@
 # Agent Runtime Runbook
 
-**Purpose:** Define the agent domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo's agent runtime system. Enforce credential safety, permission audit, patch workflow, and journal/audit compliance.
+**Purpose:** Define the Coding Agent runtime owner's responsibilities, owned paths, review checklist, and required gates. Enforce credential safety, permission audit, patch workflow, and journal/audit compliance.
 
 **Last updated:** 2026-06-24
 
 ## Mission
 
-Own the Vityo agent runtime: agent context model, provider routing, tool permission system, patch workflow, session management, and journal/audit trail. Enforce that agent never stores raw API keys, never directly writes files, never bypasses the document model, and always journals tool calls with permission levels.
+Own the standalone Styio Coding Agent runtime: model/provider routing, context selection, tools,
+policy, coding loops, durable sessions, and multi-agent scheduling. The IDE owns only the protocol
+client and collaboration workbench. The Agent never stores raw API keys, directly mutates IDE files,
+or bypasses host transactions.
 
 ## Owned Surface
 
 Primary paths:
-1. `frontend/vityo_app/lib/src/view_ide/agent/`
-   - `agent_permission_model.dart` - governed permission model for agent tools and sandbox routing
-2. `frontend/vityo_app/lib/src/agent/`
-3. `frontend/vityo_app/lib/src/view_render/agent/`
-4. `docs/design/Vityo-Agent-Runtime-Architecture.md`
-5. `docs/teams/AGENT-RUNTIME-RUNBOOK.md`
+1. `products/styio_coding_agent/lib/src/`
+2. `products/styio_coding_agent/bin/`
+3. `packages/styio_agent_protocol/`
+4. `products/styio_ide/lib/src/view_ide/agent_client/` (client-side protocol only)
+5. `products/styio_ide/lib/src/view_render/agent_workbench/` (IDE presentation only)
+6. `docs/design/Vityo-Agent-Runtime-Architecture.md`
+7. `docs/teams/AGENT-RUNTIME-RUNBOOK.md`
 
 Key SSOTs:
 1. `Agent 架构 -> ../design/Vityo-Agent-Runtime-Architecture.md`
@@ -44,8 +48,8 @@ Key SSOTs:
 
 Minimum:
 ```bash
-cd frontend/vityo_app && flutter test test/agent_context_test.dart test/agent_settings_test.dart test/agent_permission_policy_test.dart test/agent_patch_transaction_test.dart
-cd frontend/vityo_app && flutter analyze
+cd products/styio_ide && flutter test test/agent_context_test.dart test/agent_settings_test.dart test/agent_permission_policy_test.dart test/agent_patch_transaction_test.dart
+cd products/styio_ide && flutter analyze
 python3 scripts/check_security_baseline.py
 ```
 

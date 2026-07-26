@@ -35,7 +35,7 @@ Do not record a live provider as release evidence when the opt-in flag is absent
 Use the existing deterministic tests before any live lane:
 
 ```bash
-cd frontend/vityo_app
+cd products/styio_ide
 flutter test --no-pub \
   test/agent_provider_route_executor_test.dart \
   test/agent_provider_credential_resolver_test.dart \

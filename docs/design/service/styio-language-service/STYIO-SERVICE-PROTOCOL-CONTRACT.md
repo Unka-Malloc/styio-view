@@ -238,7 +238,7 @@ flutter test test/styio_service_connector_test.dart --name "JSONL protocol|capab
 The executable facts-envelope fixture is:
 
 ```text
-frontend/vityo_app/test/fixtures/styio_service/facts_envelope.jsonl
+products/styio_ide/test/fixtures/styio_service/facts_envelope.jsonl
 ```
 
 Status surface compatibility is covered by:

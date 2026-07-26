@@ -1,8 +1,8 @@
-# Vityo Documentation Policy
+# Styio IDE Documentation Policy
 
 **Purpose:** 定义 `Vityo` 的文档目录、单一事实来源、联动更新规则与最小维护要求；产品行为与系统边界分别以 `docs/design/` 中的权威文档为准。
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-07-26
 
 ## 0. 文档维护准则
 
@@ -40,7 +40,7 @@
 | 第三方依赖清单 | `THIRD-PARTY.md` | 与实现同步更新 |
 | `styio` 对接边界与接口合同 | `../external/for-styio/` | 链接 |
 | `pafio` 对接边界与接口合同 | `../external/for-pafio/` | 链接 |
-| 冻结里程碑与任务清单 | `../plan/repository-delivery-convergence/Evidence.md` | 链接 |
+| Active delivery plans | `../plan/INDEX.md` | Link to the Styio IDE and Coding Agent Better Plan workspace |
 | 测试与验收映射 | `../assets/workflow/TEST-CATALOG.md` | 链接 |
 | 架构裁决与已实现决策 | `../adr/` | 只保留仍需评审的 ADR 与当前实现决策摘要 |
 | 未决风险与冲突 | `../review/Logic-Conflicts.md` | 链接 |
@@ -48,7 +48,9 @@
 ### 0.5 文档状态
 
 1. `docs/design/` 是产品、系统、已交付设计基线和活跃缺口登记的 SSOT。
-2. `docs/plan/` 已退役；本仓不再用本地计划文档承载 Vityo 实施跟踪。`docs/plan/better-plan/` 只保存 Better Plan 工作流状态，索引现有 owner 文档，不作为新的产品事实来源。
+2. `docs/plan/` is the canonical local Better Plan workspace. It contains exactly two active product
+   plans, `styio-ide` and `styio-coding-agent`; product facts remain grounded in their requirements,
+   evidence, architecture, and validation contracts.
 3. `docs/rollups/` 负责压缩当前状态和活跃缺口，不替代 owner 文档。
 4. `docs/history/` 负责活跃恢复记录；原始历史一旦退役，应迁入 `docs/archive/`。
 5. `docs/archive/` 负责归档 provenance 与 lifecycle 元数据，不用来隐藏仍活跃的 owner 文档。
@@ -89,13 +91,15 @@
 6. 若一次变更改动了三仓共同里程碑、repo exit、checkpoint ID 或跨仓 cutover 条件，本仓只更新相关 external handoff、设计基线或缺口登记；跨仓计划的权威副本留在上游 canonical 仓库。
 7. 若一次变更改动了 docs tree、索引生成规则、archive/rollup lifecycle、ignore-policy 或 fixture 反忽略规则，更新本文件、`../teams/COORDINATION-RUNBOOK.md` 和受影响目录入口。
 8. docs tree 变化后，必须运行 `python3 scripts/docs-lifecycle.py refresh`、`python3 scripts/docs-index.py --write`、`python3 scripts/docs-audit.py`。
-9. 根 `.gitignore` 若扩展 temp/build/log/cache 忽略规则，必须同批补 `docs/**` 与 `frontend/vityo_app/test/**` 的显式 negate 规则，并让 `python3 scripts/repo-hygiene-gate.py --mode tracked` 通过。
+9. 根 `.gitignore` 若扩展 temp/build/log/cache 忽略规则，必须同批补 `docs/**` 与 `products/styio_ide/test/**` 的显式 negate 规则，并让 `python3 scripts/repo-hygiene-gate.py --mode tracked` 通过。
 
 ## 3. 文件命名规则
 
 1. 设计级文档使用稳定主题名，优先 `Vityo-*.md`。
 2. 规范文件使用稳定全大写或描述性短横线命名。
-3. 不再新增本地 `docs/plan/` 计划文件；未完成项进入 `docs/design/Vityo-Implementation-Gaps.md`。Better Plan 状态文件只能引用现有 owner 文档并通过 `scripts/manifest_tool.py` 校验。
+3. Keep Better Plan workflow state only in `docs/plan/`, with one directory for `styio-ide` and one
+   for `styio-coding-agent`. Product facts remain in owner documents; validate plan state with the
+   current Better Plan manifest tool rather than a repository-local validator copy.
 4. 历史、审计和 rollup 文件使用稳定主题名；日期只能写入 `Date`、`Last updated` 或正文状态说明。
 5. 独立 ADR 文件严格使用 `ADR-XXXX-<slug>.md`；`docs/adr/IMPLEMENTED-DECISIONS.md` 不编号，只作为当前已实现决策的压缩索引。
 6. 里程碑文件使用稳定功能主题名；不得使用日期目录、版本号目录、阶段编号前缀或 `00-` 入口文件组织里程碑。

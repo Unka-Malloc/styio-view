@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-07-11
+**Last updated:** 2026-07-26
 
 ## Mission
 
@@ -22,36 +22,35 @@ Primary paths:
 8. `scripts/team-docs-gate.py`
 9. `scripts/docs-gate.sh`
 10. `scripts/delivery-gate.sh`
-11. `scripts/manifest_tool.py`
-12. `.github/workflows/project-coverage-gate.yml`
-13. `scripts/project-coverage-gate.py`
-14. `scripts/python-coverage-gate.py`
-15. `scripts/bootstrap-dev-env.sh`
-16. `scripts/bootstrap-dev-container.sh`
-17. `scripts/bootstrap-dev-env-macos.sh`
-18. `scripts/bootstrap-dev-env-windows.ps1`
-19. `scripts/bootstrap-workspace.sh`
-20. `scripts/bootstrap-workspace.ps1`
-21. `scripts/android-sdk-profile.sh`
-22. `scripts/android-sdk-profile.ps1`
-23. `scripts/apple-platform-profile.sh`
-24. `scripts/verify-android-device.sh`
-25. `scripts/verify-android-device.ps1`
-26. `scripts/verify-apple-device.sh`
-27. `docker/`
-28. `.devcontainer/`
-29. `toolchain/android-sdk-profiles.csv`
-30. `toolchain/apple-platform-profiles.csv`
-31. `prototype/README.md`
-32. `frontend/vityo_app/README.md`
-33. `scripts/check_architecture_boundaries.py`
-34. `scripts/public-contract-schema-gate.py`
-35. `docs/governance/CODEOWNERS-POLICY.md`
-36. `docs/rollups/nightly-subbranch-merge-report-20260624.md`
-37. `CONTRIBUTING.md`
-38. `SECURITY.md`
-39. `.github/pull_request_template.md`
-40. `docs/governance/`
+11. `.github/workflows/project-coverage-gate.yml`
+12. `scripts/project-coverage-gate.py`
+13. `scripts/python-coverage-gate.py`
+14. `scripts/bootstrap-dev-env.sh`
+15. `scripts/bootstrap-dev-container.sh`
+16. `scripts/bootstrap-dev-env-macos.sh`
+17. `scripts/bootstrap-dev-env-windows.ps1`
+18. `scripts/bootstrap-workspace.sh`
+19. `scripts/bootstrap-workspace.ps1`
+20. `scripts/android-sdk-profile.sh`
+21. `scripts/android-sdk-profile.ps1`
+22. `scripts/apple-platform-profile.sh`
+23. `scripts/verify-android-device.sh`
+24. `scripts/verify-android-device.ps1`
+25. `scripts/verify-apple-device.sh`
+26. `docker/`
+27. `.devcontainer/`
+28. `toolchain/android-sdk-profiles.csv`
+29. `toolchain/apple-platform-profiles.csv`
+30. `prototype/README.md`
+31. `products/styio_ide/README.md`
+32. `scripts/check_architecture_boundaries.py`
+33. `scripts/public-contract-schema-gate.py`
+34. `docs/governance/CODEOWNERS-POLICY.md`
+35. `docs/rollups/nightly-subbranch-merge-report-20260624.md`
+36. `CONTRIBUTING.md`
+37. `SECURITY.md`
+38. `.github/pull_request_template.md`
+39. `docs/governance/`
 
 Key SSOTs:
 
@@ -79,7 +78,7 @@ Key SSOTs:
 3. 若一次变更改变了团队边界、review 路由或 handoff 路径，同批更新 `docs/teams/`。
 4. 中断时把恢复信息写入 `docs/history/<topic>.md`，并在正文记录日期；不要只留在聊天或注释里。
 5. docs tree 变化时，同批运行 `docs-lifecycle.py`、`docs-index.py`、`docs-audit.py`，而不是只靠 `README/INDEX` 手工刷新；生成式 `INDEX.md` 必须保持跨本地和 GitHub Actions 可复现，空 collection 继承本目录 `README.md` 的 `Last updated`，不得回退到执行当天日期。
-6. 根 `.gitignore` 若新增 temp/build/log/cache 类忽略规则，同批补 `docs/**` 与 `frontend/vityo_app/test/**` 的显式 negate 规则，并让 `scripts/repo-hygiene-gate.py` 通过。
+6. 根 `.gitignore` 若新增 temp/build/log/cache 类忽略规则，同批补 `docs/**` 与 `products/styio_ide/test/**` 的显式 negate 规则，并让 `scripts/repo-hygiene-gate.py` 通过。
 7. 仓库级 build/dev-env 文档必须保持固定版本基线显式一致：Debian 13、Python 3.13.5、Node.js v24.15.0 LTS、Flutter 3.41.7 / Dart 3.11.5、Chromium 147.0.7727.116；不得把这类版本描述回退成浮动 `stable`。
 8. 容器和宿主机开发环境入口必须一起维护：`Dockerfile`、`.devcontainer/`、Linux/macOS/Windows 一键安装脚本，以及可选 `+android` / `+ios` 组合矩阵，都要在仓库级 build/dev-env 入口里保持同一套说明。
 9. Linux Android 工具链是 profile 驱动：`toolchain/android-sdk-profiles.csv`、`scripts/android-sdk-profile.sh`、Linux bootstrap、容器镜像和仓库级 build/dev-env 文档必须同步更新；不得只改单一脚本里的 `android-36` 字面量。
@@ -100,7 +99,7 @@ Key SSOTs:
 23. Governance docs are part of docs delivery. API compatibility, security, release checklist, CODEOWNERS policy, root contribution/security entries, and PR template changes must keep generated docs indexes current.
 24. When a new docs collection is added, update `scripts/docs-index.py` collection metadata and run `python3 scripts/docs-index.py --write` in the same change.
 25. Platform-native CI changes must keep `README.md`, `docs/BUILD-AND-DEV-ENV.md`, `.github/workflows/local-ci-gate.yml`, and bootstrap script comments aligned. The PowerShell workspace bootstrap may create Flutter plugin junctions on Windows to avoid Developer Mode or admin symlink requirements, but it must restore tracked `.metadata` and `pubspec.lock` after runner generation and dependency restore.
-26. Better Plan workflow state lives only under `docs/plan/better-plan/` and must be validated with `python3 scripts/manifest_tool.py validate docs/plan/better-plan`; owner facts still belong in design, milestone, rollup, review, audit, specs, or external handoff documents.
+26. Better Plan workflow state lives under `docs/plan/` and has exactly two independent product plans: `styio-ide` and `styio-coding-agent`. Validate the root manifest and both state files with the current Better Plan manifest tool; keep shared protocol work inside those plans instead of creating a third product line.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
@@ -158,5 +157,7 @@ Record:
 2026-06-28: Added `docs/design/Vityo-End-To-End-Mainstream-IDE-Plan.md` plus separate Linux, Windows, and macOS desktop adaptation plans. Better Plan now keeps `end-to-end-mainstream-ide-alignment` for shared module/workflow convergence and `linux-desktop-adaptation`, `windows-desktop-adaptation`, and `macos-desktop-adaptation` for host-specific evidence.
 
 2026-06-28: Split the end-to-end mainstream IDE work into granular Better Plan entries for app composition, foundation registries, shell, editor buffers, language protocols, project graph/toolchain protocols, execution/debug protocols, agent interaction, user-facing workflows, module contributions, settings/profile/theme, hosted cloud routes, search/navigation/refactor workflows, problems/testing/source-control surfaces, security/audit, and the prototype editor harness.
+
+2026-07-26: Replaced the former convergence and product-delivery plans with independent `Styio IDE` and `Styio Coding Agent` Better Plans. The target repository layout now uses two product roots plus one neutral protocol package. The obsolete line-anchored plan, its permanent verifier, and the outdated repository-local Better Plan validator/test copy were removed; generated documentation indexes and lifecycle records were refreshed.
 
 <!-- codex merge: docs/build/scripts assets imported -->

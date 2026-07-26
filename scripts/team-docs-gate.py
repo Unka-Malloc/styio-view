@@ -27,10 +27,10 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Shell / Editor",
         Path("docs/teams/SHELL-EDITOR-RUNBOOK.md"),
         (
-            "frontend/vityo_app/lib/src/app/",
-            "frontend/vityo_app/lib/src/editor/",
-            "frontend/vityo_app/lib/src/frontend_shell/",
-            "frontend/vityo_app/lib/src/language/",
+            "products/styio_ide/lib/src/app/",
+            "products/styio_ide/lib/src/editor/",
+            "products/styio_ide/lib/src/frontend_shell/",
+            "products/styio_ide/lib/src/language/",
             "prototype/",
         ),
     ),
@@ -39,8 +39,8 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Runtime / Agent",
         Path("docs/teams/RUNTIME-AGENT-RUNBOOK.md"),
         (
-            "frontend/vityo_app/lib/src/runtime/",
-            "frontend/vityo_app/lib/src/agent/",
+            "products/styio_ide/lib/src/runtime/",
+            "products/styio_ide/lib/src/view_ide/agent_client/",
         ),
     ),
     TeamRule(
@@ -48,11 +48,11 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Module / Platform",
         Path("docs/teams/MODULE-PLATFORM-RUNBOOK.md"),
         (
-            "frontend/vityo_app/lib/src/module_host/",
-            "frontend/vityo_app/lib/src/platform/",
-            "frontend/vityo_app/assets/module_manifests/",
-            "frontend/vityo_app/assets/capability_matrices/",
-            "frontend/vityo_app/scripts/bootstrap_flutter_platforms.sh",
+            "products/styio_ide/lib/src/module_host/",
+            "products/styio_ide/lib/src/platform/",
+            "products/styio_ide/assets/module_manifests/",
+            "products/styio_ide/assets/capability_matrices/",
+            "products/styio_ide/scripts/bootstrap_flutter_platforms.sh",
         ),
     ),
     TeamRule(
@@ -60,8 +60,8 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Adapter / Contracts",
         Path("docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md"),
         (
-            "frontend/vityo_app/lib/src/backend_toolchain/",
-            "frontend/vityo_app/lib/src/integration/",
+            "products/styio_ide/lib/src/backend_toolchain/",
+            "products/styio_ide/lib/src/integration/",
             "docs/contracts/",
             "docs/external/for-pafio/",
             "docs/external/for-styio/",
@@ -72,7 +72,7 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Theme / UX",
         Path("docs/teams/THEME-UX-RUNBOOK.md"),
         (
-            "frontend/vityo_app/lib/src/theme/",
+            "products/styio_ide/lib/src/theme/",
             "prototype/editor.css",
             "prototype/styles.css",
             "prototype/theme-config.example.jsonc",

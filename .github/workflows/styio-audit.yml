@@ -18,7 +18,7 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -47,4 +47,4 @@ jobs:
         working-directory: vityo-nightly
         run: |
           git -C ../styio-audit rev-parse HEAD
-          python3 ../styio-audit/bin/styio-audit gate --repo . --project Vityo
+          python3 ../styio-audit/bin/styio-audit gate --repo . --project Styio IDE

@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "product": "styio_ide",
+  "platforms": ["linux", "windows", "macos"]
+}

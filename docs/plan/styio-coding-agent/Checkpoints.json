@@ -1,0 +1,1802 @@
+[
+  {
+    "id": "8b7f2b18-3b7d-410e-832e-af8d194e6be0",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "3d7617da-83cb-4c41-a2e9-6c89ba60352f"
+    ],
+    "platform": "any",
+    "difficulty": "deep",
+    "goal": "Turn the structurally separated Agent package into a headless runtime with pure host ports and no Flutter or Styio IDE dependencies.",
+    "description": "Scope: products/styio_coding_agent entrypoint, application/session boundary, host ports, controlled headless host, package exports, and smoke tests; removal of moved monolithic controller/context facades owned by this closure. Context: the atomic cutover establishes final roots but preserves behavior; current controller extends Flutter ChangeNotifier and context imports concrete IDE services. Target: the Agent library and CLI initialize, run, cancel, complete, and fail deterministically against an in-memory host without Styio IDE; UI notification becomes an outer projection concern; every host interaction crosses a typed port. Design Considerations: decompose by state owner, keep pure application code inward of adapters, use explicit cancellation/deadline objects, and delete old concrete-controller forwarding APIs after call sites migrate. Design Value: every provider, context, tool, recovery, and multi-agent capability can now be tested independently of the IDE. Constraints & Risks: no temporary Flutter dependency, service locator, direct filesystem access, or compatibility facade may remain.",
+    "requirements": [
+      "REQ-AGENT-001"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/bin",
+        "products/styio_coding_agent/lib",
+        "products/styio_coding_agent/test/headless",
+        "products/styio_coding_agent/pubspec.yaml",
+        "products/styio_coding_agent/bin/styio_coding_agent.dart",
+        "products/styio_coding_agent/lib/src/application/agent_runtime.dart",
+        "products/styio_coding_agent/lib/src/application/agent_session_service.dart",
+        "products/styio_coding_agent/lib/src/hosts/host_workspace.dart",
+        "products/styio_coding_agent/lib/src/hosts/in_memory_host.dart",
+        "products/styio_coding_agent/lib/src/hosts"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/bin/styio_coding_agent.dart",
+        "products/styio_coding_agent/lib/src/application/agent_runtime.dart",
+        "products/styio_coding_agent/lib/src/application/agent_session_service.dart",
+        "products/styio_coding_agent/lib/src/hosts/host_workspace.dart",
+        "products/styio_coding_agent/lib/src/hosts/in_memory_host.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/headless_runtime_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/application/agent_runtime.dart",
+          "kind": "class",
+          "name": "AgentRuntime",
+          "operation": "add",
+          "signature": "AgentRuntime(providerPort, hostPort, eventStore, policy)"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/hosts/host_workspace.dart",
+          "kind": "interface",
+          "name": "HostWorkspace",
+          "operation": "add",
+          "signature": "typed facts, tools, roots, change proposals, and receipts"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "HostWorkspace",
+          "producer": "products/styio_coding_agent/lib/src/hosts",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/application",
+            "products/styio_coding_agent/lib/src/context",
+            "products/styio_coding_agent/lib/src/tools",
+            "products/styio_coding_agent/lib/src/orchestration"
+          ],
+          "inputs": "bounded typed host requests with roots, revisions, deadlines, and cancellation",
+          "outputs": "revisioned facts, effect/change receipts, and explicit capability failures",
+          "errors": [
+            "host capability unavailable",
+            "root or revision rejected",
+            "request cancelled",
+            "deadline exceeded"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "packages/styio_agent_protocol",
+          "to": "products/styio_coding_agent/lib/src/protocol",
+          "reason": "The runtime consumes neutral wire DTOs at its outer adapter only."
+        }
+      ],
+      "decisions": {
+        "composition": "A pure AgentRuntime composes application services from host/provider/store/policy ports; CLI and protocol are outer adapters.",
+        "algorithms": "Session commands reduce through an explicit state machine with bounded cancellation and deadline checks.",
+        "data_structures": "Immutable command/event types and maps keyed by task/session IDs replace widget-owned mutable lists.",
+        "state": "One application service owns each session; adapters own transports; hosts own external resources.",
+        "isolation": "Dependency checks forbid Flutter, Styio IDE, ambient filesystem, and IDE data-store imports.",
+        "concurrency": "Each session has a serialized command queue; independent sessions may run concurrently."
+      },
+      "test_seams": [
+        "in-memory host",
+        "fake provider port",
+        "virtual clock",
+        "dependency graph inspection",
+        "CLI process smoke"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "The pure Dart Agent library and CLI start, complete, cancel, and return structured failure exit codes against an in-memory host with Styio IDE absent.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "9d585cff3f44f7377c92c14c2a3bde0cff4538fbd22ba211b55def91e39e4de9",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T01:16:08Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Resolved dependency inspection finds no Flutter, Styio IDE, direct IDE controller/store, ambient filesystem, or retired compatibility API in the Agent product.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "9d585cff3f44f7377c92c14c2a3bde0cff4538fbd22ba211b55def91e39e4de9",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T01:16:08Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: establish independent headless runtime and host ports",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite headless-runtime"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/bin",
+        "products/styio_coding_agent/lib",
+        "products/styio_coding_agent/test/headless",
+        "products/styio_coding_agent/pubspec.yaml",
+        "products/styio_coding_agent/pubspec.lock",
+        "products/styio_coding_agent/analysis_options.yaml",
+        "scripts/styio_quality.py",
+        "scripts/check_product_line_boundaries.py",
+        "tests/acceptance/styio_coding_agent/headless_runtime_acceptance_test.dart"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T01:16:08Z",
+        "contract_digest": "9894a23b17f632abb9b4bff89381801bea6d97f9b23fd99c3d27864961ee9007",
+        "content_fingerprint": "cb0425ae3a2aefac8fd93cf372b063d5ad71457dbd51b9679cdb945b6d9fbab2"
+      }
+    },
+    "next": [
+      "cbe0a1d8-c5bc-4407-ba6d-22102e858c78",
+      "2decf14b-572c-449a-ad2a-55f63aa0b613",
+      "ec25a7ca-b81f-4b3c-8cf3-534a7fdfa503"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 2,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T01:16:55Z",
+        "contract_digest": "9894a23b17f632abb9b4bff89381801bea6d97f9b23fd99c3d27864961ee9007",
+        "content_fingerprint": "cb0425ae3a2aefac8fd93cf372b063d5ad71457dbd51b9679cdb945b6d9fbab2"
+      },
+      "design_digest": "38f513b350ab1d4858f55746d292a86ccf9ec7f5cef38621d088903fe9b565ec",
+      "acceptance_fingerprint": "b23963a3a98d2624f2f23c5c70770bc09f95b7d1596e5e978c639c910b238db9"
+    }
+  },
+  {
+    "id": "cbe0a1d8-c5bc-4407-ba6d-22102e858c78",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "8b7f2b18-3b7d-410e-832e-af8d194e6be0"
+    ],
+    "platform": "any",
+    "difficulty": "high",
+    "goal": "Deliver a provider-neutral streamed model runtime with explicit capabilities, budgets, cancellation, retry safety, and usage receipts.",
+    "description": "Scope: Agent provider ports/adapters, message and tool-call streaming, routing, budgets, cancellation, timeouts, retry/idempotency classification, usage receipts, and deterministic provider fixtures. Context: existing provider behavior is concentrated in a multi-thousand-line adapter/controller path and provider fallback can be unsafe if it cannot distinguish pre-effect generation from post-effect continuation. Target: one vendor-neutral contract normalizes capabilities, chunks, tool calls, structured failures, and usage; routing chooses only compatible providers; cancellation and budgets terminate promptly; fallback never replays a committed mutation. Design Considerations: parse streams incrementally, use a bounded state machine per request, classify failures before retry, and keep vendor DTOs in adapters. Design Value: model choice becomes configuration rather than architecture and cost/latency remain observable. Constraints & Risks: no raw credentials in config/events, no unbounded chunk accumulation, and no automatic retry after an uncertain effect boundary.",
+    "requirements": [
+      "REQ-AGENT-002"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/providers",
+        "products/styio_coding_agent/test/providers",
+        "products/styio_coding_agent/benchmark/provider_stream_benchmark.dart",
+        "products/styio_coding_agent/lib/src/providers/model_provider.dart",
+        "products/styio_coding_agent/lib/src/providers/provider_router.dart",
+        "products/styio_coding_agent/lib/src/providers/provider_stream_reducer.dart",
+        "products/styio_coding_agent/lib/src/providers/usage_budget.dart",
+        "products/styio_coding_agent/lib/src/cancellation.dart",
+        "products/styio_coding_agent/lib/src/application/agent_session_service.dart",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "scripts/styio_quality.py"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/providers/model_provider.dart",
+        "products/styio_coding_agent/lib/src/providers/provider_router.dart",
+        "products/styio_coding_agent/lib/src/providers/provider_stream_reducer.dart",
+        "products/styio_coding_agent/lib/src/providers/usage_budget.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/provider_runtime_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/providers/model_provider.dart",
+          "kind": "interface",
+          "name": "ModelProvider",
+          "operation": "add",
+          "signature": "capabilities(); stream(ModelRequest, CancellationToken) -> Stream<ModelEvent>"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/providers/provider_router.dart",
+          "kind": "class",
+          "name": "ProviderRouter",
+          "operation": "add",
+          "signature": "select(requirements, health, budget) -> ProviderRoute"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "ModelProvider",
+          "producer": "products/styio_coding_agent/lib/src/providers",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/orchestration"
+          ],
+          "inputs": "normalized messages, selected tools, output budget, deadline, cancellation, idempotency boundary",
+          "outputs": "incremental text/tool events, usage, finish reason, and structured failure",
+          "errors": [
+            "authentication",
+            "rate limited",
+            "transient unavailable",
+            "invalid request",
+            "budget exceeded",
+            "cancelled"
+          ]
+        }
+      ],
+      "dependencies": [],
+      "decisions": {
+        "composition": "Vendor adapters implement one provider port; router and stream reducer remain vendor-neutral.",
+        "algorithms": "Incremental stream reduction and capability filtering avoid buffering full responses; retry uses failure and effect classification.",
+        "data_structures": "Immutable capability sets, route candidates, bounded chunk buffers, and usage counters.",
+        "state": "One request reducer owns stream state; router owns health projections; secret adapters own credentials.",
+        "isolation": "Vendor request/response types and credentials do not enter orchestration or durable session events.",
+        "concurrency": "Cancellation/deadlines race safely with stream completion; provider concurrency obeys per-route limits."
+      },
+      "test_seams": [
+        "fragmented fake stream",
+        "virtual rate-limit clock",
+        "pre/post-effect retry fixture",
+        "cancellation race",
+        "usage and memory budget benchmark"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Provider contract tests cover capabilities, fragmented text/tool streams, usage receipts, cancellation, timeout, auth/rate-limit failures, and context/output budget exhaustion.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "cd31bb1b8d6747a6089ae4fc4b74ba849156d60ba3e1bd801a432ed67957b4c7",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:07:48Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Routing and retry tests prove compatible provider selection, safe failover before effects, and refusal to replay an uncertain or committed mutation.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "cd31bb1b8d6747a6089ae4fc4b74ba849156d60ba3e1bd801a432ed67957b4c7",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:07:48Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: add provider-neutral streamed model runtime",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite providers"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/providers",
+        "products/styio_coding_agent/lib/src/cancellation.dart",
+        "products/styio_coding_agent/lib/src/application/agent_session_service.dart",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "products/styio_coding_agent/test/providers",
+        "products/styio_coding_agent/benchmark/provider_stream_benchmark.dart",
+        "scripts/styio_quality.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T05:07:48Z",
+        "contract_digest": "748e3506b9201bfb7a57c0e6ea953dc0046021184bc856adba3dc0d2f1842cdc",
+        "content_fingerprint": "cc7f58ea3f0b5b5ceb96029473ad7974ea7058f15d364f5d0d706f3c8eb6c072"
+      }
+    },
+    "next": [
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 8,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T05:08:17Z",
+        "contract_digest": "748e3506b9201bfb7a57c0e6ea953dc0046021184bc856adba3dc0d2f1842cdc",
+        "content_fingerprint": "cc7f58ea3f0b5b5ceb96029473ad7974ea7058f15d364f5d0d706f3c8eb6c072"
+      },
+      "design_digest": "69264ad6be1d54afdc406c3dae9d0b686f9c54fcfc1716060cfc137710cb9ed5",
+      "acceptance_fingerprint": "be62a9bc1df80a5ac8dbf8d1b1ba248372715e45ea2a9e051556d7986c87ba48"
+    }
+  },
+  {
+    "id": "2decf14b-572c-449a-ad2a-55f63aa0b613",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "8b7f2b18-3b7d-410e-832e-af8d194e6be0"
+    ],
+    "platform": "any",
+    "difficulty": "deep",
+    "goal": "Build a revisioned, provenance-bearing, incremental context engine with deterministic relevance and bounded memory/token cost.",
+    "description": "Scope: context evidence model, source adapters, candidate retrieval, scoring, deduplication, budget packing, conversation compaction, revision invalidation, redaction, caches, metrics, fixtures, and benchmarks. Context: the current Agent session context is roughly 7,600 lines and eagerly couples many IDE domains into one snapshot; this makes another client impossible and encourages repeated serialization. Target: context is requested from host sources, selected per task/step, tied to revisions and provenance, and packed deterministically under explicit byte/token/sensitivity budgets; updates invalidate only affected entries; hot memory remains bounded. Design Considerations: maps and stable digests handle dedupe, bounded LRU caches materialized content, interval indexes handle ranges, and a stable scoring/tie-break policy keeps tests reproducible. Design Value: relevant evidence improves coding accuracy while incremental selection reduces latency and memory. Constraints & Risks: never trust stale facts, include excluded/secrets by accident, rescan the whole workspace on each turn, or hide truncation.",
+    "requirements": [
+      "REQ-AGENT-003"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/context",
+        "products/styio_coding_agent/test/context",
+        "products/styio_coding_agent/benchmark/context_engine_benchmark.dart",
+        "products/styio_coding_agent/lib/src/context/context_evidence.dart",
+        "products/styio_coding_agent/lib/src/context/context_engine.dart",
+        "products/styio_coding_agent/lib/src/context/context_ranker.dart",
+        "products/styio_coding_agent/lib/src/context/context_cache.dart",
+        "products/styio_coding_agent/lib/src/context/conversation_compactor.dart",
+        "products/styio_coding_agent/pubspec.yaml"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/context/context_evidence.dart",
+        "products/styio_coding_agent/lib/src/context/context_engine.dart",
+        "products/styio_coding_agent/lib/src/context/context_ranker.dart",
+        "products/styio_coding_agent/lib/src/context/context_cache.dart",
+        "products/styio_coding_agent/lib/src/context/conversation_compactor.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/context_engine_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/context/context_engine.dart",
+          "kind": "class",
+          "name": "ContextEngine",
+          "operation": "add",
+          "signature": "select(ContextQuery, ContextBudget) -> ContextBundle"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/context/context_evidence.dart",
+          "kind": "type",
+          "name": "ContextEvidence",
+          "operation": "add",
+          "signature": "revisioned provenance-bearing bounded evidence record"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "ContextSource",
+          "producer": "products/styio_coding_agent/lib/src/context",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/context/context_engine.dart"
+          ],
+          "inputs": "task/step query, roots, expected revisions, source cap, cancellation",
+          "outputs": "paged context evidence candidates with provenance and cost",
+          "errors": [
+            "source unavailable",
+            "stale revision",
+            "root denied",
+            "source budget exceeded"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "products/styio_coding_agent/lib/src/hosts/host_workspace.dart",
+          "to": "products/styio_coding_agent/lib/src/context",
+          "reason": "Context sources query host facts without importing IDE implementation."
+        }
+      ],
+      "decisions": {
+        "composition": "Independent lazy context sources feed one deterministic ranking and budget-packing pipeline.",
+        "algorithms": "Hard inclusions, revision filtering, stable dedupe, weighted scoring, deterministic tie-breaks, and greedy capped packing.",
+        "data_structures": "Stable-ID maps, digest sets, range indexes, bounded LRU caches, and immutable evidence pages.",
+        "state": "Sources own retrieval indexes; cache owns materialized content; engine owns only one selection operation.",
+        "isolation": "Root and sensitivity checks happen before materialization/provider exposure.",
+        "concurrency": "Independent sources query concurrently under a deadline; merge/ranking is deterministic and cancellation-aware."
+      },
+      "test_seams": [
+        "fixed relevance corpus",
+        "revision change stream",
+        "secret/exclusion fixtures",
+        "virtual token estimator",
+        "large workspace benchmark"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Context fixtures prove deterministic relevance, provenance, revision invalidation, deduplication, source caps, visible truncation, redaction, and deterministic conversation compaction.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "bdcc47e78e8dcff150b75ae943139ddfcdb342860b45e8b74aac746fbdee22c9",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:29:26Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "The large-workspace benchmark meets documented latency and memory budgets, shows bounded cache eviction, and performs no unconditional whole-workspace rescan per turn.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "bdcc47e78e8dcff150b75ae943139ddfcdb342860b45e8b74aac746fbdee22c9",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:29:26Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: add incremental revisioned context engine",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite context"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/context",
+        "products/styio_coding_agent/test/context",
+        "products/styio_coding_agent/benchmark/context_engine_benchmark.dart",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "products/styio_coding_agent/pubspec.yaml",
+        "scripts/styio_quality.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T05:29:26Z",
+        "contract_digest": "6a0c1083514feba0019efcd1941d0172557df92306a0a385425d937fd347200e",
+        "content_fingerprint": "b5b5504ce347d15484418fba7012e902f383f8d3b4f5c31a1c76a9f0f83d6d99"
+      }
+    },
+    "next": [
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 6,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T05:29:46Z",
+        "contract_digest": "6a0c1083514feba0019efcd1941d0172557df92306a0a385425d937fd347200e",
+        "content_fingerprint": "b5b5504ce347d15484418fba7012e902f383f8d3b4f5c31a1c76a9f0f83d6d99"
+      },
+      "design_digest": "b6b35e3ef39b66f8b3bc5760317c4f752dfd28d4186c5a4a2ba4d1615f6d9125",
+      "acceptance_fingerprint": "8fe64198a9748a3d945a1e8f6c38f57ec260af53c364446cbf9b236a15f00f0f"
+    }
+  },
+  {
+    "id": "ec25a7ca-b81f-4b3c-8cf3-534a7fdfa503",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "8b7f2b18-3b7d-410e-832e-af8d194e6be0"
+    ],
+    "platform": "any",
+    "difficulty": "deep",
+    "goal": "Deliver the schema-first built-in/MCP tool runtime and enforce roots, permissions, hooks, network, secrets, and effect receipts outside model control.",
+    "description": "Scope: tool descriptors/registry/discovery, MCP client, executor, schema and result validation, task relevance filter, risk/effect classifier, roots, permissions, grants/revocation, hooks, network and secret policy, audit receipts, cancellation, and security/conformance fixtures. Context: existing tool and permission models are useful but run inside the IDE controller and do not implement MCP roots, dynamic removal, audience-bound secrets, or a single enforceable effect pipeline. Target: built-in and MCP tools follow one bounded typed lifecycle; only relevant/current tools reach the provider; every effect is policy checked at execution time; denied/revoked actions fail closed; outputs are bounded, redacted, scanned, and treated as untrusted evidence. Design Considerations: immutable versioned catalogs, exact-ID maps plus compiled path/network matchers, idempotency keys, pre/post hooks, and explicit permission scope. Design Value: safe autonomy depends more on the effect boundary than model instructions. Constraints & Risks: read-only annotations cannot authorize; prevent traversal, symlink escape, token passthrough, confused-deputy credentials, output flooding, and hook bypass.",
+    "requirements": [
+      "REQ-AGENT-004",
+      "REQ-AGENT-005"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/tools",
+        "products/styio_coding_agent/lib/src/policy",
+        "products/styio_coding_agent/test/tools",
+        "products/styio_coding_agent/test/security",
+        "products/styio_coding_agent/lib/src/tools/tool_catalog.dart",
+        "products/styio_coding_agent/lib/src/tools/tool_executor.dart",
+        "products/styio_coding_agent/lib/src/tools/mcp_tool_source.dart",
+        "products/styio_coding_agent/lib/src/policy/policy_evaluator.dart",
+        "products/styio_coding_agent/lib/src/policy/execution_hooks.dart",
+        "products/styio_coding_agent/lib/src/policy/permission_grant_store.dart"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/tools/tool_catalog.dart",
+        "products/styio_coding_agent/lib/src/tools/tool_executor.dart",
+        "products/styio_coding_agent/lib/src/tools/mcp_tool_source.dart",
+        "products/styio_coding_agent/lib/src/policy/policy_evaluator.dart",
+        "products/styio_coding_agent/lib/src/policy/execution_hooks.dart",
+        "products/styio_coding_agent/lib/src/policy/permission_grant_store.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/tool_policy_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/tools/tool_executor.dart",
+          "kind": "class",
+          "name": "ToolExecutor",
+          "operation": "add",
+          "signature": "execute(ToolCall, ToolExecutionContext) -> ToolExecutionReceipt"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/policy/policy_evaluator.dart",
+          "kind": "interface",
+          "name": "PolicyEvaluator",
+          "operation": "add",
+          "signature": "evaluate(effect, currentPolicy, roots, grants) -> PolicyDecision"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "ToolExecutor",
+          "producer": "products/styio_coding_agent/lib/src/tools",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/orchestration"
+          ],
+          "inputs": "validated tool call, current catalog version, roots, policy, permission callback, deadline, cancellation",
+          "outputs": "bounded redacted result and idempotent effect/audit receipt",
+          "errors": [
+            "schema invalid",
+            "tool removed",
+            "policy or permission denied",
+            "execution timeout",
+            "result invalid or too large",
+            "hook rejected"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "products/styio_coding_agent/lib/src/policy",
+          "to": "products/styio_coding_agent/lib/src/tools/tool_executor.dart",
+          "reason": "Every tool effect passes policy, roots, permission, secret, network, and hook enforcement."
+        }
+      ],
+      "decisions": {
+        "composition": "Catalog/discovery, policy evaluation, execution adapter, hooks, and receipt writer are separate stages in one effect pipeline.",
+        "algorithms": "Schema validation and exact-ID lookup precede compiled root/path/network matching and ordered hook evaluation.",
+        "data_structures": "Immutable descriptor maps, versioned root/grant sets, compiled rule matchers, and append-only effect receipts.",
+        "state": "Catalog, policy snapshot, grant store, and individual execution each have one owner and version.",
+        "isolation": "Models cannot invoke adapters directly; credentials are opaque and resolved only for the intended executor/audience.",
+        "concurrency": "Per-effect idempotency and cancellation are enforced; catalog/policy snapshots are immutable during one execution."
+      },
+      "test_seams": [
+        "fake MCP server",
+        "dynamic tool removal",
+        "malformed/oversized results",
+        "traversal and symlink fixtures",
+        "network/secret exfiltration adversarial cases",
+        "pre/post hook failures"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Built-in and MCP conformance tests prove schema validation, relevance filtering, dynamic discovery/removal, result limits, cancellation, timeout, and server-loss behavior.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "ec60aa29df6ea3f646884abe721d19abacd4c6b635d3368bdf4f57019f084f38",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:57:22Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "bbccb16c85258d8f0d952dcc2443d956c47956659c10363fb0be957aaffe8756",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:57:22Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Adversarial tests prove traversal/symlink, revoked grants, destructive/process/network denial, secret audience binding, no token passthrough, hook enforcement, redaction, and idempotent audit receipts.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "ec60aa29df6ea3f646884abe721d19abacd4c6b635d3368bdf4f57019f084f38",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:57:22Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "bbccb16c85258d8f0d952dcc2443d956c47956659c10363fb0be957aaffe8756",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T05:57:22Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: enforce schema-first tools and execution policy",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite tools-mcp",
+        "python scripts/styio_quality.py --product coding-agent --suite agent-security"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/tools",
+        "products/styio_coding_agent/lib/src/policy",
+        "products/styio_coding_agent/test/tools",
+        "products/styio_coding_agent/test/security",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "scripts/styio_quality.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T05:57:22Z",
+        "contract_digest": "18f22c3ba6c455a7995d53faa7f6138b11f7e4fd780fc71367fe053b18d4a48b",
+        "content_fingerprint": "630cb389204c5caaf5db97e4727ad027514b9d22b20e4c4a361f8ec28ebbf83d"
+      }
+    },
+    "next": [
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 5,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T05:57:49Z",
+        "contract_digest": "18f22c3ba6c455a7995d53faa7f6138b11f7e4fd780fc71367fe053b18d4a48b",
+        "content_fingerprint": "630cb389204c5caaf5db97e4727ad027514b9d22b20e4c4a361f8ec28ebbf83d"
+      },
+      "design_digest": "fb4282980c8bd40847ecd5f07082d4a0d26ddf2248f4cfa90e7bb2324006f6d3",
+      "acceptance_fingerprint": "65c41823a18d4bc99056d58b3cd952485933ce9bc07e56781606852dde43e754"
+    }
+  },
+  {
+    "id": "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "cbe0a1d8-c5bc-4407-ba6d-22102e858c78",
+      "2decf14b-572c-449a-ad2a-55f63aa0b613",
+      "ec25a7ca-b81f-4b3c-8cf3-534a7fdfa503"
+    ],
+    "platform": "any",
+    "difficulty": "deep",
+    "goal": "Implement the bounded evidence-driven coding loop that plans, edits through host transactions, verifies facts, repairs safely, and reports blockers.",
+    "description": "Scope: task understanding, plan/step model, prerequisite readiness, plan-act-observe-verify-repair state machine, change-set proposals, focused validation selection, post-edit fact refresh, repair/duplicate-failure guards, user steering, and reference coding fixtures. Context: current code has plan and tool-loop types but orchestration is embedded in a large controller and can treat provider prose as progress; a real Coding Agent needs explicit acceptance and effect boundaries. Target: representative bug-fix and refactor tasks produce scoped plans, approved revisioned change sets, refreshed diagnostics/tests, and evidence-backed completion; cancellation/steering works between transitions; repeated failures stop with a truthful blocker. Design Considerations: immutable plans with a ready queue, explicit budgets, effect receipts, deterministic guard keys, and host facts as the source of verification. Design Value: this is the independently acceptable coding capability, while providers/context/tools remain replaceable services. Constraints & Risks: no direct file writes through the IDE host, no self-reported validation, no unbounded repair, and no unrelated task expansion.",
+    "requirements": [
+      "REQ-AGENT-006"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/orchestration",
+        "products/styio_coding_agent/test/orchestration",
+        "products/styio_coding_agent/fixtures/coding_tasks",
+        "products/styio_coding_agent/lib/src/orchestration/coding_plan.dart",
+        "products/styio_coding_agent/lib/src/orchestration/coding_loop.dart",
+        "products/styio_coding_agent/lib/src/orchestration/loop_guard.dart",
+        "products/styio_coding_agent/lib/src/orchestration/validation_planner.dart"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/orchestration/coding_plan.dart",
+        "products/styio_coding_agent/lib/src/orchestration/coding_loop.dart",
+        "products/styio_coding_agent/lib/src/orchestration/loop_guard.dart",
+        "products/styio_coding_agent/lib/src/orchestration/validation_planner.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/coding_loop_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/orchestration/coding_loop.dart",
+          "kind": "class",
+          "name": "CodingLoop",
+          "operation": "add",
+          "signature": "run(CodingTask, AgentSessionContext) -> CodingTaskOutcome"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/orchestration/coding_plan.dart",
+          "kind": "type",
+          "name": "CodingPlan",
+          "operation": "add",
+          "signature": "immutable steps, prerequisites, ownership, acceptance, tools, and budgets"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "CodingLoop",
+          "producer": "products/styio_coding_agent/lib/src/orchestration",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/application/agent_session_service.dart"
+          ],
+          "inputs": "goal, current session, provider/context/tool/host ports, budgets, cancellation, steering",
+          "outputs": "plan/step events, change sets, validation receipts, completion or blocker",
+          "errors": [
+            "acceptance cannot be designed",
+            "permission or capability blocked",
+            "revision conflict",
+            "validation failed after bounded repairs",
+            "cancelled"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "products/styio_coding_agent/lib/src/providers",
+          "to": "products/styio_coding_agent/lib/src/orchestration",
+          "reason": "The loop obtains structured model events through the neutral provider port."
+        },
+        {
+          "from": "products/styio_coding_agent/lib/src/context",
+          "to": "products/styio_coding_agent/lib/src/orchestration",
+          "reason": "Each loop transition requests bounded revisioned evidence."
+        },
+        {
+          "from": "products/styio_coding_agent/lib/src/tools",
+          "to": "products/styio_coding_agent/lib/src/orchestration",
+          "reason": "All observations and effects use the enforced tool pipeline."
+        }
+      ],
+      "decisions": {
+        "composition": "An explicit loop coordinates replaceable provider, context, tool, host, and receipt ports.",
+        "algorithms": "Prerequisite-ready step selection, bounded state transitions, refreshed fact verification, and repeated-failure fingerprints control progress.",
+        "data_structures": "Immutable plan DAG, ready priority queue, step/effect maps, and bounded failure fingerprint counters.",
+        "state": "CodingLoop owns transition state; host owns workspace truth; provider/tool/context services own no plan state.",
+        "isolation": "Each task step declares ownership and effects; change sets stay uncommitted until host review/transaction.",
+        "concurrency": "A single task loop serializes mutating steps; independent read observations may run concurrently under one cancellation tree."
+      },
+      "test_seams": [
+        "deterministic fake provider",
+        "transaction-conflict host",
+        "post-edit diagnostic/test facts",
+        "loop repetition fixture",
+        "user steering and cancellation"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Reference bug-fix and refactor fixtures produce independently reviewable plans, revisioned change sets, focused validation receipts, and evidence-backed completion through host transactions.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "8a522afd5fdc6b46a2f474f14b1141e34eabbea99e0fde85f4ea8a1e0deaa653",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T06:18:49Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Cancellation, steering, stale revisions, denied capabilities, repeated identical failures, budget limits, and failed validation terminate or repair within explicit bounds and surface truthful blockers.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "8a522afd5fdc6b46a2f474f14b1141e34eabbea99e0fde85f4ea8a1e0deaa653",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T06:18:49Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: implement the evidence-driven coding loop",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite coding-loop"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/orchestration",
+        "products/styio_coding_agent/test/orchestration",
+        "products/styio_coding_agent/fixtures/coding_tasks",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "scripts/styio_quality.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T06:18:49Z",
+        "contract_digest": "f2890669fc449271f188c8fe14d7491d81bcc7b515a2aa8bf9109b397a2bed4d",
+        "content_fingerprint": "be1464f523973e26e8a7f16168a71e1f430991ebc8ad86ae35d07e9fef1b4406"
+      }
+    },
+    "next": [
+      "9d4a37d5-11d1-41cd-a897-dd011b91c90d"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 4,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T06:19:10Z",
+        "contract_digest": "f2890669fc449271f188c8fe14d7491d81bcc7b515a2aa8bf9109b397a2bed4d",
+        "content_fingerprint": "be1464f523973e26e8a7f16168a71e1f430991ebc8ad86ae35d07e9fef1b4406"
+      },
+      "design_digest": "7543a8f25aa0527d8851c193cb438fd35fed96f855523b6aefb7465514bdeb71",
+      "acceptance_fingerprint": "807df29b168ad4d16756b6b3ebb143e0af315452bfb49c5f034132c7e367f181"
+    }
+  },
+  {
+    "id": "9d4a37d5-11d1-41cd-a897-dd011b91c90d",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1"
+    ],
+    "platform": "any",
+    "difficulty": "high",
+    "goal": "Make Coding Agent sessions durable, crash-recoverable, correlated, redacted, and idempotent at every effect boundary.",
+    "description": "Scope: append-only session events, compact projections, checkpoints, idempotency/effect receipts, recovery, corruption handling, bounded hot windows, observability correlation, redaction, migration from mixed history/snapshot stores, and crash fixtures. Context: current history, checkpoint, workspace snapshot, tool journal, and controller state are separate large structures; a process boundary and asynchronous work require one durable ordering model. Target: goals, turns, plans, steps, tool calls, permissions, changes, validations, budgets, and outcomes survive restart; recovery replays from the last committed sequence; an effect already receipted is never repeated; corrupted tails preserve and expose the valid prefix. Design Considerations: append immutable events with monotonic per-session sequence and idempotency keys, checkpoint compact projections, and keep raw content outside operational logs. Design Value: users can trust long tasks and audit what happened even after failure. Constraints & Risks: no raw secrets, unbounded event replay, partial checkpoint overwrite, or best-effort duplicate mutation.",
+    "requirements": [
+      "REQ-AGENT-007"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/sessions",
+        "products/styio_coding_agent/test/sessions",
+        "products/styio_coding_agent/integration_test/session_recovery_test.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_event.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_event_store.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_projection.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_recovery.dart",
+        "products/styio_coding_agent/lib/src/sessions/effect_receipt.dart"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/sessions/session_event.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_event_store.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_projection.dart",
+        "products/styio_coding_agent/lib/src/sessions/session_recovery.dart",
+        "products/styio_coding_agent/lib/src/sessions/effect_receipt.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/session_recovery_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/sessions/session_event_store.dart",
+          "kind": "interface",
+          "name": "SessionEventStore",
+          "operation": "add",
+          "signature": "append(expectedSequence, events); load(sessionId, afterSequence)"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/sessions/session_recovery.dart",
+          "kind": "class",
+          "name": "SessionRecovery",
+          "operation": "add",
+          "signature": "recover(checkpoint, eventTail, effectReceipts) -> RecoveredSession"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "SessionEventStore",
+          "producer": "products/styio_coding_agent/lib/src/sessions",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/application",
+            "products/styio_coding_agent/lib/src/orchestration",
+            "products/styio_coding_agent/lib/src/tools"
+          ],
+          "inputs": "expected sequence, immutable redacted events, idempotency/effect receipts",
+          "outputs": "committed sequence and replay stream",
+          "errors": [
+            "optimistic sequence conflict",
+            "corrupted tail",
+            "storage unavailable",
+            "checkpoint digest mismatch"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "products/styio_coding_agent/lib/src/orchestration",
+          "to": "products/styio_coding_agent/lib/src/sessions",
+          "reason": "Every durable loop transition and effect boundary emits a correlated session event."
+        }
+      ],
+      "decisions": {
+        "composition": "Append-only events are canonical; compact projections and checkpoints are disposable read optimizations.",
+        "algorithms": "Optimistic sequence append, checkpoint-plus-tail replay, digest verification, and idempotency lookup prevent lost or duplicate effects.",
+        "data_structures": "Ordered immutable events, sequence-indexed segments, compact ID maps, bounded hot deques, and idempotency receipt maps.",
+        "state": "Event store owns durable order; projection owns derived current state; adapters own storage transactions.",
+        "isolation": "Sessions have independent logs/checkpoints and redaction occurs before persistence/log export.",
+        "concurrency": "One writer per session sequence; independent sessions append concurrently; conflicts reload and retry only non-effect state transitions."
+      },
+      "test_seams": [
+        "kill between effect and acknowledgement",
+        "corrupted event tail",
+        "checkpoint digest mismatch",
+        "concurrent sequence conflict",
+        "secret redaction corpus"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Kill/restart and replay fixtures recover task/session state from a committed checkpoint and valid event tail with bounded hot memory and correlated redacted receipts.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "e6819d6694ee0b95105d792aa79828941f98aa6e3cf29d3c1d2880b64a693776",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T06:43:28Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Effects at every crash boundary execute at most once, while corrupted tails or digest/sequence conflicts preserve valid history and produce explicit recoverable/blocked outcomes.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "e6819d6694ee0b95105d792aa79828941f98aa6e3cf29d3c1d2880b64a693776",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T06:43:28Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: add durable event-sourced session recovery",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite session-recovery"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/sessions",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "products/styio_coding_agent/test/sessions",
+        "products/styio_coding_agent/integration_test/session_recovery_test.dart",
+        "tests/acceptance/styio_coding_agent/session_recovery_acceptance_test.dart",
+        "scripts/styio_quality.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T06:43:28Z",
+        "contract_digest": "9fbafca1006a3fcc8ad32609dec76988eefda407102e5c4f4af6df3a6a5f02af",
+        "content_fingerprint": "2f2598843c26af810d93524e21eade65a3dacfe14d5e98bbdbc1a700a278717b"
+      }
+    },
+    "next": [
+      "2bdb5c59-52b9-4b3c-ac0a-9bf9b100d8a4",
+      "c7e4604a-632d-43a3-957d-fddad7048c8e"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 5,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T06:44:01Z",
+        "contract_digest": "9fbafca1006a3fcc8ad32609dec76988eefda407102e5c4f4af6df3a6a5f02af",
+        "content_fingerprint": "2f2598843c26af810d93524e21eade65a3dacfe14d5e98bbdbc1a700a278717b"
+      },
+      "design_digest": "cb4742bd43dc5336972049121643ef1d0008547711262d8c9debd27cc653c000",
+      "acceptance_fingerprint": "194edf7c942e92c94630cd2969136b59b27229c98cd4e0678241ce7bdc631fc3"
+    }
+  },
+  {
+    "id": "2bdb5c59-52b9-4b3c-ac0a-9bf9b100d8a4",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
+      "9d4a37d5-11d1-41cd-a897-dd011b91c90d"
+    ],
+    "platform": "any",
+    "difficulty": "deep",
+    "goal": "Deliver real multi-agent delegation with dependency-aware scheduling, isolated worktrees, scoped policy/context, resource leases, and reviewed integration.",
+    "description": "Scope: task DAG, role/scoped Agent descriptors, ready scheduler, concurrency limits, cancellation tree, worktree provider, resource leases, worker sessions, result collection, conflict detection, reviewed integration, cleanup, and parallel fixtures. Context: current primary/subagent registry metadata does not execute delegated work or prevent ownership collisions. Target: a coordinator delegates independently acceptable steps to isolated worker sessions, runs only ready non-conflicting work within budgets, propagates cancellation, collects evidence/change sets deterministically, and presents integration/conflicts instead of silently merging. Design Considerations: adjacency lists plus indegree counts and a deterministic priority queue make readiness efficient; a normalized resource lease map prevents conflicting mutation; one worktree per mutating worker isolates files. Design Value: parallelism reduces latency only when independence and integration are explicit. Constraints & Risks: no shared mutable context, ambient branch mutation, hidden merge, orphaned worktree, unlimited fan-out, or worker permission widening.",
+    "requirements": [
+      "REQ-AGENT-008"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/multi_agent",
+        "products/styio_coding_agent/test/multi_agent",
+        "products/styio_coding_agent/integration_test/multi_agent_worktree_test.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/task_graph.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/agent_scheduler.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/resource_lease_registry.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/worktree_coordinator.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/integration_plan.dart"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/multi_agent/task_graph.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/agent_scheduler.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/resource_lease_registry.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/worktree_coordinator.dart",
+        "products/styio_coding_agent/lib/src/multi_agent/integration_plan.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/multi_agent_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/multi_agent/agent_scheduler.dart",
+          "kind": "class",
+          "name": "AgentScheduler",
+          "operation": "add",
+          "signature": "run(TaskGraph, AgentPool, ConcurrencyBudget) -> DelegationOutcome"
+        },
+        {
+          "path": "products/styio_coding_agent/lib/src/multi_agent/resource_lease_registry.dart",
+          "kind": "class",
+          "name": "ResourceLeaseRegistry",
+          "operation": "add",
+          "signature": "acquire(taskId, normalizedScopes) -> LeaseDecision"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "WorktreeProvider",
+          "producer": "products/styio_coding_agent/lib/src/multi_agent",
+          "consumers": [
+            "products/styio_coding_agent/lib/src/multi_agent/worktree_coordinator.dart"
+          ],
+          "inputs": "base revision, worker ID, normalized ownership scope, cancellation",
+          "outputs": "isolated workspace handle, change set, cleanup receipt",
+          "errors": [
+            "base unavailable",
+            "scope collision",
+            "worktree creation failure",
+            "cleanup incomplete"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "products/styio_coding_agent/lib/src/sessions",
+          "to": "products/styio_coding_agent/lib/src/multi_agent",
+          "reason": "Each delegated worker is an isolated durable session with correlated parent/child events."
+        }
+      ],
+      "decisions": {
+        "composition": "Coordinator combines a task graph, deterministic scheduler, worker session factory, lease registry, worktree provider, and reviewed integration plan.",
+        "algorithms": "Adjacency lists and indegree counts feed a priority-ready queue; semaphore and resource leases bound safe concurrency.",
+        "data_structures": "Task DAG maps, indegree counters, priority heap, normalized scope-to-lease map, and parent/child session index.",
+        "state": "Scheduler owns task lifecycle; lease registry owns ownership; worktree provider owns isolated filesystem resources.",
+        "isolation": "Workers receive scoped context/tools/budgets and distinct worktrees; integration occurs only through reviewable change sets.",
+        "concurrency": "Ready non-conflicting tasks run up to one configured semaphore limit; cancellation propagates and releases resources."
+      },
+      "test_seams": [
+        "deterministic virtual scheduler",
+        "two independent worktrees",
+        "overlapping ownership scopes",
+        "worker cancellation/failure",
+        "integration conflict fixture",
+        "worktree cleanup verification"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Parallel fixtures prove dependency-ready scheduling, configured concurrency, isolated context/tools/budgets/worktrees, deterministic evidence collection, cancellation propagation, and cleanup.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "51c0f702c08ec3432dde8d4cfe28dade01fae9b4f091337203368c900ff7fcb7",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T07:20:03Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Overlapping resource scopes cannot execute concurrently, and worker changes are never silently merged: clean integration and conflicts both produce reviewable plans and receipts.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "51c0f702c08ec3432dde8d4cfe28dade01fae9b4f091337203368c900ff7fcb7",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T07:20:03Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: add worktree-safe multi-agent coordination",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite multi-agent"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/multi_agent",
+        "products/styio_coding_agent/lib/src/cancellation.dart",
+        "products/styio_coding_agent/lib/styio_coding_agent.dart",
+        "products/styio_coding_agent/test/multi_agent",
+        "products/styio_coding_agent/integration_test/multi_agent_worktree_test.dart",
+        "tests/acceptance/styio_coding_agent/multi_agent_acceptance_test.dart",
+        "scripts/styio_quality.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T07:20:03Z",
+        "contract_digest": "05a12b10f84073ee5b59d59af64717fb5b25fbc4d2c45eede2ccaf5910680270",
+        "content_fingerprint": "ceee728a01df0f0af8eafb3b852cad322901d13879add257326c19615ade6633"
+      }
+    },
+    "next": [
+      "1324166c-eba0-46f8-a4bf-655df57bdd83"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 7,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T07:20:28Z",
+        "contract_digest": "05a12b10f84073ee5b59d59af64717fb5b25fbc4d2c45eede2ccaf5910680270",
+        "content_fingerprint": "ceee728a01df0f0af8eafb3b852cad322901d13879add257326c19615ade6633"
+      },
+      "design_digest": "0556a1d8457eae68cc118d5544b57c28d96aa96a08cf31caeb7d5c10a58c254e",
+      "acceptance_fingerprint": "be7696954e2b66afa7e5ddf40e7b85f5637059082bad526ef85ff210439c59be"
+    }
+  },
+  {
+    "id": "c7e4604a-632d-43a3-957d-fddad7048c8e",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "43c675a0-ec3c-4fc4-9bb9-c9aad362bf66",
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
+      "9d4a37d5-11d1-41cd-a897-dd011b91c90d"
+    ],
+    "platform": "any",
+    "difficulty": "deep",
+    "goal": "Ship the interoperable Agent-side protocol endpoint and freeze a reproducible release evaluation corpus against Styio IDE.",
+    "description": "Scope: Agent-side shared-protocol adapter, stdio endpoint, initialization/capability negotiation, concurrent session routing, permission/elicitation/cancellation, dynamic capabilities, MCP attachment, unsupported-version behavior, real Styio IDE integration fixture, deterministic evaluation corpus, and quality budgets. Context: independent modules do not prove that a user can launch the real Agent from the IDE or that quality/security remain measurable across releases. Target: Styio Coding Agent interoperates through the neutral ACP-compatible boundary without object sharing, serves two sessions, completes a reviewed coding fixture, and exposes reproducible task/security/latency/memory/cancellation evaluation inputs for final validation. Design Considerations: keep protocol translation at the edge, correlate every event, version fixtures/schema digests, and assert final repository facts rather than model prose. Design Value: the Agent becomes a real attachable product with an objective release contract. Constraints & Risks: no private IDE imports, hidden fallback protocol, live credential dependency, nondeterministic acceptance, or green result when a required capability is absent.",
+    "requirements": [
+      "REQ-AGENT-009"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/protocol",
+        "products/styio_coding_agent/bin/styio_coding_agent.dart",
+        "products/styio_coding_agent/integration_test/protocol_integration_test.dart",
+        "products/styio_coding_agent/fixtures/evaluation",
+        "products/styio_coding_agent/benchmark",
+        "products/styio_coding_agent/lib/src/protocol/agent_session_endpoint.dart",
+        "products/styio_coding_agent/lib/src/protocol/stdio_agent_server.dart",
+        "products/styio_coding_agent/fixtures/evaluation/manifest.json"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/protocol/agent_session_endpoint.dart",
+        "products/styio_coding_agent/lib/src/protocol/stdio_agent_server.dart",
+        "products/styio_coding_agent/integration_test/protocol_integration_test.dart",
+        "products/styio_coding_agent/fixtures/evaluation/manifest.json"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/protocol_release_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/styio_coding_agent/lib/src/protocol/agent_session_endpoint.dart",
+          "kind": "class",
+          "name": "AgentSessionEndpoint",
+          "operation": "add",
+          "signature": "serve(AgentClientTransport, AgentRuntime) -> Future<void>"
+        },
+        {
+          "path": "products/styio_coding_agent/fixtures/evaluation/manifest.json",
+          "kind": "module",
+          "name": "coding_agent_release_corpus",
+          "operation": "add",
+          "signature": "versioned deterministic tasks, allowed effects, acceptance, and budgets"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "AgentSessionEndpoint",
+          "producer": "products/styio_coding_agent/lib/src/protocol",
+          "consumers": [
+            "Styio IDE Agent Client",
+            "compatible external Agent clients"
+          ],
+          "inputs": "versioned correlated session requests, host/MCP capabilities, permissions, steering, cancellation",
+          "outputs": "streamed turns, plans, steps, tools, changes, artifacts, usage, terminal outcomes",
+          "errors": [
+            "unsupported protocol or capability",
+            "invalid correlation",
+            "host/MCP unavailable",
+            "session cancelled or failed"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "packages/styio_agent_protocol",
+          "to": "products/styio_coding_agent/lib/src/protocol",
+          "reason": "The Agent endpoint implements the same canonical schema consumed by Styio IDE."
+        },
+        {
+          "from": "products/styio_coding_agent/fixtures/evaluation",
+          "to": "scripts/styio_quality.py",
+          "reason": "The release runner executes fixed task/security/performance acceptance rather than self-reported model outcomes."
+        }
+      ],
+      "decisions": {
+        "composition": "A thin endpoint translates shared protocol messages to AgentRuntime commands/events; evaluation drives public surfaces only.",
+        "algorithms": "Correlation maps route constant-time session/request events and fixed evaluation manifests compare final facts/receipts/budgets.",
+        "data_structures": "Session/request maps, immutable capability sets, versioned schema/fixture digests, and per-case result records.",
+        "state": "AgentRuntime/session stores own execution state; endpoint owns transport correlations; corpus is immutable release input.",
+        "isolation": "Integration runs across process/protocol boundaries with fake providers and controlled roots, never shared IDE objects or live secrets.",
+        "concurrency": "Two sessions are served concurrently with ordered per-session events, cancellation, and bounded transport queues."
+      },
+      "test_seams": [
+        "real Styio IDE process fixture",
+        "two concurrent sessions",
+        "unsupported-version and dynamic-capability cases",
+        "fixed fake providers",
+        "deterministic task/security/performance corpus"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Styio IDE launches the real Agent process, negotiates capabilities, serves two concurrent sessions, routes permission/cancellation correctly, and completes one reviewed coding change without private object sharing.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "0cd42acf5c32138471d34870ef1cbdc9075651cf390cdff0b0d16d021d451616",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T07:46:49Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "A versioned deterministic release corpus covers task quality, allowed effects, security, cancellation, latency, memory, and unsupported capabilities with machine-checkable final facts and budgets.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "0cd42acf5c32138471d34870ef1cbdc9075651cf390cdff0b0d16d021d451616",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T07:46:49Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: ship interoperable endpoint and release corpus",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite protocol-integration"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/protocol",
+        "products/styio_coding_agent/integration_test/protocol_integration_test.dart",
+        "products/styio_coding_agent/fixtures/evaluation",
+        "packages/styio_agent_protocol"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T07:46:49Z",
+        "contract_digest": "8dddd630a46a97295392ecdfd7c0266130769f335a7e2fd04dbb3ae8168542e6",
+        "content_fingerprint": "fc089d1c79359ce25a95f6e7c8cccd60bc6eed61f0ba6d396dc1fe268f1e7f26"
+      }
+    },
+    "next": [
+      "1324166c-eba0-46f8-a4bf-655df57bdd83"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 3,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T07:47:34Z",
+        "contract_digest": "8dddd630a46a97295392ecdfd7c0266130769f335a7e2fd04dbb3ae8168542e6",
+        "content_fingerprint": "fc089d1c79359ce25a95f6e7c8cccd60bc6eed61f0ba6d396dc1fe268f1e7f26"
+      },
+      "design_digest": "8a084d45e1e340747b51f97246592e21168f9aa4f03c51d14d941be682c3ffbd",
+      "acceptance_fingerprint": "7cb2206aba5fac907cba0f3b23d92ef6b1af55fe633a416d7e39dbc826be3bdd"
+    }
+  },
+  {
+    "id": "ce76d8ea-74fc-4daa-a04a-1cce356ff711",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "c7e4604a-632d-43a3-957d-fddad7048c8e"
+    ],
+    "platform": "any",
+    "difficulty": "medium",
+    "goal": "Make the Coding Agent full validation harness always emit a bounded diagnostic receipt before product suites can be accepted.",
+    "description": "Closure: capability - Coding Agent full validation receipt reliability; Enabling work: this validation-only repair supports the final REQ-AGENT evidence node without claiming a product requirement. Context: the first formal full entry returned before any suite and emitted no receipt. Target: the harness records stable per-requirement outcomes and a bounded failure code on every exit path without executing suites in its own focused tests. Design Considerations: inject runner callables in acceptance, atomically write receipts, and never expose captured runtime output. Design Value: final validation failures become attributable without rerunning blindly. Constraints & Risks: no product implementation changes, no full-suite execution, and no raw exception or machine data in receipts.",
+    "requirements": [],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Validation.md",
+      "owned_paths": [
+        "scripts/styio_quality.py"
+      ],
+      "scaffold_paths": [
+        "scripts/styio_quality.py"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/full_runner_acceptance_test.py"
+      ],
+      "symbols": [],
+      "interfaces": [],
+      "dependencies": [],
+      "decisions": {
+        "composition": "One receipt boundary wraps the fixed nine-suite plan.",
+        "algorithms": "Fixed-order iteration and fail-closed aggregation.",
+        "data_structures": "Nine requirement outcome records and bounded digests.",
+        "state": "The harness owns only validation receipt state.",
+        "isolation": "Focused acceptance injects no-op and failing runners.",
+        "concurrency": "Suites remain sequential."
+      },
+      "test_seams": [
+        "injected runner map",
+        "temporary receipt path"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Injected pass and failure fixtures both emit bounded receipts with exactly REQ-AGENT-001 through REQ-AGENT-009 and never invoke the real full suites.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "6d1e233696da255f38865a68292648b53b4bee5da020d6eee82876ac7896d274",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T08:09:17Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "test(agent): harden full validation receipts",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python tests/acceptance/styio_coding_agent/full_runner_acceptance_test.py"
+      ],
+      "criteria": [
+        0
+      ],
+      "paths": [
+        "scripts/styio_quality.py",
+        "tests/acceptance/styio_coding_agent/full_runner_acceptance_test.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T08:09:17Z",
+        "contract_digest": "41b5570c10121d539a5f9b45db25a5d4d6fb5c71dd2fff408b5536e4da67b2af",
+        "content_fingerprint": "3ac2e0b9320648b9f5910a767b25b83c91413438914b64ed864705dbc2f505fb"
+      }
+    },
+    "next": [
+      "1324166c-eba0-46f8-a4bf-655df57bdd83"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 1,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T08:09:43Z",
+        "contract_digest": "41b5570c10121d539a5f9b45db25a5d4d6fb5c71dd2fff408b5536e4da67b2af",
+        "content_fingerprint": "3ac2e0b9320648b9f5910a767b25b83c91413438914b64ed864705dbc2f505fb"
+      },
+      "design_digest": "96afb8cda046f88d85f8c0522bf5a9d729c696edea2e12eee46604f829eb99bd",
+      "acceptance_fingerprint": "a4e286366be0eabac378a00285c07c05cb4d6b09887007ec7928ffb25f60f558"
+    }
+  },
+  {
+    "id": "f3a9a2a9-faf0-49cb-8707-26a2028bae66",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "ce76d8ea-74fc-4daa-a04a-1cce356ff711"
+    ],
+    "platform": "any",
+    "difficulty": "low",
+    "goal": "Bind Coding Agent final regression only to immutable source and validation documents.",
+    "description": "Closure: capability - immutable final regression fingerprint binding; Enabling work: this plan-only repair removes mutable Better Plan state from the full regression content contract. Context: the gate rejected the full command before launch because a declared directory contained Checkpoints.json. Target: final regression paths include product, protocol, scripts, and stable requirement/architecture/validation documents only. Design Considerations: mutable workflow state remains outside content fingerprints. Design Value: the full command can start while evidence state remains independently managed. Constraints & Risks: no product code or full suite execution.",
+    "requirements": [],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Validation.md",
+      "owned_paths": [
+        "docs/plan/styio-coding-agent/Checkpoints.json",
+        "docs/plan/styio-coding-agent/Validation.md"
+      ],
+      "scaffold_paths": [
+        "docs/plan/styio-coding-agent/Validation.md"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/final_fingerprint_acceptance_test.py"
+      ],
+      "symbols": [],
+      "interfaces": [],
+      "dependencies": [],
+      "decisions": {
+        "composition": "The final contract fingerprints immutable inputs and keeps workflow state separate.",
+        "algorithms": "Deterministic path hashing.",
+        "data_structures": "Explicit source and document path list.",
+        "state": "Checkpoints remain mutable workflow state.",
+        "isolation": "No product implementation changes.",
+        "concurrency": "No command runs in this repair."
+      },
+      "test_seams": [
+        "final node regression path inspection"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "The Coding Agent final node regression paths contain no Checkpoints.json or mutable Better Plan directory while retaining all stable product, protocol, script, and validation inputs.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "ae600f137af62acdd1bd1416979c455a4fca467a9584d475302f387e10a16271",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T08:15:35Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "docs(plan): fix Coding Agent final fingerprint binding",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python tests/acceptance/styio_coding_agent/final_fingerprint_acceptance_test.py"
+      ],
+      "criteria": [
+        0
+      ],
+      "paths": [
+        "tests/acceptance/styio_coding_agent/final_fingerprint_acceptance_test.py",
+        "docs/plan/styio-coding-agent/Requirements.md",
+        "docs/plan/styio-coding-agent/Architecture.md",
+        "docs/plan/styio-coding-agent/Validation.md"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T08:15:35Z",
+        "contract_digest": "59dc1a9f9a81511d67402fbbf02d90ecfcf375fb45ef1001bfd260f249918ff4",
+        "content_fingerprint": "c0f11e1b01ec1d4d640a92a04792bc290a77da97c756a1947e0c0be831270367"
+      }
+    },
+    "next": [
+      "1324166c-eba0-46f8-a4bf-655df57bdd83"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 1,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T08:16:09Z",
+        "contract_digest": "59dc1a9f9a81511d67402fbbf02d90ecfcf375fb45ef1001bfd260f249918ff4",
+        "content_fingerprint": "c0f11e1b01ec1d4d640a92a04792bc290a77da97c756a1947e0c0be831270367"
+      },
+      "design_digest": "d5df4b302dcdda1207856cece898d4a58e104bde433e4b7268b6bad9d9cb2cfd",
+      "acceptance_fingerprint": "d255b3f35847ca495e9d830e21eb2d63a3720c8edd018462729b7b362b16ceef"
+    }
+  },
+  {
+    "id": "cc1ee369-751d-4b74-87a4-a13a86f28777",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "c7e4604a-632d-43a3-957d-fddad7048c8e"
+    ],
+    "platform": "any",
+    "difficulty": "low",
+    "goal": "Restore the pure Dart runtime boundary while retaining executable release evaluation.",
+    "description": "Closure: module - pure release evaluation core and IO benchmark adapter; Context: final REQ-AGENT-001 evidence found dart:io in the exported protocol evaluation library. Target: the library evaluates an already-decoded immutable manifest while the benchmark adapter alone reads files. Design Considerations: dependency inversion keeps filesystem IO at the executable edge. Design Value: the standalone runtime remains host-neutral without losing REQ-AGENT-009 release evidence. Constraints & Risks: no compatibility facade or duplicate evaluator.",
+    "requirements": [
+      "REQ-AGENT-001",
+      "REQ-AGENT-009"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Architecture.md",
+      "owned_paths": [
+        "products/styio_coding_agent/lib/src/protocol/release_evaluation.dart",
+        "products/styio_coding_agent/benchmark/release_evaluation.dart"
+      ],
+      "scaffold_paths": [
+        "products/styio_coding_agent/lib/src/protocol/release_evaluation.dart",
+        "products/styio_coding_agent/benchmark/release_evaluation.dart"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/styio_coding_agent/pure_release_evaluation_acceptance_test.py"
+      ],
+      "symbols": [],
+      "interfaces": [],
+      "dependencies": [],
+      "decisions": {
+        "composition": "Pure evaluator accepts decoded data; executable adapter owns file IO.",
+        "algorithms": "Single ordered case evaluation.",
+        "data_structures": "Immutable manifest maps and result records.",
+        "state": "No filesystem state enters the library.",
+        "isolation": "dart:io remains only in benchmark code.",
+        "concurrency": "Cases remain deterministic and sequential."
+      },
+      "test_seams": [
+        "forbidden import scan",
+        "benchmark execution"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "The exported Coding Agent library contains no dart:io dependency and the deterministic release benchmark still emits a passing seven-case report.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "ccf2c4b83fc11a979b855678871768bfb368bd899b065708a456df7044cbf342",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T08:31:15Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "9d585cff3f44f7377c92c14c2a3bde0cff4538fbd22ba211b55def91e39e4de9",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T08:31:15Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "agent: keep release evaluation core host-neutral",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python tests/acceptance/styio_coding_agent/pure_release_evaluation_acceptance_test.py",
+        "python scripts/styio_quality.py --product coding-agent --suite headless-runtime"
+      ],
+      "criteria": [
+        0
+      ],
+      "paths": [
+        "products/styio_coding_agent/lib/src/protocol/release_evaluation.dart",
+        "products/styio_coding_agent/benchmark/release_evaluation.dart",
+        "tests/acceptance/styio_coding_agent/pure_release_evaluation_acceptance_test.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T08:31:15Z",
+        "contract_digest": "4b4f34f972e73c0dbc8d5c56a3a3a1a6faa0fcef67b63465d9cdc8882964b92f",
+        "content_fingerprint": "3699639404fbf8aead7c5a97993145d1f70b87dc59b80723a23499373cd7b56e"
+      }
+    },
+    "next": [
+      "1324166c-eba0-46f8-a4bf-655df57bdd83"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 2,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T08:31:51Z",
+        "contract_digest": "4b4f34f972e73c0dbc8d5c56a3a3a1a6faa0fcef67b63465d9cdc8882964b92f",
+        "content_fingerprint": "3699639404fbf8aead7c5a97993145d1f70b87dc59b80723a23499373cd7b56e"
+      },
+      "design_digest": "8e4507a37e9bf35869d1bd62d4f5f1ecf774bcaf2cccc95a5ba61d6985f9aa47",
+      "acceptance_fingerprint": "3a62acf1854dda3d302091bbe75f80f0ae9b9b8b134d57ce91c656517ea8928a"
+    }
+  },
+  {
+    "id": "1324166c-eba0-46f8-a4bf-655df57bdd83",
+    "status": "completed",
+    "role": "final_validation",
+    "prerequisites": [
+      "8b7f2b18-3b7d-410e-832e-af8d194e6be0",
+      "cbe0a1d8-c5bc-4407-ba6d-22102e858c78",
+      "2decf14b-572c-449a-ad2a-55f63aa0b613",
+      "ec25a7ca-b81f-4b3c-8cf3-534a7fdfa503",
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
+      "9d4a37d5-11d1-41cd-a897-dd011b91c90d",
+      "2bdb5c59-52b9-4b3c-ac0a-9bf9b100d8a4",
+      "c7e4604a-632d-43a3-957d-fddad7048c8e",
+      "ce76d8ea-74fc-4daa-a04a-1cce356ff711",
+      "f3a9a2a9-faf0-49cb-8707-26a2028bae66",
+      "cc1ee369-751d-4b74-87a4-a13a86f28777"
+    ],
+    "platform": "any",
+    "difficulty": "high",
+    "goal": "Run the Styio Coding Agent full regression exactly once and record independent evidence for REQ-AGENT-001 through REQ-AGENT-009.",
+    "description": "Scope: validation and evidence recording only; source defects return to their owning implementation lifecycle. Context: focused suites prove modules, while release acceptance must prove one standalone and IDE-attached product across providers, context, tools/policy, coding-loop tasks, crash recovery, parallel worktrees, security, and budgets on one commit. Target: execute Validation.md's coding-agent/full suite once, record schema/fixture/platform/content digests and one outcome per requirement, then sync and validate Better Plan state. Design Considerations: use deterministic fake providers and controlled hosts for the release floor; exercise the real IDE/Agent process boundary without rerunning the IDE full suite. Design Value: objective task/effect facts replace accumulated unit claims or natural-language self-assessment. Constraints & Risks: missing fixtures, skipped adversarial cases, unavailable protocol integration, or exceeded budgets are blocked/failing outcomes; final validation does not implement repairs.",
+    "requirements": [
+      "REQ-AGENT-001",
+      "REQ-AGENT-002",
+      "REQ-AGENT-003",
+      "REQ-AGENT-004",
+      "REQ-AGENT-005",
+      "REQ-AGENT-006",
+      "REQ-AGENT-007",
+      "REQ-AGENT-008",
+      "REQ-AGENT-009"
+    ],
+    "design": {
+      "artifact": "docs/plan/styio-coding-agent/Validation.md",
+      "owned_paths": [
+        "docs/plan/styio-coding-agent/Checkpoints.json",
+        "scripts/styio_quality.py"
+      ],
+      "scaffold_paths": [
+        "scripts/styio_quality.py"
+      ],
+      "acceptance_paths": [
+        "docs/plan/styio-coding-agent/Validation.md",
+        "tests/acceptance/styio_coding_agent/coding_loop_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/context_engine_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/final_fingerprint_acceptance_test.py",
+        "tests/acceptance/styio_coding_agent/full_runner_acceptance_test.py",
+        "tests/acceptance/styio_coding_agent/headless_runtime_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/multi_agent_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/protocol_release_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/provider_runtime_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/pure_release_evaluation_acceptance_test.py",
+        "tests/acceptance/styio_coding_agent/session_recovery_acceptance_test.dart",
+        "tests/acceptance/styio_coding_agent/tool_policy_acceptance_test.dart"
+      ],
+      "symbols": [],
+      "interfaces": [],
+      "dependencies": [
+        {
+          "from": "scripts/styio_quality.py",
+          "to": "docs/plan/styio-coding-agent/Checkpoints.json",
+          "reason": "The fixed full-suite receipt supplies final requirement evidence."
+        }
+      ],
+      "decisions": {
+        "composition": "Final validation aggregates frozen focused contracts and executes one Coding Agent-wide suite.",
+        "algorithms": "Checks and deterministic evaluation cases run once in a fixed order on one head commit.",
+        "data_structures": "Per-requirement/case receipts retain outcome, allowed effects, budgets, schema, fixture, artifact, and content digests.",
+        "state": "Only this lifecycle may mark the full Coding Agent line validated.",
+        "isolation": "The real IDE integration uses the protocol boundary; IDE full regression is not repeated.",
+        "concurrency": "No implementation overlaps the full run and parallel fixtures use controlled worktrees/concurrency."
+      },
+      "test_seams": [
+        "Coding Agent full quality runner",
+        "deterministic release corpus",
+        "real Styio IDE protocol fixture"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "The one coding-agent/full suite passes on one head commit and records a traceable outcome for every REQ-AGENT-* label, including headless use, security, crash recovery, parallel worktrees, real IDE integration, and all budgets.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "1046ecf49d153f0aeb90ed7f1530cd856b831d20a1510852779d4e7a09809b4f",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T08:44:39Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "The canonical Better Plan status sync, workspace validation, and requirement-label checker pass with final evidence attached and no implementation work left in the Coding Agent plan.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "1046ecf49d153f0aeb90ed7f1530cd856b831d20a1510852779d4e7a09809b4f",
+            "exit_code": 0,
+            "recorded_at": "2026-07-26T08:44:39Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "docs(plan): record Styio Coding Agent final validation",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "full",
+      "commands": [
+        "python scripts/styio_quality.py --product coding-agent --suite full"
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "products/styio_coding_agent/benchmark",
+        "products/styio_coding_agent/bin",
+        "products/styio_coding_agent/fixtures",
+        "products/styio_coding_agent/integration_test",
+        "products/styio_coding_agent/lib",
+        "products/styio_coding_agent/test",
+        "products/styio_coding_agent/analysis_options.yaml",
+        "products/styio_coding_agent/pubspec.lock",
+        "products/styio_coding_agent/pubspec.yaml",
+        "packages/styio_agent_protocol/lib",
+        "packages/styio_agent_protocol/schema",
+        "packages/styio_agent_protocol/test",
+        "packages/styio_agent_protocol/analysis_options.yaml",
+        "packages/styio_agent_protocol/pubspec.lock",
+        "packages/styio_agent_protocol/pubspec.yaml",
+        "scripts/styio_quality.py",
+        "scripts/styio_validation_receipt.py",
+        "tests/acceptance/styio_coding_agent",
+        "docs/plan/styio-coding-agent/Requirements.md",
+        "docs/plan/styio-coding-agent/Architecture.md",
+        "docs/plan/styio-coding-agent/Validation.md"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-26T08:44:39Z",
+        "contract_digest": "d787f09382b3b6d21296ccc0799e3bcd50153d9aeb6c4bbf7d2eb14d741fad3c",
+        "content_fingerprint": "23e7423099944e34a77d42e2b15ee24e901cce28182e0c5e1fb545a2268e6d55"
+      }
+    },
+    "next": [],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 0,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-26T08:45:04Z",
+        "contract_digest": "d787f09382b3b6d21296ccc0799e3bcd50153d9aeb6c4bbf7d2eb14d741fad3c",
+        "content_fingerprint": "23e7423099944e34a77d42e2b15ee24e901cce28182e0c5e1fb545a2268e6d55"
+      },
+      "design_digest": "b33314d56fe650a12d6ffb732ca92c7a5885785eeb660e3e5cc2cae044b3f9f1",
+      "scaffold_fingerprint": "8fcb3228a8f2fb9221aafb575e76502810c41ea83b04bb1a4bc4c7c61869128f",
+      "acceptance_fingerprint": "34fbc526c66783d7e964f8e2305dfa3f9c2029e98187a614708fc0c82ba6df8b"
+    }
+  }
+]

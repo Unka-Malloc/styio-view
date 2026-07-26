@@ -319,8 +319,8 @@ Typical next steps:
   ./scripts/android-sdk-profile.sh build --profiles $ANDROID_PROFILES --parallel --artifact apk --mode debug
   ./scripts/apple-platform-profile.sh build --profiles ios-13,ios-15 --parallel --mode debug --simulator --no-codesign
   ./scripts/apple-platform-profile.sh build --profiles macos-10.15,macos-12 --parallel --mode debug
-  cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" analyze
-  cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" test
+  cd "$ROOT/products/styio_ide" && "\$FLUTTER_HOME/bin/flutter" analyze
+  cd "$ROOT/products/styio_ide" && "\$FLUTTER_HOME/bin/flutter" test
   cd "$ROOT/prototype" && STYIO_CHROME_PATH="$browser_bin" STYIO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
 EOF
 }

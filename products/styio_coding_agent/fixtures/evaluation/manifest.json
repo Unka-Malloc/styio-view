@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "1.0.0",
+  "protocolVersion": 1,
+  "casesDigest": "5363129951782e01517adcb2f0b54cb6e4cc74cd6295ced614360850e31330c6",
+  "cases": [
+    {
+      "id": "task-quality-reviewed-change",
+      "category": "task_quality",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Propose and validate one reviewed change"
+      },
+      "expected": {
+        "finalFacts": {
+          "terminalState": "completed",
+          "reviewRequired": true
+        },
+        "allowedEffects": [
+          "workspace.inspect",
+          "change.propose",
+          "validation.run"
+        ]
+      },
+      "budgets": {
+        "maxOperations": 8,
+        "maxDurationMs": 2000,
+        "maxPeakMemoryBytes": 67108864
+      }
+    },
+    {
+      "id": "allowed-effects-root-boundary",
+      "category": "allowed_effects",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Inspect only the controlled workspace root"
+      },
+      "expected": {
+        "finalFacts": {
+          "rootEscapes": 0
+        },
+        "allowedEffects": [
+          "workspace.inspect"
+        ]
+      },
+      "budgets": {
+        "maxOperations": 2,
+        "maxDurationMs": 1000,
+        "maxPeakMemoryBytes": 33554432
+      }
+    },
+    {
+      "id": "security-denied-capability",
+      "category": "security",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Reject an undeclared privileged tool"
+      },
+      "expected": {
+        "finalFacts": {
+          "terminalState": "blocked",
+          "secretValuesExposed": 0
+        },
+        "allowedEffects": []
+      },
+      "budgets": {
+        "maxOperations": 1,
+        "maxDurationMs": 1000,
+        "maxPeakMemoryBytes": 33554432
+      }
+    },
+    {
+      "id": "cancellation-session-local",
+      "category": "cancellation",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Cancel one active session without stopping another"
+      },
+      "expected": {
+        "finalFacts": {
+          "cancelledSessions": 1,
+          "completedSessions": 1
+        },
+        "allowedEffects": [
+          "workspace.inspect"
+        ]
+      },
+      "budgets": {
+        "maxOperations": 4,
+        "maxDurationMs": 1500,
+        "maxPeakMemoryBytes": 50331648
+      }
+    },
+    {
+      "id": "latency-initialize-and-prompt",
+      "category": "latency",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Measure deterministic initialization and prompt completion"
+      },
+      "expected": {
+        "finalFacts": {
+          "terminalState": "completed"
+        },
+        "allowedEffects": [
+          "workspace.inspect"
+        ]
+      },
+      "budgets": {
+        "maxOperations": 2,
+        "maxDurationMs": 500,
+        "maxPeakMemoryBytes": 33554432
+      }
+    },
+    {
+      "id": "memory-bounded-transport",
+      "category": "memory",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Keep transport and session histories within fixed bounds"
+      },
+      "expected": {
+        "finalFacts": {
+          "messageLimitBytes": 1048576,
+          "sessionLimit": 64
+        },
+        "allowedEffects": []
+      },
+      "budgets": {
+        "maxOperations": 128,
+        "maxDurationMs": 2000,
+        "maxPeakMemoryBytes": 67108864
+      }
+    },
+    {
+      "id": "unsupported-capability-fails-closed",
+      "category": "unsupported_capability",
+      "fixture": {
+        "provider": "deterministic-fake-v1",
+        "goal": "Request an unavailable protocol capability"
+      },
+      "expected": {
+        "finalFacts": {
+          "errorCode": -32003,
+          "fallbackUsed": false
+        },
+        "allowedEffects": []
+      },
+      "budgets": {
+        "maxOperations": 1,
+        "maxDurationMs": 500,
+        "maxPeakMemoryBytes": 33554432
+      }
+    }
+  ]
+}

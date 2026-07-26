@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FLUTTER_DIR_DEFAULT="$ROOT/frontend/vityo_app"
+FLUTTER_DIR_DEFAULT="$ROOT/products/styio_ide"
 OUT_DIR_DEFAULT="$ROOT/build/android-device-verification"
 WORK_DIR_DEFAULT="$ROOT/build/android-device-workspaces"
-PACKAGE_NAME_DEFAULT="io.vityo.app"
+PACKAGE_NAME_DEFAULT="io.styio.ide"
 
 PROFILE=""
 DEVICE_ID=""
@@ -35,7 +35,7 @@ Options:
   --flutter-dir <dir>      Flutter app directory
   --out-dir <dir>          Artifact output root
   --work-dir <dir>         Isolated workspace root
-  --package-name <name>    Android application id (default: io.vityo.app)
+  --package-name <name>    Android application id (default: io.styio.ide)
   --target-platform <csv>  Pass through Flutter --target-platform
   --build-only             Build the APK but skip adb install/launch
   --no-launch              Install the APK but skip app launch

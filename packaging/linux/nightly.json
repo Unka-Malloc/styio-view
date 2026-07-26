@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "platform": "linux",
+  "product": "styio_ide",
   "package_format": "deb",
-  "build_relative_path": "frontend/vityo_app/build/linux/x64/release/bundle",
-  "icon_relative_path": "frontend/vityo_app/web/icons/Icon-512.png",
+  "build_relative_path": "products/styio_ide/build/linux/x64/release/bundle",
+  "icon_relative_path": "products/styio_ide/web/icons/Icon-512.png",
   "installer_definition": "packaging/linux/DEBIAN/control",
   "signing": {"status": "explicit-gap", "reason": "Nightly Debian repository signing credentials are not configured."},
   "automatic_updates": false

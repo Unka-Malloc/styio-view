@@ -1,0 +1,62 @@
+{
+  "id": "fixture-refactor",
+  "goal": "Move the greeting value behind a small model API.",
+  "allowedResources": [
+    "lib/model.dart",
+    "lib/main.dart"
+  ],
+  "initial": {
+    "lib/model.dart": "const greeting = 'hello';",
+    "lib/main.dart": "String render() => greeting;"
+  },
+  "expected": {
+    "lib/model.dart": "String greeting() => 'hello';",
+    "lib/main.dart": "String render() => greeting();"
+  },
+  "steps": [
+    {
+      "id": "01-extract-api",
+      "title": "Expose the greeting through a function",
+      "prerequisites": [],
+      "ownedResources": [
+        "lib/model.dart"
+      ],
+      "acceptanceCriteria": [
+        "The model exposes a callable greeting API."
+      ],
+      "validations": [
+        {
+          "id": "analyze-model",
+          "kind": "analyze",
+          "scope": "lib/model.dart"
+        }
+      ],
+      "replacement": {
+        "lib/model.dart": "String greeting() => 'hello';"
+      }
+    },
+    {
+      "id": "02-update-caller",
+      "title": "Call the extracted greeting API",
+      "prerequisites": [
+        "01-extract-api"
+      ],
+      "ownedResources": [
+        "lib/main.dart"
+      ],
+      "acceptanceCriteria": [
+        "The renderer calls the greeting function."
+      ],
+      "validations": [
+        {
+          "id": "analyze-main",
+          "kind": "analyze",
+          "scope": "lib/main.dart"
+        }
+      ],
+      "replacement": {
+        "lib/main.dart": "String render() => greeting();"
+      }
+    }
+  ]
+}

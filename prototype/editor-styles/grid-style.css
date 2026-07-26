@@ -18,6 +18,10 @@ body[data-ui-style="grid"] {
   --grid-sidebar-width-closed: 0px;
   --grid-sidebar-width-open: 368px;
   --grid-sidebar-width: var(--grid-sidebar-width-closed);
+  --grid-project-sidebar-width-open: 288px;
+  --grid-project-sidebar-width-closed: 0px;
+  --grid-project-sidebar-width: var(--grid-project-sidebar-width-open);
+  --grid-chat-dock-messages-max-height: 168px;
   padding: 0;
 }
 
@@ -25,12 +29,16 @@ body.sidebar-open[data-ui-style="grid"] {
   --grid-sidebar-width: var(--grid-sidebar-width-open);
 }
 
+body:not(.project-sidebar-open)[data-ui-style="grid"] {
+  --grid-project-sidebar-width: var(--grid-project-sidebar-width-closed);
+}
+
 body[data-ui-style="grid"] .workspace-shell {
   width: auto;
   height: calc(100vh - var(--grid-page-head-height) - var(--grid-page-edge-bottom));
   max-height: calc(100vh - var(--grid-page-head-height) - var(--grid-page-edge-bottom));
   margin: 0 var(--grid-page-edge-x) var(--grid-page-edge-bottom);
-  grid-template-columns: minmax(0, 1fr) var(--grid-sidebar-width);
+  grid-template-columns: var(--grid-project-sidebar-width) minmax(0, 1fr) var(--grid-sidebar-width);
 }
 
 body[data-ui-style="grid"] #gridMainHead {
@@ -69,6 +77,15 @@ body[data-ui-style="grid"] .main-editor-card {
   padding: 0;
 }
 
+body.chat-dock-open[data-ui-style="grid"] .main-editor-card {
+  grid-template-rows: auto var(--grid-shell-section-gap) minmax(0, 1fr) var(--grid-shell-section-gap) auto;
+}
+
+body:not(.chat-dock-open)[data-ui-style="grid"] #gridChatDock,
+body:not(.chat-dock-open)[data-ui-style="grid"] #gridChatDockSpacer {
+  display: none;
+}
+
 /*
  * Grid keeps the open/close sidebar buttons on the same geometry by sharing
  * one top inset, one inline inset, one section gap, and one control height
@@ -77,7 +94,6 @@ body[data-ui-style="grid"] .main-editor-card {
 body[data-ui-style="grid"] #gridMainToolbar,
 body[data-ui-style="grid"] #gridDrawerHeader {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   align-items: stretch;
   width: 100%;
   height: var(--grid-shell-control-row-height);
@@ -85,6 +101,22 @@ body[data-ui-style="grid"] #gridDrawerHeader {
   padding-inline: var(--grid-shell-inline-inset);
   box-sizing: border-box;
   column-gap: var(--grid-shell-control-gap);
+}
+
+body[data-ui-style="grid"] #gridMainToolbar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+body[data-ui-style="grid"] #gridDrawerHeader {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+body[data-ui-style="grid"] #gridToolbarLeading,
+body[data-ui-style="grid"] #gridToolbarActions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  height: var(--grid-shell-control-row-height);
 }
 
 body[data-ui-style="grid"] #gridMainToolbarSpacer {
@@ -183,7 +215,9 @@ body[data-ui-style="grid"] #drawerPanelFiles {
 }
 
 body[data-ui-style="grid"] #gridToggleSidebar,
-body[data-ui-style="grid"] #gridCloseSidebar {
+body[data-ui-style="grid"] #gridCloseSidebar,
+body[data-ui-style="grid"] #gridToggleProjectSidebar,
+body[data-ui-style="grid"] #gridToggleChatDock {
   z-index: 3;
   width: var(--grid-shell-control-size);
   height: var(--grid-shell-control-size);
@@ -203,7 +237,9 @@ body[data-ui-style="grid"] #gridCloseSidebar {
 }
 
 body[data-ui-style="grid"] #gridToggleSidebar svg,
-body[data-ui-style="grid"] #gridCloseSidebar svg {
+body[data-ui-style="grid"] #gridCloseSidebar svg,
+body[data-ui-style="grid"] #gridToggleProjectSidebar svg,
+body[data-ui-style="grid"] #gridToggleChatDock svg {
   width: 18px;
   height: 18px;
 }
@@ -296,4 +332,253 @@ body[data-ui-style="grid"] #gridSideDrawer .drawer-tab.is-active {
 
 body[data-ui-style="grid"] #gridSideDrawer .workspace-action-row {
   padding: 2px 0;
+}
+
+/*
+ * IDE shell regions: left project sidebar (file tree) and bottom chat dock.
+ * Both follow the same geometry tokens as the toolbar / drawer: block-start
+ * inset on top, inline inset on the sides, section gap between header and body.
+ */
+body[data-ui-style="grid"] #gridProjectSidebar.grid-project-sidebar {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto var(--grid-shell-section-gap) minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+body[data-ui-style="grid"] #gridProjectSidebarHeader {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: var(--grid-shell-control-row-height);
+  margin-top: var(--grid-shell-block-start-inset);
+  padding-inline: var(--grid-shell-inline-inset);
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridProjectSidebarTitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+body[data-ui-style="grid"] #gridProjectSidebarHeaderSpacer {
+  height: var(--grid-shell-section-gap);
+  min-height: var(--grid-shell-section-gap);
+}
+
+body[data-ui-style="grid"] #gridProjectSidebarContent {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 var(--grid-shell-inline-inset) var(--grid-shell-block-start-inset);
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridProjectTreeMount {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridProjectTreeMount .drawer-panel {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  gap: 10px;
+}
+
+body[data-ui-style="grid"] #gridDrawerMount > .drawer-panel {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+body[data-ui-style="grid"] #gridProjectTreeMount .workspace-action-row {
+  padding: 2px 0;
+}
+
+body[data-ui-style="grid"] #gridChatDockSpacer {
+  height: var(--grid-shell-section-gap);
+  min-height: var(--grid-shell-section-gap);
+}
+
+body[data-ui-style="grid"] #gridChatDock {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  margin: 0 var(--grid-shell-inline-inset) var(--grid-shell-block-start-inset);
+  padding: 0;
+  box-sizing: border-box;
+  border: 1px var(--style-card-border-style) var(--style-card-border);
+  border-radius: var(--radius-ui);
+  background: rgba(255, 255, 255, 0.025);
+  overflow: hidden;
+}
+
+body[data-ui-style="grid"] #gridChatDockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  min-height: 40px;
+  padding-inline: 14px 8px;
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridChatDockHeader .grid-chat-dock-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+body[data-ui-style="grid"] #gridChatDockHeader .grid-chat-dock-title svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body[data-ui-style="grid"] #gridChatDockTitle {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+body[data-ui-style="grid"] #gridChatDockCollapse {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+}
+
+body[data-ui-style="grid"] #gridChatDockCollapse:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+body[data-ui-style="grid"] #gridChatDockCollapse svg {
+  width: 16px;
+  height: 16px;
+}
+
+body[data-ui-style="grid"] #gridChatMessages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  max-height: var(--grid-chat-dock-messages-max-height);
+  overflow-y: auto;
+  padding: 0 14px;
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridChatMessages:empty {
+  padding: 0;
+}
+
+body[data-ui-style="grid"] .grid-chat-message {
+  max-width: 78%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] .grid-chat-message.is-user {
+  align-self: flex-end;
+  color: #201713;
+  background: linear-gradient(135deg, var(--accent), var(--accent-3));
+}
+
+body[data-ui-style="grid"] .grid-chat-message.is-assistant {
+  align-self: flex-start;
+  color: var(--text);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+body[data-ui-style="grid"] #gridChatInputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 14px 12px;
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridChatInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  resize: none;
+  max-height: 96px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.18);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+body[data-ui-style="grid"] #gridChatInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+body[data-ui-style="grid"] #gridChatSend {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  color: #201713;
+  background: linear-gradient(135deg, var(--accent), var(--accent-3));
+  cursor: pointer;
+}
+
+body[data-ui-style="grid"] #gridChatSend:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+body[data-ui-style="grid"] #gridChatSend svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

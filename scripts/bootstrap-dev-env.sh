@@ -321,8 +321,8 @@ Typical next steps:
   ./scripts/android-sdk-profile.sh list
   eval "\$(./scripts/android-sdk-profile.sh env $ANDROID_DEFAULT_PROFILE)"
   ./scripts/android-sdk-profile.sh build --profiles $ANDROID_PROFILES --parallel --artifact apk --mode debug
-  cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" analyze
-  cd "$ROOT/frontend/vityo_app" && "\$FLUTTER_HOME/bin/flutter" test
+  cd "$ROOT/products/styio_ide" && "\$FLUTTER_HOME/bin/flutter" analyze
+  cd "$ROOT/products/styio_ide" && "\$FLUTTER_HOME/bin/flutter" test
   cd "$ROOT/prototype" && STYIO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
 EOF
 }

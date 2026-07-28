@@ -15,13 +15,13 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L3 — Product Workflow (command palette, quick open, navigation, surface routing all wired through shell)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/commands/app_commands.dart",
-        "frontend/vityo_app/lib/src/view_ide/commands/command_palette.dart",
-        "frontend/vityo_app/lib/src/view_render/shell/"
+        "products/styio_ide/lib/src/view_ide/commands/app_commands.dart",
+        "products/styio_ide/lib/src/view_ide/commands/command_palette.dart",
+        "products/styio_ide/lib/src/view_render/shell/"
       ],
       "tests": [
-        "frontend/vityo_app/test/app_commands_test.dart",
-        "frontend/vityo_app/test/command_palette_test.dart"
+        "products/styio_ide/test/app_commands_test.dart",
+        "products/styio_ide/test/command_palette_test.dart"
       ],
       "knownGaps": [
         "Agent-visible command filtering newly added (needs integration test)",
@@ -35,14 +35,14 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L3 — Product Workflow (document model, selection, undo/redo, keyboard editing, visual substitution toggle exist; large-file policy documented)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/editor/document/",
-        "frontend/vityo_app/lib/src/view_ide/editor/selection/",
-        "frontend/vityo_app/lib/src/view_ide/editor/controller/",
-        "frontend/vityo_app/lib/src/view_ide/editor/render_plan/",
+        "products/styio_ide/lib/src/view_ide/editor/document/",
+        "products/styio_ide/lib/src/view_ide/editor/selection/",
+        "products/styio_ide/lib/src/view_ide/editor/controller/",
+        "products/styio_ide/lib/src/view_ide/editor/render_plan/",
         "prototype/editor-modules/glyph-presets.js"
       ],
       "tests": [
-        "frontend/vityo_app/test/editor_controller_editing_test.dart"
+        "products/styio_ide/test/editor_controller_editing_test.dart"
       ],
       "knownGaps": [
         "Multi-cursor not implemented",
@@ -56,20 +56,20 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L2-L3 — Contract-backed diagnostics, stale-revision rejection, capability gap model; workspace features exist with upstream-blocked status for rename/code-actions/formatting",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/language/language_contract.dart",
-        "frontend/vityo_app/lib/src/view_ide/language/diagnostic_revision_gate.dart",
-        "frontend/vityo_app/lib/src/view_ide/language/styio_syntax_highlighter.dart",
-        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_problems.dart",
-        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_code_actions.dart",
-        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_rename.dart",
-        "frontend/vityo_app/lib/src/view_ide/workspace/workspace_reference_search.dart",
+        "products/styio_ide/lib/src/view_ide/language/language_contract.dart",
+        "products/styio_ide/lib/src/view_ide/language/diagnostic_revision_gate.dart",
+        "products/styio_ide/lib/src/view_ide/language/styio_syntax_highlighter.dart",
+        "products/styio_ide/lib/src/view_ide/workspace/workspace_problems.dart",
+        "products/styio_ide/lib/src/view_ide/workspace/workspace_code_actions.dart",
+        "products/styio_ide/lib/src/view_ide/workspace/workspace_rename.dart",
+        "products/styio_ide/lib/src/view_ide/workspace/workspace_reference_search.dart",
         "docs/contracts/LanguageServiceAdapter.md"
       ],
       "tests": [
-        "frontend/vityo_app/test/diagnostic_revision_gate_test.dart",
-        "frontend/vityo_app/test/workspace_problems_test.dart",
-        "frontend/vityo_app/test/styio_language_service_smoke_test.dart",
-        "frontend/vityo_app/test/styio_syntax_diagnostic_feature_test.dart"
+        "products/styio_ide/test/diagnostic_revision_gate_test.dart",
+        "products/styio_ide/test/workspace_problems_test.dart",
+        "products/styio_ide/test/styio_language_service_smoke_test.dart",
+        "products/styio_ide/test/styio_syntax_diagnostic_feature_test.dart"
       ],
       "knownGaps": [
         "Rename safety blocked on upstream StyioService",
@@ -85,15 +85,15 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L2-L3 — Contract-backed project graph snapshot, canonical file inference, four-layer workspace display; Agent-context serialization newly added",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart",
-        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_adapter.dart",
-        "frontend/vityo_app/lib/src/view_ide/workspace/",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+        "products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph_contract.dart",
+        "products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph_adapter.dart",
+        "products/styio_ide/lib/src/view_ide/workspace/",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_context.dart",
         "docs/contracts/ProjectGraphAdapter.md"
       ],
       "tests": [
-        "frontend/vityo_app/test/project_graph_adapter_test.dart",
-        "frontend/vityo_app/test/agent_context_test.dart"
+        "products/styio_ide/test/project_graph_adapter_test.dart",
+        "products/styio_ide/test/agent_context_test.dart"
       ],
       "knownGaps": [
         "Canonical-file vs hosted-payload source marking not per-field",
@@ -107,21 +107,21 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L3 — Product Workflow (execution adapter, runtime event adapter, four workflow lanes, replay summary, lane summaries wired through shell)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter.dart",
-        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart",
-        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/execution_route_summary.dart",
-        "frontend/vityo_app/lib/src/view_ide/runtime/runtime_replay_summary.dart",
-        "frontend/vityo_app/lib/src/view_ide/shell_runtime/shell_runtime_model.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+        "products/styio_ide/lib/src/view_ide/backend_toolchain/execution_adapter.dart",
+        "products/styio_ide/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart",
+        "products/styio_ide/lib/src/view_ide/backend_toolchain/execution_route_summary.dart",
+        "products/styio_ide/lib/src/view_ide/runtime/runtime_replay_summary.dart",
+        "products/styio_ide/lib/src/view_ide/shell_runtime/shell_runtime_model.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_context.dart",
         "docs/contracts/ExecutionAdapter.md",
         "docs/contracts/RuntimeEventAdapter.md"
       ],
       "tests": [
-        "frontend/vityo_app/test/execution_adapter_test.dart",
-        "frontend/vityo_app/test/execution_route_summary_test.dart",
-        "frontend/vityo_app/test/runtime_surfaces_test.dart",
-        "frontend/vityo_app/test/runtime_replay_summary_test.dart",
-        "frontend/vityo_app/test/agent_context_test.dart"
+        "products/styio_ide/test/execution_adapter_test.dart",
+        "products/styio_ide/test/execution_route_summary_test.dart",
+        "products/styio_ide/test/runtime_surfaces_test.dart",
+        "products/styio_ide/test/runtime_replay_summary_test.dart",
+        "products/styio_ide/test/agent_context_test.dart"
       ],
       "knownGaps": [
         "Structured blocked reasons for ambiguous/missing target implicit in execution adapter",
@@ -137,16 +137,16 @@
       "benchmarkPeers": ["codex", "opencode"],
       "currentStatus": "L2 — Contract-backed (AgentContextSnapshot, AgentContextScope, AgentRedactionPolicy, AgentActionPlan, AgentWorkspaceEditApplication, AgentSettings with local-only/provider-missing modes; no real provider call)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_settings.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_session.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_profile.dart"
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_context.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_settings.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_session.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_profile.dart"
       ],
       "tests": [
-        "frontend/vityo_app/test/agent_context_test.dart",
-        "frontend/vityo_app/test/agent_settings_test.dart",
-        "frontend/vityo_app/test/agent_profile_test.dart",
-        "frontend/vityo_app/test/agent_session_test.dart"
+        "products/styio_ide/test/agent_context_test.dart",
+        "products/styio_ide/test/agent_settings_test.dart",
+        "products/styio_ide/test/agent_profile_test.dart",
+        "products/styio_ide/test/agent_session_test.dart"
       ],
       "knownGaps": [
         "Real AI provider HTTP call not implemented",
@@ -161,13 +161,13 @@
       "benchmarkPeers": ["vscode"],
       "currentStatus": "L2-L3 — Contract-backed module lifecycle, manifest, registry, capability matrix exist; real package download/staging/activation not yet implemented",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/module_host/module_lifecycle.dart",
-        "frontend/vityo_app/lib/src/view_ide/module_host/module_manifest.dart",
-        "frontend/vityo_app/lib/src/view_ide/module_host/module_registry.dart",
-        "frontend/vityo_app/lib/src/view_ide/module_host/module_capability_matrix.dart"
+        "products/styio_ide/lib/src/view_ide/module_host/module_lifecycle.dart",
+        "products/styio_ide/lib/src/view_ide/module_host/module_manifest.dart",
+        "products/styio_ide/lib/src/view_ide/module_host/module_registry.dart",
+        "products/styio_ide/lib/src/view_ide/module_host/module_capability_matrix.dart"
       ],
       "tests": [
-        "frontend/vityo_app/test/module_lifecycle_test.dart"
+        "products/styio_ide/test/module_lifecycle_test.dart"
       ],
       "knownGaps": [
         "Real package download/staging/activation path not implemented",
@@ -180,10 +180,10 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L1 — Local Model (adapter contract, snapshot model, capability-gap-safe; no real git execution)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/workspace/source_control_adapter.dart"
+        "products/styio_ide/lib/src/view_ide/workspace/source_control_adapter.dart"
       ],
       "tests": [
-        "frontend/vityo_app/test/source_control_adapter_test.dart"
+        "products/styio_ide/test/source_control_adapter_test.dart"
       ],
       "knownGaps": [
         "No real git integration (by design — requires permission model and approval flow)",
@@ -197,16 +197,16 @@
       "benchmarkPeers": ["vscode", "intellij-community"],
       "currentStatus": "L2 — Contract-backed (VityoSettingsSchema with migration, EditorSettings with visualSubstitutionEnabled toggle, AgentSettings with local-only/provider-missing modes, VityoProfileSnapshot with local-first support, secret redaction)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_settings.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_profile.dart",
-        "frontend/vityo_app/lib/src/view_render/theme/",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_settings.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_profile.dart",
+        "products/styio_ide/lib/src/view_render/theme/",
         "prototype/editor-modules/theme-presets.js"
       ],
       "tests": [
-        "frontend/vityo_app/test/agent_settings_test.dart",
-        "frontend/vityo_app/test/agent_profile_test.dart",
-        "frontend/vityo_app/test/settings_surface_test.dart",
-        "frontend/vityo_app/test/vityo_theme_test.dart"
+        "products/styio_ide/test/agent_settings_test.dart",
+        "products/styio_ide/test/agent_profile_test.dart",
+        "products/styio_ide/test/settings_surface_test.dart",
+        "products/styio_ide/test/vityo_theme_test.dart"
       ],
       "knownGaps": [
         "Theme editor UI not implemented",
@@ -220,14 +220,14 @@
       "benchmarkPeers": ["codex", "opencode"],
       "currentStatus": "L2 — Contract-backed (AgentRedactionPolicy, AgentPermissionLevel via PermissionRequestScope, AgentAuditEvent, secret redaction in AgentSettings.toDisplayJson and VityoProfileSnapshot.toAgentSafeJson)",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_settings.dart",
-        "frontend/vityo_app/lib/src/view_ide/agent/agent_session.dart"
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_context.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_settings.dart",
+        "products/styio_ide/lib/src/view_ide/agent_client/agent_session.dart"
       ],
       "tests": [
-        "frontend/vityo_app/test/agent_context_test.dart",
-        "frontend/vityo_app/test/agent_settings_test.dart",
-        "frontend/vityo_app/test/agent_session_test.dart"
+        "products/styio_ide/test/agent_context_test.dart",
+        "products/styio_ide/test/agent_settings_test.dart",
+        "products/styio_ide/test/agent_session_test.dart"
       ],
       "knownGaps": [
         "Real provider secret injection not implemented",
@@ -241,13 +241,13 @@
       "benchmarkPeers": ["vscode"],
       "currentStatus": "L2-L3 — Contract-backed platform target model, hosted workspace record, hosted control plane client, cloud adapter routes exist; cross-platform matrix validation incomplete",
       "implementationAnchors": [
-        "frontend/vityo_app/lib/src/view_ide/platform/platform_target.dart",
-        "frontend/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart",
-        "frontend/vityo_app/lib/src/view_ide/workspace/hosted_workspace_document_store.dart"
+        "products/styio_ide/lib/src/view_ide/platform/platform_target.dart",
+        "products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart",
+        "products/styio_ide/lib/src/view_ide/workspace/hosted_workspace_document_store.dart"
       ],
       "tests": [
-        "frontend/vityo_app/test/hosted_control_plane_client_test.dart",
-        "frontend/vityo_app/test/viewport_profile_test.dart"
+        "products/styio_ide/test/hosted_control_plane_client_test.dart",
+        "products/styio_ide/test/viewport_profile_test.dart"
       ],
       "knownGaps": [
         "Cross-platform matrix validation incomplete",
@@ -262,11 +262,11 @@
       "currentStatus": "L1-L2 — Local Model (interaction quality bar documented; no automated overflow detection; no latency measurement baseline; no screen-reader verification)",
       "implementationAnchors": [
         "docs/design/Vityo-IDE-Interaction-Quality-Bar.md",
-        "frontend/vityo_app/lib/src/view_render/platform/",
-        "frontend/vityo_app/lib/src/view_render/shell/"
+        "products/styio_ide/lib/src/view_render/platform/",
+        "products/styio_ide/lib/src/view_render/shell/"
       ],
       "tests": [
-        "frontend/vityo_app/test/viewport_profile_test.dart"
+        "products/styio_ide/test/viewport_profile_test.dart"
       ],
       "knownGaps": [
         "No automated overflow detection widget test",

@@ -1,14 +1,14 @@
 {
   "version": 1,
-  "last_updated": "2026-06-28",
-  "canonical_entry": "editor.html",
+  "last_updated": "2026-07-26",
+  "canonical_entry": null,
   "entries": [
     {
       "path": "editor.html",
-      "status": "canonical",
+      "status": "draft",
       "owner": "Shell / Editor",
-      "validation": "npm run selftest:editor",
-      "notes": "Current focused Web Editor surface. Product-facing prototype behavior starts here."
+      "validation": "npm run selftest:editor (archived gate, kept green for reference)",
+      "notes": "Draft archive of the former focused Web Editor surface. No longer maintained; the Flutter app (frontend/vityo_app) is the default client."
     },
     {
       "path": "index.html",

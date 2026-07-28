@@ -16,7 +16,7 @@ jobs:
       STYIO_PYTHON_VERSION: "3.13.5"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -81,9 +81,9 @@ jobs:
         working-directory: vityo-nightly
         run: python3 scripts/check_architecture_boundaries.py
 
-      - name: Compatibility facade gate
+      - name: Product-line boundary gate
         working-directory: vityo-nightly
-        run: python3 scripts/check_compat_facades.py
+        run: python3 scripts/check_product_line_boundaries.py
 
       - name: Security baseline gate
         working-directory: vityo-nightly

@@ -240,7 +240,7 @@ def main():
     # Default directories
     source_dirs = args.dir or [
         os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                     "frontend", "vityo_app", "lib"),
+                     "products", "styio_ide", "lib"),
     ]
 
     scanner = ON2Scanner(source_dirs)

@@ -1,10 +1,11 @@
 # Workbench Shell Surfaces Contract
 
-**Purpose:** Define the workbench shell surface, layout, focus, command routing, capability, and responsive behavior contract for the current Vityo IDE shell.
+**Purpose:** Define the workbench shell surface, layout, focus, command routing, capability, and responsive behavior contract for the current Styio IDE shell.
 
-**Owner:** `frontend/vityo_app/lib/src/view_render/shell/` and `frontend/vityo_app/lib/src/view_ide/workbench/`
-**Last updated:** 2026-06-29
-**Checkpoint node:** `25682787-9c3d-4320-8ca2-d54944d312a0` (Workbench Shell Surfaces contract, `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json`)
+**Owner:** `products/styio_ide/lib/src/view_render/shell/` and `products/styio_ide/lib/src/view_ide/workbench/`
+**Last updated:** 2026-07-26
+**Plan traceability:** [Styio IDE requirements](../plan/styio-ide/Requirements.md)
+`REQ-IDE-003`, `REQ-IDE-004`, and `REQ-IDE-008`
 
 ---
 
@@ -16,74 +17,74 @@ The following source files define the workbench shell surfaces, their layout, co
 
 | File | Role |
 |------|------|
-| `frontend/vityo_app/lib/src/view_render/shell/vityo_shell_scaffold.dart` | Top-level StatelessWidget that assembles the shell: `_TopBar`, `_DesktopShellBody`/`_MobileShellBody`, `_BottomSurfacePanel`, status bar, and command shortcut registration. Routes between desktop (Row-layout) and mobile (ListView-stacked) through `LayoutBuilder` and `resolveViewportProfile`. |
-| `frontend/vityo_app/lib/src/view_render/shell/shell_model.dart` | `ShellModel` extends `ShellRuntimeModel`; owns `shellLayoutPreferenceController`, active `BottomSurfaceTab`, and command-to-tab routing in `executeCommand()`. |
-| `frontend/vityo_app/lib/src/view_render/shell/shell_scope.dart` | `ShellScope` (InheritedNotifier<ShellModel>) provides shell-wide access without widget-level prop drilling. |
-| `frontend/vityo_app/lib/src/view_render/shell/shell_layout_plan.dart` | `ShellLayoutPlan`, `ShellLayoutPreferenceController`, `ShellPanelDescriptor`, `ShellPanelContribution`, `ShellPanelContributionRegistry`. Defines the 5 layout regions, bottom-tab panel catalog (27 tabs), mobile/desktop mode selection, serialization/deserialization. |
-| `frontend/vityo_app/lib/src/view_render/shell/hosted_workspace_lifecycle_banner.dart` | Hosted workspace close-guard banner for cloud workspaces. |
+| `products/styio_ide/lib/src/view_render/shell/vityo_shell_scaffold.dart` | Top-level StatelessWidget that assembles the shell: `_TopBar`, `_DesktopShellBody`/`_MobileShellBody`, `_BottomSurfacePanel`, status bar, and command shortcut registration. Routes between desktop (Row-layout) and mobile (ListView-stacked) through `LayoutBuilder` and `resolveViewportProfile`. |
+| `products/styio_ide/lib/src/view_render/shell/shell_model.dart` | `ShellModel` extends `ShellRuntimeModel`; owns `shellLayoutPreferenceController`, active `BottomSurfaceTab`, and command-to-tab routing in `executeCommand()`. |
+| `products/styio_ide/lib/src/view_render/shell/shell_scope.dart` | `ShellScope` (InheritedNotifier<ShellModel>) provides shell-wide access without widget-level prop drilling. |
+| `products/styio_ide/lib/src/view_render/shell/shell_layout_plan.dart` | `ShellLayoutPlan`, `ShellLayoutPreferenceController`, `ShellPanelDescriptor`, `ShellPanelContribution`, `ShellPanelContributionRegistry`. Defines the 5 layout regions, bottom-tab panel catalog (27 tabs), mobile/desktop mode selection, serialization/deserialization. |
+| `products/styio_ide/lib/src/view_render/shell/hosted_workspace_lifecycle_banner.dart` | Hosted workspace close-guard banner for cloud workspaces. |
 
 ### Layout and app shell
 
 | File | Role |
 |------|------|
-| `frontend/vityo_app/lib/src/app/layout/vityo_shell_scaffold.dart` | App-level scaffold with `AppCommandIntent`/`AppCommandShortcutRegistry` bindings. |
-| `frontend/vityo_app/lib/src/app/commands/app_commands.dart` | Flutter Intent/Shortcut registration: `AppCommandIntent`, `AppCommandShortcutRegistry`. Re-exports from `view_ide/commands/`. |
+| `products/styio_ide/lib/src/app/layout/vityo_shell_scaffold.dart` | App-level scaffold with `AppCommandIntent`/`AppCommandShortcutRegistry` bindings. |
+| `products/styio_ide/lib/src/app/commands/app_commands.dart` | Flutter Intent/Shortcut registration: `AppCommandIntent`, `AppCommandShortcutRegistry`. Re-exports from `view_ide/commands/`. |
 
 ### Command palette
 
 | File | Role |
 |------|------|
-| `frontend/vityo_app/lib/src/view_ide/commands/command_palette.dart` | Pure-Dart `CommandPaletteService` -- scoring, matching, filtering, recent-rank boosting, blocked-reason support. |
-| `frontend/vityo_app/lib/src/view_ide/commands/command_palette_model.dart` | `CommandPaletteModel`, `CommandPaletteOverlayState`, `CommandPaletteInputDraft`, `CommandPaletteQueryState` -- overlay state machine for palette rendering. |
-| `frontend/vityo_app/lib/src/view_ide/commands/command_palette_recent_store.dart` | Persisted recent-command store through `FoundationDataStore`. |
-| `frontend/vityo_app/lib/src/view_ide/commands/command_keybinding_profile.dart` | `CommandKeybindingProfile`, `CommandKeybindingProfileStore`, conflict detection, shortcut parsing/display. |
-| `frontend/vityo_app/lib/src/view_ide/commands/extension_command_contributions.dart` | Dynamic command contributions from extension modules, merged with `StyioCommandRegistry`. |
-| `frontend/vityo_app/lib/src/view_ide/commands/app_commands.dart` | `AppCommandId` enum (80+ commands), `AppCommandDescriptor`, `StyioCommandRegistry` (canonical command catalog with labels, shortcuts, categories, target surfaces, side effects, permissions). |
-| `frontend/vityo_app/lib/src/view_render/commands/command_palette_surface.dart` | Flutter widget rendering the command palette overlay: query input, category filters, result list, input draft, keybinding editor, empty state. |
+| `products/styio_ide/lib/src/view_ide/commands/command_palette.dart` | Pure-Dart `CommandPaletteService` -- scoring, matching, filtering, recent-rank boosting, blocked-reason support. |
+| `products/styio_ide/lib/src/view_ide/commands/command_palette_model.dart` | `CommandPaletteModel`, `CommandPaletteOverlayState`, `CommandPaletteInputDraft`, `CommandPaletteQueryState` -- overlay state machine for palette rendering. |
+| `products/styio_ide/lib/src/view_ide/commands/command_palette_recent_store.dart` | Persisted recent-command store through `FoundationDataStore`. |
+| `products/styio_ide/lib/src/view_ide/commands/command_keybinding_profile.dart` | `CommandKeybindingProfile`, `CommandKeybindingProfileStore`, conflict detection, shortcut parsing/display. |
+| `products/styio_ide/lib/src/view_ide/commands/extension_command_contributions.dart` | Dynamic command contributions from extension modules, merged with `StyioCommandRegistry`. |
+| `products/styio_ide/lib/src/view_ide/commands/app_commands.dart` | `AppCommandId` enum (80+ commands), `AppCommandDescriptor`, `StyioCommandRegistry` (canonical command catalog with labels, shortcuts, categories, target surfaces, side effects, permissions). |
+| `products/styio_ide/lib/src/view_render/commands/command_palette_surface.dart` | Flutter widget rendering the command palette overlay: query input, category filters, result list, input draft, keybinding editor, empty state. |
 
 ### Capability and surface registry
 
 | File | Role |
 |------|------|
-| `frontend/vityo_app/lib/src/view_ide/workbench/ide_capability.dart` | `IdeCapabilityDomain`, `IdeCapabilityMaturity` (L0-L5), `IdeCapabilityAvailability`, `IdeCapabilityDescriptor`. |
-| `frontend/vityo_app/lib/src/view_ide/workbench/ide_capability_gap.dart` | `IdeCapabilityGap`, `IdeCapabilityGapReport` -- structured blocked reasons for missing capabilities. |
-| `frontend/vityo_app/lib/src/view_ide/workbench/ide_capability_registry.dart` | `IdeCapabilityRegistry`, `IdeCapabilitySnapshot`, `PlatformCapabilityFilter`. |
-| `frontend/vityo_app/lib/src/view_ide/workbench/surface_registry.dart` | `SurfaceRegistry`, `IdeSurfaceDescriptor`, `IdeSurfacePlacement` (primarySideBar, secondarySideBar, bottomPanel, editorAuxiliary, modal). |
-| `frontend/vityo_app/lib/src/view_ide/workbench/context_key_service.dart` | `ContextKeyService` -- typed context-key evaluation for surface visibility and command enablement. |
+| `products/styio_ide/lib/src/view_ide/workbench/ide_capability.dart` | `IdeCapabilityDomain`, `IdeCapabilityMaturity` (L0-L5), `IdeCapabilityAvailability`, `IdeCapabilityDescriptor`. |
+| `products/styio_ide/lib/src/view_ide/workbench/ide_capability_gap.dart` | `IdeCapabilityGap`, `IdeCapabilityGapReport` -- structured blocked reasons for missing capabilities. |
+| `products/styio_ide/lib/src/view_ide/workbench/ide_capability_registry.dart` | `IdeCapabilityRegistry`, `IdeCapabilitySnapshot`, `PlatformCapabilityFilter`. |
+| `products/styio_ide/lib/src/view_ide/workbench/surface_registry.dart` | `SurfaceRegistry`, `IdeSurfaceDescriptor`, `IdeSurfacePlacement` (primarySideBar, secondarySideBar, bottomPanel, editorAuxiliary, modal). |
+| `products/styio_ide/lib/src/view_ide/workbench/context_key_service.dart` | `ContextKeyService` -- typed context-key evaluation for surface visibility and command enablement. |
 
 ### Surface widgets (bottom-panel or sidebar surfaces)
 
 | File | Role |
 |------|------|
-| `frontend/vityo_app/lib/src/view_render/runtime/runtime_surface.dart` | Runtime/output bottom panel surface. |
-| `frontend/vityo_app/lib/src/view_render/runtime/debug_console_surface.dart` | Debug console bottom panel surface. |
-| `frontend/vityo_app/lib/src/view_render/terminal/terminal.dart` | Terminal bottom panel surface. |
-| `frontend/vityo_app/lib/src/view_render/editor/editor.dart` | Editor groups (central content area). |
-| `frontend/vityo_app/lib/src/view_render/search/search.dart` | Workspace search/replace surface. |
-| `frontend/vityo_app/lib/src/view_render/problems/problems.dart` | Diagnostics/problems surface. |
-| `frontend/vityo_app/lib/src/view_render/agent/agent.dart` | Agent activity surface. |
-| `frontend/vityo_app/lib/src/view_render/source_control/source_control.dart` | Source control changes surface. |
-| `frontend/vityo_app/lib/src/view_render/testing/testing.dart` | Testing results surface. |
-| `frontend/vityo_app/lib/src/view_render/extensions/extensions.dart` | Extensions management surface. |
-| `frontend/vityo_app/lib/src/view_render/settings/settings_surface.dart` | Settings panel. |
+| `products/styio_ide/lib/src/view_render/runtime/runtime_surface.dart` | Runtime/output bottom panel surface. |
+| `products/styio_ide/lib/src/view_render/runtime/debug_console_surface.dart` | Debug console bottom panel surface. |
+| `products/styio_ide/lib/src/view_render/terminal/terminal.dart` | Terminal bottom panel surface. |
+| `products/styio_ide/lib/src/view_render/editor/editor.dart` | Editor groups (central content area). |
+| `products/styio_ide/lib/src/view_render/search/search.dart` | Workspace search/replace surface. |
+| `products/styio_ide/lib/src/view_render/problems/problems.dart` | Diagnostics/problems surface. |
+| `products/styio_ide/lib/src/view_render/agent_workbench/agent.dart` | Agent activity surface. |
+| `products/styio_ide/lib/src/view_render/source_control/source_control.dart` | Source control changes surface. |
+| `products/styio_ide/lib/src/view_render/testing/testing.dart` | Testing results surface. |
+| `products/styio_ide/lib/src/view_render/extensions/extensions.dart` | Extensions management surface. |
+| `products/styio_ide/lib/src/view_render/settings/settings_surface.dart` | Settings panel. |
 
 ### Tests
 
 | File | Role |
 |------|------|
-| `frontend/vityo_app/test/shell_model_test.dart` | Shell model adapter dispatch, editor session persistence, toolchain recovery, command execution routing to tabs. |
-| `frontend/vityo_app/test/shell_no_overflow_test.dart` | No-overflow verification: desktop layout fixed-width regions, compact mode hides activity rail, every bottom tab maps to a bound panel, serialization roundtrip, viewport key stability. |
-| `frontend/vityo_app/test/shell_narrow_viewport_focus_test.dart` | Narrow viewport: compact hides activity-rail, desktop shows it, ListView vs Row, tab selection independent of viewport mode, panel visibility toggle, pinned state persistence, revision counting, focus model. |
-| `frontend/vityo_app/test/shell_layout_plan_test.dart` | Layout plan serialization roundtrip, panel descriptors, contribution registry. |
-| `frontend/vityo_app/test/shell_manager_test.dart` | Shell runtime prober and adapter tests (Linux, Windows, PowerShell, bash, cmd, fish shell planning). |
-| `frontend/vityo_app/test/shell_runtime_file_binding_test.dart` | File binding integration tests. |
-| `frontend/vityo_app/test/viewport_profile_test.dart` | ViewportProfile resolution: desktop platforms always desktop, mobile always mobile, web resolves by width. |
-| `frontend/vityo_app/test/command_palette_test.dart` | Pure-Dart CommandPaletteService tests: recent-rank boosting, label/id/shortcut scoring, blocked command filtering. |
-| `frontend/vityo_app/test/command_palette_surface_test.dart` | Widget tests: palette filters, executes on Enter, empty state, category filters, keyboard navigation, keybinding editor, conflict detection. |
-| `frontend/vityo_app/test/command_palette_model_test.dart` | CommandPaletteModel query scoring and overlay state. |
-| `frontend/vityo_app/test/command_palette_input_test.dart` | Input draft handling in command palette. |
-| `frontend/vityo_app/test/command_palette_recent_store_test.dart` | Recent-command persistence. |
-| `frontend/vityo_app/test/workbench_registry_test.dart` | SurfaceRegistry, IdeCapabilityRegistry, ContextKeyService -- registration, context evaluation, visibility filtering, manifest projection (metadata-only, no runtime closures). |
+| `products/styio_ide/test/shell_model_test.dart` | Shell model adapter dispatch, editor session persistence, toolchain recovery, command execution routing to tabs. |
+| `products/styio_ide/test/shell_no_overflow_test.dart` | No-overflow verification: desktop layout fixed-width regions, compact mode hides activity rail, every bottom tab maps to a bound panel, serialization roundtrip, viewport key stability. |
+| `products/styio_ide/test/shell_narrow_viewport_focus_test.dart` | Narrow viewport: compact hides activity-rail, desktop shows it, ListView vs Row, tab selection independent of viewport mode, panel visibility toggle, pinned state persistence, revision counting, focus model. |
+| `products/styio_ide/test/shell_layout_plan_test.dart` | Layout plan serialization roundtrip, panel descriptors, contribution registry. |
+| `products/styio_ide/test/shell_manager_test.dart` | Shell runtime prober and adapter tests (Linux, Windows, PowerShell, bash, cmd, fish shell planning). |
+| `products/styio_ide/test/shell_runtime_file_binding_test.dart` | File binding integration tests. |
+| `products/styio_ide/test/viewport_profile_test.dart` | ViewportProfile resolution: desktop platforms always desktop, mobile always mobile, web resolves by width. |
+| `products/styio_ide/test/command_palette_test.dart` | Pure-Dart CommandPaletteService tests: recent-rank boosting, label/id/shortcut scoring, blocked command filtering. |
+| `products/styio_ide/test/command_palette_surface_test.dart` | Widget tests: palette filters, executes on Enter, empty state, category filters, keyboard navigation, keybinding editor, conflict detection. |
+| `products/styio_ide/test/command_palette_model_test.dart` | CommandPaletteModel query scoring and overlay state. |
+| `products/styio_ide/test/command_palette_input_test.dart` | Input draft handling in command palette. |
+| `products/styio_ide/test/command_palette_recent_store_test.dart` | Recent-command persistence. |
+| `products/styio_ide/test/workbench_registry_test.dart` | SurfaceRegistry, IdeCapabilityRegistry, ContextKeyService -- registration, context evaluation, visibility filtering, manifest projection (metadata-only, no runtime closures). |
 
 ---
 
@@ -143,14 +144,14 @@ The following source files define the workbench shell surfaces, their layout, co
 
 | Consumer | What they consume | Contract boundary |
 |----------|-------------------|-------------------|
-| `frontend/vityo_app/lib/src/view_ide/workbench/workbench.dart` (barrel) | Exports all capability/surface/context models | Pure-Dart models consumed by `view_render` widgets; no Flutter dependency in models |
-| `frontend/vityo_app/lib/src/view_render/view_render.dart` (barrel) | Exports all shell, surface, editor, runtime, command-palette widgets | Widget layer owns rendering; delegates domain logic to `view_ide/models` |
-| `frontend/vityo_app/lib/src/app/commands/app_commands.dart` | `StyioCommandRegistry.commands` to shortcut registration, `AppCommandIntent` to key dispatch | Intent-layer bridge between Flutter `Shortcuts`/`Actions` and command execution |
-| `frontend/vityo_app/lib/src/app/layout/vityo_shell_scaffold.dart` | `AppCommandShortcutRegistry.shortcutIntents` to global key bindings | App-level widget that wraps the shell scaffold with shortcut dispatch |
-| `frontend/vityo_app/lib/src/view_ide/commands/extension_command_contributions.dart` | Merged command manifest | Extension commands enrich the static `StyioCommandRegistry` |
+| `products/styio_ide/lib/src/view_ide/workbench/workbench.dart` (barrel) | Exports all capability/surface/context models | Pure-Dart models consumed by `view_render` widgets; no Flutter dependency in models |
+| `products/styio_ide/lib/src/view_render/view_render.dart` (barrel) | Exports all shell, surface, editor, runtime, command-palette widgets | Widget layer owns rendering; delegates domain logic to `view_ide/models` |
+| `products/styio_ide/lib/src/app/commands/app_commands.dart` | `StyioCommandRegistry.commands` to shortcut registration, `AppCommandIntent` to key dispatch | Intent-layer bridge between Flutter `Shortcuts`/`Actions` and command execution |
+| `products/styio_ide/lib/src/app/layout/vityo_shell_scaffold.dart` | `AppCommandShortcutRegistry.shortcutIntents` to global key bindings | App-level widget that wraps the shell scaffold with shortcut dispatch |
+| `products/styio_ide/lib/src/view_ide/commands/extension_command_contributions.dart` | Merged command manifest | Extension commands enrich the static `StyioCommandRegistry` |
 | `docs/contracts/README.md` | Contract inventory index | Auto-indexed by `scripts/docs-index.py` |
-| `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json` node 8e002e19 | Consumes this contract to scope implementation | Implementation node must trace to all owned artifacts and satisfy all invariants |
-| `docs/plan/better-plan/workbench-shell-surfaces/Checkpoints.json` node 29aa8968 | Consumes implementation evidence to validate release readiness | Release gate requires passing tests, no duplicate paths, structured capability gaps |
+| `docs/plan/styio-ide/Checkpoints.json` requirements `REQ-IDE-003` and `REQ-IDE-004` | Consumes this contract for truthful developer facts and workbench behavior | Owning lifecycles trace to current shell artifacts and preserve structured capability gaps |
+| `docs/plan/styio-ide/Checkpoints.json` requirement `REQ-IDE-008` | Consumes focused evidence for final IDE validation | The IDE final lifecycle runs once after all implementation lifecycles close |
 
 ---
 

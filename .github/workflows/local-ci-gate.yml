@@ -26,7 +26,7 @@ jobs:
       VITYO_PRODUCT_GATE: "1"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -190,7 +190,7 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Vityo nightly Linux CI gate
+      - name: Run Styio IDE nightly Linux CI gate
         working-directory: vityo-nightly
         env:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
@@ -209,7 +209,7 @@ jobs:
           --skip-audit
 
       - name: Build native Linux release target
-        working-directory: vityo-nightly/frontend/vityo_app
+        working-directory: vityo-nightly/products/styio_ide
         run: flutter build linux --release
 
       - name: Prove native Linux PTY matrix
@@ -219,24 +219,27 @@ jobs:
           --platform linux
           --output build/evidence/native-pty-linux.json
 
-      - name: Package, install, and start Linux Nightly
+      - name: styio-ide-linux-package-smoke
         working-directory: vityo-nightly
         run: |
           "$PYTHON_BIN" scripts/package-nightly.py --platform linux
-          artifact="$(find build/nightly -maxdepth 1 -name 'vityo-nightly-linux-*.deb' -print -quit)"
+          artifact="$(find build/nightly -maxdepth 1 -name 'styio-ide-nightly-linux-*.deb' -print -quit)"
           test -n "$artifact"
           dpkg-deb --info "$artifact"
           sudo dpkg -i "$artifact"
-          xvfb-run -a vityo >build/nightly/linux-startup.log 2>&1 &
-          app_pid=$!
-          sleep 5
-          if ! kill -0 "$app_pid" 2>/dev/null; then
-            wait "$app_pid" || true
-            cat build/nightly/linux-startup.log
-            exit 1
-          fi
-          kill "$app_pid"
-          wait "$app_pid" || true
+          mkdir -p build/nightly/smoke-workspace
+          printf 'styio delivery smoke\n' >build/nightly/smoke-workspace/main.styio
+          commit="$(git rev-parse HEAD)"
+          source_fingerprint="$("$PYTHON_BIN" scripts/styio_quality.py \
+            --product ide --suite source-fingerprint)"
+          xvfb-run -a styio-ide --styio-delivery-smoke \
+            --workspace build/nightly/smoke-workspace \
+            --evidence build/nightly/linux-delivery.json \
+            --commit "$commit" \
+            --source-fingerprint "$source_fingerprint"
+          "$PYTHON_BIN" packaging/styio_ide/desktop_delivery.py \
+            --repo-root . --platform linux \
+            --evidence build/nightly/linux-delivery.json
 
       - name: Record pinned Linux product matrix evidence
         working-directory: vityo-nightly
@@ -258,7 +261,7 @@ jobs:
           name: vityo-coverage-reports-linux
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/products/styio_ide/coverage/lcov.info
             vityo-nightly/build/evidence/product-gate-linux.json
             vityo-nightly/build/evidence/native-pty-linux.json
             vityo-nightly/build/evidence/product-matrix-linux.json
@@ -284,7 +287,7 @@ jobs:
       VITYO_PRODUCT_GATE: "1"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -493,7 +496,7 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Vityo nightly Windows CI gate
+      - name: Run Styio IDE nightly Windows CI gate
         shell: bash
         working-directory: vityo-nightly
         env:
@@ -514,7 +517,7 @@ jobs:
 
       - name: Build native Windows release target
         shell: pwsh
-        working-directory: vityo-nightly\frontend\vityo_app
+        working-directory: vityo-nightly\products\styio_ide
         run: flutter build windows --release
 
       - name: Prove native Windows PTY matrix
@@ -525,22 +528,27 @@ jobs:
           --platform windows
           --output build/evidence/native-pty-windows.json
 
-      - name: Package, install, and start Windows Nightly
+      - name: styio-ide-windows-package-smoke
         shell: pwsh
         working-directory: vityo-nightly
         run: |
           python scripts/package-nightly.py --platform windows
-          $artifact = Get-ChildItem build/nightly/vityo-nightly-windows-*.zip | Select-Object -First 1
+          $artifact = Get-ChildItem build/nightly/styio-ide-nightly-windows-*.zip | Select-Object -First 1
           if (!$artifact) { throw "Windows Nightly archive was not created" }
-          $extractRoot = Join-Path $env:RUNNER_TEMP "vityo-nightly-package"
-          $installRoot = Join-Path $env:RUNNER_TEMP "vityo-nightly-installed"
+          $extractRoot = Join-Path $env:RUNNER_TEMP "styio-ide-nightly-package"
+          $installRoot = Join-Path $env:RUNNER_TEMP "styio-ide-nightly-installed"
           Expand-Archive -LiteralPath $artifact.FullName -DestinationPath $extractRoot -Force
-          $packageRoot = Join-Path $extractRoot "Vityo-Nightly"
+          $packageRoot = Join-Path $extractRoot "Styio-IDE-Nightly"
           & (Join-Path $packageRoot "install.ps1") -Source $packageRoot -Destination $installRoot
-          $process = Start-Process -FilePath (Join-Path $installRoot "vityo_app.exe") -WorkingDirectory $installRoot -WindowStyle Hidden -PassThru
-          Start-Sleep -Seconds 5
-          if ($process.HasExited) { throw "Installed Windows Nightly exited during startup probe with code $($process.ExitCode)" }
-          Stop-Process -Id $process.Id -Force
+          $smokeWorkspace = Join-Path $env:RUNNER_TEMP "styio-ide-smoke-workspace"
+          New-Item -ItemType Directory -Force -Path $smokeWorkspace | Out-Null
+          Set-Content -LiteralPath (Join-Path $smokeWorkspace "main.styio") -Value "styio delivery smoke"
+          $evidence = Join-Path $PWD "build/nightly/windows-delivery.json"
+          $commit = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          $sourceFingerprint = (python scripts/styio_quality.py --product ide --suite source-fingerprint).Trim()
+          $process = Start-Process -FilePath (Join-Path $installRoot "styio_ide.exe") -ArgumentList @("--styio-delivery-smoke", "--workspace", $smokeWorkspace, "--evidence", $evidence, "--commit", $commit, "--source-fingerprint", $sourceFingerprint) -WorkingDirectory $installRoot -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installed Windows Nightly smoke failed with code $($process.ExitCode)" }
+          python packaging/styio_ide/desktop_delivery.py --repo-root . --platform windows --evidence $evidence
           & (Join-Path $packageRoot "uninstall.ps1") -Destination $installRoot
 
       - name: Record pinned Windows product matrix evidence
@@ -564,7 +572,7 @@ jobs:
           name: vityo-coverage-reports-windows
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/products/styio_ide/coverage/lcov.info
             vityo-nightly/build/evidence/product-gate-windows.json
             vityo-nightly/build/evidence/native-pty-windows.json
             vityo-nightly/build/evidence/product-matrix-windows.json
@@ -590,7 +598,7 @@ jobs:
       VITYO_PRODUCT_GATE: "1"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -749,7 +757,7 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Vityo nightly macOS CI gate
+      - name: Run Styio IDE nightly macOS CI gate
         working-directory: vityo-nightly
         env:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
@@ -768,7 +776,7 @@ jobs:
           --skip-audit
 
       - name: Build native macOS release target
-        working-directory: vityo-nightly/frontend/vityo_app
+        working-directory: vityo-nightly/products/styio_ide
         run: flutter build macos --release
 
       - name: Prove native macOS PTY matrix
@@ -778,28 +786,32 @@ jobs:
           --platform macos
           --output build/evidence/native-pty-macos.json
 
-      - name: Package, install, and start macOS Nightly
+      - name: styio-ide-macos-package-smoke
         working-directory: vityo-nightly
         run: |
           "$PYTHON_BIN" scripts/package-nightly.py --platform macos
-          artifact="$(find build/nightly -maxdepth 1 -name 'vityo-nightly-macos-*.dmg' -print -quit)"
+          artifact="$(find build/nightly -maxdepth 1 -name 'styio-ide-nightly-macos-*.dmg' -print -quit)"
           test -n "$artifact"
           hdiutil verify "$artifact"
           mount_dir="$(mktemp -d)"
           install_dir="$(mktemp -d)"
           hdiutil attach "$artifact" -nobrowse -readonly -mountpoint "$mount_dir"
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true; rm -rf "$mount_dir" "$install_dir"' EXIT
-          cp -R "$mount_dir/Vityo Nightly.app" "$install_dir/Vityo Nightly.app"
-          "$install_dir/Vityo Nightly.app/Contents/MacOS/Vityo" >build/nightly/macos-startup.log 2>&1 &
-          app_pid=$!
-          sleep 5
-          if ! kill -0 "$app_pid" 2>/dev/null; then
-            wait "$app_pid" || true
-            cat build/nightly/macos-startup.log
-            exit 1
-          fi
-          kill "$app_pid"
-          wait "$app_pid" || true
+          cp -R "$mount_dir/Styio IDE Nightly.app" "$install_dir/Styio IDE Nightly.app"
+          mkdir -p build/nightly/smoke-workspace
+          printf 'styio delivery smoke\n' >build/nightly/smoke-workspace/main.styio
+          commit="$(git rev-parse HEAD)"
+          source_fingerprint="$("$PYTHON_BIN" scripts/styio_quality.py \
+            --product ide --suite source-fingerprint)"
+          "$install_dir/Styio IDE Nightly.app/Contents/MacOS/Styio IDE" \
+            --styio-delivery-smoke \
+            --workspace build/nightly/smoke-workspace \
+            --evidence build/nightly/macos-delivery.json \
+            --commit "$commit" \
+            --source-fingerprint "$source_fingerprint"
+          "$PYTHON_BIN" packaging/styio_ide/desktop_delivery.py \
+            --repo-root . --platform macos \
+            --evidence build/nightly/macos-delivery.json
           hdiutil detach "$mount_dir"
           trap - EXIT
           rm -rf "$mount_dir" "$install_dir"
@@ -824,7 +836,7 @@ jobs:
           name: vityo-coverage-reports-macos
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/products/styio_ide/coverage/lcov.info
             vityo-nightly/build/evidence/product-gate-macos.json
             vityo-nightly/build/evidence/native-pty-macos.json
             vityo-nightly/build/evidence/product-matrix-macos.json

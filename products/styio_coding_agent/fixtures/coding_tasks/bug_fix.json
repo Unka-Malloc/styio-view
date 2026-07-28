@@ -1,0 +1,44 @@
+{
+  "id": "fixture-bug-fix",
+  "goal": "Correct the synthetic addition implementation.",
+  "allowedResources": [
+    "lib/main.dart",
+    "test/main_test.dart"
+  ],
+  "initial": {
+    "lib/main.dart": "int add(int left, int right) => left - right;",
+    "test/main_test.dart": "expect(add(2, 3), 5);"
+  },
+  "expected": {
+    "lib/main.dart": "int add(int left, int right) => left + right;",
+    "test/main_test.dart": "expect(add(2, 3), 5);"
+  },
+  "steps": [
+    {
+      "id": "01-fix-addition",
+      "title": "Correct the addition operator",
+      "prerequisites": [],
+      "ownedResources": [
+        "lib/main.dart"
+      ],
+      "acceptanceCriteria": [
+        "The implementation returns the sum."
+      ],
+      "validations": [
+        {
+          "id": "analyze-main",
+          "kind": "analyze",
+          "scope": "lib/main.dart"
+        },
+        {
+          "id": "test-main",
+          "kind": "test",
+          "scope": "test/main_test.dart"
+        }
+      ],
+      "replacement": {
+        "lib/main.dart": "int add(int left, int right) => left + right;"
+      }
+    }
+  ]
+}

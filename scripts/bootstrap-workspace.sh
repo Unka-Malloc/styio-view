@@ -130,7 +130,7 @@ main() {
 
   if [[ $SKIP_PLATFORM_BOOTSTRAP -eq 0 ]]; then
     log "generating Flutter runners for platforms: $PLATFORMS"
-    app_root="$ROOT/frontend/vityo_app"
+    app_root="$ROOT/products/styio_ide"
     default_widget_test="$app_root/test/widget_test.dart"
     had_default_widget_test=0
     if [[ -e "$default_widget_test" ]]; then
@@ -140,8 +140,8 @@ main() {
       cd "$app_root"
       "$FLUTTER_BIN" create \
         --platforms="$PLATFORMS" \
-        --project-name=vityo_app \
-        --org=io.vityo \
+        --project-name=styio_ide \
+        --org=io.styio.ide \
         .
     )
     if [[ $had_default_widget_test -eq 0 && -e "$default_widget_test" ]]; then
@@ -157,7 +157,7 @@ main() {
   if [[ $SKIP_FLUTTER_PUB -eq 0 ]]; then
     log "installing Flutter package dependencies"
     (
-      cd "$ROOT/frontend/vityo_app"
+      cd "$ROOT/products/styio_ide"
       "$FLUTTER_BIN" pub get
     )
   fi

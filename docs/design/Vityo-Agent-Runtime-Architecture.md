@@ -1,4 +1,4 @@
-# Vityo Agent Runtime Architecture
+# Styio IDE Agent Runtime Architecture
 
 **Purpose:** Define Vityo's agent runtime architecture — how the agent core, provider routing, tool permission, patch workflow, and IDE surface are decoupled. Vityo's agent is IDE-integrated, not a standalone CLI agent.
 

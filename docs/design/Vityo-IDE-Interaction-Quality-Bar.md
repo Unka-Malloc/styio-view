@@ -1,4 +1,4 @@
-# Vityo IDE Interaction Quality Bar
+# Styio IDE Interaction Quality Bar
 
 **Purpose:** Define the minimum interaction quality baseline that Vityo must maintain to be a credible modern IDE. These are not aspirational targets — they are gated requirements.
 

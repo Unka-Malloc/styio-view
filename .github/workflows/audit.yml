@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
 
       - name: Set up standardized Python
@@ -41,5 +41,5 @@ jobs:
       - name: Architecture boundary gate
         run: python3 scripts/check_architecture_boundaries.py
 
-      - name: Compatibility facade gate
-        run: python3 scripts/check_compat_facades.py
+      - name: Product-line boundary gate
+        run: python3 scripts/check_product_line_boundaries.py

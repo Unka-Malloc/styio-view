@@ -2,7 +2,7 @@
 
 **Purpose:** 把外部 UX / accessibility / performance 基准转成 `Vityo` 的长期开发和维护准则。
 
-**Scope:** 覆盖 Flutter 主壳 `frontend/vityo_app/`、手写 Web IDE 原型 `prototype/editor.html` 线，以及两者之间需要保持一致的产品行为。
+**Scope:** 覆盖 Flutter 主壳 `products/styio_ide/`、手写 Web IDE 原型 `prototype/editor.html` 线，以及两者之间需要保持一致的产品行为。
 
 **Last updated:** 2026-04-16
 

@@ -11,7 +11,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-BENCHMARK_ROOT = Path("frontend/vityo_app/benchmark")
+BENCHMARK_ROOT = Path("products/styio_ide/benchmark")
 RUNNER_PATH = BENCHMARK_ROOT / "run_all_benchmarks.dart"
 PERFORMANCE_GATE_PATH = Path("scripts/performance-gate.py")
 REPO_HYGIENE_WORKFLOW_PATH = Path(".github/workflows/repo-hygiene.yml")

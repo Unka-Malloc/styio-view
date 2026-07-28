@@ -26,14 +26,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Directories to scan for public contracts
 SCAN_DIRS = [
-    "frontend/vityo_app/lib/src/view_ide/agent",
-    "frontend/vityo_app/lib/src/view_ide/runtime",
-    "frontend/vityo_app/lib/src/view_ide/workspace",
-    "frontend/vityo_app/lib/src/view_ide/workbench",
-    "frontend/vityo_app/lib/src/view_ide/language",
-    "frontend/vityo_app/lib/src/view_ide/debugger",
-    "frontend/vityo_app/lib/src/view_ide/module_host",
-    "frontend/vityo_app/lib/src/view_ide/commands",
+    "products/styio_ide/lib/src/view_ide/agent",
+    "products/styio_ide/lib/src/view_ide/runtime",
+    "products/styio_ide/lib/src/ide/workspace",
+    "products/styio_ide/lib/src/view_ide/workbench",
+    "products/styio_ide/lib/src/view_ide/language",
+    "products/styio_ide/lib/src/view_ide/debugger",
+    "products/styio_ide/lib/src/view_ide/module_host",
+    "products/styio_ide/lib/src/view_ide/commands",
 ]
 
 # Files to skip (store-layer, internal-only, or pure controllers)

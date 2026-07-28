@@ -81,11 +81,11 @@ flowchart TB
 | Cutover | Minimum gate |
 |---------|--------------|
 | 手写 Web Editor 主线 | `cd prototype && npm run selftest:editor`，必要时更新手写 Web IDE handbook |
-| Flutter 壳层或共享 UI 状态 | `cd frontend/vityo_app && flutter analyze && flutter test` |
+| Flutter 壳层或共享 UI 状态 | `cd products/styio_ide && flutter analyze && flutter test` |
 | adapter / schema / handoff 合同 | 更新 `docs/contracts/`、`docs/external/for-styio/`、`docs/external/for-pafio/` 与 `TEST-CATALOG` 对应映射 |
 | module lifecycle / distribution / capability | 更新 manifest、capability matrix、分发 schema 与测试目录条目 |
 | 文档结构或交付边界 | 更新相关 `README.md` / `INDEX.md` 并运行 `python3 scripts/repo-hygiene-gate.py --mode tracked` |
-| IDE architecture / compat façade | `python3 scripts/check_architecture_boundaries.py` 与 `python3 scripts/check_compat_facades.py` |
+| IDE architecture / 产品线边界 | `python3 scripts/check_architecture_boundaries.py` 与 `python3 scripts/check_product_line_boundaries.py` |
 | sandbox / agent / module security | `python3 scripts/check_security_baseline.py`，必要时同步安全治理文档 |
 | performance-sensitive IDE path | `python3 scripts/check_performance_budgets.py`，必要时运行 `python3 scripts/performance-gate.py --threshold 1.10` |
 | release / checkpoint rules | 更新 [../governance/RELEASE-CHECKLIST.md](../governance/RELEASE-CHECKLIST.md)，运行 `python3 scripts/release-readiness-gate.py --skip-build` |

@@ -21,6 +21,8 @@ export function createStyleShellBridge(doc) {
     sharedDrawerContent: doc.getElementById("sharedDrawerContent"),
     sharedDrawerListShell: doc.getElementById("sharedDrawerListShell"),
     sharedDrawerTabs: doc.getElementById("sharedDrawerTabs"),
+    drawerPanelFiles: doc.getElementById("drawerPanelFiles"),
+    drawerPanelSettings: doc.getElementById("drawerPanelSettings"),
     gridRefs: createGridShellRefs(doc),
     editorialRefs: createEditorialShellRefs(doc),
   };
@@ -53,8 +55,12 @@ export function syncStyleShellLayout(
   mountSharedDrawerContent({
     activeUiStyleKey,
     sharedDrawerContent: bridge.sharedDrawerContent,
+    sharedDrawerListShell: bridge.sharedDrawerListShell,
     gridDrawerMount: bridge.gridRefs.drawerMount,
     editorialDrawerMount: bridge.editorialRefs.drawerMount,
+    gridProjectTreeMount: bridge.gridRefs.projectTreeMount,
+    drawerPanelFiles: bridge.drawerPanelFiles,
+    drawerPanelSettings: bridge.drawerPanelSettings,
   });
   mountSharedDrawerTabs({
     activeUiStyleKey,

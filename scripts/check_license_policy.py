@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PUBSPEC = REPO_ROOT / "frontend/vityo_app/pubspec.yaml"
+PUBSPEC = REPO_ROOT / "products/styio_ide/pubspec.yaml"
 
 ALLOWED_DART_PACKAGES = {
     "flutter",

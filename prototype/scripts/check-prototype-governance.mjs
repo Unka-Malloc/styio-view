@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const root = path.resolve(__dirname, "..");
 const manifestPath = path.join(root, "prototype-manifest.json");
 const governancePath = path.join(root, "PROTOTYPE-GOVERNANCE.md");
-const allowedStatuses = new Set(["canonical", "style-experiment"]);
+const allowedStatuses = new Set(["canonical", "style-experiment", "draft"]);
 const allowedOwners = new Set(["Shell / Editor", "Theme / UX"]);
 
 function readJson(filePath) {
@@ -44,8 +44,11 @@ function validateManifest(manifest) {
   if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(manifest.last_updated || '')) {
     errors.push("prototype-manifest.json must include last_updated as YYYY-MM-DD");
   }
-  if (typeof manifest.canonical_entry !== "string" || !manifest.canonical_entry.endsWith(".html")) {
-    errors.push("prototype-manifest.json must include canonical_entry as a top-level HTML file");
+  if (
+    manifest.canonical_entry !== null &&
+    (typeof manifest.canonical_entry !== "string" || !manifest.canonical_entry.endsWith(".html"))
+  ) {
+    errors.push("prototype-manifest.json must include canonical_entry as null or a top-level HTML file");
   }
   if (!Array.isArray(manifest.entries)) {
     errors.push("prototype-manifest.json must include entries as an array");
@@ -107,8 +110,14 @@ function validateManifest(manifest) {
   if (extra.length) {
     errors.push(`manifest entries without matching HTML files: ${extra.join(', ')}`);
   }
-  if (canonicalEntries.length !== 1) {
-    errors.push(`prototype-manifest.json must declare exactly one canonical entry, found ${canonicalEntries.length}`);
+  if (canonicalEntries.length > 1) {
+    errors.push(`prototype-manifest.json must declare at most one canonical entry, found ${canonicalEntries.length}`);
+  } else if (manifest.canonical_entry === null) {
+    if (canonicalEntries.length !== 0) {
+      errors.push(`canonical_entry is null but a canonical manifest entry exists: ${canonicalEntries[0]}`);
+    }
+  } else if (canonicalEntries.length !== 1) {
+    errors.push(`prototype-manifest.json must declare exactly one canonical entry when canonical_entry is set, found ${canonicalEntries.length}`);
   } else if (canonicalEntries[0] !== manifest.canonical_entry) {
     errors.push(`canonical_entry must match the canonical manifest entry: ${canonicalEntries[0]}`);
   }

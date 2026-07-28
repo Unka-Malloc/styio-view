@@ -10,7 +10,7 @@ It is not a feature manager and it is not a compatibility implementation. Its on
 Current implementation anchor:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_detector/platform_detector.dart
+products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_detector/platform_detector.dart
 ```
 
 `PlatformDetector.detect()` composes all concrete prober outputs into a `PlatformContextSnapshot`. It does not store the snapshot and it does not create any manager.

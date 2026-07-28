@@ -6,7 +6,7 @@
 
 ## Mission
 
-Own the overall Vityo system architecture: layer boundaries, import rules, adapter contract schemas, architecture alignment with mainstream IDE patterns, architecture decision records (ADRs), and the implemented-decision summary. Enforce that view_ide doesn't import Flutter presentation, view_render doesn't import agent providers, and backend_toolchain stays a shim-only legacy facade.
+Own the overall Styio system architecture: layer boundaries, import rules, adapter contract schemas, architecture alignment with mainstream IDE patterns, architecture decision records (ADRs), and the implemented-decision summary. Enforce that `view_ide` does not import Flutter presentation, Coding Agent stays independent of IDE/Flutter implementation, and cross-product messages use the shared protocol.
 
 ## Owned Surface
 
@@ -21,7 +21,7 @@ Primary paths:
 8. `docs/governance/`
 9. `CODEOWNERS`
 10. `scripts/check_architecture_boundaries.py`
-11. `scripts/check_compat_facades.py`
+11. `scripts/check_product_line_boundaries.py`
 
 Key SSOTs:
 1. `架构对齐 -> ../design/Vityo-Mainstream-Architecture-Alignment.md`
@@ -40,7 +40,7 @@ Key SSOTs:
 5. Verify no competitor brand names enter UI-visible strings.
 6. Create standalone ADRs only for significant architectural decisions that still need direct review.
 7. When a decision is implemented and absorbed by code and owner SSOTs, compress the durable result into `docs/adr/IMPLEMENTED-DECISIONS.md` instead of leaving a stale plan or one-off ADR trail.
-8. Keep legacy `backend_toolchain/`, `editor/`, and `language/` roots as one-line compatibility facades only.
+8. Keep IDE, Coding Agent, and shared protocol in their final owner packages; never recreate removed forwarding roots.
 
 ## Change Classes
 
@@ -53,10 +53,10 @@ Key SSOTs:
 Minimum:
 ```bash
 python3 scripts/check_architecture_boundaries.py
-python3 scripts/check_compat_facades.py
+python3 scripts/check_product_line_boundaries.py
 python3 scripts/ide-product-parity-gate.py
-python3 scripts/vityo-ide-product-gate.py --mode checkpoint
-cd frontend/vityo_app && flutter analyze
+python3 scripts/styio-ide-product-gate.py --mode checkpoint
+cd products/styio_ide && flutter analyze
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

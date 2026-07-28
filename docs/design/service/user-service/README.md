@@ -91,7 +91,7 @@ The module may depend on DataStore and Configuration. DataStore must not depend 
 Target implementation path:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/service/user_service/
+products/styio_ide/lib/src/view_ide/service/user_service/
   local_profile/
   optional_login/
   profile_sync_adapter/

@@ -1,4 +1,4 @@
-# Vityo CODEOWNERS
+# Styio CODEOWNERS
 # Architecture domain owners with owned paths and required gates.
 # Last updated: 2026-06-24
 
@@ -12,51 +12,52 @@
 /scripts/check_architecture_boundaries.py                                  @architecture-owner
 /scripts/architecture_boundary_gate_test.py                                @architecture-owner
 
-# Agent domain: agent core, provider routing, tool permission, patch workflow
-/frontend/vityo_app/lib/src/view_ide/agent/                                @agent-owner
-/frontend/vityo_app/lib/src/agent/                                         @agent-owner
-/frontend/vityo_app/lib/src/view_render/agent/                             @agent-owner
+# Agent domain: standalone runtime, shared protocol, IDE client/workbench
+/products/styio_coding_agent/                                              @agent-owner
+/packages/styio_agent_protocol/                                            @agent-owner
+/products/styio_ide/lib/src/view_ide/agent_client/                         @agent-owner
+/products/styio_ide/lib/src/view_render/agent_workbench/                   @agent-owner
 /docs/design/Vityo-Agent-Runtime-Architecture.md                           @agent-owner
 /docs/teams/AGENT-RUNTIME-RUNBOOK.md                                       @agent-owner
 
 # Module host / extension domain: extension manifest, activation, isolation
-/frontend/vityo_app/lib/src/view_ide/module_host/                          @module-owner
-/frontend/vityo_app/assets/module_manifests/                               @module-owner
+/products/styio_ide/lib/src/view_ide/module_host/                          @module-owner
+/products/styio_ide/assets/module_manifests/                               @module-owner
 /docs/design/Vityo-Extension-And-Contribution-Model.md                     @module-owner
 /docs/teams/EXTENSION-MODULE-RUNBOOK.md                                    @module-owner
 
 # Adapter contracts domain: backend toolchain, integration, protocol contracts
-/frontend/vityo_app/lib/src/view_ide/backend_toolchain/                    @adapter-owner
-/frontend/vityo_app/lib/src/view_ide/language/contract/                    @adapter-owner
+/products/styio_ide/lib/src/view_ide/backend_toolchain/                    @adapter-owner
+/products/styio_ide/lib/src/view_ide/language/contract/                    @adapter-owner
 /docs/contracts/                                                            @adapter-owner
 /docs/design/Vityo-Protocol-And-Capability-Negotiation.md                  @adapter-owner
 /docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md                                   @adapter-owner
 
 # Editor / shell domain: editor core, shell scaffolding, prototype
-/frontend/vityo_app/lib/src/view_ide/editor/                               @editor-owner
-/frontend/vityo_app/lib/src/view_render/editor/                            @editor-owner
-/frontend/vityo_app/lib/src/view_render/shell/                             @editor-owner
+/products/styio_ide/lib/src/ide/editor/                               @editor-owner
+/products/styio_ide/lib/src/view_render/editor/                            @editor-owner
+/products/styio_ide/lib/src/view_render/shell/                             @editor-owner
 /prototype/                                                                 @editor-owner
 /docs/teams/SHELL-EDITOR-RUNBOOK.md                                        @editor-owner
 
 # Workspace domain: workspace model, document store, search, source control
-/frontend/vityo_app/lib/src/view_ide/workspace/                            @workspace-owner
+/products/styio_ide/lib/src/ide/workspace/                            @workspace-owner
 /docs/teams/COORDINATION-RUNBOOK.md                                        @workspace-owner
 
 # Workbench domain: IDE capability registry, surface registry, context keys
-/frontend/vityo_app/lib/src/view_ide/workbench/                            @workbench-owner
+/products/styio_ide/lib/src/view_ide/workbench/                            @workbench-owner
 /toolchain/vityo-ide-capability-baseline.json                               @workbench-owner
 /scripts/ide-product-parity-gate.py                                         @workbench-owner
-/scripts/vityo-ide-product-gate.py                                          @workbench-owner
+/scripts/styio-ide-product-gate.py                                          @workbench-owner
 
 # Theme / UX domain: theme system, platform viewport, visual design
-/frontend/vityo_app/lib/src/view_render/theme/                             @theme-owner
-/frontend/vityo_app/lib/src/view_render/platform/                          @theme-owner
+/products/styio_ide/lib/src/view_render/theme/                             @theme-owner
+/products/styio_ide/lib/src/view_render/platform/                          @theme-owner
 /docs/teams/THEME-UX-RUNBOOK.md                                            @theme-owner
 
 # Foundation / environment domain: datastore, system compat, bootstrap
-/frontend/vityo_app/lib/src/view_ide/foundation/                           @foundation-owner
-/frontend/vityo_app/lib/src/view_ide/environment/                          @foundation-owner
+/products/styio_ide/lib/src/view_ide/foundation/                           @foundation-owner
+/products/styio_ide/lib/src/view_ide/environment/                          @foundation-owner
 /docs/teams/DOCS-DELIVERY-RUNBOOK.md                                       @foundation-owner
 
 # Governance: API compatibility, security, supply chain
@@ -64,7 +65,7 @@
 /SECURITY.md                                                                @governance-owner
 /.github/pull_request_template.md                                           @governance-owner
 /docs/governance/                                                           @governance-owner
-/scripts/check_compat_facades.py                                            @governance-owner
+/scripts/check_product_line_boundaries.py                                   @governance-owner
 /scripts/check_security_baseline.py                                         @governance-owner
 /scripts/check_performance_budgets.py                                       @governance-owner
 /scripts/release-readiness-gate.py                                          @governance-owner

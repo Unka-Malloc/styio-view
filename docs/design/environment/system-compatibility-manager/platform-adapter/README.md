@@ -10,7 +10,7 @@ It is not a feature layer and it does not execute platform operations. Its job i
 Current implementation anchor:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_adapter/platform_adapter.dart
+products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_adapter/platform_adapter.dart
 ```
 
 ## 1. Position

@@ -115,7 +115,7 @@ Do not use local fallback capability as evidence that the upstream StyioService 
 ## 4. Current Implementation Anchors
 
 ```text
-frontend/vityo_app/lib/src/view_ide/language/service/
+products/styio_ide/lib/src/view_ide/language/service/
   language_service_foundation.dart
   legacy_project_document_rule_provider.dart
   current_project_document_rule_provider.dart
@@ -129,7 +129,7 @@ frontend/vityo_app/lib/src/view_ide/language/service/
   styio_service_connector.dart
   styio_service_runtime.dart
   styio_toolchain_discovery.dart
-frontend/vityo_app/lib/src/view_ide/language/features/
+products/styio_ide/lib/src/view_ide/language/features/
   styio_completion_feature.dart
   styio_formatting_feature.dart
   styio_hover_feature.dart
@@ -138,7 +138,7 @@ frontend/vityo_app/lib/src/view_ide/language/features/
   styio_refactor_feature.dart
   styio_semantic_token_feature.dart
   styio_syntax_diagnostic_feature.dart
-frontend/vityo_app/lib/src/view_ide/toolchain/
+products/styio_ide/lib/src/view_ide/toolchain/
   styio_toolchain_discovery.dart
   styio_toolchain_discovery_io.dart
   styio_toolchain_discovery_stub.dart

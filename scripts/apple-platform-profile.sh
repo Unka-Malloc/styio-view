@@ -6,7 +6,7 @@ source "$ROOT/scripts/lib/flutter-workspace-common.sh"
 PROFILE_FILE="${VITYO_APPLE_PROFILE_FILE:-$ROOT/toolchain/apple-platform-profiles.csv}"
 FLUTTER_HOME="${VITYO_FLUTTER_HOME:-$HOME/develop/flutter}"
 FLUTTER_BIN="${VITYO_FLUTTER_BIN:-$FLUTTER_HOME/bin/flutter}"
-FLUTTER_DIR_DEFAULT="$ROOT/frontend/vityo_app"
+FLUTTER_DIR_DEFAULT="$ROOT/products/styio_ide"
 OUT_DIR_DEFAULT="$ROOT/build/apple-profile-artifacts"
 WORK_DIR_DEFAULT="$ROOT/build/apple-profile-workspaces"
 

@@ -1,6 +1,6 @@
-# Vityo Release Checklist
+# Styio IDE Release Checklist
 
-**Purpose:** Provide the release and checkpoint checklist for Vityo, including IDE architecture gates, compatibility facade validation, sandbox/security baseline checks, and performance budget evidence.
+**Purpose:** Provide the release and checkpoint checklist for Styio, including IDE architecture gates, product-line boundary validation, sandbox/security baseline checks, and performance budget evidence.
 
 **Owner:** Governance owner (`CODEOWNERS` -> governance domain)
 **Last updated:** 2026-06-25
@@ -10,7 +10,7 @@
 A release or checkpoint candidate must prove four things before it is cut:
 
 1. The IDE architecture boundary still holds: `view_ide/` owns domain/application contracts and `view_render/` owns Flutter presentation.
-2. Legacy import paths remain compatibility facades only; no new logic is added under migrated roots.
+2. Product code lives only at its final owner path; removed package identities and forwarding roots are not recreated.
 3. Sandbox, agent permission, module manifest security, redaction, and secret handling have explicit tests or gate coverage.
 4. Performance-sensitive editor, language, workspace, runtime, AI context, watcher, and UI virtualization paths have benchmark files and a regression gate path.
 
@@ -24,8 +24,8 @@ Every CI check listed below runs on every PR and push to `nightly`. The distinct
 
 | Workflow / Gate | What It Proves | Evidence Claim |
 |-----------------|----------------|----------------|
-| `repo-hygiene.yml` | Tracked-tree governance, dependency policy, supply chain, GitHub Actions pin, architecture boundary, compat facade, security baseline, performance budget, license policy, import boundary, ecosystem CLI doc, incoming history range | Repository hygiene and policy compliance is maintained |
-| `audit.yml` | Supply chain governance, dependency policy, GitHub Actions pin audit, security baseline, license policy, architecture boundary, compat facade | Security, supply-chain, and architecture policy gates pass |
+| `repo-hygiene.yml` | Tracked-tree governance, dependency policy, supply chain, GitHub Actions pin, architecture and product-line boundaries, security baseline, performance budget, license policy, import boundary, ecosystem CLI doc, incoming history range | Repository hygiene and policy compliance is maintained |
+| `audit.yml` | Supply chain governance, dependency policy, GitHub Actions pin audit, security baseline, license policy, architecture and product-line boundaries | Security, supply-chain, and architecture policy gates pass |
 | `styio-audit.yml` | External styio-audit gate against released policy | Cross-repository audit policy is satisfied |
 | `project-coverage-gate.yml` | Python coverage >= 95%, Flutter coverage >= 85% | Project coverage floors are met |
 | `local-ci-gate.yml` (linux job) | `delivery-gate.sh --mode push` (no --skip-health, no --skip-ecosystem by default), `flutter build linux --release` | Linux delivery floor + native release build |
@@ -46,7 +46,7 @@ These gates are **not** executed by default CI. They require explicit activation
 ### What Default CI Green Means
 
 Default CI green means:
-- Repository hygiene, security, architecture, compat facade, performance budgets, and license policy all pass.
+- Repository hygiene, security, architecture, product-line boundaries, performance budgets, and license policy all pass.
 - Linux, Windows, and macOS each complete the delivery floor and produce a native `--release` Flutter build.
 - Project coverage floors (Python 95%, Flutter 85%) are met.
 - External styio-audit policy passes.
@@ -82,7 +82,7 @@ Run from the repository root unless a command states otherwise:
 python3 scripts/docs-index.py --write
 python3 -m pytest tests/test_docs_tooling_coverage.py
 python3 scripts/check_architecture_boundaries.py
-python3 scripts/check_compat_facades.py
+python3 scripts/check_product_line_boundaries.py
 python3 scripts/check_security_baseline.py
 python3 scripts/check_performance_budgets.py
 python3 scripts/release-readiness-gate.py --skip-build
@@ -117,7 +117,7 @@ Before declaring product launch readiness, the release owner must verify:
 Every PR should state:
 
 1. Which owner surfaces changed: architecture, agent, module, adapter, editor, workspace, governance, docs, or CI.
-2. Which compatibility surfaces changed, including schema versions, deprecations, and facade roots.
+2. Which compatibility or product-boundary surfaces changed, including schema versions, deprecations, protocol DTOs, and package dependencies.
 3. Which security-sensitive files changed, especially sandbox, secret store, log redactor, module manifest security, and agent permission model.
 4. Which performance-sensitive paths changed and whether `scripts/performance-gate.py` or `scripts/check_performance_budgets.py` was run.
 5. Which docs and indexes were refreshed.
@@ -135,19 +135,19 @@ The gate rejects:
 1. `view_ide/` importing or exporting `view_render/`.
 2. `view_ide/` importing Flutter presentation APIs.
 3. `view_render/` importing unregistered `view_ide/` implementation files.
-4. `view_render/` importing legacy compatibility roots.
+4. Product-line dependency direction is enforced separately by `scripts/check_product_line_boundaries.py`.
 
 New `view_render -> view_ide` dependencies require a narrow registration in `VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS` in `scripts/check_architecture_boundaries.py` plus architecture review.
 
-## Compatibility Facade Gate
+## Product-Line Boundary Gate
 
-Compatibility facade changes must pass:
+Product package, shared protocol, or dependency-direction changes must pass:
 
 ```bash
-python3 scripts/check_compat_facades.py
+python3 scripts/check_product_line_boundaries.py
 ```
 
-Legacy top-level `backend_toolchain/`, `editor/`, and `language/` files may only contain a single `export` statement that resolves under the allowed migrated target roots. Any parser, adapter, state, or UI logic must move to the owning `view_ide/` or `view_render/` surface instead of growing inside the facade.
+The gate requires `products/styio_ide`, `products/styio_coding_agent`, and `packages/styio_agent_protocol` to keep distinct package identities. It rejects IDE-to-Agent implementation imports, Agent-to-IDE imports, Flutter dependencies in the Agent or protocol package, and recreation of removed product roots.
 
 ## Sandbox And Security Gate
 
@@ -159,11 +159,11 @@ python3 scripts/check_security_baseline.py
 
 The baseline currently requires these files to exist and stay free of known-dangerous patterns:
 
-1. `frontend/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
-2. `frontend/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
-3. `frontend/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
-4. `frontend/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
-5. `frontend/vityo_app/lib/src/view_ide/agent/agent_permission_model.dart`
+1. `products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart`
+2. `products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart`
+3. `products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart`
+4. `products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart`
+5. `products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart`
 
 Security review is required when a change alters permission elevation, subprocess execution, secret storage, log redaction, manifest trust, or network access.
 
@@ -196,7 +196,7 @@ Breaking changes must not be hidden inside a release checklist. They require:
 1. An ADR or governance note explaining the compatibility break.
 2. A migration section in [API-COMPATIBILITY.md](./API-COMPATIBILITY.md).
 3. A release note entry and affected owner review.
-4. Gate updates proving old paths fail intentionally or remain as documented facades.
+4. Gate updates proving removed paths fail intentionally and the replacement path works.
 
 ## Residual Risk Log
 

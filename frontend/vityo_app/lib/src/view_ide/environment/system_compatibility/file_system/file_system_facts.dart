@@ -15,19 +15,9 @@ enum FileSystemProviderKind {
   unknown,
 }
 
-enum FileSystemPathStyle {
-  posix,
-  windows,
-  unknown,
-}
+enum FileSystemPathStyle { posix, windows, unknown }
 
-enum FileSystemWatchSupport {
-  none,
-  directory,
-  recursive,
-  polling,
-  unknown,
-}
+enum FileSystemWatchSupport { none, directory, recursive, polling, unknown }
 
 extension FileSystemFactCertaintyX on FileSystemFactCertainty {
   String get wireValue => switch (this) {
@@ -250,6 +240,9 @@ class FileSystemFacts {
     if (isLinux) {
       return 'linux-generic';
     }
+    if (operatingSystem == 'macos') {
+      return 'macos';
+    }
     if (operatingSystem == 'windows') {
       final arch = architecture.toLowerCase();
       if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') {
@@ -368,7 +361,10 @@ class FileSystemFacts {
       ),
       'host.architecture': fact('host.architecture', architecture),
       'filesystem.pathStyle': fact('filesystem.pathStyle', pathStyle.wireValue),
-      'filesystem.pathSeparator': fact('filesystem.pathSeparator', pathSeparator),
+      'filesystem.pathSeparator': fact(
+        'filesystem.pathSeparator',
+        pathSeparator,
+      ),
       'filesystem.providerKind': fact(
         'filesystem.providerKind',
         providerKind.wireValue,

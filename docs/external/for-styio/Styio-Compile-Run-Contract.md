@@ -2,7 +2,7 @@
 
 **Purpose:** 冻结 `Vityo` 与上游 `styio` 在执行、runtime 事件、compile-plan consumer 和 machine-info 扩展上的对接边界。
 
-**Last updated:** 2026-04-17
+**Last updated:** 2026-06-28
 
 ## 1. Required Execution Handoff
 
@@ -44,7 +44,7 @@
 1. `styio --compile-plan <path>` 接受 `pafio` 输出的 published compile plan
 2. 明确 accept / reject path
 3. 失败时返回 machine-readable payload
-4. `build/check/run/test` 都走同一条 published compile-plan 入口
+4. `build/check/run/test` 都走同一条 compile-plan resolved-request 入口
 5. invalid plan / CLI conflict 也返回 machine-readable `CliError`
 6. compile-plan 成功路径会在约定的 `build_root / artifact_dir / diag_dir` 内写出 receipt、产物和 `diagnostics.jsonl`
 7. `styio --machine-info=json` 现在广告 `supported_contracts.runtime_events:[1]`
@@ -71,7 +71,7 @@
 2. `supported_contract_versions`
 3. `supported_adapter_modes`
 4. `feature_flags`
-5. `supported_contracts.compile_plan:[1]`
+5. `supported_contracts.compile_plan:[resolved-request]`
 6. `supported_contracts.runtime_events:[1]`
 7. `feature_flags.runtime_event_stream:true`
 

@@ -31,7 +31,9 @@ class ClipboardFacts {
     operatingSystem: 'linux',
     distributionId: 'debian',
     architecture: architecture,
-    providerKind: supportsSystemClipboard ? ClipboardProviderKind.system : ClipboardProviderKind.memoryFallback,
+    providerKind: supportsSystemClipboard
+        ? ClipboardProviderKind.system
+        : ClipboardProviderKind.memoryFallback,
     supportsText: true,
     supportsSystemClipboard: supportsSystemClipboard,
     supportsMemoryFallback: true,
@@ -48,6 +50,19 @@ class ClipboardFacts {
   final bool supportsMemoryFallback;
   final DateTime? detectedAt;
 
-  bool get supportsLinuxDebianArmTarget => operatingSystem == 'linux' && (distributionId == 'debian' || distributionId == 'raspbian') && (architecture == 'aarch64' || architecture == 'arm64' || architecture.startsWith('armv') || architecture == 'arm');
-  String get compatibilityTarget => supportsLinuxDebianArmTarget ? 'linux-debian-arm' : operatingSystem == 'linux' ? 'linux-generic' : operatingSystem == 'windows' ? 'windows-generic' : 'unsupported';
+  bool get supportsLinuxDebianArmTarget =>
+      operatingSystem == 'linux' &&
+      (distributionId == 'debian' || distributionId == 'raspbian') &&
+      (architecture == 'aarch64' ||
+          architecture == 'arm64' ||
+          architecture.startsWith('armv') ||
+          architecture == 'arm');
+  String get compatibilityTarget => supportsLinuxDebianArmTarget
+      ? 'linux-debian-arm'
+      : switch (operatingSystem) {
+          'linux' => 'linux-generic',
+          'macos' => 'macos',
+          'windows' => 'windows-generic',
+          _ => 'unsupported',
+        };
 }

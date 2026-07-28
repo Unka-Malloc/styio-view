@@ -171,21 +171,25 @@ void main() {
     expect(facts.supportsSymbolicLinks, isFalse);
   });
 
-  test('LocalFileSystemManager.windowsX64ForTest reads writes stats', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_win_fs_test_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-    final manager = file_system_io.LocalFileSystemManager.windowsX64ForTest();
-    final fp = manager.joinPath(<String>[
-      tempRoot.path,
-      'workspace',
-      'main.txt',
-    ]);
-    await manager.writeText(fp, 'hello');
-    expect(await manager.readText(fp), 'hello');
-    expect((await manager.stat(fp)).isFile, isTrue);
-  });
+  test(
+    'LocalFileSystemManager.windowsX64ForTest reads writes stats',
+    () async {
+      final tempRoot = await Directory.systemTemp.createTemp(
+        'vityo_win_fs_test_',
+      );
+      addTearDown(() => tempRoot.delete(recursive: true));
+      final manager = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+      final fp = manager.joinPath(<String>[
+        tempRoot.path,
+        'workspace',
+        'main.txt',
+      ]);
+      await manager.writeText(fp, 'hello');
+      expect(await manager.readText(fp), 'hello');
+      expect((await manager.stat(fp)).isFile, isTrue);
+    },
+    skip: Platform.isWindows ? false : 'Windows file-system IO fixture.',
+  );
 
   test('Windows path containment is case-insensitive', () {
     final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();

@@ -21,7 +21,7 @@ jobs:
       STYIO_FLUTTER_VERSION: "3.41.7"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
 
       - name: Set up standardized Python
@@ -37,7 +37,7 @@ jobs:
       - name: Restore coverage dependencies
         run: |
           python3 -m pip install coverage
-          cd frontend/vityo_app && flutter pub get
+          cd products/styio_ide && flutter pub get
 
       - name: Run project coverage gate
         run: python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85
@@ -49,5 +49,5 @@ jobs:
           name: vityo-project-coverage
           path: |
             .coverage
-            frontend/vityo_app/coverage/lcov.info
+            products/styio_ide/coverage/lcov.info
           if-no-files-found: ignore

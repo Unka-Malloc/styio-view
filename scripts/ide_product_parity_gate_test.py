@@ -135,9 +135,9 @@ class TestTestAnchorDetection(unittest.TestCase):
 
     def test_test_anchor_pattern_matches_valid_paths(self) -> None:
         valid_test_paths = [
-            "frontend/vityo_app/test/agent_context_test.dart",
-            "frontend/vityo_app/test/ide_capability_registry_test.dart",
-            "frontend/vityo_app/test/debug_workbench_contract_test.dart",
+            "products/styio_ide/test/agent_context_test.dart",
+            "products/styio_ide/test/ide_capability_registry_test.dart",
+            "products/styio_ide/test/debug_workbench_contract_test.dart",
             "tests/test_repo_hygiene_gate.py",
             "tests/test_ecosystem_cli_doc_gate.py",
         ]
@@ -149,13 +149,13 @@ class TestTestAnchorDetection(unittest.TestCase):
 
     def test_test_anchor_for_contract_files(self) -> None:
         contract_files = [
-            ("frontend/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart",
+            ("products/styio_ide/lib/src/view_ide/runtime/debug_workbench_contract.dart",
              "debug_workbench_contract_test.dart"),
-            ("frontend/vityo_app/lib/src/view_ide/workspace/source_control_adapter.dart",
+            ("products/styio_ide/lib/src/ide/workspace/source_control_adapter.dart",
              "source_control_adapter_test.dart"),
-            ("frontend/vityo_app/lib/src/view_ide/agent/agent_context.dart",
+            ("products/styio_ide/lib/src/view_ide/agent_client/agent_context.dart",
              "agent_context_test.dart"),
-            ("frontend/vityo_app/lib/src/view_ide/workbench/ide_capability_registry.dart",
+            ("products/styio_ide/lib/src/view_ide/workbench/ide_capability_registry.dart",
              "ide_capability_registry_test.dart"),
         ]
         for contract, expected_test in contract_files:
@@ -179,7 +179,7 @@ class TestViewIdeFlutterImportCheck(unittest.TestCase):
             "dart:ui",
         ]
 
-        view_ide_root = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_ide"
+        view_ide_root = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
         if not view_ide_root.is_dir():
             self.skipTest("view_ide directory not found")
 

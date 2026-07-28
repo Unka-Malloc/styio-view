@@ -1,4 +1,4 @@
-# Vityo IDE Capability Maturity Model
+# Styio IDE Capability Maturity Model
 
 **Purpose:** Define Vityo's own capability maturity levels. Each capability is assessed against Vityo's product trajectory, not against a competitor's feature list. "Like VSCode" or "like JetBrains" is never a maturity level.
 

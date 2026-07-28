@@ -218,6 +218,8 @@ async function runSelfTest() {
       const drawerTabs = rect("#sharedDrawerTabs");
       const closeButton = rect("#gridCloseSidebar");
       const drawerMount = rect("#gridDrawerMount");
+      const chatDock = rect("#gridChatDock");
+      const chatDockSpacer = rect("#gridChatDockSpacer");
 
       if (
         !mainCard ||
@@ -268,6 +270,8 @@ async function runSelfTest() {
         drawerContentLeftInset: drawerMount.left - sideDrawer.left,
         drawerContentRightInset: sideDrawer.right - drawerMount.right,
         drawerContentBottomInset: sideDrawer.bottom - drawerMount.bottom,
+        chatDockHeight: chatDock?.height ?? 0,
+        chatDockSpacerHeight: chatDockSpacer?.height ?? 0,
       };
     });
   }
@@ -404,6 +408,10 @@ async function runSelfTest() {
         throw new Error("failed to capture expanded grid shell geometry");
       }
 
+      const collapsedChatExtra =
+        collapsed.chatDockHeight > 0
+          ? collapsed.chatDockHeight + collapsed.chatDockSpacerHeight + collapsed.expectedBlockStartInset
+          : 0;
       const tolerance = 1.1;
       const checks = [
         ["toolbar/file-tabs height", collapsed.toolbarHeight, collapsed.fileTabsHeight],
@@ -424,7 +432,7 @@ async function runSelfTest() {
         ["tabs center-top inset", collapsed.fileTabsCenterTopInset, expanded.drawerTabsCenterTopInset],
         ["editor left inset", collapsed.editorLeftInset, collapsed.expectedInlineInset],
         ["editor right inset", collapsed.editorRightInset, collapsed.expectedInlineInset],
-        ["editor bottom inset", collapsed.editorBottomInset, collapsed.expectedBlockStartInset],
+        ["editor bottom inset", collapsed.editorBottomInset, collapsed.expectedBlockStartInset + collapsedChatExtra],
         ["drawer content left inset", expanded.drawerContentLeftInset, expanded.expectedInlineInset],
         ["drawer content right inset", expanded.drawerContentRightInset, expanded.expectedInlineInset],
         ["drawer content bottom inset", expanded.drawerContentBottomInset, expanded.expectedBlockStartInset],
@@ -586,6 +594,62 @@ async function runSelfTest() {
       await page.waitForFunction(() => document.getElementById("drawerPanelSettings")?.classList.contains("is-active"), null, {
         timeout: 10000,
       });
+    });
+
+    await runStep("verify-ide-layout", async () => {
+      await selectStyle(expectedStyles[0]);
+      await page.waitForFunction(() => document.body.dataset.uiStyle === "grid", null, { timeout: 10000 });
+
+      await page.waitForFunction(() => {
+        const sidebar = document.getElementById("gridProjectSidebar");
+        const mount = document.getElementById("gridProjectTreeMount");
+        const filesPanel = document.getElementById("drawerPanelFiles");
+        if (!sidebar || !mount || !filesPanel) {
+          return false;
+        }
+        const style = getComputedStyle(document.body);
+        const expectedWidth = Number.parseFloat(style.getPropertyValue("--grid-project-sidebar-width-open")) || 0;
+        const width = sidebar.getBoundingClientRect().width;
+        return Math.abs(width - expectedWidth) <= 1 && filesPanel.parentElement === mount;
+      }, null, { timeout: 10000 });
+
+      await page.waitForFunction(() => {
+        const drawerMount = document.getElementById("gridDrawerMount");
+        const settingsPanel = document.getElementById("drawerPanelSettings");
+        return !!drawerMount && !!settingsPanel && settingsPanel.parentElement === drawerMount;
+      }, null, { timeout: 10000 });
+
+      await page.waitForSelector("#gridChatDock", { state: "visible", timeout: 10000 });
+      const messagesBefore = await page.evaluate(
+        () => document.getElementById("gridChatMessages")?.children.length ?? 0,
+      );
+      await page.fill("#gridChatInput", "hello vityo");
+      await page.click("#gridChatSend");
+      await page.waitForFunction(
+        (before) => (document.getElementById("gridChatMessages")?.children.length ?? 0) >= before + 2,
+        messagesBefore,
+        { timeout: 10000 },
+      );
+
+      await page.click("#gridToggleChatDock");
+      await page.waitForFunction(() => !document.body.classList.contains("chat-dock-open"), null, { timeout: 10000 });
+      await page.waitForSelector("#gridChatDock", { state: "hidden", timeout: 10000 });
+      await page.click("#gridToggleChatDock");
+      await page.waitForFunction(() => document.body.classList.contains("chat-dock-open"), null, { timeout: 10000 });
+      await page.waitForSelector("#gridChatDock", { state: "visible", timeout: 10000 });
+
+      await page.click("#gridToggleProjectSidebar");
+      await page.waitForFunction(() => {
+        const sidebar = document.getElementById("gridProjectSidebar");
+        return !!sidebar && sidebar.getBoundingClientRect().width <= 1;
+      }, null, { timeout: 10000 });
+      await page.click("#gridToggleProjectSidebar");
+      await page.waitForFunction(() => {
+        const style = getComputedStyle(document.body);
+        const expectedWidth = Number.parseFloat(style.getPropertyValue("--grid-project-sidebar-width-open")) || 0;
+        const sidebar = document.getElementById("gridProjectSidebar");
+        return !!sidebar && Math.abs(sidebar.getBoundingClientRect().width - expectedWidth) <= 1;
+      }, null, { timeout: 10000 });
     });
 
     await runStep("open-theme-palette", async () => {

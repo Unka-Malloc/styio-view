@@ -25,7 +25,7 @@ docs/design/service/
 Corresponding implementation target:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/service/
+products/styio_ide/lib/src/view_ide/service/
   styio_language_service/
     connector/
     adapter/

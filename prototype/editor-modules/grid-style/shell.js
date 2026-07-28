@@ -8,6 +8,17 @@ export function createGridShellRefs(doc) {
     drawer: doc.getElementById("gridSideDrawer"),
     drawerTabsDock: doc.getElementById("gridDrawerTabsDock"),
     drawerMount: doc.getElementById("gridDrawerMount"),
+    projectSidebar: doc.getElementById("gridProjectSidebar"),
+    projectSidebarTitle: doc.getElementById("gridProjectSidebarTitle"),
+    projectTreeMount: doc.getElementById("gridProjectTreeMount"),
+    toggleProjectSidebarButton: doc.getElementById("gridToggleProjectSidebar"),
+    toggleChatDockButton: doc.getElementById("gridToggleChatDock"),
+    chatDock: doc.getElementById("gridChatDock"),
+    chatDockTitle: doc.getElementById("gridChatDockTitle"),
+    chatDockCollapseButton: doc.getElementById("gridChatDockCollapse"),
+    chatMessages: doc.getElementById("gridChatMessages"),
+    chatInput: doc.getElementById("gridChatInput"),
+    chatSendButton: doc.getElementById("gridChatSend"),
   };
 }
 

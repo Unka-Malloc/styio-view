@@ -1,4 +1,4 @@
-# Vityo API Compatibility Policy
+# Styio IDE API Compatibility Policy
 
 **Purpose:** Define Vityo's API compatibility rules across public models, adapter contracts, module manifests, and agent tool interfaces. This is the SSOT for what constitutes a breaking change and how compatibility is maintained.
 
@@ -17,9 +17,9 @@ The following are public API surfaces subject to compatibility rules:
 |---------|----------|----------|
 | Adapter contracts | `view_ide/backend_toolchain/`, `view_ide/language/contract/` | External adapters, language services |
 | Module manifest schema | `view_ide/module_host/extension_manifest_contract.dart` | Extension developers |
-| Agent tool interface | `view_ide/agent/agent_session.dart` | Agent tool developers |
-| Agent permission model | `view_ide/agent/agent_permission_model.dart` | Agent tools, sandbox routing |
-| Workspace model | `view_ide/workspace/` | View render surfaces, external tooling |
+| Agent Client interface | `view_ide/agent_client/agent.dart` | IDE workbench and Agent integrations |
+| Agent permission model | `view_ide/agent_client/agent_permission_model.dart` | Agent tools, sandbox routing |
+| Workspace model | `ide/workspace/` | View render surfaces, external tooling |
 | IDE capability registry | `view_ide/workbench/ide_capability_registry.dart` | Product gates, UI surfaces |
 | Configuration schema | `view_ide/environment/configuration/` | Settings UI, bootstrap |
 | Security-sensitive environment contracts | `view_ide/environment/execution/`, `view_ide/environment/configuration/secret_store.dart` | Execution sandbox, local settings |
@@ -100,7 +100,7 @@ Every public deprecation must name:
 2. Replacement path and minimum compatible version.
 3. Earliest removal target.
 4. Required test or gate that proves the replacement works.
-5. Whether a compatibility facade remains and when it can be deleted.
+5. Whether the old entry point is removed and which final owner path replaces it.
 
 ## 4. Adapter Contract Compatibility
 
@@ -122,28 +122,23 @@ Adapters SHOULD:
 
 The effective capability set is the intersection of what both sides support. See [Vityo Protocol And Capability Negotiation](../design/Vityo-Protocol-And-Capability-Negotiation.md).
 
-## 4.4 Compatibility Facade Policy
+## 4.4 Product-line boundary policy
 
-Legacy import roots exist only to keep migrated callers compiling while they move to the new IDE architecture:
+Legacy Vityo source roots and compatibility exports were removed by the atomic Styio product
+cutover. New code imports its final owner directly:
 
-| Legacy root | Allowed target root | Rule |
-|-------------|---------------------|------|
-| `frontend/vityo_app/lib/src/backend_toolchain/` | `view_ide/backend_toolchain/` | One-line `export` only |
-| `frontend/vityo_app/lib/src/editor/` | `view_ide/editor/` or `view_render/editor/` | One-line `export` only for migrated entries |
-| `frontend/vityo_app/lib/src/language/` | `view_ide/language/` | One-line `export` only |
+- IDE implementation: `products/styio_ide`;
+- Coding Agent runtime: `products/styio_coding_agent`;
+- neutral protocol DTOs: `packages/styio_agent_protocol`.
 
-Facades must not contain parsers, adapters, state, feature flags, fallback logic, security policy, or UI code. New logic belongs in the owning `view_ide/` or `view_render/` surface. The enforcement command is:
+The permanent enforcement command is:
 
 ```bash
-python3 scripts/check_compat_facades.py
+python3 scripts/check_product_line_boundaries.py
 ```
 
-Migration rule:
-
-1. Keep the facade while downstream imports still exist.
-2. Move implementation to the owner surface.
-3. Update tests and docs to name the owner surface, not the facade.
-4. Remove the facade only in a documented breaking release or after all supported imports have migrated.
+Do not recreate forwarding exports, dual package identities, IDE-to-Agent implementation imports,
+Agent-to-IDE imports, or Flutter dependencies in the Coding Agent.
 
 ## 5. Module Manifest Compatibility
 
@@ -199,11 +194,11 @@ Every public model/contract must have:
 ### 7.2 Gate Enforcement
 
 - `scripts/check_architecture_boundaries.py` enforces resolved `view_ide` / `view_render` import boundaries
-- `scripts/check_compat_facades.py` enforces one-line legacy compatibility facades
+- `scripts/check_product_line_boundaries.py` enforces final package ownership and dependency direction
 - `scripts/check_security_baseline.py` enforces required sandbox, redaction, secret, manifest-security, and agent-permission files
 - `scripts/check_performance_budgets.py` enforces benchmark coverage markers for performance-sensitive paths
 - `scripts/ide-product-parity-gate.py` checks capability baseline coverage
-- `scripts/vityo-ide-product-gate.py` checks product gate compliance
+- `scripts/styio-ide-product-gate.py` checks product gate compliance
 
 ## 8. Release And PR Checklist
 

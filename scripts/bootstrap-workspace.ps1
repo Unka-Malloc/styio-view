@@ -208,7 +208,7 @@ if (-not $SkipPlatformBootstrap -or -not $SkipFlutterPub) {
 
 if (-not $SkipPlatformBootstrap) {
     Write-Log "generating Flutter runners for platforms: $Platforms"
-    $AppRoot = Join-Path $Root "frontend\\vityo_app"
+    $AppRoot = Join-Path $Root "products\\styio_ide"
     $metadataPath = Join-Path $AppRoot ".metadata"
     $metadataSnapshot = Read-FileSnapshot $metadataPath
     $defaultWidgetTest = Join-Path $AppRoot "test\\widget_test.dart"
@@ -216,8 +216,8 @@ if (-not $SkipPlatformBootstrap) {
     Invoke-AtPath -Path $AppRoot -ScriptBlock {
         & $FlutterBin create `
             --platforms="$Platforms" `
-            --project-name=vityo_app `
-            --org=io.vityo `
+            --project-name=styio_ide `
+            --org=io.styio.ide `
             .
     }
     Restore-FileSnapshot -Path $metadataPath -Content $metadataSnapshot
@@ -236,7 +236,7 @@ if (-not $SkipNpm) {
 
 if (-not $SkipFlutterPub) {
     Write-Log "installing Flutter package dependencies"
-    $AppRoot = Join-Path $Root "frontend\\vityo_app"
+    $AppRoot = Join-Path $Root "products\\styio_ide"
     $pubspecLock = Join-Path $AppRoot "pubspec.lock"
     $pubspecLockSnapshot = Read-FileSnapshot $pubspecLock
     Invoke-AtPath -Path $AppRoot -ScriptBlock {

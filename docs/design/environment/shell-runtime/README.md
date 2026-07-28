@@ -133,7 +133,7 @@ overrides before calling `PtyManager.start`.
 ## 8. Implementation Target
 
 ```text
-frontend/vityo_app/lib/src/view_ide/environment/shell_runtime/
+products/styio_ide/lib/src/view_ide/environment/shell_runtime/
   shell_runtime.dart
   shell_profile.dart
   shell_command_plan.dart

@@ -21,25 +21,69 @@
       <div>
         <h1 id="gridCurrentFileTitle">styio</h1>
       </div>
+      <span
+        id="draftBadge"
+        style="align-self:center;margin-left:12px;padding:2px 10px;border:1px solid currentColor;border-radius:999px;font:600 11px/1.6 sans-serif;letter-spacing:.08em;opacity:.7;white-space:nowrap;"
+        title="该 JavaScript 原型已归档为 Draft，不再维护；默认客户端为 Flutter 应用（frontend/vityo_app）。"
+      >DRAFT · 已归档不再维护</span>
     </div>
 
     <div class="workspace-shell" id="workspaceShell">
+      <aside class="project-sidebar grid-project-sidebar" id="gridProjectSidebar">
+        <div class="grid-project-sidebar-header" id="gridProjectSidebarHeader">
+          <p class="grid-project-sidebar-title" id="gridProjectSidebarTitle">Explorer</p>
+        </div>
+        <div class="grid-project-sidebar-header-spacer" id="gridProjectSidebarHeaderSpacer" aria-hidden="true"></div>
+        <div class="grid-project-sidebar-content" id="gridProjectSidebarContent">
+          <div class="grid-project-tree-mount" id="gridProjectTreeMount"></div>
+        </div>
+      </aside>
+
       <section class="main-editor-card">
         <div class="grid-main-toolbar" id="gridMainToolbar">
+          <div class="grid-toolbar-leading" id="gridToolbarLeading">
+            <button
+              class="icon-button"
+              id="gridToggleProjectSidebar"
+              aria-expanded="true"
+              aria-controls="gridProjectSidebar"
+              aria-label="Toggle project sidebar"
+              title="Toggle project sidebar"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                <path d="M9 3v18"></path>
+              </svg>
+            </button>
+          </div>
           <div class="grid-editor-tabs" id="gridFileTabs"></div>
-          <button
-            class="icon-button"
-            id="gridToggleSidebar"
-            data-shell-sidebar-toggle="true"
-            aria-expanded="false"
-            aria-controls="gridSideDrawer"
-            aria-label="Open sidebar"
-            title="Open sidebar"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <polyline points="14 6 8 12 14 18"></polyline>
-            </svg>
-          </button>
+          <div class="grid-toolbar-actions" id="gridToolbarActions">
+            <button
+              class="icon-button"
+              id="gridToggleChatDock"
+              aria-expanded="true"
+              aria-controls="gridChatDock"
+              aria-label="Toggle chat panel"
+              title="Toggle chat panel"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+            <button
+              class="icon-button"
+              id="gridToggleSidebar"
+              data-shell-sidebar-toggle="true"
+              aria-expanded="false"
+              aria-controls="gridSideDrawer"
+              aria-label="Open sidebar"
+              title="Open sidebar"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="14 6 8 12 14 18"></polyline>
+              </svg>
+            </button>
+          </div>
         </div>
         <div class="grid-main-toolbar-spacer" id="gridMainToolbarSpacer" aria-hidden="true"></div>
 
@@ -70,6 +114,48 @@
             </div>
           </div>
         </div>
+
+        <div class="grid-chat-dock-spacer" id="gridChatDockSpacer" aria-hidden="true"></div>
+
+        <section class="grid-chat-dock" id="gridChatDock" aria-label="Assistant">
+          <div class="grid-chat-dock-header" id="gridChatDockHeader">
+            <div class="grid-chat-dock-title">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"></path>
+              </svg>
+              <p id="gridChatDockTitle">Assistant</p>
+            </div>
+            <button
+              class="icon-button grid-chat-dock-collapse"
+              id="gridChatDockCollapse"
+              aria-label="Collapse chat panel"
+              title="Collapse chat panel"
+              type="button"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="grid-chat-messages" id="gridChatMessages"></div>
+          <div class="grid-chat-input-row" id="gridChatInputRow">
+            <textarea
+              id="gridChatInput"
+              class="grid-chat-input"
+              rows="1"
+              spellcheck="false"
+              autocapitalize="none"
+              autocomplete="off"
+              autocorrect="off"
+            ></textarea>
+            <button class="grid-chat-send" id="gridChatSend" aria-label="Send message" title="Send message" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 19V5"></path>
+                <path d="m5 12 7-7 7 7"></path>
+              </svg>
+            </button>
+          </div>
+        </section>
       </section>
 
       <aside class="side-drawer grid-side-drawer" id="gridSideDrawer">

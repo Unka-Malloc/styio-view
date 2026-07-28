@@ -84,12 +84,12 @@ Missing or stale lists are audit failures. They block license, commercial-risk, 
 
 ### Dependency Manifest Surfaces
 
-- `frontend/vityo_app/pubspec.yaml`.
+- `products/styio_ide/pubspec.yaml`.
 - `prototype/package.json`.
-- `frontend/vityo_app/linux/CMakeLists.txt`.
-- `frontend/vityo_app/linux/flutter/CMakeLists.txt`.
-- `frontend/vityo_app/windows/CMakeLists.txt`.
-- `frontend/vityo_app/windows/flutter/CMakeLists.txt`.
+- `products/styio_ide/linux/CMakeLists.txt`.
+- `products/styio_ide/linux/flutter/CMakeLists.txt`.
+- `products/styio_ide/windows/CMakeLists.txt`.
+- `products/styio_ide/windows/flutter/CMakeLists.txt`.
 - Android Gradle files.
 - `.github/workflows/*.yml`.
 

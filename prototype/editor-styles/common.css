@@ -34,3 +34,20 @@ body[data-ui-style="editorial"] #gridSideDrawer {
   min-height: 0;
   flex-direction: column;
 }
+
+/* Grid owns the IDE shell: left project sidebar, bottom chat dock. Other styles hide both. */
+body:not([data-ui-style="grid"]) #gridProjectSidebar,
+body:not([data-ui-style="grid"]) #gridChatDock,
+body:not([data-ui-style="grid"]) #gridChatDockSpacer {
+  display: none !important;
+}
+
+/* Grid moves the files panel into the left project sidebar; the right drawer keeps settings only. */
+body[data-ui-style="grid"] [data-drawer-tab="files"] {
+  display: none !important;
+}
+
+/* Grid parks the emptied shared drawer content inside the settings drawer mount. */
+body[data-ui-style="grid"] #sharedDrawerContent {
+  display: none !important;
+}

@@ -17,7 +17,7 @@ REPORT_INCLUDE = "scripts/*.py,prototype/dev_server.py"
 # untestable infrastructure code.
 COVERAGE_OMIT = [
     "scripts/check_architecture_boundaries.py",
-    "scripts/check_compat_facades.py",
+    "scripts/check_product_line_boundaries.py",
     "scripts/check_license_policy.py",
     "scripts/check_performance_budgets.py",
     "scripts/check_security_baseline.py",
@@ -27,12 +27,11 @@ COVERAGE_OMIT = [
     "scripts/ide-product-parity-gate.py",
     "scripts/ide_product_parity_gate_test.py",
     "scripts/import-boundary-gate.py",
-    "scripts/manifest_tool.py",
     "scripts/on2_scanner.py",
     "scripts/performance-gate.py",
     "scripts/public-contract-schema-gate.py",
     "scripts/supply-chain-governance-gate.py",
-    "scripts/vityo-ide-product-gate.py",
+    "scripts/styio-ide-product-gate.py",
 ]
 TEST_MODULES = (
     "tests.test_repo_hygiene_gate",
@@ -44,7 +43,6 @@ TEST_MODULES = (
     "tests.test_web_preview_security",
     "tests.test_record_product_matrix_evidence",
     "tests.test_package_nightly",
-    "tests.test_verify_checkpoint_design_citations",
     "tests.test_docs_tooling_coverage",
     "tests.test_repo_hygiene_coverage",
     "tests.test_python_coverage_gate",

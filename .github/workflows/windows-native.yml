@@ -23,7 +23,7 @@ jobs:
       STYIO_FLUTTER_VERSION: "3.41.7"
 
     steps:
-      - name: Checkout Vityo nightly
+      - name: Checkout Styio IDE nightly
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -199,7 +199,7 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Vityo nightly Windows CI gate
+      - name: Run Styio IDE nightly Windows CI gate
         working-directory: vityo-nightly
         shell: bash
         env:
@@ -214,12 +214,12 @@ jobs:
           --skip-audit
 
       - name: Run Flutter analyze
-        working-directory: vityo-nightly/frontend/vityo_app
+        working-directory: vityo-nightly/products/styio_ide
         shell: powershell
         run: flutter analyze
 
       - name: Build native Windows release target
-        working-directory: vityo-nightly/frontend/vityo_app
+        working-directory: vityo-nightly/products/styio_ide
         shell: powershell
         run: flutter build windows --release
 
@@ -230,7 +230,7 @@ jobs:
           name: vityo-coverage-reports-windows
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/frontend/vityo_app/coverage/lcov.info
+            vityo-nightly/products/styio_ide/coverage/lcov.info
           if-no-files-found: ignore
 
       - name: Upload Windows build artifact
@@ -238,5 +238,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vityo-windows-release
-          path: vityo-nightly/frontend/vityo_app/build/windows/**/*
+          path: vityo-nightly/products/styio_ide/build/windows/**/*
           if-no-files-found: ignore

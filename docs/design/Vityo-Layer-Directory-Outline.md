@@ -1,4 +1,4 @@
-# Vityo Layer Directory Outline
+# Styio IDE Layer Directory Outline
 
 **Purpose:** Define the directory outline for Vityo by horizontal architecture layer, covering current design docs, current implementation anchors, and intended implementation homes. Vertical flows are design views only and must not become implementation roots.
 
@@ -18,11 +18,11 @@ docs/design/
     <module>/
       README.md
 
-frontend/vityo_app/lib/src/view_ide/
+products/styio_ide/lib/src/view_ide/
   <horizontal-layer>/
     <module>/
 
-frontend/vityo_app/lib/src/view_render/
+products/styio_ide/lib/src/view_render/
   <appearance-or-render-domain>/
     <module>/
 ```
@@ -146,16 +146,16 @@ docs/design/appearance/app-shell-surface/
 Current implementation anchors:
 
 ```text
-frontend/vityo_app/lib/src/app/
-frontend/vityo_app/lib/src/frontend_shell/
-frontend/vityo_app/lib/src/view_ide/commands/
-frontend/vityo_app/lib/src/view_ide/workspace/
+products/styio_ide/lib/src/app/
+products/styio_ide/lib/src/frontend_shell/
+products/styio_ide/lib/src/view_ide/commands/
+products/styio_ide/lib/src/ide/workspace/
 ```
 
 Intended implementation outline:
 
 ```text
-frontend/vityo_app/lib/src/view_render/app_shell/
+products/styio_ide/lib/src/view_render/app_shell/
   surfaces/
   recovery/
   capability_status/
@@ -192,18 +192,18 @@ docs/design/appearance/
 Current implementation anchors:
 
 ```text
-frontend/vityo_app/lib/src/theme/
-frontend/vityo_app/lib/src/view_render/
-frontend/vityo_app/lib/src/view_render/editor/
-frontend/vityo_app/lib/src/view_render/theme/
-frontend/vityo_app/lib/src/view_render/runtime/
-frontend/vityo_app/lib/src/view_render/shell/
+products/styio_ide/lib/src/theme/
+products/styio_ide/lib/src/view_render/
+products/styio_ide/lib/src/view_render/editor/
+products/styio_ide/lib/src/view_render/theme/
+products/styio_ide/lib/src/view_render/runtime/
+products/styio_ide/lib/src/view_render/shell/
 ```
 
 Intended implementation outline:
 
 ```text
-frontend/vityo_app/lib/src/view_render/appearance/
+products/styio_ide/lib/src/view_render/appearance/
   renderer/
   theme/
   editor/
@@ -245,21 +245,21 @@ docs/design/interaction/
 Current implementation anchors:
 
 ```text
-frontend/vityo_app/lib/src/editor/
-frontend/vityo_app/lib/src/view_ide/editor/
-frontend/vityo_app/lib/src/view_ide/editor/actions/
-frontend/vityo_app/lib/src/view_ide/editor/controller/
-frontend/vityo_app/lib/src/view_ide/editor/document/
-frontend/vityo_app/lib/src/view_ide/editor/selection/
-frontend/vityo_app/lib/src/view_ide/editor/transactions/
-frontend/vityo_app/lib/src/app/commands/
-frontend/vityo_app/lib/src/view_ide/commands/
+products/styio_ide/lib/src/ide/editor/
+products/styio_ide/lib/src/ide/editor/
+products/styio_ide/lib/src/ide/editor/actions/
+products/styio_ide/lib/src/ide/editor/controller/
+products/styio_ide/lib/src/ide/editor/document/
+products/styio_ide/lib/src/ide/editor/selection/
+products/styio_ide/lib/src/ide/editor/transactions/
+products/styio_ide/lib/src/app/commands/
+products/styio_ide/lib/src/view_ide/commands/
 ```
 
 Intended implementation outline:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/interaction/
+products/styio_ide/lib/src/view_ide/interaction/
   command_router/
   keybinding_router/
   editor_controller/
@@ -309,21 +309,21 @@ docs/design/service/
 Current implementation anchors:
 
 ```text
-frontend/vityo_app/lib/src/language/
-frontend/vityo_app/lib/src/view_ide/language/
-frontend/vityo_app/lib/src/view_ide/language/contract/
-frontend/vityo_app/lib/src/view_ide/language/diagnostics/
-frontend/vityo_app/lib/src/view_ide/language/features/
-frontend/vityo_app/lib/src/view_ide/language/semantic/
-frontend/vityo_app/lib/src/view_ide/language/service/
-frontend/vityo_app/lib/src/view_ide/language/syntax/
-frontend/vityo_app/lib/src/view_ide/language/syntax_validation/
+products/styio_ide/lib/src/view_ide/language/
+products/styio_ide/lib/src/view_ide/language/
+products/styio_ide/lib/src/view_ide/language/contract/
+products/styio_ide/lib/src/view_ide/language/diagnostics/
+products/styio_ide/lib/src/view_ide/language/features/
+products/styio_ide/lib/src/view_ide/language/semantic/
+products/styio_ide/lib/src/view_ide/language/service/
+products/styio_ide/lib/src/view_ide/language/syntax/
+products/styio_ide/lib/src/view_ide/language/syntax_validation/
 ```
 
 Intended implementation outline:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/service/
+products/styio_ide/lib/src/view_ide/service/
   language_service/
     styio_service_connector/
     protocol/
@@ -385,21 +385,21 @@ docs/design/foundation/
 Current implementation anchors:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/foundation/
-frontend/vityo_app/lib/src/view_ide/foundation/datastore/
-frontend/vityo_app/lib/src/view_ide/foundation/registry/
-frontend/vityo_app/lib/src/view_ide/foundation/workspace/
-frontend/vityo_app/lib/src/view_ide/foundation/resource_coordinator/
-frontend/vityo_app/lib/src/view_ide/foundation/lifecycle_coordinator/
-frontend/vityo_app/lib/src/view_ide/foundation/lock_service/
-frontend/vityo_app/lib/src/view_ide/foundation/event_bus/
-frontend/vityo_app/lib/src/view_ide/foundation/diagnostics_sink/
+products/styio_ide/lib/src/view_ide/foundation/
+products/styio_ide/lib/src/view_ide/foundation/datastore/
+products/styio_ide/lib/src/view_ide/foundation/registry/
+products/styio_ide/lib/src/view_ide/foundation/workspace/
+products/styio_ide/lib/src/view_ide/foundation/resource_coordinator/
+products/styio_ide/lib/src/view_ide/foundation/lifecycle_coordinator/
+products/styio_ide/lib/src/view_ide/foundation/lock_service/
+products/styio_ide/lib/src/view_ide/foundation/event_bus/
+products/styio_ide/lib/src/view_ide/foundation/diagnostics_sink/
 ```
 
 Intended implementation outline:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/foundation/
+products/styio_ide/lib/src/view_ide/foundation/
   datastore/
     datastore.dart
     schema.dart
@@ -484,21 +484,21 @@ docs/design/environment/
 Current implementation anchors:
 
 ```text
-frontend/vityo_app/lib/src/backend_toolchain/
-frontend/vityo_app/lib/src/platform/
-frontend/vityo_app/lib/src/view_ide/backend_toolchain/
-frontend/vityo_app/lib/src/view_ide/platform/
-frontend/vityo_app/lib/src/view_ide/shell_runtime/
-frontend/vityo_app/lib/src/runtime/
-frontend/vityo_app/lib/src/module_host/
-frontend/vityo_app/lib/src/view_ide/module_host/
+products/styio_ide/lib/src/view_ide/backend_toolchain/
+products/styio_ide/lib/src/platform/
+products/styio_ide/lib/src/view_ide/backend_toolchain/
+products/styio_ide/lib/src/view_ide/platform/
+products/styio_ide/lib/src/view_ide/shell_runtime/
+products/styio_ide/lib/src/runtime/
+products/styio_ide/lib/src/view_ide/module_host/
+products/styio_ide/lib/src/view_ide/module_host/
 toolchain/
 ```
 
 Intended implementation outline:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/environment/
+products/styio_ide/lib/src/view_ide/environment/
   toolchain_manager/
     styio_toolchain_management/
     discovery/
@@ -615,10 +615,10 @@ A vertical flow may be drawn for review, but its concrete modules must be placed
 Some current paths are legacy anchors or compatibility exports. They should not keep growing as new architecture roots.
 
 ```text
-frontend/vityo_app/lib/src/editor/              # existing editor anchor; migrate into horizontal interaction/service/appearance/environment modules over time
-frontend/vityo_app/lib/src/language/            # existing language anchor; migrate into view_ide/service/styio_language_service over time
-frontend/vityo_app/lib/src/backend_toolchain/   # existing backend/toolchain anchor; can remain as product adapter facade
-frontend/vityo_app/lib/src/integration/         # compatibility exports only
+products/styio_ide/lib/src/ide/editor/              # existing editor anchor; migrate into horizontal interaction/service/appearance/environment modules over time
+products/styio_ide/lib/src/view_ide/language/            # existing language anchor; migrate into view_ide/service/styio_language_service over time
+products/styio_ide/lib/src/view_ide/backend_toolchain/   # existing backend/toolchain anchor; can remain as product adapter facade
+products/styio_ide/lib/src/view_ide/backend_toolchain/         # compatibility exports only
 ```
 
 Rule:

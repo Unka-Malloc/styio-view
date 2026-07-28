@@ -1,0 +1,16 @@
+name: styio_coding_agent
+description: Standalone, model-neutral Styio Coding Agent runtime.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.11.5 <4.0.0"
+
+dependencies:
+  crypto: ^3.0.6
+  styio_agent_protocol:
+    path: ../../packages/styio_agent_protocol
+
+dev_dependencies:
+  lints: ^5.1.1
+  test: ^1.25.15

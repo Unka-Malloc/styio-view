@@ -1,4 +1,4 @@
-# Vityo Governance
+# Styio IDE Governance
 
 **Purpose:** Define the repository-owned rules for compatibility, security, release readiness, code ownership, and migration discipline.
 
@@ -24,7 +24,7 @@ This directory is the right place for:
 
 ## Maintenance Rules
 
-1. Any new public `view_ide/` contract, module manifest field, agent tool interface, or compatibility facade must update [API-COMPATIBILITY.md](./API-COMPATIBILITY.md).
+1. Any new public `view_ide/` contract, module manifest field, Agent Client interface, or product-boundary contract must update [API-COMPATIBILITY.md](./API-COMPATIBILITY.md).
 2. Any sandbox, credential, redaction, agent permission, module manifest security, dependency, or release-signing change must update [SECURITY-AND-SUPPLY-CHAIN.md](./SECURITY-AND-SUPPLY-CHAIN.md).
 3. Any release gate or checkpoint floor change must update [RELEASE-CHECKLIST.md](./RELEASE-CHECKLIST.md) and the local dev entry in [../BUILD-AND-DEV-ENV.md](../BUILD-AND-DEV-ENV.md).
 4. Any owner-routing change must update [CODEOWNERS-POLICY.md](./CODEOWNERS-POLICY.md), root [../../CODEOWNERS](../../CODEOWNERS), and affected team runbooks together.

@@ -74,12 +74,12 @@ ALLOWED_BINARY_GLOBS = (
     "docs/assets/**/*.png",
     "docs/assets/**/*.svg",
     "docs/assets/**/*.webp",
-    "frontend/vityo_app/android/app/src/main/res/**/*.png",
-    "frontend/vityo_app/ios/Runner/Assets.xcassets/**/*.png",
-    "frontend/vityo_app/macos/Runner/Assets.xcassets/**/*.png",
-    "frontend/vityo_app/web/*.png",
-    "frontend/vityo_app/web/**/*.png",
-    "frontend/vityo_app/windows/runner/resources/*.ico",
+    "products/styio_ide/android/app/src/main/res/**/*.png",
+    "products/styio_ide/ios/Runner/Assets.xcassets/**/*.png",
+    "products/styio_ide/macos/Runner/Assets.xcassets/**/*.png",
+    "products/styio_ide/web/*.png",
+    "products/styio_ide/web/**/*.png",
+    "products/styio_ide/windows/runner/resources/*.ico",
 )
 
 REQUIRED_GITIGNORE_PATTERNS = (
@@ -109,14 +109,14 @@ REQUIRED_GITIGNORE_PATTERNS = (
     "!docs/**/tmp/**",
     "!docs/**/*.tmp",
     "!docs/**/*.log",
-    "!frontend/vityo_app/test/**/build/",
-    "!frontend/vityo_app/test/**/build/**",
-    "!frontend/vityo_app/test/**/build-*/",
-    "!frontend/vityo_app/test/**/build-*/**",
-    "!frontend/vityo_app/test/**/tmp/",
-    "!frontend/vityo_app/test/**/tmp/**",
-    "!frontend/vityo_app/test/**/*.tmp",
-    "!frontend/vityo_app/test/**/*.log",
+    "!products/styio_ide/test/**/build/",
+    "!products/styio_ide/test/**/build/**",
+    "!products/styio_ide/test/**/build-*/",
+    "!products/styio_ide/test/**/build-*/**",
+    "!products/styio_ide/test/**/tmp/",
+    "!products/styio_ide/test/**/tmp/**",
+    "!products/styio_ide/test/**/*.tmp",
+    "!products/styio_ide/test/**/*.log",
 )
 
 REQUIRED_DOC_REFERENCES = {
@@ -137,92 +137,53 @@ REQUIRED_DOC_REFERENCES = {
 }
 
 REQUIRED_PROJECT_BRAND_HEADINGS = {
-    Path("README.md"): "# Vityo",
-    Path("docs/README.md"): "# Vityo Docs",
-    Path("frontend/vityo_app/README.md"): "# Vityo Flutter Shell",
+    Path("README.md"): "# Styio IDE",
+    Path("docs/README.md"): "# Styio IDE Docs",
+    Path("products/styio_ide/README.md"): "# Styio IDE Flutter Shell",
 }
 REQUIRED_PROJECT_BRAND_METADATA = {
-    Path("frontend/vityo_app/android/app/src/main/AndroidManifest.xml"): 'android:label="Vityo"',
-    Path("frontend/vityo_app/ios/Runner/Info.plist"): (
-        "<key>CFBundleDisplayName</key>\n\t<string>Vityo</string>",
-        "<key>CFBundleName</key>\n\t<string>Vityo</string>",
+    Path("products/styio_ide/android/app/src/main/AndroidManifest.xml"): 'android:label="Styio IDE"',
+    Path("products/styio_ide/ios/Runner/Info.plist"): (
+        "<key>CFBundleDisplayName</key>\n\t<string>Styio IDE</string>",
+        "<key>CFBundleName</key>\n\t<string>Styio IDE</string>",
     ),
-    Path("frontend/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
-    Path("frontend/vityo_app/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Vityo",
-    Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo IDE editor shell",
-    Path("frontend/vityo_app/windows/runner/Runner.rc"): (
-        'VALUE "FileDescription", "Vityo"',
-        'VALUE "InternalName", "Vityo"',
-        'VALUE "ProductName", "Vityo"',
+    Path("products/styio_ide/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Styio IDE");',
+    Path("products/styio_ide/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Styio IDE",
+    Path("products/styio_ide/pubspec.yaml"): "description: Styio IDE editor shell",
+    Path("products/styio_ide/windows/runner/Runner.rc"): (
+        'VALUE "FileDescription", "Styio IDE"',
+        'VALUE "InternalName", "Styio IDE"',
+        'VALUE "ProductName", "Styio IDE"',
     ),
 }
-VIEW_IDE_ROOT = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_ide"
-VIEW_RENDER_ROOT = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_render"
+VIEW_IDE_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
+IDE_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "ide"
+VIEW_RENDER_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_render"
 VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = VIEW_IDE_ROOT / "backend_toolchain"
 VIEW_IDE_COMMANDS_ROOT = VIEW_IDE_ROOT / "commands"
-VIEW_IDE_EDITOR_ROOT = VIEW_IDE_ROOT / "editor"
+VIEW_IDE_EDITOR_ROOT = IDE_ROOT / "editor"
 VIEW_IDE_LANGUAGE_ROOT = VIEW_IDE_ROOT / "language"
-VIEW_IDE_WORKSPACE_ROOT = VIEW_IDE_ROOT / "workspace"
+VIEW_IDE_WORKSPACE_ROOT = IDE_ROOT / "workspace"
 VIEW_IDE_MODULE_HOST_ROOT = VIEW_IDE_ROOT / "module_host"
 VIEW_IDE_RUNTIME_ROOT = VIEW_IDE_ROOT / "runtime"
 VIEW_IDE_SHELL_RUNTIME_ROOT = VIEW_IDE_ROOT / "shell_runtime"
-VIEW_IDE_AGENT_ROOT = VIEW_IDE_ROOT / "agent"
+VIEW_IDE_AGENT_CLIENT_ROOT = VIEW_IDE_ROOT / "agent_client"
 VIEW_IDE_PLATFORM_ROOT = VIEW_IDE_ROOT / "platform"
 VIEW_RENDER_SHELL_ROOT = VIEW_RENDER_ROOT / "shell"
-VIEW_RENDER_AGENT_ROOT = VIEW_RENDER_ROOT / "agent"
+VIEW_RENDER_AGENT_WORKBENCH_ROOT = VIEW_RENDER_ROOT / "agent_workbench"
 VIEW_RENDER_EDITOR_ROOT = VIEW_RENDER_ROOT / "editor"
 VIEW_RENDER_RUNTIME_ROOT = VIEW_RENDER_ROOT / "runtime"
 VIEW_RENDER_THEME_ROOT = VIEW_RENDER_ROOT / "theme"
 VIEW_RENDER_PLATFORM_ROOT = VIEW_RENDER_ROOT / "platform"
-LEGACY_BACKEND_TOOLCHAIN_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "backend_toolchain"
-)
 LEGACY_COMMANDS_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "app" / "commands"
-)
-LEGACY_EDITOR_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "editor"
-)
-LEGACY_LANGUAGE_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "language"
+    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "app" / "commands"
 )
 LEGACY_WORKSPACE_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "app" / "state"
+    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "app" / "state"
 )
 LEGACY_APP_LAYOUT_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "app" / "layout"
+    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "app" / "layout"
 )
-LEGACY_MODULE_HOST_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "module_host"
-)
-LEGACY_RUNTIME_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "runtime"
-)
-LEGACY_AGENT_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "agent"
-)
-LEGACY_PLATFORM_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "platform"
-)
-LEGACY_THEME_ROOT = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "theme"
-)
-LEGACY_EDITOR_FACADE_FILES = (
-    "document_state.dart",
-    "editor_controller.dart",
-    "editor_render_layers.dart",
-    "selection_state.dart",
-)
-LEGACY_WORKSPACE_FACADE_FILES = (
-    "workspace_controller.dart",
-    "workspace_document_store.dart",
-    "workspace_document_store_io.dart",
-    "workspace_document_store_types.dart",
-    "workspace_document_store_web.dart",
-)
-LEGACY_RUNTIME_FACADE_FILES = ("runtime_replay_summary.dart",)
-LEGACY_AGENT_FACADE_FILES = ("agent_profile.dart",)
-LEGACY_PLATFORM_FACADE_FILES = ("native_module_loader.dart", "platform_target.dart")
 VIEW_IDE_FORBIDDEN_IMPORTS = (
     "package:flutter/cupertino.dart",
     "package:flutter/material.dart",
@@ -422,6 +383,7 @@ def check_view_boundary_imports() -> list[str]:
 
     for root in (
         VIEW_IDE_ROOT,
+        IDE_ROOT,
         VIEW_RENDER_ROOT,
         VIEW_IDE_BACKEND_TOOLCHAIN_ROOT,
         VIEW_IDE_COMMANDS_ROOT,
@@ -431,10 +393,10 @@ def check_view_boundary_imports() -> list[str]:
         VIEW_IDE_MODULE_HOST_ROOT,
         VIEW_IDE_RUNTIME_ROOT,
         VIEW_IDE_SHELL_RUNTIME_ROOT,
-        VIEW_IDE_AGENT_ROOT,
+        VIEW_IDE_AGENT_CLIENT_ROOT,
         VIEW_IDE_PLATFORM_ROOT,
         VIEW_RENDER_SHELL_ROOT,
-        VIEW_RENDER_AGENT_ROOT,
+        VIEW_RENDER_AGENT_WORKBENCH_ROOT,
         VIEW_RENDER_EDITOR_ROOT,
         VIEW_RENDER_RUNTIME_ROOT,
         VIEW_RENDER_THEME_ROOT,
@@ -446,94 +408,25 @@ def check_view_boundary_imports() -> list[str]:
     if not VIEW_IDE_ROOT.exists():
         return errors
 
-    for path in sorted(VIEW_IDE_ROOT.rglob("*.dart")):
-        relative_path = path.relative_to(REPO_ROOT).as_posix()
-        text = path.read_text(encoding="utf-8")
-        for line_number, line in enumerate(text.splitlines(), start=1):
-            stripped = line.strip()
-            if not stripped.startswith(("import ", "export ")):
-                continue
-            if "view_render/" in stripped or "/view_render" in stripped:
-                errors.append(
-                    f"{relative_path}:{line_number}: view_ide must not depend on view_render"
-                )
-            for forbidden in VIEW_IDE_FORBIDDEN_IMPORTS:
-                if forbidden in stripped:
+    for boundary_root in (VIEW_IDE_ROOT, IDE_ROOT):
+        for path in sorted(boundary_root.rglob("*.dart")):
+            relative_path = path.relative_to(REPO_ROOT).as_posix()
+            text = path.read_text(encoding="utf-8")
+            for line_number, line in enumerate(text.splitlines(), start=1):
+                stripped = line.strip()
+                if not stripped.startswith(("import ", "export ")):
+                    continue
+                if "view_render/" in stripped or "/view_render" in stripped:
                     errors.append(
-                        f"{relative_path}:{line_number}: view_ide must not import presentation API {forbidden}"
+                        f"{relative_path}:{line_number}: IDE domain must not depend on view_render"
                     )
+                for forbidden in VIEW_IDE_FORBIDDEN_IMPORTS:
+                    if forbidden in stripped:
+                        errors.append(
+                            f"{relative_path}:{line_number}: IDE domain must not import presentation API {forbidden}"
+                        )
 
     return errors
-
-
-def check_legacy_backend_toolchain_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_BACKEND_TOOLCHAIN_ROOT,
-        migrated_root=VIEW_IDE_BACKEND_TOOLCHAIN_ROOT,
-        legacy_name="backend_toolchain",
-    )
-
-
-def check_legacy_language_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_LANGUAGE_ROOT,
-        migrated_root=VIEW_IDE_LANGUAGE_ROOT,
-        legacy_name="language",
-    )
-
-
-def check_legacy_editor_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_EDITOR_ROOT,
-        migrated_root=VIEW_IDE_EDITOR_ROOT,
-        legacy_name="editor",
-        file_names=LEGACY_EDITOR_FACADE_FILES,
-    )
-
-
-def check_legacy_workspace_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_WORKSPACE_ROOT,
-        migrated_root=VIEW_IDE_WORKSPACE_ROOT,
-        legacy_name="workspace",
-        file_names=LEGACY_WORKSPACE_FACADE_FILES,
-        export_prefix="../../view_ide/workspace",
-    )
-
-
-def check_legacy_module_host_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_MODULE_HOST_ROOT,
-        migrated_root=VIEW_IDE_MODULE_HOST_ROOT,
-        legacy_name="module_host",
-    )
-
-
-def check_legacy_runtime_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_RUNTIME_ROOT,
-        migrated_root=VIEW_IDE_RUNTIME_ROOT,
-        legacy_name="runtime",
-        file_names=LEGACY_RUNTIME_FACADE_FILES,
-    )
-
-
-def check_legacy_agent_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_AGENT_ROOT,
-        migrated_root=VIEW_IDE_AGENT_ROOT,
-        legacy_name="agent",
-        file_names=LEGACY_AGENT_FACADE_FILES,
-    )
-
-
-def check_legacy_platform_facades() -> list[str]:
-    return check_legacy_view_ide_facades(
-        legacy_root=LEGACY_PLATFORM_ROOT,
-        migrated_root=VIEW_IDE_PLATFORM_ROOT,
-        legacy_name="platform",
-        file_names=LEGACY_PLATFORM_FACADE_FILES,
-    )
 
 
 def check_legacy_render_shell_facades() -> list[str]:
@@ -568,62 +461,6 @@ def check_legacy_render_shell_facades() -> list[str]:
         if lines != [f"export '{export_target}';"]:
             errors.append(
                 f"{relative_path}: legacy render shell files must stay one-line facades to view_render/shell"
-            )
-            continue
-        if not target_path.exists():
-            errors.append(
-                f"{relative_path}: facade target is missing: {target_path.relative_to(REPO_ROOT).as_posix()}"
-            )
-    return errors
-
-
-def check_legacy_view_render_facades() -> list[str]:
-    facades = (
-        (
-            LEGACY_AGENT_ROOT / "agent_surface.dart",
-            VIEW_RENDER_AGENT_ROOT / "agent_surface.dart",
-            "../view_render/agent/agent_surface.dart",
-        ),
-        (
-            LEGACY_EDITOR_ROOT / "editor_surface.dart",
-            VIEW_RENDER_EDITOR_ROOT / "editor_surface.dart",
-            "../view_render/editor/editor_surface.dart",
-        ),
-        (
-            LEGACY_RUNTIME_ROOT / "runtime_surface.dart",
-            VIEW_RENDER_RUNTIME_ROOT / "runtime_surface.dart",
-            "../view_render/runtime/runtime_surface.dart",
-        ),
-        (
-            LEGACY_RUNTIME_ROOT / "debug_console_surface.dart",
-            VIEW_RENDER_RUNTIME_ROOT / "debug_console_surface.dart",
-            "../view_render/runtime/debug_console_surface.dart",
-        ),
-        (
-            LEGACY_THEME_ROOT / "vityo_theme.dart",
-            VIEW_RENDER_THEME_ROOT / "vityo_theme.dart",
-            "../view_render/theme/vityo_theme.dart",
-        ),
-        (
-            LEGACY_PLATFORM_ROOT / "viewport_profile.dart",
-            VIEW_RENDER_PLATFORM_ROOT / "viewport_profile.dart",
-            "../view_render/platform/viewport_profile.dart",
-        ),
-    )
-    errors: list[str] = []
-    for legacy_path, target_path, export_target in facades:
-        relative_path = legacy_path.relative_to(REPO_ROOT).as_posix()
-        if not legacy_path.exists():
-            errors.append(f"required legacy view_render facade is missing: {relative_path}")
-            continue
-        lines = [
-            line.strip()
-            for line in legacy_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-        if lines != [f"export '{export_target}';"]:
-            errors.append(
-                f"{relative_path}: legacy render surface files must stay one-line facades to view_render"
             )
             continue
         if not target_path.exists():
@@ -753,7 +590,7 @@ def check_view_ide_editor_layout() -> list[str]:
         target = VIEW_IDE_EDITOR_FACADES.get(path.name)
         if target is None:
             errors.append(
-                f"{relative_path}: top-level view_ide/editor files must be registered facades"
+                f"{relative_path}: top-level ide/editor files must be registered facades"
             )
             continue
         if lines != [f"export '{target}';"]:
@@ -896,7 +733,7 @@ def print_report(header: str, errors: list[str]) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Vityo repository hygiene gate")
+    parser = argparse.ArgumentParser(description="Styio repository hygiene gate")
     parser.add_argument("--mode", choices=("tracked", "staged", "push"), default="staged")
     parser.add_argument("--range", dest="rev_range", help="Explicit revision range for --mode push")
     parser.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)
@@ -906,18 +743,9 @@ def main() -> int:
     errors.extend(check_doc_references())
     errors.extend(check_project_branding())
     errors.extend(check_view_boundary_imports())
-    errors.extend(check_legacy_backend_toolchain_facades())
     errors.extend(check_legacy_command_adapter())
-    errors.extend(check_legacy_editor_facades())
-    errors.extend(check_legacy_language_facades())
-    errors.extend(check_legacy_workspace_facades())
-    errors.extend(check_legacy_module_host_facades())
-    errors.extend(check_legacy_runtime_facades())
     errors.extend(check_legacy_render_shell_facades())
-    errors.extend(check_legacy_view_render_facades())
     errors.extend(check_shell_runtime_boundary())
-    errors.extend(check_legacy_agent_facades())
-    errors.extend(check_legacy_platform_facades())
     errors.extend(check_view_ide_language_layout())
     errors.extend(check_view_ide_editor_layout())
 

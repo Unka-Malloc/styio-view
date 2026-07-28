@@ -46,6 +46,8 @@ export function createInitialRuntimeState() {
     saveInFlight: false,
     latestAnalysis: null,
     sidebarOpen: false,
+    projectSidebarOpen: true,
+    chatDockOpen: true,
     activeDrawerTab: DRAWER_TABS.FILES,
     linkedSurfaceActiveTab: SURFACE_KEYS.THEME,
     editorModeLinkedToTheme: true,

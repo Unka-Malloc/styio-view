@@ -1,13 +1,15 @@
 # Prototype Surface
 
+> **状态：Draft（已归档，不再维护）。** 自 2026-07-26 起，本目录的 JavaScript 原型不再是默认客户端；默认客户端为 Flutter 应用（`frontend/vityo_app`）。本目录仅作历史参考保留，不再接收新功能。
+
 **Purpose:** Describe the handwritten `Vityo` prototype surfaces, their local server, and the repo-local governance checks that keep them owned and testable.
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-07-26
 
 当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
 
-这里同时也是当前仓库里“给人维护的 Web Editor 入口”。
-`frontend/vityo_app/build/web` 之类的 Flutter 生成物只用于构建验证，不作为人工维护页面。
+这里曾经是仓库里"给人维护的 Web Editor 入口"，现已归档为 Draft。
+`frontend/vityo_app`（Flutter）是当前默认打开的客户端。
 
 仓库级 bootstrap、共享工具链和常用验证命令见 [../docs/BUILD-AND-DEV-ENV.md](../docs/BUILD-AND-DEV-ENV.md)；本页只描述手写原型本身。
 
@@ -70,6 +72,10 @@
 21. 当前原型支持导入 / 编辑一份参考 VS Code 结构的 JSONC 调色盘配置，示例见 `theme-config.example.jsonc`
 22. 当前 canonical 配置存放在浏览器 `localStorage` 的 `Vityo:custom-palette-config`
 23. 手写 Web IDE 的设计理念、分层规则和标准工作流，见 `../docs/specs/HANDWRITTEN-WEB-IDE-ENGINEERING-HANDBOOK.md`
+24. `Grid` 风格为 IDE 三区域布局：左侧固定项目侧栏（工作区卡片 + 操作行 + 文件树）、顶部标签页切换栏、底部对话坞
+25. 点击工具栏最左侧按钮可收起/展开左侧项目侧栏；收起时侧栏宽度归零
+26. 右侧抽屉在 `Grid` 下只承载设置面板，`目录树` Tab 被隐藏
+27. 点击工具栏右侧对话图标或对话坞标题栏按钮可收起/展开底部对话坞；输入框按 Enter 发送、Shift+Enter 换行；AI 后端未接入，发送后只追加一条占位回复
 
 ## Module Structure
 
@@ -82,8 +88,9 @@
 7. `editor-modules/surface-actions.js`: `Theme / Editor` 风格行为的层级定义，区分 `surface / section / leaf`
 8. `editor-modules/grid-style/layout-config-store.js`: `Grid` 风格的单例布局配置源，负责配置持有、订阅更新与页面自动同步
 9. `editor-modules/grid-style/layout-manager.js`: `Grid` 风格的纯布局推导器，负责把配置换算成 CSS 变量
-10. `scripts/check-editor-load.mjs`: focused editor 页面加载自测，覆盖页面启动、侧边栏展开、设置区渲染、Theme 切换、`Symbol Highlight` 展开与 `Grid` 运行时布局配置更新
+10. `scripts/check-editor-load.mjs`: focused editor 页面加载自测，覆盖页面启动、侧边栏展开、设置区渲染、Theme 切换、`Symbol Highlight` 展开、`Grid` 运行时布局配置更新与 IDE 布局（左侧文件树、底部对话坞）
 11. `GRID-STYLE-PRACTICE.md`: `Grid` 风格这一轮重构和调样的经验文档，和规则文档配套维护
+12. `editor-modules/grid-style/chat-dock.js`: 底部对话坞的消息追加、输入读取与事件绑定模块
 
 `editor.js` 中和 `Theme / Editor` 相关的模式切换、palette 切换，应优先通过 surface controller 入口处理，再由渲染切片调度对应区域刷新；不要在事件处理器里直接串行调用多个 UI 同步函数。
 
@@ -106,6 +113,7 @@
    - 设置页切换
    - `Theme` 的 `Palette` 和 `Light / Dark`
    - `Symbol Highlight` 展开
+   - IDE 布局：文件树位于左侧项目侧栏、设置面板位于右抽屉、对话坞收发消息与收起/展开、项目侧栏收起/展开
 6. 若失败，会在 `prototype/.artifacts/editor-load-failure.png` 写出失败截图
 
 ## Local Dev Server Security

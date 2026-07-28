@@ -1,4 +1,4 @@
-# Vityo Mainstream Architecture Alignment
+# Styio IDE Mainstream Architecture Alignment
 
 **Purpose:** Map Vityo's architecture to mainstream IDE/agentic-IDE patterns without cloning any competitor. This document defines where Vityo aligns, where it intentionally diverges, and what governance rules maintain the alignment.
 
@@ -38,7 +38,7 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 | `view_ide/agent/` | `view_ide/` models, adapter contracts | `view_render/`, Flutter |
 | `view_ide/module_host/` | `view_ide/` contracts | `view_render/`, Flutter |
 | `app/` | All layers | Nothing restricted (composition root) |
-| `prototype/` | Self-contained | `frontend/vityo_app/` (build artifact boundary) |
+| `prototype/` | Self-contained | `products/styio_ide/` (build artifact boundary) |
 
 ## 2. Industry Alignment Map
 

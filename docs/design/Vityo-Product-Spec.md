@@ -1,4 +1,4 @@
-# Vityo Product Spec
+# Styio IDE Product Spec
 
 **Purpose:** 作为 `Vityo` 的产品级单一事实来源，定义产品定位、术语、不变量、功能域、平台策略与验收边界。
 

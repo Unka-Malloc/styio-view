@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PYTHON_COVERAGE_GATE = ROOT / "scripts" / "python-coverage-gate.py"
-DEFAULT_FLUTTER_DIR = Path("frontend/vityo_app")
+DEFAULT_FLUTTER_DIR = Path("products/styio_ide")
 DEFAULT_FAIL_UNDER = 95
 LCOV_RELATIVE_PATH = Path("coverage/lcov.info")
 

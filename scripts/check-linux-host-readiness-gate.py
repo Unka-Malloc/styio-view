@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Linux host readiness gate - detect/report WSL/Docker Linux readiness for
 Python, Dart/Flutter, npm, Chrome/Chromium, Docker image Dart/Flutter
 availability, and CRLF Flutter shell-script blockers.
@@ -326,7 +326,7 @@ def check_crlf_scripts() -> dict[str, object]:
     """Check that no `.sh` files under the Flutter shell tree have CRLF line
     endings, which would prevent execution inside a WSL/Linux environment."""
     flutter_dirs = [
-        REPO_ROOT / "frontend" / "vityo_app",
+        REPO_ROOT / "products" / "styio_ide",
     ]
     crlf_files: list[str] = []
     for base_dir in flutter_dirs:

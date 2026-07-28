@@ -13,7 +13,7 @@ from types import ModuleType
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PRODUCT_TEST = ROOT / "frontend" / "vityo_app" / "test" / "local_product_workflow_test.dart"
+PRODUCT_TEST = ROOT / "products" / "styio_ide" / "test" / "local_product_workflow_test.dart"
 REPORT_MARKER = "VITYO_PRODUCT_REPORT "
 GATE_ID = "vityo-desktop-product-gate"
 CAPABILITY = "trusted-desktop-ide-loop"
@@ -204,7 +204,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             process = subprocess.run(
                 ["flutter", "test", str(PRODUCT_TEST)],
-                cwd=ROOT / "frontend" / "vityo_app",
+                cwd=ROOT / "products" / "styio_ide",
                 capture_output=True,
                 text=True,
                 env=environment,

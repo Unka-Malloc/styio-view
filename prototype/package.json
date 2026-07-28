@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。",
   "scripts": {
+    "dev": "python dev_server.py",
     "governance": "node ./scripts/check-prototype-governance.mjs",
     "selftest:editor": "node ./scripts/check-editor-load.mjs",
     "test": "npm run governance && npm run selftest:editor"

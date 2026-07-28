@@ -13,7 +13,7 @@ $ProfileFile = if ($env:VITYO_ANDROID_PROFILE_FILE) { $env:VITYO_ANDROID_PROFILE
 $AndroidSdkRoot = if ($env:VITYO_ANDROID_SDK_ROOT) { $env:VITYO_ANDROID_SDK_ROOT } else { Join-Path $env:LOCALAPPDATA "Android\Sdk" }
 $FlutterHome = if ($env:VITYO_FLUTTER_HOME) { $env:VITYO_FLUTTER_HOME } else { Join-Path $env:USERPROFILE "develop\flutter" }
 $FlutterBin = if ($env:VITYO_FLUTTER_BIN) { $env:VITYO_FLUTTER_BIN } else { Join-Path $FlutterHome "bin\flutter.bat" }
-$FlutterDirDefault = Join-Path $Root "frontend\vityo_app"
+$FlutterDirDefault = Join-Path $Root "products\styio_ide"
 $OutDirDefault = Join-Path $Root "build\android-profile-artifacts"
 $WorkDirDefault = Join-Path $Root "build\android-profile-workspaces"
 

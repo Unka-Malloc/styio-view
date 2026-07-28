@@ -2,7 +2,7 @@
 
 **Purpose:** 集中记录 `vityo-nightly` 中真正需要产品所有者裁决的高杠杆问题；一次回答应同时约束多个需求、实现节点和验收口径。
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-26
 
 **Status:** Resolved — 3/3 个所有者问题已裁决
 
@@ -28,8 +28,8 @@
 
 ### 问题
 
-是否把下一里程碑定义为“可信桌面 IDE 闭环”，而不是要求当前
-`vityo-product-delivery` 的 REQ-001..REQ-009 全部在同一个里程碑内完成？
+Should the next milestone be the trustworthy desktop IDE loop instead of requiring every
+`REQ-001..REQ-009` item from the former single-line delivery plan to close in one milestone?
 
 ### A. 可信桌面 IDE 闭环（推荐）
 
@@ -148,7 +148,11 @@
 
 - `docs/design/Vityo-Product-Spec.md`：产品不变量、桌面优先范围、平台策略。
 - `docs/design/Vityo-Implementation-Gaps.md`：未完成能力、上游阻塞和三个陈旧的低层“Decision needed”条目。
-- `docs/plan/vityo-product-delivery/Requirements.md`：REQ-001..REQ-009 当前全量交付合同。
-- `docs/plan/vityo-product-delivery/Evidence.md`：能力成熟度和上游依赖证据。
-- `docs/plan/vityo-product-delivery/Checkpoints.json`：当前待实现节点及依赖关系。
+- `docs/plan/styio-ide/Requirements.md` and `docs/plan/styio-coding-agent/Requirements.md`:
+  current two-line delivery contracts.
+- `docs/plan/styio-ide/Evidence.md` and `docs/plan/styio-coding-agent/Evidence.md`: current
+  repository findings and external architecture evidence.
+- `docs/plan/styio-ide/Checkpoints.json` and
+  `docs/plan/styio-coding-agent/Checkpoints.json`: current implementation lifecycles and
+  dependencies.
 - `docs/review/Logic-Conflicts.md` 与 `docs/adr/`：此前产品冲突均已裁决，不重复提问。

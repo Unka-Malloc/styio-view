@@ -66,6 +66,11 @@ import {
   installGridLayoutConfigDebugApi,
 } from "./editor-modules/grid-style/layout-config-store.js";
 import {
+  appendChatMessage,
+  bindChatDockEvents,
+  readChatInput,
+} from "./editor-modules/grid-style/chat-dock.js";
+import {
   applyVisualTokenOverrides,
   buildVisualTokenConfigObject,
   hasVisualTokenOverrides,
@@ -312,6 +317,8 @@ let workspaceLoadedFiles = initialRuntimeState.workspaceLoadedFiles;
 let saveInFlight = initialRuntimeState.saveInFlight;
 let latestAnalysis = initialRuntimeState.latestAnalysis;
 let sidebarOpen = initialRuntimeState.sidebarOpen;
+let projectSidebarOpen = initialRuntimeState.projectSidebarOpen;
+let chatDockOpen = initialRuntimeState.chatDockOpen;
 let activeDrawerTab = initialRuntimeState.activeDrawerTab;
 let linkedSurfaceActiveTab = initialRuntimeState.linkedSurfaceActiveTab;
 let editorModeLinkedToTheme = initialRuntimeState.editorModeLinkedToTheme;
@@ -879,6 +886,16 @@ const translations = {
     glyphsLoading: "符号：加载中",
     indentLoading: "缩进：加载中",
     unitLoading: "单元：加载中",
+    explorer: "项目文件",
+    expandProjectSidebar: "展开项目侧栏",
+    collapseProjectSidebar: "收起项目侧栏",
+    assistant: "助手",
+    chatInputPlaceholder: "描述你想要的改动…",
+    sendMessage: "发送",
+    expandChatDock: "展开对话面板",
+    collapseChatDock: "收起对话面板",
+    assistantWelcome: "你好，我是 Vityo 助手。AI 后端尚未接入，目前先把想法和改动需求记录在这里。",
+    assistantPlaceholderReply: "当前原型尚未接入 AI 后端，这是一条占位回复。",
   },
   en: {
     documentTitle: "Styio Editor",
@@ -980,6 +997,16 @@ const translations = {
     glyphsLoading: "glyphs: loading",
     indentLoading: "indent: loading",
     unitLoading: "unit: loading",
+    explorer: "Explorer",
+    expandProjectSidebar: "Show project sidebar",
+    collapseProjectSidebar: "Hide project sidebar",
+    assistant: "Assistant",
+    chatInputPlaceholder: "Describe the change you want…",
+    sendMessage: "Send",
+    expandChatDock: "Expand chat panel",
+    collapseChatDock: "Collapse chat panel",
+    assistantWelcome: "Hi, I'm the Vityo assistant. The AI backend isn't connected yet — draft your requests here for now.",
+    assistantPlaceholderReply: "This prototype isn't connected to an AI backend yet; this is a placeholder reply.",
   },
 };
 
@@ -1044,6 +1071,36 @@ function applyLanguageUi() {
   quickCreateFileButton.setAttribute("title", t("createFile"));
   workspaceMoreButton.setAttribute("aria-label", t("moreWorkspaceActions"));
   workspaceMoreButton.setAttribute("title", t("moreWorkspaceActions"));
+
+  const gridRefs = styleShellBridge.gridRefs;
+  if (gridRefs.projectSidebarTitle) {
+    gridRefs.projectSidebarTitle.textContent = t("explorer");
+  }
+  if (gridRefs.chatDockTitle) {
+    gridRefs.chatDockTitle.textContent = t("assistant");
+  }
+  if (gridRefs.chatInput) {
+    gridRefs.chatInput.setAttribute("placeholder", t("chatInputPlaceholder"));
+    gridRefs.chatInput.setAttribute("aria-label", t("chatInputPlaceholder"));
+  }
+  if (gridRefs.chatSendButton) {
+    gridRefs.chatSendButton.setAttribute("aria-label", t("sendMessage"));
+    gridRefs.chatSendButton.setAttribute("title", t("sendMessage"));
+  }
+  if (gridRefs.chatDockCollapseButton) {
+    gridRefs.chatDockCollapseButton.setAttribute("aria-label", t("collapseChatDock"));
+    gridRefs.chatDockCollapseButton.setAttribute("title", t("collapseChatDock"));
+  }
+  if (gridRefs.toggleProjectSidebarButton) {
+    const projectSidebarLabel = t(projectSidebarOpen ? "collapseProjectSidebar" : "expandProjectSidebar");
+    gridRefs.toggleProjectSidebarButton.setAttribute("aria-label", projectSidebarLabel);
+    gridRefs.toggleProjectSidebarButton.setAttribute("title", projectSidebarLabel);
+  }
+  if (gridRefs.toggleChatDockButton) {
+    const chatDockLabel = t(chatDockOpen ? "collapseChatDock" : "expandChatDock");
+    gridRefs.toggleChatDockButton.setAttribute("aria-label", chatDockLabel);
+    gridRefs.toggleChatDockButton.setAttribute("title", chatDockLabel);
+  }
 
   languageTitle.textContent = t("language");
   if (styleTitle) {
@@ -3252,14 +3309,61 @@ function syncSidebar() {
     t,
   });
 
+  const gridShellActive = activeUiStyleKey === "grid";
   drawerTabs.forEach((button) => {
     const active = button.dataset.drawerTab === activeDrawerTab;
     button.classList.toggle("is-active", active);
     const panel = document.getElementById(`drawerPanel${button.dataset.drawerTab.charAt(0).toUpperCase()}${button.dataset.drawerTab.slice(1)}`);
-    panel.classList.toggle("is-active", active);
+    panel.classList.toggle("is-active", gridShellActive ? true : active);
   });
 
   scheduleLayoutRender();
+}
+
+function syncProjectSidebar() {
+  document.body.classList.toggle("project-sidebar-open", projectSidebarOpen);
+  const toggle = styleShellBridge.gridRefs.toggleProjectSidebarButton;
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(projectSidebarOpen));
+    const label = t(projectSidebarOpen ? "collapseProjectSidebar" : "expandProjectSidebar");
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+  }
+  scheduleLayoutRender();
+}
+
+function syncChatDock() {
+  document.body.classList.toggle("chat-dock-open", chatDockOpen);
+  const toggle = styleShellBridge.gridRefs.toggleChatDockButton;
+  if (toggle) {
+    toggle.setAttribute("aria-expanded", String(chatDockOpen));
+    const label = t(chatDockOpen ? "collapseChatDock" : "expandChatDock");
+    toggle.setAttribute("aria-label", label);
+    toggle.setAttribute("title", label);
+  }
+  scheduleLayoutRender();
+}
+
+function handleChatDockSend() {
+  const gridRefs = styleShellBridge.gridRefs;
+  const text = readChatInput(gridRefs.chatInput);
+  if (!text) {
+    return;
+  }
+
+  appendChatMessage(gridRefs.chatMessages, "user", text);
+  window.setTimeout(() => {
+    appendChatMessage(gridRefs.chatMessages, "assistant", t("assistantPlaceholderReply"));
+  }, 240);
+}
+
+function seedChatDockWelcome() {
+  const gridRefs = styleShellBridge.gridRefs;
+  if (!gridRefs.chatMessages || gridRefs.chatMessages.children.length > 0) {
+    return;
+  }
+
+  appendChatMessage(gridRefs.chatMessages, "assistant", t("assistantWelcome"));
 }
 
 function chooseWorkspaceFile(preferredFile, files) {
@@ -3473,6 +3577,7 @@ function applyUiStyleStrategy() {
     root: document.documentElement,
     settingsRoot: settingsFactoryRoot,
   });
+  syncSidebar();
 }
 
 function persistUiStyleState() {
@@ -5176,6 +5281,24 @@ bindStyleShellBridgeEvents(styleShellBridge, {
   },
 });
 
+styleShellBridge.gridRefs.toggleProjectSidebarButton?.addEventListener("click", () => {
+  projectSidebarOpen = !projectSidebarOpen;
+  syncProjectSidebar();
+});
+
+styleShellBridge.gridRefs.toggleChatDockButton?.addEventListener("click", () => {
+  chatDockOpen = !chatDockOpen;
+  syncChatDock();
+});
+
+bindChatDockEvents(styleShellBridge.gridRefs, {
+  onSend: handleChatDockSend,
+  onCollapse: () => {
+    chatDockOpen = false;
+    syncChatDock();
+  },
+});
+
 drawerTabs.forEach((button) => {
   button.addEventListener("click", () => {
     activeDrawerTab = button.dataset.drawerTab;
@@ -5946,6 +6069,9 @@ async function bootstrap() {
   toggleGlyphs.setAttribute("title", glyphsOn ? t("disableGlyphRendering") : t("enableGlyphRendering"));
   updateIndentUi();
   syncSidebar();
+  syncProjectSidebar();
+  syncChatDock();
+  seedChatDockWelcome();
   await loadWorkspace();
   activeTreePath = "";
   editorInput.value = fileSources[currentFile] ?? "";

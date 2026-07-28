@@ -10,9 +10,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-APP_LIB_ROOT = REPO_ROOT / "frontend" / "vityo_app" / "lib"
+APP_LIB_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib"
 SRC_ROOT = APP_LIB_ROOT / "src"
 VIEW_IDE_ROOT = SRC_ROOT / "view_ide"
+IDE_ROOT = SRC_ROOT / "ide"
 VIEW_RENDER_ROOT = SRC_ROOT / "view_render"
 
 FORBIDDEN_VIEW_IDE_PRESENTATION_IMPORTS = {
@@ -27,7 +28,8 @@ FORBIDDEN_VIEW_IDE_PRESENTATION_IMPORTS = {
 # view_ide. New view_render -> view_ide imports must be reviewed by updating
 # this list instead of importing arbitrary view_ide implementation modules.
 VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS = {
-    "view_ide/agent/agent.dart",
+    "view_ide/agent_client/agent.dart",
+    "view_ide/agent_client/agent_context.dart",
     "view_ide/backend_toolchain/adapter_contracts.dart",
     "view_ide/backend_toolchain/dependency_source_adapter.dart",
     "view_ide/backend_toolchain/deployment_adapter.dart",
@@ -40,11 +42,11 @@ VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS = {
     "view_ide/debugger/debug_adapter_launcher.dart",
     "view_ide/debugger/debug_launch_contract.dart",
     "view_ide/debugger/debug_launch_telemetry_store.dart",
-    "view_ide/editor/document_state.dart",
-    "view_ide/editor/editor_controller.dart",
-    "view_ide/editor/editor_render_layers.dart",
-    "view_ide/editor/render_plan/render_plan.dart",
-    "view_ide/editor/selection_state.dart",
+    "ide/editor/document_state.dart",
+    "ide/editor/editor_controller.dart",
+    "ide/editor/editor_render_layers.dart",
+    "ide/editor/render_plan/render_plan.dart",
+    "ide/editor/selection_state.dart",
     "view_ide/environment/configuration/configuration.dart",
     "view_ide/environment/configuration/vityo_theme_override.dart",
     "view_ide/environment/environment.dart",
@@ -66,17 +68,10 @@ VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS = {
     "view_ide/toolchain/toolchain.dart",
     "view_ide/toolchain/toolchain_catalog.dart",
     "view_ide/toolchain/toolchain_manager.dart",
-    "view_ide/workspace/source_control_commit_draft_store.dart",
-    "view_ide/workspace/source_control_status.dart",
-    "view_ide/workspace/workspace.dart",
+    "ide/workspace/source_control_commit_draft_store.dart",
+    "ide/workspace/source_control_status.dart",
+    "ide/workspace/workspace.dart",
 }
-
-LEGACY_COMPAT_ROOTS = (
-    SRC_ROOT / "backend_toolchain",
-    SRC_ROOT / "editor",
-    SRC_ROOT / "language",
-)
-INTEGRATION_ROOT = SRC_ROOT / "integration"
 
 DIRECTIVE_PATTERN = re.compile(r"^\s*(import|export)\s+['\"]([^'\"]+)['\"]")
 
@@ -121,8 +116,8 @@ def is_under(path: Path, root: Path) -> bool:
 def resolve_dart_uri(uri: str, source: Path) -> Path | None:
     if uri.startswith("dart:"):
         return None
-    if uri.startswith("package:vityo_app/"):
-        return (APP_LIB_ROOT / uri.removeprefix("package:vityo_app/")).resolve()
+    if uri.startswith("package:styio_ide/"):
+        return (APP_LIB_ROOT / uri.removeprefix("package:styio_ide/")).resolve()
     if uri.startswith("package:"):
         return None
     if "://" in uri:
@@ -164,34 +159,39 @@ def format_violation(directive: DartDirective, message: str) -> str:
 
 def check_view_ide_no_view_render_dependency() -> list[str]:
     errors: list[str] = []
-    for directive in iter_directives(VIEW_IDE_ROOT):
-        if directive.target is not None and is_under(directive.target, VIEW_RENDER_ROOT):
-            errors.append(
-                format_violation(
-                    directive,
-                    "view_ide must not import or export view_render",
+    for root in (VIEW_IDE_ROOT, IDE_ROOT):
+        for directive in iter_directives(root):
+            if directive.target is not None and is_under(directive.target, VIEW_RENDER_ROOT):
+                errors.append(
+                    format_violation(
+                        directive,
+                        "IDE domain must not import or export view_render",
+                    )
                 )
-            )
     return errors
 
 
 def check_view_ide_no_presentation_api() -> list[str]:
     errors: list[str] = []
-    for directive in iter_directives(VIEW_IDE_ROOT):
-        if directive.uri in FORBIDDEN_VIEW_IDE_PRESENTATION_IMPORTS:
-            errors.append(
-                format_violation(
-                    directive,
-                    "view_ide must not import Flutter presentation APIs",
+    for root in (VIEW_IDE_ROOT, IDE_ROOT):
+        for directive in iter_directives(root):
+            if directive.uri in FORBIDDEN_VIEW_IDE_PRESENTATION_IMPORTS:
+                errors.append(
+                    format_violation(
+                        directive,
+                        "IDE domain must not import Flutter presentation APIs",
+                    )
                 )
-            )
     return errors
 
 
 def check_view_render_registered_view_ide_contracts() -> list[str]:
     errors: list[str] = []
     for directive in iter_directives(VIEW_RENDER_ROOT):
-        if directive.target is None or not is_under(directive.target, VIEW_IDE_ROOT):
+        if directive.target is None or not (
+            is_under(directive.target, VIEW_IDE_ROOT)
+            or is_under(directive.target, IDE_ROOT)
+        ):
             continue
         target_rel = relative_to_src(directive.target)
         if target_rel not in VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS:
@@ -204,34 +204,11 @@ def check_view_render_registered_view_ide_contracts() -> list[str]:
     return errors
 
 
-def check_view_render_no_legacy_compat_imports() -> list[str]:
-    errors: list[str] = []
-    for directive in iter_directives(VIEW_RENDER_ROOT):
-        if directive.target is None:
-            continue
-        if any(is_under(directive.target, root) for root in LEGACY_COMPAT_ROOTS):
-            errors.append(
-                format_violation(
-                    directive,
-                    "view_render must not import legacy compatibility facade roots",
-                )
-            )
-        if is_under(directive.target, INTEGRATION_ROOT):
-            errors.append(
-                format_violation(
-                    directive,
-                    "view_render must not import integration",
-                )
-            )
-    return errors
-
-
 def check_architecture_boundaries() -> list[str]:
     errors: list[str] = []
     errors.extend(check_view_ide_no_view_render_dependency())
     errors.extend(check_view_ide_no_presentation_api())
     errors.extend(check_view_render_registered_view_ide_contracts())
-    errors.extend(check_view_render_no_legacy_compat_imports())
     return errors
 
 
@@ -247,7 +224,7 @@ def print_text_report(errors: list[str]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Check Vityo view_ide/view_render architecture boundaries."
+        description="Check Styio IDE view_ide/view_render architecture boundaries."
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text.")
     args = parser.parse_args(argv)

@@ -1,4 +1,4 @@
-# Vityo macOS Desktop Adaptation Plan
+# Styio IDE macOS Desktop Adaptation Plan
 
 **Purpose:** Preserve macOS desktop open-work signals cited by convergence checkpoints; do not fork domain logic.
 

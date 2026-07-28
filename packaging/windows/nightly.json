@@ -1,9 +1,10 @@
 {
   "schema_version": 1,
   "platform": "windows",
+  "product": "styio_ide",
   "package_format": "zip-powershell",
-  "build_relative_path": "frontend/vityo_app/build/windows/x64/runner/Release",
-  "icon_relative_path": "frontend/vityo_app/windows/runner/resources/app_icon.ico",
+  "build_relative_path": "products/styio_ide/build/windows/x64/runner/Release",
+  "icon_relative_path": "products/styio_ide/windows/runner/resources/app_icon.ico",
   "installer_definition": "packaging/windows/install.ps1",
   "uninstaller_definition": "packaging/windows/uninstall.ps1",
   "signing": {"status": "explicit-gap", "reason": "Nightly Authenticode signing credentials are not configured."},

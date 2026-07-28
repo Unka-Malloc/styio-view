@@ -87,9 +87,9 @@ Styio toolchain discovery is implemented in Toolchain, not Language Service.
 Current implementation path:
 
 ```text
-frontend/vityo_app/lib/src/view_ide/toolchain/styio_toolchain_discovery.dart
-frontend/vityo_app/lib/src/view_ide/toolchain/styio_toolchain_discovery_io.dart
-frontend/vityo_app/lib/src/view_ide/toolchain/styio_toolchain_discovery_stub.dart
+products/styio_ide/lib/src/view_ide/toolchain/styio_toolchain_discovery.dart
+products/styio_ide/lib/src/view_ide/toolchain/styio_toolchain_discovery_io.dart
+products/styio_ide/lib/src/view_ide/toolchain/styio_toolchain_discovery_stub.dart
 ```
 
 Language Service may keep a compatibility re-export, but it must not own the platform discovery implementation. StyioService startup consumes a selected `ToolchainCatalog`.

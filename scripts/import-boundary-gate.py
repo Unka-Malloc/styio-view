@@ -39,12 +39,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # ── Paths ──────────────────────────────────────────────────────────────────
 
-VIEW_RENDER_DIR = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_render"
-VIEW_IDE_DIR = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "view_ide"
+VIEW_RENDER_DIR = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_render"
+VIEW_IDE_DIR = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
 BACKEND_TOOLCHAIN_DIR = (
-    REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "backend_toolchain"
+    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "backend_toolchain"
 )
-INTEGRATION_DIR = REPO_ROOT / "frontend" / "vityo_app" / "lib" / "src" / "integration"
+INTEGRATION_DIR = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "integration"
 
 # Upstream private source directories (non-view_ide src modules that view_ide
 # must not import from directly).

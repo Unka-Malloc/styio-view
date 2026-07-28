@@ -97,7 +97,7 @@ def main() -> int:
             f"declared platform {args.platform!r} does not match host {actual_platform!r}"
         )
 
-    app_root = args.vityo / "frontend" / "vityo_app"
+    app_root = args.vityo / "products" / "styio_ide"
     require_pinned_pty_dependency(app_root)
     run_matrix(flutter=args.flutter, app_root=app_root)
     report = build_report(

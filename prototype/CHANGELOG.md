@@ -1,5 +1,11 @@
 # Prototype Changelog
 
+## 2026-07-26 / Archived as Draft
+
+1. 整个 JavaScript 原型表面降为 Draft 存档，不再维护；`prototype-manifest.json` 中 `editor.html` 状态改为 `draft`，`canonical_entry` 置空。
+2. 默认客户端提升为 Flutter 应用（`frontend/vityo_app`），桌面壳已重做为 IDE 布局（左侧文件树、编辑器标签、底部 Agent 对话框）。
+3. `editor.html` 顶栏加入可见的 DRAFT 徽标；治理规则新增 `draft` 表面类别，gate（`npm run governance`）继续覆盖存档状态。
+
 ## 2026-04-12 / Round 1
 
 1. 新建首个可直接打开的高保真原型页。
@@ -91,3 +97,13 @@
 2. `/editor` 只绑定 focused editor 页面，不再展示原型画廊或引导页。
 3. 旧引导页从静态入口、manifest 和治理分类中移除。
 4. 删除旧引导页依赖的 `app.js` / `styles.css`，避免 `/editor` 之外残留可访问入口。
+
+## 2026-07-25 / IDE Layout
+
+1. `Grid` 风格从“编辑卡片 + 右侧抽屉”升级为真正的 IDE 三区域布局：左侧固定项目侧栏、顶部标签页切换栏、底部对话坞。
+2. 新增左侧项目侧栏 `#gridProjectSidebar`：工作区卡片、工作区操作行和文件树从共享抽屉内容中拆分出来，固定挂载到 `#gridProjectTreeMount`；可通过工具栏左侧按钮收起/展开，收起时宽度归零。
+3. 右侧抽屉改为只承载设置面板；`Grid` 模式下隐藏 `目录树` Tab，`#drawerPanelSettings` 直接挂载到 `#gridDrawerMount`。
+4. 主编辑区底部新增对话坞 `#gridChatDock`：标题栏、消息列表（含欢迎占位消息）和输入框 + 发送按钮；支持 Enter 发送、Shift+Enter 换行、标题栏收起和工具栏按钮切换；AI 后端未接入，发送后只追加一条明确的占位回复。
+5. 工具栏改成三段结构：项目侧栏开关（左）、文件标签页（中）、对话坞开关 + 设置抽屉开关（右）。
+6. 挂载逻辑按风格分流：`grid` 拆分 files/settings 两个面板；`editorial` 与其它风格保持共享抽屉整体挂载不变，风格切换时面板会自动归位。
+7. 自测新增 `verify-ide-layout` 步骤：校验文件树在左侧栏内、设置面板在右抽屉内、对话坞可见且可收发消息、对话坞与项目侧栏的收起/展开宽度。

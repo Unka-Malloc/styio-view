@@ -11,9 +11,9 @@ Own the Vityo extension and contribution model: extension manifest schema, typed
 ## Owned Surface
 
 Primary paths:
-1. `frontend/vityo_app/lib/src/view_ide/module_host/`
-2. `frontend/vityo_app/assets/module_manifests/`
-3. `frontend/vityo_app/assets/capability_matrices/`
+1. `products/styio_ide/lib/src/view_ide/module_host/`
+2. `products/styio_ide/assets/module_manifests/`
+3. `products/styio_ide/assets/capability_matrices/`
 4. `docs/design/Vityo-Extension-And-Contribution-Model.md`
 5. `docs/teams/EXTENSION-MODULE-RUNBOOK.md`
 
@@ -42,8 +42,8 @@ Key SSOTs:
 
 Minimum:
 ```bash
-cd frontend/vityo_app && flutter test test/extension_manifest_contract_test.dart test/extension_contribution_manifest_test.dart test/module_lifecycle_test.dart
-cd frontend/vityo_app && flutter analyze
+cd products/styio_ide && flutter test test/extension_manifest_contract_test.dart test/extension_contribution_manifest_test.dart test/module_lifecycle_test.dart
+cd products/styio_ide && flutter analyze
 ```
 
 ## Cross-Team Dependencies

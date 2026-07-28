@@ -10,78 +10,78 @@
 
 | Artifact | File | Role |
 |----------|------|------|
-| `ProblemsSurface` widget | `frontend/vityo_app/lib/src/view_render/problems/problems_surface.dart` | Renders per-document and workspace-wide diagnostics, severity counters, quick-fix preview/review, workspace-edit diff windows, producer lifecycle. |
-| `WorkspaceDiagnosticsSnapshot` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_diagnostics.dart` | Immutable snapshot of all workspace diagnostics from a producer. |
-| `WorkspaceDiagnosticsProducerLifecycleSnapshot` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_diagnostics.dart` | Tracks a running diagnostics producer task (progress, cancellation, terminal status). |
-| `DiagnosticsPanelState` | `frontend/vityo_app/lib/src/view_ide/interaction/diagnostics_panel_state_store.dart` | Persisted panel state: workspace ID, selected diagnostic, filter state. |
-| `WorkspaceDiagnosticsFilterState` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_diagnostics_filter_store.dart` | Current severity/source filters applied to the problems list. |
-| `WorkspaceQuickFixReviewPlan` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_edit.dart` | Review plan: diagnostic + quick-fix index + confirmation plan + diff preview + apply/cancel controls. |
+| `ProblemsSurface` widget | `products/styio_ide/lib/src/view_render/problems/problems_surface.dart` | Renders per-document and workspace-wide diagnostics, severity counters, quick-fix preview/review, workspace-edit diff windows, producer lifecycle. |
+| `WorkspaceDiagnosticsSnapshot` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics.dart` | Immutable snapshot of all workspace diagnostics from a producer. |
+| `WorkspaceDiagnosticsProducerLifecycleSnapshot` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics.dart` | Tracks a running diagnostics producer task (progress, cancellation, terminal status). |
+| `DiagnosticsPanelState` | `products/styio_ide/lib/src/view_ide/interaction/diagnostics_panel_state_store.dart` | Persisted panel state: workspace ID, selected diagnostic, filter state. |
+| `WorkspaceDiagnosticsFilterState` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics_filter_store.dart` | Current severity/source filters applied to the problems list. |
+| `WorkspaceQuickFixReviewPlan` | `products/styio_ide/lib/src/ide/workspace/workspace_edit.dart` | Review plan: diagnostic + quick-fix index + confirmation plan + diff preview + apply/cancel controls. |
 | `WorkspaceQuickFixTelemetrySnapshot` | (in workspace_problems.dart / workspace_edit.dart) | Telemetry for quick-fix apply rate, accept/reject counts. |
-| `WorkspaceEditPreview` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_edit.dart` | Diff preview snapshot: document diffs, file operations, missing-document list. |
-| `WorkspaceEditApplyResultViewModel` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_edit.dart` | Result of applying a workspace edit: success/failure per document. |
-| `SemanticSnapshotPanelViewModel` | `frontend/vityo_app/lib/src/view_ide/language/semantic_snapshot_panel.dart` | Side panel showing semantic snapshot alongside problems. |
-| `DiagnosticsInteractionAction` / `DiagnosticsQuickFixCommandRoute` | `frontend/vityo_app/lib/src/view_ide/interaction/diagnostics_interaction_model.dart` | Command routes for preview/apply quick-fix, open-document, filter-by-source. |
+| `WorkspaceEditPreview` | `products/styio_ide/lib/src/ide/workspace/workspace_edit.dart` | Diff preview snapshot: document diffs, file operations, missing-document list. |
+| `WorkspaceEditApplyResultViewModel` | `products/styio_ide/lib/src/ide/workspace/workspace_edit.dart` | Result of applying a workspace edit: success/failure per document. |
+| `SemanticSnapshotPanelViewModel` | `products/styio_ide/lib/src/view_ide/language/semantic_snapshot_panel.dart` | Side panel showing semantic snapshot alongside problems. |
+| `DiagnosticsInteractionAction` / `DiagnosticsQuickFixCommandRoute` | `products/styio_ide/lib/src/view_ide/interaction/diagnostics_interaction_model.dart` | Command routes for preview/apply quick-fix, open-document, filter-by-source. |
 
 ### 1.2 Diagnostics Navigation (revision-bound)
 
 | Artifact | File | Role |
 |----------|------|------|
-| `Diagnostic` (core model) | `frontend/vityo_app/lib/src/view_ide/language/contract/language_contract.dart` | Severity + code + message + SourceRange. |
-| `RevisionBoundDiagnostic` | `frontend/vityo_app/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Diagnostic bound to a document revision; stale if revision mismatches. |
-| `DiagnosticSource` / `DiagnosticConfidence` | `frontend/vityo_app/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Source (compiler, languageService, extension) and confidence level (authoritative, heuristic, speculative). |
-| `DiagnosticRangeIndex` | `frontend/vityo_app/lib/src/view_ide/language/diagnostics/diagnostic_range_index.dart` | Spatial index for range-based diagnostic lookup. |
-| `StyioDiagnosticCatalog` | `frontend/vityo_app/lib/src/view_ide/language/diagnostics/styio_diagnostic_catalog.dart` | Catalog of Styio-specific diagnostic codes and messages. |
-| `StyioCompilerDiagnostics` | `frontend/vityo_app/lib/src/view_ide/language/diagnostics/styio_compiler_diagnostics.dart` | Parser for Styio compiler diagnostic output. |
-| `StyioNumericDiagnostics` | `frontend/vityo_app/lib/src/view_ide/language/diagnostics/styio_numeric_diagnostics.dart` | Numeric-level diagnostic mapping. |
-| `WorkspaceDiagnosticsController` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_diagnostics_controller.dart` | Orchestrates diagnostics producers and dispatches snapshots. |
-| `WorkspaceProblemsService.collectProblems` | `frontend/vityo_app/lib/src/view_ide/workspace/workspace_problems.dart` | Collects problems across workspace documents via `ProjectStyioLanguageService`. |
+| `Diagnostic` (core model) | `products/styio_ide/lib/src/view_ide/language/contract/language_contract.dart` | Severity + code + message + SourceRange. |
+| `RevisionBoundDiagnostic` | `products/styio_ide/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Diagnostic bound to a document revision; stale if revision mismatches. |
+| `DiagnosticSource` / `DiagnosticConfidence` | `products/styio_ide/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Source (compiler, languageService, extension) and confidence level (authoritative, heuristic, speculative). |
+| `DiagnosticRangeIndex` | `products/styio_ide/lib/src/view_ide/language/diagnostics/diagnostic_range_index.dart` | Spatial index for range-based diagnostic lookup. |
+| `StyioDiagnosticCatalog` | `products/styio_ide/lib/src/view_ide/language/diagnostics/styio_diagnostic_catalog.dart` | Catalog of Styio-specific diagnostic codes and messages. |
+| `StyioCompilerDiagnostics` | `products/styio_ide/lib/src/view_ide/language/diagnostics/styio_compiler_diagnostics.dart` | Parser for Styio compiler diagnostic output. |
+| `StyioNumericDiagnostics` | `products/styio_ide/lib/src/view_ide/language/diagnostics/styio_numeric_diagnostics.dart` | Numeric-level diagnostic mapping. |
+| `WorkspaceDiagnosticsController` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics_controller.dart` | Orchestrates diagnostics producers and dispatches snapshots. |
+| `WorkspaceProblemsService.collectProblems` | `products/styio_ide/lib/src/ide/workspace/workspace_problems.dart` | Collects problems across workspace documents via `ProjectStyioLanguageService`. |
 
 ### 1.3 Test Discovery / Execution
 
 | Artifact | File | Role |
 |----------|------|------|
-| `TestingSurface` widget | `frontend/vityo_app/lib/src/view_render/testing/testing_surface.dart` | Renders test discovery, latest run result, run history, failed-test retries, configuration picker, debug cancellation. |
-| `TestRunRequest` | `frontend/vityo_app/lib/src/view_ide/testing/testing_provider.dart` | Request to run tests: workspaceRoot + targetId + filter + debug flag. |
-| `TestDiscoveryRequest` | `frontend/vityo_app/lib/src/view_ide/testing/testing_provider.dart` | Request to discover tests: workspaceRoot + targetId + filter. |
-| `TestDiscoveryResult` | `frontend/vityo_app/lib/src/view_ide/testing/testing_provider.dart` | Test discovery result: test count, test list, provider metadata. |
-| `TestRunResult` | `frontend/vityo_app/lib/src/view_ide/testing/testing_provider.dart` | Run result: runner, status, counts (total/passed/failed/skipped/error), failed test list, diagnostics. |
-| `TestRunConfiguration` | `frontend/vityo_app/lib/src/view_ide/testing/testing_provider.dart` | Configuration for a test run: id, label, providerId, targetId, filter, debug. |
-| `TestRunConfigurationSet` | `frontend/vityo_app/lib/src/view_ide/testing/test_run_configuration_store.dart` | Persisted set of configurations with selection. |
-| `TestRunHistoryStore` | `frontend/vityo_app/lib/src/view_ide/testing/test_run_history_store.dart` | Persisted run history and failed-test retry records. |
-| `FailedTestDebugCancellationRoute` | `frontend/vityo_app/lib/src/view_ide/testing/testing_session_controller.dart` | Route for cancelling a failed-test debug session; bridges testing to runtime task lifecycle. |
-| `FailedTestRetryRecord` | `frontend/vityo_app/lib/src/view_ide/testing/test_run_history_store.dart` | Record of a failed-test retry attempt. |
+| `TestingSurface` widget | `products/styio_ide/lib/src/view_render/testing/testing_surface.dart` | Renders test discovery, latest run result, run history, failed-test retries, configuration picker, debug cancellation. |
+| `TestRunRequest` | `products/styio_ide/lib/src/view_ide/testing/testing_provider.dart` | Request to run tests: workspaceRoot + targetId + filter + debug flag. |
+| `TestDiscoveryRequest` | `products/styio_ide/lib/src/view_ide/testing/testing_provider.dart` | Request to discover tests: workspaceRoot + targetId + filter. |
+| `TestDiscoveryResult` | `products/styio_ide/lib/src/view_ide/testing/testing_provider.dart` | Test discovery result: test count, test list, provider metadata. |
+| `TestRunResult` | `products/styio_ide/lib/src/view_ide/testing/testing_provider.dart` | Run result: runner, status, counts (total/passed/failed/skipped/error), failed test list, diagnostics. |
+| `TestRunConfiguration` | `products/styio_ide/lib/src/view_ide/testing/testing_provider.dart` | Configuration for a test run: id, label, providerId, targetId, filter, debug. |
+| `TestRunConfigurationSet` | `products/styio_ide/lib/src/view_ide/testing/test_run_configuration_store.dart` | Persisted set of configurations with selection. |
+| `TestRunHistoryStore` | `products/styio_ide/lib/src/view_ide/testing/test_run_history_store.dart` | Persisted run history and failed-test retry records. |
+| `FailedTestDebugCancellationRoute` | `products/styio_ide/lib/src/view_ide/testing/testing_session_controller.dart` | Route for cancelling a failed-test debug session; bridges testing to runtime task lifecycle. |
+| `FailedTestRetryRecord` | `products/styio_ide/lib/src/view_ide/testing/test_run_history_store.dart` | Record of a failed-test retry attempt. |
 
 ### 1.4 Source Control (status / diff / review / staging)
 
 | Artifact | File | Role |
 |----------|------|------|
-| `SourceControlSurface` widget | `frontend/vityo_app/lib/src/view_render/source_control/source_control_surface.dart` | Renders SCM status, staged/unstaged changes, diff preview, branch switch, commit draft dialog, history summary. |
-| `SourceControlStatusSnapshot` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Immutable status from a provider: providerKind, branchName, changes list. |
-| `SourceControlFileChange` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | A single file change: path, staged/unstaged status, originalPath. |
-| `SourceControlDiffSnapshot` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_diff_session_store.dart` | Diff for one or more changed files. |
-| `SourceControlDiffWindowBinding` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_diff_session_store.dart` | Binding between diff snapshot and diff window UI. |
-| `SourceControlCommitDraft` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_commit_draft_store.dart` | Draft commit message and staging selection. |
-| `SourceControlCommitDialogState` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_commit_draft_store.dart` | Dialog open/closed state and validation. |
-| `SourceControlBranchSnapshot` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | All branches + current branch + branch-switch plan API. |
-| `SourceControlHistorySnapshot` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Commit history entries (revision, shortRevision, author, summary). |
-| `SourceControlProviderAdapterRegistry` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Capability-based adapter registry: register/resolve by capability. |
-| `SourceControlProviderAdapterDescriptor` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Descriptor: id, label, providerKind, capabilities. |
-| `SourceControlStatusController` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status_controller.dart` | Orchestrates status polling, diff loading, and action dispatch. |
-| `GitPorcelainStatusParser` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Parses `git status --porcelain` output into `SourceControlStatusSnapshot`. |
-| `GitLogHistoryParser` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Parses `git log` output into history entries. |
-| `SourceControlHunkDiscardConfirmationPlan` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | Confirmation plan for discarding a hunk. |
-| `SourceControlPartialPatchResult` | `frontend/vityo_app/lib/src/view_ide/workspace/source_control_diff_session_store.dart` | Result of a partial patch (hunk-level stage/unstage/discard). |
+| `SourceControlSurface` widget | `products/styio_ide/lib/src/view_render/source_control/source_control_surface.dart` | Renders SCM status, staged/unstaged changes, diff preview, branch switch, commit draft dialog, history summary. |
+| `SourceControlStatusSnapshot` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Immutable status from a provider: providerKind, branchName, changes list. |
+| `SourceControlFileChange` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | A single file change: path, staged/unstaged status, originalPath. |
+| `SourceControlDiffSnapshot` | `products/styio_ide/lib/src/ide/workspace/source_control_diff_session_store.dart` | Diff for one or more changed files. |
+| `SourceControlDiffWindowBinding` | `products/styio_ide/lib/src/ide/workspace/source_control_diff_session_store.dart` | Binding between diff snapshot and diff window UI. |
+| `SourceControlCommitDraft` | `products/styio_ide/lib/src/ide/workspace/source_control_commit_draft_store.dart` | Draft commit message and staging selection. |
+| `SourceControlCommitDialogState` | `products/styio_ide/lib/src/ide/workspace/source_control_commit_draft_store.dart` | Dialog open/closed state and validation. |
+| `SourceControlBranchSnapshot` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | All branches + current branch + branch-switch plan API. |
+| `SourceControlHistorySnapshot` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Commit history entries (revision, shortRevision, author, summary). |
+| `SourceControlProviderAdapterRegistry` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Capability-based adapter registry: register/resolve by capability. |
+| `SourceControlProviderAdapterDescriptor` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Descriptor: id, label, providerKind, capabilities. |
+| `SourceControlStatusController` | `products/styio_ide/lib/src/ide/workspace/source_control_status_controller.dart` | Orchestrates status polling, diff loading, and action dispatch. |
+| `GitPorcelainStatusParser` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Parses `git status --porcelain` output into `SourceControlStatusSnapshot`. |
+| `GitLogHistoryParser` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Parses `git log` output into history entries. |
+| `SourceControlHunkDiscardConfirmationPlan` | `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | Confirmation plan for discarding a hunk. |
+| `SourceControlPartialPatchResult` | `products/styio_ide/lib/src/ide/workspace/source_control_diff_session_store.dart` | Result of a partial patch (hunk-level stage/unstage/discard). |
 
 ### 1.5 Shared / Cross-Cutting
 
 | Artifact | File | Role |
 |----------|------|------|
-| `AppCommandId` enum | `frontend/vityo_app/lib/src/view_ide/commands/app_commands.dart` | Canonical command IDs: `runTests`, `rerunFailedTests`, `debugFailedTests`, `runTestConfiguration`, `debugTestConfiguration`, `refreshWorkspaceDiagnostics`, `refreshSourceControl`, `previewSourceControlDiff`, `stageSourceControl`, `unstageSourceControl`, `planSourceControlBranchSwitch`, `planSourceControlCommitDraft`, `previewQuickFix`, `applyQuickFix`, `nextDiagnostic`, `previousDiagnostic`, `showWorkspaceProblems` |
-| `RuntimeTaskLifecycleEvent` | `frontend/vityo_app/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Unified lifecycle event for test, build, run, debug tasks. |
-| `RuntimeTaskDefinition` / `RuntimeTaskSnapshot` | `frontend/vityo_app/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Definition + snapshot model consumed by testing and diagnostics. |
-| `RuntimeReplaySummary` / `RuntimeLaneSummary` | `frontend/vityo_app/lib/src/view_ide/runtime/runtime_replay_summary.dart` | Lane-based event replay for runtime surface; consumed alongside test results. |
-| `Breakpoint` / `BreakpointSet` | `frontend/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart` | Breakpoint model, reused by debug test configuration. |
-| `RunConfigurationTarget` | `frontend/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart` | Run target model, reused by test configuration. |
+| `AppCommandId` enum | `products/styio_ide/lib/src/view_ide/commands/app_commands.dart` | Canonical command IDs: `runTests`, `rerunFailedTests`, `debugFailedTests`, `runTestConfiguration`, `debugTestConfiguration`, `refreshWorkspaceDiagnostics`, `refreshSourceControl`, `previewSourceControlDiff`, `stageSourceControl`, `unstageSourceControl`, `planSourceControlBranchSwitch`, `planSourceControlCommitDraft`, `previewQuickFix`, `applyQuickFix`, `nextDiagnostic`, `previousDiagnostic`, `showWorkspaceProblems` |
+| `RuntimeTaskLifecycleEvent` | `products/styio_ide/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Unified lifecycle event for test, build, run, debug tasks. |
+| `RuntimeTaskDefinition` / `RuntimeTaskSnapshot` | `products/styio_ide/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Definition + snapshot model consumed by testing and diagnostics. |
+| `RuntimeReplaySummary` / `RuntimeLaneSummary` | `products/styio_ide/lib/src/view_ide/runtime/runtime_replay_summary.dart` | Lane-based event replay for runtime surface; consumed alongside test results. |
+| `Breakpoint` / `BreakpointSet` | `products/styio_ide/lib/src/view_ide/runtime/debug_workbench_contract.dart` | Breakpoint model, reused by debug test configuration. |
+| `RunConfigurationTarget` | `products/styio_ide/lib/src/view_ide/runtime/debug_workbench_contract.dart` | Run target model, reused by test configuration. |
 
 ## 2. Product Boundaries
 
@@ -202,57 +202,57 @@ All three surface widgets import from the same `view_ide/` model layer. There is
 
 ### 7.1 Problems Panel Tests
 
-- `frontend/vityo_app/test/problems_surface_test.dart` - Widget test: renders diagnostics, keyboard navigation (arrow down, enter), workspace diagnostics snapshot, severity filtering, empty state, workspace edit preview, quick-fix review card.
-- `frontend/vityo_app/test/workspace_problems_test.dart` - `WorkspaceProblemsService.collectProblems` unit test.
-- `frontend/vityo_app/test/workspace_diagnostics_problems_test.dart` - Workspace diagnostics -> problem item conversion.
+- `products/styio_ide/test/problems_surface_test.dart` - Widget test: renders diagnostics, keyboard navigation (arrow down, enter), workspace diagnostics snapshot, severity filtering, empty state, workspace edit preview, quick-fix review card.
+- `products/styio_ide/test/workspace_problems_test.dart` - `WorkspaceProblemsService.collectProblems` unit test.
+- `products/styio_ide/test/workspace_diagnostics_problems_test.dart` - Workspace diagnostics -> problem item conversion.
 
 ### 7.2 Diagnostics / Revision Gate Tests
 
-- `frontend/vityo_app/test/diagnostic_revision_gate_test.dart` - Revision-bound diagnostic staleness, capability gaps, JSON roundtrip.
-- `frontend/vityo_app/test/diagnostics_interaction_model_test.dart` - `DiagnosticsInteractionModel`, quick-fix command routes, interaction actions.
-- `frontend/vityo_app/test/styio_compiler_diagnostics_test.dart` - Styio compiler diagnostic output parsing.
-- `frontend/vityo_app/test/styio_diagnostic_catalog_test.dart` - Diagnostic catalog code lookup, severity mapping.
-- `frontend/vityo_app/test/styio_diagnostic_snapshot_test.dart` - Diagnostic snapshot to `WorkspaceDiagnosticsSnapshot` conversion.
-- `frontend/vityo_app/test/styio_numeric_diagnostics_test.dart` - Numeric severity mapping, range validation.
-- `frontend/vityo_app/test/styio_syntax_diagnostics_test.dart` - Syntax diagnostic parsing from compiler output.
-- `frontend/vityo_app/test/styio_workspace_diagnostics_test.dart` - Workspace-level diagnostic aggregation.
+- `products/styio_ide/test/diagnostic_revision_gate_test.dart` - Revision-bound diagnostic staleness, capability gaps, JSON roundtrip.
+- `products/styio_ide/test/diagnostics_interaction_model_test.dart` - `DiagnosticsInteractionModel`, quick-fix command routes, interaction actions.
+- `products/styio_ide/test/styio_compiler_diagnostics_test.dart` - Styio compiler diagnostic output parsing.
+- `products/styio_ide/test/styio_diagnostic_catalog_test.dart` - Diagnostic catalog code lookup, severity mapping.
+- `products/styio_ide/test/styio_diagnostic_snapshot_test.dart` - Diagnostic snapshot to `WorkspaceDiagnosticsSnapshot` conversion.
+- `products/styio_ide/test/styio_numeric_diagnostics_test.dart` - Numeric severity mapping, range validation.
+- `products/styio_ide/test/styio_syntax_diagnostics_test.dart` - Syntax diagnostic parsing from compiler output.
+- `products/styio_ide/test/styio_workspace_diagnostics_test.dart` - Workspace-level diagnostic aggregation.
 
 ### 7.3 Testing Surface Tests
 
-- `frontend/vityo_app/test/testing_surface_test.dart` - Widget test: renders test result, run/rerun/diagnostics buttons, configuration selection, failed-test list, debug cancellation route.
-- `frontend/vityo_app/test/testing_runtime_task_history_store_test.dart` - `TestRunHistoryStore` unit tests.
-- `frontend/vityo_app/test/test_run_configuration_store_test.dart` - `TestRunConfigurationStore` upsert/select/remove.
+- `products/styio_ide/test/testing_surface_test.dart` - Widget test: renders test result, run/rerun/diagnostics buttons, configuration selection, failed-test list, debug cancellation route.
+- `products/styio_ide/test/testing_runtime_task_history_store_test.dart` - `TestRunHistoryStore` unit tests.
+- `products/styio_ide/test/test_run_configuration_store_test.dart` - `TestRunConfigurationStore` upsert/select/remove.
 
 ### 7.4 Source Control Tests
 
-- `frontend/vityo_app/test/source_control_surface_test.dart` - Widget test: renders status, diff preview, branch switch, commit dialog, history, adapter registry.
-- `frontend/vityo_app/test/source_control_status_test.dart` - `GitPorcelainStatusParser` parse output, `GitLogHistoryParser` parse output, `SourceControlBranchSnapshot` branch switch plan, `SourceControlProviderAdapterRegistry` register/resolve.
-- `frontend/vityo_app/test/source_control_adapter_test.dart` - Adapter descriptor and capability tests.
-- `frontend/vityo_app/test/source_control_commit_draft_store_test.dart` - Commit draft store mutation and validation.
-- `frontend/vityo_app/test/source_control_diff_session_store_test.dart` - Diff session store, window binding, partial patch result.
-- `frontend/vityo_app/test/source_control_hunk_action_test.dart` - Hunk action plan and discard confirmation.
+- `products/styio_ide/test/source_control_surface_test.dart` - Widget test: renders status, diff preview, branch switch, commit dialog, history, adapter registry.
+- `products/styio_ide/test/source_control_status_test.dart` - `GitPorcelainStatusParser` parse output, `GitLogHistoryParser` parse output, `SourceControlBranchSnapshot` branch switch plan, `SourceControlProviderAdapterRegistry` register/resolve.
+- `products/styio_ide/test/source_control_adapter_test.dart` - Adapter descriptor and capability tests.
+- `products/styio_ide/test/source_control_commit_draft_store_test.dart` - Commit draft store mutation and validation.
+- `products/styio_ide/test/source_control_diff_session_store_test.dart` - Diff session store, window binding, partial patch result.
+- `products/styio_ide/test/source_control_hunk_action_test.dart` - Hunk action plan and discard confirmation.
 
 ### 7.5 Source Files (Primary Evidence)
 
 | File | Lines (approx) | Coverage |
 |------|----------------|----------|
-| `frontend/vityo_app/lib/src/view_render/problems/problems_surface.dart` | 1170 | Surface widget, all UI states |
-| `frontend/vityo_app/lib/src/view_render/testing/testing_surface.dart` | 423 | Surface widget, all UI states |
-| `frontend/vityo_app/lib/src/view_render/source_control/source_control_surface.dart` | 1002 | Surface widget, all UI states |
-| `frontend/vityo_app/lib/src/view_ide/language/contract/language_contract.dart` | 300+ | Core diagnostic/enum models |
-| `frontend/vityo_app/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | 300+ | Revision-bound gate, capability gaps |
-| `frontend/vityo_app/lib/src/view_ide/language/diagnostics/styio_diagnostic_catalog.dart` | 200+ | Catalog codes -> severity |
-| `frontend/vityo_app/lib/src/view_ide/workspace/workspace_diagnostics.dart` | 400+ | Snapshot + producer lifecycle |
-| `frontend/vityo_app/lib/src/view_ide/workspace/workspace_problems.dart` | 250+ | Problems query + service |
-| `frontend/vityo_app/lib/src/view_ide/workspace/workspace_edit.dart` | 500+ | Edit plan, quick-fix review, diff preview |
-| `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status.dart` | 2753 | Full SCM status model + parsers + adapters |
-| `frontend/vityo_app/lib/src/view_ide/workspace/source_control_status_controller.dart` | 400+ | Status polling + action dispatch |
-| `frontend/vityo_app/lib/src/view_ide/workspace/source_control_diff_session_store.dart` | 300+ | Diff session + window binding |
-| `frontend/vityo_app/lib/src/view_ide/testing/testing_provider.dart` | 400+ | Test request/result/config models |
-| `frontend/vityo_app/lib/src/view_ide/testing/testing_session_controller.dart` | 350+ | Debug cancellation route + handlers |
-| `frontend/vityo_app/lib/src/view_ide/testing/test_run_configuration_store.dart` | 200+ | Configuration persistence |
-| `frontend/vityo_app/lib/src/view_ide/testing/test_run_history_store.dart` | 150+ | History + retry records |
-| `frontend/vityo_app/lib/src/view_ide/commands/app_commands.dart` | 200+ | Canonical command IDs |
-| `frontend/vityo_app/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | 400+ | Task definition/lifecycle/snapshot |
-| `frontend/vityo_app/lib/src/view_ide/runtime/runtime_replay_summary.dart` | 200+ | Event replay lanes |
-| `frontend/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart` | 200+ | Breakpoint + run config models |
+| `products/styio_ide/lib/src/view_render/problems/problems_surface.dart` | 1170 | Surface widget, all UI states |
+| `products/styio_ide/lib/src/view_render/testing/testing_surface.dart` | 423 | Surface widget, all UI states |
+| `products/styio_ide/lib/src/view_render/source_control/source_control_surface.dart` | 1002 | Surface widget, all UI states |
+| `products/styio_ide/lib/src/view_ide/language/contract/language_contract.dart` | 300+ | Core diagnostic/enum models |
+| `products/styio_ide/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | 300+ | Revision-bound gate, capability gaps |
+| `products/styio_ide/lib/src/view_ide/language/diagnostics/styio_diagnostic_catalog.dart` | 200+ | Catalog codes -> severity |
+| `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics.dart` | 400+ | Snapshot + producer lifecycle |
+| `products/styio_ide/lib/src/ide/workspace/workspace_problems.dart` | 250+ | Problems query + service |
+| `products/styio_ide/lib/src/ide/workspace/workspace_edit.dart` | 500+ | Edit plan, quick-fix review, diff preview |
+| `products/styio_ide/lib/src/ide/workspace/source_control_status.dart` | 2753 | Full SCM status model + parsers + adapters |
+| `products/styio_ide/lib/src/ide/workspace/source_control_status_controller.dart` | 400+ | Status polling + action dispatch |
+| `products/styio_ide/lib/src/ide/workspace/source_control_diff_session_store.dart` | 300+ | Diff session + window binding |
+| `products/styio_ide/lib/src/view_ide/testing/testing_provider.dart` | 400+ | Test request/result/config models |
+| `products/styio_ide/lib/src/view_ide/testing/testing_session_controller.dart` | 350+ | Debug cancellation route + handlers |
+| `products/styio_ide/lib/src/view_ide/testing/test_run_configuration_store.dart` | 200+ | Configuration persistence |
+| `products/styio_ide/lib/src/view_ide/testing/test_run_history_store.dart` | 150+ | History + retry records |
+| `products/styio_ide/lib/src/view_ide/commands/app_commands.dart` | 200+ | Canonical command IDs |
+| `products/styio_ide/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | 400+ | Task definition/lifecycle/snapshot |
+| `products/styio_ide/lib/src/view_ide/runtime/runtime_replay_summary.dart` | 200+ | Event replay lanes |
+| `products/styio_ide/lib/src/view_ide/runtime/debug_workbench_contract.dart` | 200+ | Breakpoint + run config models |

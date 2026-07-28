@@ -1,4 +1,4 @@
-﻿# Vityo Linux Packaging
+# Styio IDE Linux Packaging
 
 **Purpose:** Define the independently versioned Linux Nightly Debian package.
 
@@ -8,8 +8,8 @@
 
 ```
 packaging/linux/
-├── io.vityo.desktop       # FreeDesktop.org Desktop Entry
-├── io.vityo.metainfo.xml  # AppStream metadata (software center)
+├── io.styio.ide.desktop       # FreeDesktop.org Desktop Entry
+├── io.styio.ide.metainfo.xml  # AppStream metadata (software center)
 ├── nightly.json           # Package inputs, signing and update policy
 ├── DEBIAN/                # Debian/Ubuntu control file
 │   └── control
@@ -28,10 +28,10 @@ package contract even when `--skip-build` is used.
 
 | File | Purpose | Required |
 |------|---------|----------|
-| `io.vityo.desktop` | FreeDesktop.org menu entry, MIME associations | Formal release |
-| `io.vityo.metainfo.xml` | AppStream metadata (GNOME Software, KDE Discover) | Formal release |
+| `io.styio.ide.desktop` | FreeDesktop.org menu entry, MIME associations | Formal release |
+| `io.styio.ide.metainfo.xml` | AppStream metadata (GNOME Software, KDE Discover) | Formal release |
 | Application icon | Installed at the standard hicolor path | Nightly package |
-| `/usr/bin/vityo` wrapper | PATH integration and executable permissions | Nightly package |
+| `/usr/bin/styio-ide` wrapper | PATH integration and executable permissions | Nightly package |
 | `nightly.json` signing/update policy | Fail-closed release metadata | Nightly package |
 
 Repository signing is not configured. Therefore Linux automatic updates remain

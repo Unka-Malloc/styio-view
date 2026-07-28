@@ -1,4 +1,4 @@
-# Vityo CODEOWNERS Policy
+# Styio IDE CODEOWNERS Policy
 
 **Purpose:** 定义 Vityo 仓库的 CODEOWNERS 治理策略、nightly 占位 owner 路由和迁移到真实 GitHub owner 的过渡计划。
 
@@ -18,14 +18,14 @@ converted to enforceable owners:
 
 | Path Pattern | Owner | Scope |
 |---|---|---|
-| `frontend/vityo_app/lib/src/view_ide/agent/` | agent-owner | Agent runtime, tools, permissions |
-| `frontend/vityo_app/lib/src/view_ide/runtime/` | runtime-owner | Debug/runtime contracts, execution |
-| `frontend/vityo_app/lib/src/view_ide/workspace/` | workspace-owner | Workspace model, source control |
-| `frontend/vityo_app/lib/src/view_ide/language/` | language-owner | Language service, diagnostics |
-| `frontend/vityo_app/lib/src/view_ide/module_host/` | module-owner | Extension/module host |
-| `frontend/vityo_app/lib/src/view_ide/commands/` | commands-owner | Command registry, permissions |
-| `frontend/vityo_app/lib/src/view_render/` | shell-owner | View render surface |
-| `frontend/vityo_app/lib/src/backend_toolchain/` | adapter-owner | Adapter contracts |
+| `products/styio_ide/lib/src/view_ide/agent_client/` | agent-owner | Agent runtime, tools, permissions |
+| `products/styio_ide/lib/src/view_ide/runtime/` | runtime-owner | Debug/runtime contracts, execution |
+| `products/styio_ide/lib/src/ide/workspace/` | workspace-owner | Workspace model, source control |
+| `products/styio_ide/lib/src/view_ide/language/` | language-owner | Language service, diagnostics |
+| `products/styio_ide/lib/src/view_ide/module_host/` | module-owner | Extension/module host |
+| `products/styio_ide/lib/src/view_ide/commands/` | commands-owner | Command registry, permissions |
+| `products/styio_ide/lib/src/view_render/` | shell-owner | View render surface |
+| `products/styio_ide/lib/src/view_ide/backend_toolchain/` | adapter-owner | Adapter contracts |
 | `prototype/` | prototype-owner | Prototype editor |
 | `docs/` | docs-owner | Documentation |
 | `scripts/` | docs-owner | Tooling, gates |
@@ -47,7 +47,7 @@ converted to enforceable owners:
    before merge.
 5. **Nightly advisory map stays current.** Until real owners exist, root
    `CODEOWNERS` must still route new `view_ide`, sandbox, module security,
-   compatibility facade, governance, release, and PR-template paths to the
+   product-boundary, governance, release, and PR-template paths to the
    closest placeholder domain.
 
 ## Transition Plan

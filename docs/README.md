@@ -1,4 +1,4 @@
-# Vityo Docs
+# Styio IDE Docs
 
 **Purpose:** 定义 `docs/` 树的范围、入口和维护规则；具体主题分别由各目录下的 `README.md`、`INDEX.md` 和权威文档负责。
 
@@ -31,7 +31,7 @@
 6. 活跃缺口登记：[design/Vityo-Implementation-Gaps.md](./design/Vityo-Implementation-Gaps.md)
 7. 文档策略：[specs/DOCUMENTATION-POLICY.md](./specs/DOCUMENTATION-POLICY.md)
 8. 当前状态摘要：[rollups/CURRENT-STATE.md](./rollups/CURRENT-STATE.md)
-9. 里程碑入口：[plan/repository-delivery-convergence/Evidence.md](./plan/repository-delivery-convergence/Evidence.md)
+9. 双线计划入口：[plan/INDEX.md](./plan/INDEX.md)
 10. ADR 入口：[adr/INDEX.md](./adr/INDEX.md)
 11. 产品合同入口：[contracts/INDEX.md](./contracts/INDEX.md)
 12. `styio` 对接入口：[external/for-styio/INDEX.md](./external/for-styio/INDEX.md)
@@ -55,4 +55,4 @@
 8. 若实现边界与上游仓库当前实现冲突，先把 required handoff 记录到 `external/for-styio/` 或 `external/for-pafio/`，再在本仓 ADR 中记录适配决策。
 9. 若一次变更改变了团队 owned surface、review 路由或 handoff 路径，同批更新受影响的 `teams/*.md` 和 `teams/COORDINATION-RUNBOOK.md`。
 10. 新增文档必须使用当前产品名 `Vityo`；下游仓库名称使用 `vityo-nightly`，不能再引入旧产品名、旧仓库名或旧路径。
-11. 若变更改变 public API、compat façade、sandbox/security、release gate 或 performance gate，同批更新 `docs/governance/` 和受影响 team runbook。
+11. 若变更改变 public API、产品线边界、sandbox/security、release gate 或 performance gate，同批更新 `docs/governance/` 和受影响 team runbook。

@@ -12,17 +12,17 @@
 
 Primary paths:
 
-1. `frontend/vityo_app/lib/src/view_ide/runtime/`
-2. `frontend/vityo_app/lib/src/view_ide/agent/`
+1. `products/styio_ide/lib/src/view_ide/runtime/`
+2. `products/styio_ide/lib/src/view_ide/agent_client/`
    - `agent_execution_mode.dart` — agent execution mode (plan-only, build-capable)
    - `agent_provider_access_control.dart` — provider allowlist/denylist
    - `agent_tool_sandbox_router.dart` — sandboxed tool execution router
    - `agent_permission_model.dart` — governed permission model for agent tools, provider routes, and approval journals
-3. `frontend/vityo_app/lib/src/view_render/runtime/`
-4. `frontend/vityo_app/lib/src/view_render/agent/`
-5. `frontend/vityo_app/lib/src/runtime/`
+3. `products/styio_ide/lib/src/view_render/runtime/`
+4. `products/styio_ide/lib/src/view_render/agent_workbench/`
+5. `products/styio_ide/lib/src/runtime/`
    - `runtime_event_log.dart` — append-only runtime event log with ring buffer projection
-6. `frontend/vityo_app/lib/src/agent/` — `agent_session.dart` 保持 façade 再导出到 `view_ide/agent/agent_session.dart`
+6. `products/styio_coding_agent/lib/src/` — Coding Agent 独立运行时，不得导出或依赖 IDE 内部实现
 7. `docs/specs/AGENT-PROVIDER-ADAPTER-SCHEMA.md`
 8. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`
 
@@ -39,8 +39,8 @@ Key SSOTs:
 3. 变更 agent panel 时，避免把它退化成外挂聊天框；保持 IDE 内建能力定位。
 4. 变更 profile/prompt 流程时，同步检查本地持久化和 sync adapter 语义。
 5. `agent_profile.dart` 只冻结 provider route、默认 endpoint、profile JSON 和 local-bridge eligibility；本轮不新增真实 AI provider 调用、账号策略或云端 secret 管理。
-6. runtime replay、debug lane 和 hosted execution 摘要必须消费 `backend_toolchain` adapter payload，不得回读 legacy integration façade 或上游 human stderr。
-7. runtime/agent 的纯状态归 `view_ide`，Flutter surface 和 debug/agent panel 呈现归 `view_render`；legacy `src/runtime/` 与 `src/agent/` 只能保留 façade。
+6. runtime replay、debug lane 和 hosted execution 摘要必须消费 `view_ide/backend_toolchain` adapter payload，不得回读已移除入口或上游 human stderr。
+7. IDE 内 Agent 状态归 `view_ide/agent_client`，Flutter surface 和 Agent panel 呈现归 `view_render/agent_workbench`；Coding Agent 的会话与执行状态归独立产品包。
 8. agent tool execution must route through the sandbox/permission model; UI surfaces may display only redacted context and journal summaries.
 9. Permission, provider route, or sandbox changes must update [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md) when the policy changes.
 
@@ -57,7 +57,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd frontend/vityo_app && flutter analyze && flutter test
+cd products/styio_ide && flutter analyze && flutter test
 python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```

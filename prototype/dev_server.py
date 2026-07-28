@@ -6,6 +6,7 @@ import hmac
 import os
 import secrets
 import shutil
+import sys
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -803,10 +804,34 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
         self.end_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
 
 
+def resolve_listen_address() -> tuple[str, int]:
+    host = os.environ.get("STYIO_DEV_SERVER_HOST", "127.0.0.1")
+    port = int(os.environ.get("STYIO_DEV_SERVER_PORT") or os.environ.get("PORT") or "4180")
+    args = sys.argv[1:]
+    index = 0
+    while index < len(args):
+        arg = args[index]
+        if arg == "--host" and index + 1 < len(args):
+            host = args[index + 1]
+            index += 2
+            continue
+        if arg.startswith("--host="):
+            host = arg.split("=", 1)[1]
+        elif arg == "--port" and index + 1 < len(args):
+            port = int(args[index + 1])
+            index += 2
+            continue
+        elif arg.startswith("--port="):
+            port = int(arg.split("=", 1)[1])
+        index += 1
+    return host, port
+
+
 def main() -> None:
     current_workspace().mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer((HOST, PORT), PrototypeHandler)
-    print(f"Vityo dev server listening on http://{HOST}:{PORT}", flush=True)
+    host, port = resolve_listen_address()
+    server = ThreadingHTTPServer((host, port), PrototypeHandler)
+    print(f"Vityo dev server listening on http://{host}:{port}", flush=True)
     if mutation_enabled():
         print("workspace mutation APIs enabled for this local dev session", flush=True)
     else:

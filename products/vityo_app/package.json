@@ -1,0 +1,9 @@
+{
+  "name": "vityo-app-web-preview",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local web preview entry for the Flutter build of vityo_app. Serves build/web through scripts/serve_web_preview.py with mocked hosted control-plane routes.",
+  "scripts": {
+    "dev": "python scripts/serve_web_preview.py --root build/web"
+  }
+}

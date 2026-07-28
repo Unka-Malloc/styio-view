@@ -1,4 +1,4 @@
-# Styio IDE Benchmark Matrix
+# Vityo Benchmark Matrix
 
 **Purpose:** Map VSCode, IntelliJ IDEA Community, Codex, and OpenCode capability families to Vityo product capabilities. Every row targets a Vityo product outcome, not a clone of another IDE.
 

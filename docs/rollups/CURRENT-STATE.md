@@ -7,7 +7,7 @@
 ## Summary
 
 1. `Vityo` 已补齐 `archive/rollups`、docs index/audit/lifecycle，并把它们接进了现有 hygiene gate。
-2. 根 `.gitignore` 与 `scripts/repo-hygiene-gate.py` 现在已经对齐 shared file-governance baseline，`docs/**` 与 `frontend/vityo_app/test/**` 的 temp/build 风格 tracked fixture 也有显式 negate 规则。
+2. 根 `.gitignore` 与 `scripts/repo-hygiene-gate.py` 现在已经对齐 shared file-governance baseline，`docs/**` 与 `products/vityo_app/test/**` 的 temp/build 风格 tracked fixture 也有显式 negate 规则。
 3. 当前活跃治理 checkpoint 是 `FG4`：维持这套 baseline，不让 `view` 再退回人工维护或 repo-specific 例外。
 4. 产品主线仍以 adapter、project/execution/environment shell 和上游 contract 消费为先，页面润色继续后置。
 5. `runtime_events` published family 已从 compile-plan artifact 贯通到 `view` 的 runtime surface、debug console 和 shell debug log；surface / console 现在共享同一套 replay family、payload、route trace、graph 和 debug lane 派生摘要，surface 侧已有 family-based lane summary、最小 execution graph / route checkpoint / node-detail / node-relation / node-timeline / edge-timeline summary、以及 `thread / unit.test / log` debug lanes 的 lane trace / filter token / focused timeline detail，当前已稳定消费 `compile.* / run.* / thread.* / unit.* / unit.test.* / state.* / transition.fired / log.emitted / diagnostic.emitted`。

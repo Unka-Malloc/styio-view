@@ -274,7 +274,7 @@ function Write-UserEnv {
     [Environment]::SetEnvironmentVariable("FLUTTER_HOME", $FlutterHome, "User")
     [Environment]::SetEnvironmentVariable("ANDROID_SDK_ROOT", $AndroidSdkRoot, "User")
     [Environment]::SetEnvironmentVariable("ANDROID_HOME", $AndroidSdkRoot, "User")
-    [Environment]::SetEnvironmentVariable("STYIO_CHROME_PATH", $chromePath, "User")
+    [Environment]::SetEnvironmentVariable("VITYO_CHROME_PATH", $chromePath, "User")
     [Environment]::SetEnvironmentVariable("CHROME_EXECUTABLE", $chromePath, "User")
     [Environment]::SetEnvironmentVariable("VITYO_ANDROID_PROFILE_FILE", $AndroidProfileFile, "User")
     [Environment]::SetEnvironmentVariable("VITYO_ANDROID_PROFILES", $AndroidProfiles, "User")
@@ -348,5 +348,5 @@ if ($WithAndroid) {
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\\scripts\\android-sdk-profile.ps1 env $AndroidDefaultProfile"
     Write-Host "  powershell -ExecutionPolicy Bypass -File .\\scripts\\android-sdk-profile.ps1 build --profiles $AndroidProfiles --parallel --artifact apk --mode debug"
 }
-Write-Host "  cd products\\styio_ide; flutter analyze; flutter test"
-Write-Host "  cd prototype; `$env:STYIO_CHROME_PATH = '$chromePath'; `$env:STYIO_EDITOR_URL = 'http://127.0.0.1:4180/editor'; npm run selftest:editor"
+Write-Host "  cd products\\vityo_app; flutter analyze; flutter test"
+Write-Host "  cd prototype; `$env:VITYO_CHROME_PATH = '$chromePath'; `$env:VITYO_EDITOR_URL = 'http://127.0.0.1:4180/editor'; npm run selftest:editor"

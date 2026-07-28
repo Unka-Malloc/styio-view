@@ -55,8 +55,8 @@ Minimum:
 python3 scripts/check_architecture_boundaries.py
 python3 scripts/check_product_line_boundaries.py
 python3 scripts/ide-product-parity-gate.py
-python3 scripts/styio-ide-product-gate.py --mode checkpoint
-cd products/styio_ide && flutter analyze
+python3 scripts/vityo-product-gate.py --mode checkpoint
+cd products/vityo_app && flutter analyze
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
 

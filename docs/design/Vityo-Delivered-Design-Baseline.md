@@ -1,6 +1,6 @@
-# Styio IDE Delivered Design Baseline
+# Vityo Delivered Design Baseline
 
-**Purpose:** Consolidate completed implementation outcomes into stable design facts consumed by the Styio IDE and Coding Agent plans.
+**Purpose:** Consolidate completed implementation outcomes into stable design facts consumed by the Vityo and Coding Agent plans.
 
 **Last updated:** 2026-07-26
 
@@ -29,7 +29,7 @@ Vityo's product shape is stable:
 
 | Area | Delivered baseline |
 |---|---|
-| Product identity | Vityo is the dedicated Styio IDE and runtime surface, not a VS Code skin or generic editor shell. |
+| Product identity | Vityo is the dedicated Vityo and runtime surface, not a VS Code skin or generic editor shell. |
 | Frontend shape | Flutter UI runtime, custom editor engine, runtime/AI/theme panels, and module host runtime. |
 | Backend/toolchain shape | Product-owned adapter layer, local CLI/FFI route, hosted control plane route, and upstream machine-contract consumption. |
 | Adapter ownership | Vityo owns product adapter contracts; upstream services adapt to those contracts. |
@@ -65,15 +65,15 @@ These anchors are preserved from the retired planning docs.
 
 | Area | Code anchor | Test anchor |
 |---|---|---|
-| Editor | `products/styio_ide/lib/src/ide/editor/` | `products/styio_ide/test/editor_controller_editing_test.dart`, `products/styio_ide/test/styio_language_service_smoke_test.dart` |
-| Backend toolchain | `products/styio_ide/lib/src/view_ide/backend_toolchain/` | `products/styio_ide/test/integration_compatibility_exports_test.dart`, `products/styio_ide/test/hosted_control_plane_client_test.dart` |
-| Project model | `products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph*` | `products/styio_ide/test/project_graph_adapter_test.dart`, `products/styio_ide/test/toolchain_management_adapter_test.dart` |
-| Execution | `products/styio_ide/lib/src/view_ide/backend_toolchain/execution_adapter.dart` | `products/styio_ide/test/execution_adapter_test.dart`, `products/styio_ide/test/execution_route_summary_test.dart`, `products/styio_ide/test/deployment_adapter_test.dart`, `products/styio_ide/test/app_commands_test.dart` |
-| Runtime surface | `products/styio_ide/lib/src/runtime/`, `products/styio_ide/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart` | `products/styio_ide/test/runtime_surfaces_test.dart` |
-| Agent profile | `products/styio_ide/lib/src/agent/agent_profile.dart` | `products/styio_ide/test/agent_profile_test.dart` |
-| Theme tokens | `products/styio_ide/lib/src/theme/vityo_theme.dart` | `products/styio_ide/test/vityo_theme_test.dart` |
-| Module lifecycle | `products/styio_ide/lib/src/view_ide/module_host/module_lifecycle.dart` | `products/styio_ide/test/module_lifecycle_test.dart` |
-| Hosted control plane | `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane*.dart` | `products/styio_ide/test/hosted_control_plane_client_test.dart`, `products/styio_ide/test/hosted_payload_codec_test.dart` |
+| Editor | `products/vityo_app/lib/src/ide/editor/` | `products/vityo_app/test/editor_controller_editing_test.dart`, `products/vityo_app/test/styio_language_service_smoke_test.dart` |
+| Backend toolchain | `products/vityo_app/lib/src/view_ide/backend_toolchain/` | `products/vityo_app/test/integration_compatibility_exports_test.dart`, `products/vityo_app/test/hosted_control_plane_client_test.dart` |
+| Project model | `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph*` | `products/vityo_app/test/project_graph_adapter_test.dart`, `products/vityo_app/test/toolchain_management_adapter_test.dart` |
+| Execution | `products/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter.dart` | `products/vityo_app/test/execution_adapter_test.dart`, `products/vityo_app/test/execution_route_summary_test.dart`, `products/vityo_app/test/deployment_adapter_test.dart`, `products/vityo_app/test/app_commands_test.dart` |
+| Runtime surface | `products/vityo_app/lib/src/runtime/`, `products/vityo_app/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart` | `products/vityo_app/test/runtime_surfaces_test.dart` |
+| Agent profile | `products/vityo_app/lib/src/agent/agent_profile.dart` | `products/vityo_app/test/agent_profile_test.dart` |
+| Theme tokens | `products/vityo_app/lib/src/theme/vityo_theme.dart` | `products/vityo_app/test/vityo_theme_test.dart` |
+| Module lifecycle | `products/vityo_app/lib/src/view_ide/module_host/module_lifecycle.dart` | `products/vityo_app/test/module_lifecycle_test.dart` |
+| Hosted control plane | `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane*.dart` | `products/vityo_app/test/hosted_control_plane_client_test.dart`, `products/vityo_app/test/hosted_payload_codec_test.dart` |
 
 ## 5. Runtime Layer Baseline
 
@@ -248,7 +248,7 @@ The following local plan documents were retired after their completed content wa
 |---|---|
 | `docs/plan/Vityo-Implementation-Plan.md` | This delivered design baseline plus the gap register. |
 | `docs/plan/Vityo-Independent-Work-Breakdown.md` | This delivered design baseline plus the gap register. |
-| `docs/plan/StyioService-VityoIDE-Language-Boundary-Plan.md` | Service Layer design docs and the gap register. |
+| `docs/plan/StyioService-Vityo-Language-Boundary-Plan.md` | Service Layer design docs and the gap register. |
 | `docs/plan/Vityo-Runtime-Dependencies.md` | Runtime design docs, vertical-flow architecture views, and this baseline. |
 | `docs/plan/Vityo-Runtime-Layer-Stack.md` | Runtime design docs, vertical-flow architecture views, and this baseline. |
 | `docs/plan/Vityo-Vertical-Lines.md` | Runtime design docs, vertical-flow architecture views, and this baseline. |

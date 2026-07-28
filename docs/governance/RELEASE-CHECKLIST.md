@@ -1,6 +1,6 @@
-# Styio IDE Release Checklist
+# Vityo Release Checklist
 
-**Purpose:** Provide the release and checkpoint checklist for Styio, including IDE architecture gates, product-line boundary validation, sandbox/security baseline checks, and performance budget evidence.
+**Purpose:** Provide the release and checkpoint checklist for Vityo, including IDE architecture gates, product-line boundary validation, sandbox/security baseline checks, and performance budget evidence.
 
 **Owner:** Governance owner (`CODEOWNERS` -> governance domain)
 **Last updated:** 2026-06-25
@@ -147,7 +147,7 @@ Product package, shared protocol, or dependency-direction changes must pass:
 python3 scripts/check_product_line_boundaries.py
 ```
 
-The gate requires `products/styio_ide`, `products/styio_coding_agent`, and `packages/styio_agent_protocol` to keep distinct package identities. It rejects IDE-to-Agent implementation imports, Agent-to-IDE imports, Flutter dependencies in the Agent or protocol package, and recreation of removed product roots.
+The gate requires `products/vityo_app`, `products/vityo_coding_agent`, and `packages/vityo_agent_protocol` to keep distinct package identities. It rejects IDE-to-Agent implementation imports, Agent-to-IDE imports, Flutter dependencies in the Agent or protocol package, and recreation of removed product roots.
 
 ## Sandbox And Security Gate
 
@@ -159,11 +159,11 @@ python3 scripts/check_security_baseline.py
 
 The baseline currently requires these files to exist and stay free of known-dangerous patterns:
 
-1. `products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart`
-2. `products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart`
-3. `products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart`
-4. `products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart`
-5. `products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart`
+1. `products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
+2. `products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
+3. `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
+4. `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+5. `products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart`
 
 Security review is required when a change alters permission elevation, subprocess execution, secret storage, log redaction, manifest trust, or network access.
 

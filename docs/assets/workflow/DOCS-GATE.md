@@ -30,4 +30,4 @@ Push or CI docs gate:
 2. `python3 scripts/docs-audit.py`
 3. `python3 scripts/ecosystem-cli-doc-gate.py`
 
-`docs-audit.py` runs with `STYIO_SKIP_TEAM_DOC_GATE=1` when invoked through this entrypoint so the owner gate uses the requested change source exactly once.
+`docs-audit.py` runs with `VITYO_SKIP_TEAM_DOC_GATE=1` when invoked through this entrypoint so the owner gate uses the requested change source exactly once.

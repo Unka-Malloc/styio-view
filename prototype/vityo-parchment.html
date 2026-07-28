@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vityo | Parchment Alchemist Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --paper: #e6d5b8;
+            --ink: #2b2621;
+            --wax: #8b0000;
+            --shadow: rgba(0,0,0,0.15);
+        }
+
+        * { box-sizing: border-box; }
+        body, html { 
+            margin: 0; padding: 0; 
+            background-color: #1a1a1a; 
+            background-image: url('https://www.transparenttextures.com/patterns/dark-leather.png'); /* 深色皮革桌面背景 */
+            font-family: 'EB Garamond', serif;
+            height: 100vh; overflow: hidden;
+        }
+
+        /* 1. 核心羊皮纸容器 */
+        .parchment-scroll {
+            position: relative;
+            width: 85vw;
+            height: 90vh;
+            margin: 5vh auto;
+            background: var(--paper);
+            background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+            box-shadow: 0 30px 70px rgba(0,0,0,0.8), inset 0 0 100px rgba(184, 158, 120, 0.4);
+            border-radius: 2px;
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 80px 1fr 60px;
+            transition: transform 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+            z-index: 10;
+        }
+
+        /* 2. 红色蜡封贴纸 (The Wax Seal) */
+        .wax-seal {
+            position: absolute;
+            left: -40px;
+            top: 120px;
+            width: 80px;
+            height: 80px;
+            background: var(--wax);
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-weight: 700; font-size: 24px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1001;
+            border: 2px solid #5a0000;
+        }
+        .wax-seal::after {
+            content: "S";
+            font-family: 'Special Elite';
+            opacity: 0.6;
+        }
+        .wax-seal:hover { transform: scale(1.1) rotate(15deg); }
+
+        /* 3. 炼金术侧边栏 (Library Index) */
+        .library-index {
+            position: absolute;
+            top: 0; left: -320px;
+            width: 320px; height: 100%;
+            background: #d4c3a3;
+            background-image: url('https://www.transparenttextures.com/patterns/aged-paper.png');
+            border-right: 2px solid rgba(0,0,0,0.1);
+            padding: 40px;
+            transition: left 0.8s cubic-bezier(0.2, 1, 0.3, 1);
+            box-shadow: 20px 0 50px rgba(0,0,0,0.3);
+            z-index: 5;
+        }
+        .is-open .library-index { left: 0; }
+        .is-open .parchment-scroll { transform: translateX(160px); }
+
+        /* 4. 代码编辑区 - 羽毛笔质感 */
+        header { padding: 30px 60px; font-style: italic; opacity: 0.7; letter-spacing: 1px; }
+        
+        .code-manuscript {
+            padding: 0 80px 40px 80px;
+            font-family: 'Special Elite', typewriter;
+            font-size: 20px;
+            line-height: 1.6;
+            color: var(--ink);
+            outline: none;
+            white-space: pre;
+            overflow-y: auto;
+            /* 模拟墨水洇散 */
+            filter: contrast(1.2) sepia(0.2);
+            text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);
+        }
+
+        /* 墨水动态模块 (Visual Module) */
+        #inkGauge {
+            position: absolute;
+            bottom: 40px; right: 40px;
+            width: 150px; height: 150px;
+            pointer-events: none;
+            opacity: 0.4;
+        }
+
+        /* UI 元素 */
+        .index-title { font-weight: 700; text-transform: uppercase; margin-bottom: 30px; border-bottom: 1px solid var(--ink); padding-bottom: 10px; }
+        .index-card { padding: 10px 0; cursor: pointer; border-bottom: 1px dashed rgba(0,0,0,0.1); }
+        .index-card:hover { color: var(--wax); padding-left: 10px; }
+
+        /* 纸张边缘烧焦效果 */
+        .parchment-scroll::before {
+            content: ""; position: absolute; inset: 0;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.1);
+            pointer-events: none;
+        }
+
+        .btn-ink {
+            background: transparent; border: 1px solid var(--ink);
+            color: var(--ink); padding: 10px 20px; cursor: pointer;
+            font-family: 'Special Elite'; font-size: 14px;
+            margin-top: 20px;
+        }
+        .btn-ink:hover { background: var(--ink); color: var(--paper); }
+
+    </style>
+</head>
+<body>
+    <!-- 左侧蜡封贴纸 -->
+    <div class="wax-seal" id="seal" onclick="toggleScroll()"></div>
+
+    <!-- 侧边图书馆索引 -->
+    <div class="library-index" id="sidebar">
+        <div class="index-title">Codex Index</div>
+        <div class="index-card">001_Primordial_Core.styio</div>
+        <div class="index-card">002_Transmutation.styio</div>
+        <div class="index-card">003_Ether_Link.styio</div>
+        <div class="index-card">004_Philosophers_Stone.js</div>
+        <button class="btn-ink" onclick="toggleScroll()">Seal Scroll</button>
+    </div>
+
+    <!-- 主羊皮纸卷轴 -->
+    <div class="parchment-scroll" id="scroll">
+        <header>Dated: April 17, 2026 // Location: The Alchemist's Lab</header>
+        
+        <main class="code-manuscript" contenteditable="true">
+// Transmutation Logic
+fn create_gold(element, intent) {
+  let catalyst = alchemy.spawn("mercury");
+  
+  if (intent == "purity") {
+    catalyst.filter(entropy);
+  }
+  
+  return pipe element 
+    >> heat(1200) 
+    >> infuse(catalyst);
+}
+
+// Wisdom from the ancient ones
+@log("The Great Work Begins.");
+        </main>
+
+        <footer style="padding: 20px 60px; opacity: 0.5; font-size: 12px; display: flex; justify-content: space-between;">
+            <span>Ink Reserve: 84%</span>
+            <span>Manuscript Secured by Vityo Encryption</span>
+        </footer>
+
+        <!-- 视觉模块：墨水漩涡 -->
+        <canvas id="inkGauge"></canvas>
+    </div>
+
+    <script>
+        function toggleScroll() {
+            document.body.classList.toggle('is-open');
+            const seal = document.getElementById('seal');
+            if(document.body.classList.contains('is-open')) {
+                // 精准落位：羊皮纸左上角
+                seal.style.left = '200px'; 
+                seal.style.top = '25px';
+                seal.style.transform = 'scale(0.65) rotate(360deg)';
+                seal.style.boxShadow = '2px 2px 10px rgba(0,0,0,0.3)';
+            } else {
+                seal.style.left = '-40px';
+                seal.style.top = '120px';
+                seal.style.transform = 'scale(1) rotate(0deg)';
+                seal.style.boxShadow = '5px 5px 15px rgba(0,0,0,0.5)';
+            }
+        }
+
+        // 视觉模块：实时墨水流动引擎
+        const canvas = document.getElementById('inkGauge');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = 150;
+        let height = canvas.height = 150;
+
+        function drawInk(time) {
+            ctx.clearRect(0, 0, width, height);
+            ctx.beginPath();
+            ctx.strokeStyle = '#2b2621';
+            ctx.lineWidth = 2;
+            
+            // 绘制一个类似炼金术符号的动态圆环
+            ctx.arc(width/2, height/2, 50 + Math.sin(time * 0.002) * 5, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 内部旋转的星形墨水流
+            ctx.beginPath();
+            for(let i=0; i<6; i++) {
+                const angle = (i * Math.PI * 2 / 6) + time * 0.001;
+                const x = width/2 + Math.cos(angle) * 40;
+                const y = height/2 + Math.sin(angle) * 40;
+                ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            requestAnimationFrame(drawInk);
+        }
+        drawInk(0);
+    </script>
+</body>
+</html>

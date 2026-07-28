@@ -81,7 +81,7 @@ flowchart TB
 | Cutover | Minimum gate |
 |---------|--------------|
 | 手写 Web Editor 主线 | `cd prototype && npm run selftest:editor`，必要时更新手写 Web IDE handbook |
-| Flutter 壳层或共享 UI 状态 | `cd products/styio_ide && flutter analyze && flutter test` |
+| Flutter 壳层或共享 UI 状态 | `cd products/vityo_app && flutter analyze && flutter test` |
 | adapter / schema / handoff 合同 | 更新 `docs/contracts/`、`docs/external/for-styio/`、`docs/external/for-pafio/` 与 `TEST-CATALOG` 对应映射 |
 | module lifecycle / distribution / capability | 更新 manifest、capability matrix、分发 schema 与测试目录条目 |
 | 文档结构或交付边界 | 更新相关 `README.md` / `INDEX.md` 并运行 `python3 scripts/repo-hygiene-gate.py --mode tracked` |

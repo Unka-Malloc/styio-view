@@ -8,7 +8,7 @@
       "status": "draft",
       "owner": "Shell / Editor",
       "validation": "npm run selftest:editor (archived gate, kept green for reference)",
-      "notes": "Draft archive of the former focused Web Editor surface. No longer maintained; the Flutter app (frontend/vityo_app) is the default client."
+      "notes": "Draft archive of the former focused Web Editor surface. No longer maintained; the Flutter app (products/vityo_app) is the default client."
     },
     {
       "path": "index.html",
@@ -18,91 +18,91 @@
       "notes": "Design gallery index for standalone style experiment previews."
     },
     {
-      "path": "styio-bauhaus.html",
+      "path": "vityo-bauhaus.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-cinema.html",
+      "path": "vityo-cinema.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-glace.html",
+      "path": "vityo-glace.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-hyper-vis.html",
+      "path": "vityo-hyper-vis.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-lumina.html",
+      "path": "vityo-lumina.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-monolith.html",
+      "path": "vityo-monolith.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-obsidian.html",
+      "path": "vityo-obsidian.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-parchment.html",
+      "path": "vityo-parchment.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-pearl.html",
+      "path": "vityo-pearl.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-synapse-trackpad.html",
+      "path": "vityo-synapse-trackpad.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-synapse.html",
+      "path": "vityo-synapse.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-xenon.html",
+      "path": "vityo-xenon.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",
       "notes": "Standalone visual direction sample."
     },
     {
-      "path": "styio-zenith.html",
+      "path": "vityo-zenith.html",
       "status": "style-experiment",
       "owner": "Theme / UX",
       "validation": "manual visual review",

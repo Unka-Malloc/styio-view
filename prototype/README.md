@@ -1,6 +1,6 @@
 # Prototype Surface
 
-> **状态：Draft（已归档，不再维护）。** 自 2026-07-26 起，本目录的 JavaScript 原型不再是默认客户端；默认客户端为 Flutter 应用（`frontend/vityo_app`）。本目录仅作历史参考保留，不再接收新功能。
+> **状态：Draft（已归档，不再维护）。** 自 2026-07-26 起，本目录的 JavaScript 原型不再是默认客户端；默认客户端为 Flutter 应用（`products/vityo_app`）。本目录仅作历史参考保留，不再接收新功能。
 
 **Purpose:** Describe the handwritten `Vityo` prototype surfaces, their local server, and the repo-local governance checks that keep them owned and testable.
 
@@ -9,7 +9,7 @@
 当前目录是 `Vityo` 的高保真原型与本地开发壳，不依赖 Flutter 工具链。
 
 这里曾经是仓库里"给人维护的 Web Editor 入口"，现已归档为 Draft。
-`frontend/vityo_app`（Flutter）是当前默认打开的客户端。
+`products/vityo_app`（Flutter）是当前默认打开的客户端。
 
 仓库级 bootstrap、共享工具链和常用验证命令见 [../docs/BUILD-AND-DEV-ENV.md](../docs/BUILD-AND-DEV-ENV.md)；本页只描述手写原型本身。
 
@@ -64,7 +64,7 @@
 13. 点击 `Staged: 1` 后会出现 restart banner，表达热更新在下次重启时切换新模块
 14. 在左侧 `Raw Source Buffer` 里直接输入源码，右侧 `Render Projection` 会实时重绘符号和函数块表面
 15. 当前 `Ctrl+Enter` 会先检查最小可编译单元；未闭合的函数块会直接给出 compile blocked
-16. 启动服务时显式设置 `STYIO_DEV_SERVER_ENABLE_MUTATION=1` 后，点击 `Save` 或按 `Command/Ctrl+S` 会把当前文件写回 `prototype/workspace/<file>.styio`
+16. 启动服务时显式设置 `VITYO_DEV_SERVER_ENABLE_MUTATION=1` 后，点击 `Save` 或按 `Command/Ctrl+S` 会把当前文件写回 `prototype/workspace/<file>.styio`
 17. 访问 `http://127.0.0.1:4173/editor.html` 可以打开只保留单一编辑面的 focused editor 界面
 18. focused editor 右上角按钮会呼出右侧抽屉，里面分成 `目录树` 和 `设置` 两个 Tab
 19. focused editor 当前固定只维护 `main.styio`，不再混入其它非主线示例文件
@@ -105,7 +105,7 @@
 
 1. 在 `prototype/` 下运行 `npm run governance`，确认 top-level HTML 原型都被 `prototype-manifest.json` 声明并归属到 owner。
 2. 运行 `npm run selftest:editor`，检查当前 canonical focused editor。
-3. 若使用仓库内的 `dev_server.py`，请显式设置 `STYIO_EDITOR_URL=http://127.0.0.1:4180/editor.html`
+3. 若使用仓库内的 `dev_server.py`，请显式设置 `VITYO_EDITOR_URL=http://127.0.0.1:4180/editor.html`
 4. 这条脚本会自动检查 `editor.html` 是否可打开，并在需要时自动启动 `dev_server.py`
 5. 自测会覆盖：
    - 页面基础资源加载
@@ -119,9 +119,9 @@
 ## Local Dev Server Security
 
 1. `dev_server.py` 只绑定 `127.0.0.1:4180`，并拒绝非 `localhost` / `127.0.0.1` / `::1` 的 `Host`。
-2. 静态页面响应会设置 `HttpOnly; SameSite=Strict` 的本进程 session cookie；所有 `/api/` 路由都必须携带这个 cookie，或携带 `X-Styio-Dev-Server-Token` / `Authorization: Bearer` 中的当前 session token。
-3. 所有 `POST /api/` 写入路由还必须带同源 `Origin`，并且只有设置 `STYIO_DEV_SERVER_ENABLE_MUTATION=1` 后才会执行本地文件写入。
-4. 若需要固定 token 供本地自动化调用，可在启动服务前设置 `STYIO_DEV_SERVER_TOKEN=<token>`。
+2. 静态页面响应会设置 `HttpOnly; SameSite=Strict` 的本进程 session cookie；所有 `/api/` 路由都必须携带这个 cookie，或携带 `X-Vityo-Dev-Server-Token` / `Authorization: Bearer` 中的当前 session token。
+3. 所有 `POST /api/` 写入路由还必须带同源 `Origin`，并且只有设置 `VITYO_DEV_SERVER_ENABLE_MUTATION=1` 后才会执行本地文件写入。
+4. 若需要固定 token 供本地自动化调用，可在启动服务前设置 `VITYO_DEV_SERVER_TOKEN=<token>`。
 5. 边界回归验证：在仓库根目录运行 `python3 -m unittest prototype/test_dev_server_security.py`。
 
 ## Maintenance Rule

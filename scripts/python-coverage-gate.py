@@ -31,7 +31,7 @@ COVERAGE_OMIT = [
     "scripts/performance-gate.py",
     "scripts/public-contract-schema-gate.py",
     "scripts/supply-chain-governance-gate.py",
-    "scripts/styio-ide-product-gate.py",
+    "scripts/vityo-product-gate.py",
 ]
 TEST_MODULES = (
     "tests.test_repo_hygiene_gate",
@@ -47,6 +47,9 @@ TEST_MODULES = (
     "tests.test_repo_hygiene_coverage",
     "tests.test_python_coverage_gate",
     "tests.test_project_coverage_gate",
+    "tests.test_run_native_pty_matrix",
+    "tests.test_vityo_quality",
+    "tests.test_vityo_validation_receipt",
     "tests.test_performance_budgets",
     "tests.test_dependency_policy_gate",
     "tests.test_supply_chain_governance_gate",

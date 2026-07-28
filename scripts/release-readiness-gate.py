@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_FLUTTER_DIR = Path("products/styio_ide")
+DEFAULT_FLUTTER_DIR = Path("products/vityo_app")
 TOOLING_MANIFEST_PATH = Path("toolchain/maintenance-tools.json")
 TOOLING_POLICY_MIN_UPDATED = date(2026, 6, 19)
 NIGHTLY_PLATFORMS = ("linux", "windows", "macos")
@@ -24,7 +24,7 @@ NIGHTLY_PACKAGE_FORMATS = {
 NIGHTLY_WORKFLOW_MARKERS = {
     "linux": ("package-nightly.py --platform linux", "sudo dpkg -i", "xvfb-run -a vityo"),
     "windows": ("package-nightly.py --platform windows", "install.ps1", "Start-Process"),
-    "macos": ("package-nightly.py --platform macos", "hdiutil attach", "Contents/MacOS/styio_ide"),
+    "macos": ("package-nightly.py --platform macos", "hdiutil attach", "Contents/MacOS/Vityo"),
 }
 PRODUCT_MATRIX_WORKFLOW_MARKERS = {
     "linux": (
@@ -59,8 +59,8 @@ REQUIRED_RELEASE_FILES = (
     Path("scripts/checkpoint-health.sh"),
     Path(".github/workflows/local-ci-gate.yml"),
     Path(".github/workflows/project-coverage-gate.yml"),
-    Path("products/styio_ide/README.md"),
-    Path("products/styio_ide/pubspec.yaml"),
+    Path("products/vityo_app/README.md"),
+    Path("products/vityo_app/pubspec.yaml"),
     Path("scripts/package-nightly.py"),
     Path("scripts/ecosystem-product-gate.py"),
     Path("scripts/run-native-pty-matrix.py"),
@@ -78,40 +78,40 @@ REQUIRED_README_MARKERS = (
 
 REQUIRED_IDE_CAPABILITY_TESTS = {
     "app smoke": (
-        Path("products/styio_ide/test/styio_ide_smoke_test.dart"),
-        Path("products/styio_ide/test/app_bootstrap_test.dart"),
+        Path("products/vityo_app/test/vityo_app_smoke_test.dart"),
+        Path("products/vityo_app/test/app_bootstrap_test.dart"),
     ),
     "editor model and binding": (
-        Path("products/styio_ide/test/editor_controller_editing_test.dart"),
-        Path("products/styio_ide/test/document_resource_binding_test.dart"),
-        Path("products/styio_ide/test/workspace_document_store_io_test.dart"),
-        Path("products/styio_ide/test/hosted_workspace_document_store_test.dart"),
+        Path("products/vityo_app/test/editor_controller_editing_test.dart"),
+        Path("products/vityo_app/test/document_resource_binding_test.dart"),
+        Path("products/vityo_app/test/workspace_document_store_io_test.dart"),
+        Path("products/vityo_app/test/hosted_workspace_document_store_test.dart"),
     ),
     "language service": (
-        Path("products/styio_ide/test/local_styio_language_service_test.dart"),
-        Path("products/styio_ide/test/styio_service_connector_test.dart"),
-        Path("products/styio_ide/test/styio_syntax_validation_test.dart"),
-        Path("products/styio_ide/test/styio_completion_feature_test.dart"),
-        Path("products/styio_ide/test/styio_hover_feature_test.dart"),
-        Path("products/styio_ide/test/styio_semantic_token_feature_test.dart"),
-        Path("products/styio_ide/test/styio_navigation_feature_test.dart"),
-        Path("products/styio_ide/test/styio_refactor_feature_test.dart"),
-        Path("products/styio_ide/test/language_fixture_confidence_matrix_test.dart"),
+        Path("products/vityo_app/test/local_styio_language_service_test.dart"),
+        Path("products/vityo_app/test/styio_service_connector_test.dart"),
+        Path("products/vityo_app/test/styio_syntax_validation_test.dart"),
+        Path("products/vityo_app/test/styio_completion_feature_test.dart"),
+        Path("products/vityo_app/test/styio_hover_feature_test.dart"),
+        Path("products/vityo_app/test/styio_semantic_token_feature_test.dart"),
+        Path("products/vityo_app/test/styio_navigation_feature_test.dart"),
+        Path("products/vityo_app/test/styio_refactor_feature_test.dart"),
+        Path("products/vityo_app/test/language_fixture_confidence_matrix_test.dart"),
     ),
     "runtime and toolchain": (
-        Path("products/styio_ide/test/shell_runtime_file_binding_test.dart"),
-        Path("products/styio_ide/test/execution_adapter_test.dart"),
-        Path("products/styio_ide/test/toolchain_management_adapter_test.dart"),
-        Path("products/styio_ide/test/toolchain_provenance_verifier_test.dart"),
-        Path("products/styio_ide/test/toolchain_status_surface_test.dart"),
+        Path("products/vityo_app/test/shell_runtime_file_binding_test.dart"),
+        Path("products/vityo_app/test/execution_adapter_test.dart"),
+        Path("products/vityo_app/test/toolchain_management_adapter_test.dart"),
+        Path("products/vityo_app/test/toolchain_provenance_verifier_test.dart"),
+        Path("products/vityo_app/test/toolchain_status_surface_test.dart"),
     ),
     "environment and persistence": (
-        Path("products/styio_ide/test/file_system_manager_test.dart"),
-        Path("products/styio_ide/test/platform_context_test.dart"),
-        Path("products/styio_ide/test/system_compatibility_managers_test.dart"),
-        Path("products/styio_ide/test/configuration_toolchain_test.dart"),
-        Path("products/styio_ide/test/credential_data_store_test.dart"),
-        Path("products/styio_ide/test/editor_session_data_store_test.dart"),
+        Path("products/vityo_app/test/file_system_manager_test.dart"),
+        Path("products/vityo_app/test/platform_context_test.dart"),
+        Path("products/vityo_app/test/system_compatibility_managers_test.dart"),
+        Path("products/vityo_app/test/configuration_toolchain_test.dart"),
+        Path("products/vityo_app/test/credential_data_store_test.dart"),
+        Path("products/vityo_app/test/editor_session_data_store_test.dart"),
     ),
 }
 
@@ -177,10 +177,10 @@ def check_pubspec(repo_root: Path, flutter_dir: Path) -> list[CheckResult]:
 
     fields = parse_pubspec_fields(read_text(pubspec_path))
     checks = [
-        ("pubspec name", fields.get("name") == "styio_ide", fields.get("name", "")),
+        ("pubspec name", fields.get("name") == "vityo_app", fields.get("name", "")),
         (
             "pubspec description",
-            fields.get("description", "").startswith("Styio IDE editor shell"),
+            fields.get("description", "").startswith("Vityo editor shell"),
             fields.get("description", ""),
         ),
         ("pubspec publish_to", fields.get("publish_to") == "none", fields.get("publish_to", "")),
@@ -315,7 +315,7 @@ def check_tooling_manifest(repo_root: Path) -> list[CheckResult]:
             ),
             CheckResult(
                 "maintenance tooling project",
-                manifest.get("project") == "Styio",
+                manifest.get("project") == "Vityo",
                 str(manifest.get("project", "missing")),
             ),
             CheckResult(
@@ -717,7 +717,7 @@ def print_human(results: list[CheckResult]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Styio release readiness gate")
+    parser = argparse.ArgumentParser(description="Vityo release readiness gate")
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
     parser.add_argument("--flutter-dir", type=Path, default=DEFAULT_FLUTTER_DIR)
     parser.add_argument(

@@ -12,23 +12,23 @@
 
 Primary paths:
 
-1. `products/styio_ide/lib/src/view_ide/module_host/`
-2. `products/styio_ide/lib/src/view_ide/module_host/`
-3. `products/styio_ide/lib/src/platform/`
+1. `products/vityo_app/lib/src/view_ide/module_host/`
+2. `products/vityo_app/lib/src/view_ide/module_host/`
+3. `products/vityo_app/lib/src/platform/`
    - `browser_virtual_file_system_provider.dart` — browser virtual FS provider (Web target)
    - `file_system_operation_result.dart` — structured file system operation result type
    - `file_system_provider.dart` — file system provider abstract contract
    - `memory_file_system_provider.dart` — in-memory FS provider for testing
-3. `products/styio_ide/assets/module_manifests/`
-4. `products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart`
-5. `products/styio_ide/assets/capability_matrices/`
-6. `products/styio_ide/android/`
-7. `products/styio_ide/ios/`
-8. `products/styio_ide/linux/`
-9. `products/styio_ide/macos/`
-10. `products/styio_ide/windows/`
-11. `products/styio_ide/web/`
-12. `products/styio_ide/scripts/bootstrap_flutter_platforms.sh`
+3. `products/vityo_app/assets/module_manifests/`
+4. `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+5. `products/vityo_app/assets/capability_matrices/`
+6. `products/vityo_app/android/`
+7. `products/vityo_app/ios/`
+8. `products/vityo_app/linux/`
+9. `products/vityo_app/macos/`
+10. `products/vityo_app/windows/`
+11. `products/vityo_app/web/`
+12. `products/vityo_app/scripts/bootstrap_flutter_platforms.sh`
 13. `docs/specs/DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md`
 
 Key SSOTs:
@@ -63,8 +63,8 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd products/styio_ide && flutter analyze && flutter test
-cd products/styio_ide && flutter test test/module_package_store_test.dart
+cd products/vityo_app && flutter analyze && flutter test
+cd products/vityo_app && flutter test test/module_package_store_test.dart
 python3 scripts/check-linux-packaging-gate.py
 python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked

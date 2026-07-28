@@ -79,6 +79,9 @@ class PythonCoverageGateTest(unittest.TestCase):
         self.assertIn("unittest", run_cmd)
         self.assertIn("tests.test_linux_host_readiness_gate", run_cmd)
         self.assertIn("tests.test_linux_packaging_gate", run_cmd)
+        self.assertIn("tests.test_run_native_pty_matrix", run_cmd)
+        self.assertIn("tests.test_vityo_quality", run_cmd)
+        self.assertIn("tests.test_vityo_validation_receipt", run_cmd)
         self.assertIn("prototype.test_dev_server_security", run_cmd)
         self.assertEqual(commands[2][-2:], ["--fail-under", "97"])
 

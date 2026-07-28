@@ -1,4 +1,4 @@
-# Styio IDE Contributor And Agent Spec
+# Vityo Contributor And Agent Spec
 
 **Purpose:** 定义人类贡献者与代码 agent 在 `Vityo` 仓库中的协作规则、联动更新要求与交付边界。
 

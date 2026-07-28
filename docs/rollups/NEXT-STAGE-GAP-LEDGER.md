@@ -8,7 +8,7 @@
 
 ## Closed (Minimal / Verified)
 
-1. 代码与适配层最小闭环具备可复测锚点：`frontend/vityo_app` 的 `flutter analyze` + `flutter test` 本地通过；`VITYO_PRODUCT_GATE=1` 相关 product 工作流测试目前默认跳过（非缺陷，属于 gate 策略）。
+1. 代码与适配层最小闭环具备可复测锚点：`products/vityo_app` 的 `flutter analyze` + `flutter test` 本地通过；`VITYO_PRODUCT_GATE=1` 相关 product 工作流测试目前默认跳过（非缺陷，属于 gate 策略）。
 2. `FG4` 及 docs/test 治理链路在文档/脚本面保持持续可验证状态。
 3. 2026-04-22 外部审计的 ignored scratch defect queue 已迁入 tracked 审计报告和本 ledger；`docs/audit/defects/` 继续保持 transient/ignored，不作为提交内容。
 4. 下游 `nightly` 的仓库级 CI 面统一到 `local-ci-gate`，与独立的 `styio-audit` policy gate 和 `audit` handoff gate 分离。
@@ -92,7 +92,7 @@
 
 1. `W7/W8/W9/W10` 仍有非完整产品级部分：移动端交互与真机/模拟器矩阵、真实模块包 staged update + 平台文件回收仍未完成。
 2. `active/history/archive` 生命周期与 docs 历史脚本核验尚未完成到完整平台级阶段 gate。
-3. `FG4`: 只有当出现 `docs/**` 或 `frontend/vityo_app/test/**` 外的新构建/临时资产追踪需求时，才继续扩展 negate 与 hygiene 规则。
+3. `FG4`: 只有当出现 `docs/**` 或 `products/vityo_app/test/**` 外的新构建/临时资产追踪需求时，才继续扩展 negate 与 hygiene 规则。
 4. Product workflow coverage 仍由 `VITYO_PRODUCT_GATE=1` 显式触发，不作为默认 CI 成功的产品全矩阵证明。
 
 ## Exit Condition

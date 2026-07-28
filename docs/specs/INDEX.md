@@ -27,7 +27,7 @@
 | `POST-COMMIT-CI-CHECKS.md` | [Post-Commit CI Checks](./POST-COMMIT-CI-CHECKS.md) | Define the required workflow for checking GitHub Actions after a local commit is pushed, including what must be verified before committing and what must be watched after pushing. |
 | `PROFILE-SYNC-ADAPTER-SCHEMA.md` | [Profile Sync Adapter Schema](./PROFILE-SYNC-ADAPTER-SCHEMA.md) | 冻结 ProfileSyncAdapter 的最小合同，使 prompt、theme 和偏好设置能够在可选同步组件存在时镜像到云端，而在缺席时保持本地可用。 |
 | `REPOSITORY-MAP.md` | [Vityo Repository Map](./REPOSITORY-MAP.md) | 说明 Vityo 与上游 styio 主仓库之间的职责边界，以及本仓库当前和未来可能承担的内容；本文件不追踪具体实现进度。 |
-| `STYIO-THEME-CONFIG.md` | [Styio Theme Config](./STYIO-THEME-CONFIG.md) | 定义 Vityo 原型当前支持的主题 / 编辑器调色盘配置文件格式，结构参考 VS Code 的 settings.json、workbench.colorCustomizations 和 editor.tokenColorCustomizations。 |
 | `TECHNOLOGY-COMPONENT-INVENTORY.md` | [Technology And Component Inventory](./TECHNOLOGY-COMPONENT-INVENTORY.md) | Define the required technology-stack, internal-component, open-source-component, and dependency-manifest inventory for Vityo. |
 | `THIRD-PARTY.md` | [Third-Party Inventory](./THIRD-PARTY.md) | 记录 Vityo 当前接受、计划或明确暂缓的第三方依赖与运行时边界；第一方上游 styio 也在此登记，便于实现期核对。 |
 | `UX-MAINTENANCE-GUIDELINES.md` | [UX Maintenance Guidelines](./UX-MAINTENANCE-GUIDELINES.md) | 把外部 UX / accessibility / performance 基准转成 Vityo 的长期开发和维护准则。 |
+| `VITYO-THEME-CONFIG.md` | [Vityo Theme Config](./VITYO-THEME-CONFIG.md) | 定义 Vityo 原型当前支持的主题 / 编辑器调色盘配置文件格式，结构参考 VS Code 的 settings.json、workbench.colorCustomizations 和 editor.tokenColorCustomizations。 |

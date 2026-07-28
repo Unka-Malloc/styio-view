@@ -1,19 +1,19 @@
-# Styio IDE
+# Vityo
 
-Styio IDE 是面向 `styio` 生态的专属 IDE、编辑器与运行视窗项目。
+Vityo 是面向 `styio` 生态的专属 IDE、编辑器与运行视窗项目。
 
-本仓库是 Styio IDE 的 downstream nightly 仓库；Flutter package 与主实现目录已统一为 `styio_ide`。
-
-Canonical upstream repository: <https://github.com/eBioRing/Styio IDE>
+本仓库是 Vityo 的 downstream nightly 仓库；Flutter package 与主实现目录已统一为 `vityo_app`。
 
 Downstream nightly repository: <https://github.com/Unka-Malloc/vityo-nightly>
 
+Styio 是 Vityo 消费的外部语言、编译器与工具链，不是本仓产品名称。
+
 当前仓库阶段为 `product-led integration bootstrap`：
 
-1. `Styio IDE` 先冻结产品合同与 adapter 边界
+1. `Vityo` 先冻结产品合同与 adapter 边界
 2. Flutter 主壳与编辑器核心继续独立推进
-3. 上游 `styio` / `pafio` 按 `Styio IDE` 的合同补齐机器接口
-4. Flutter 应用（`products/styio_ide`）是默认打开的客户端；手写的 `prototype/` JavaScript 原型已归档为 Draft，仅作历史参考，不再维护
+3. 上游 `styio` / `pafio` 按 `Vityo` 的合同补齐机器接口
+4. Flutter 应用（`products/vityo_app`）是默认打开的客户端；手写的 `prototype/` JavaScript 原型已归档为 Draft，仅作历史参考，不再维护
 
 [English](README.md) | [文档入口](docs/README.md) | [构建指南](docs/BUILD-AND-DEV-ENV.md)
 
@@ -21,11 +21,11 @@ Downstream nightly repository: <https://github.com/Unka-Malloc/vityo-nightly>
 
 ## 前端 / 后端分界
 
-- 前端是面向用户的编辑器、运行视窗和产品交互界面；默认客户端入口在 `products/styio_ide/`（Flutter），`prototype/` 为已归档的 Draft 原型。
-- 后端不是单一服务，而是 `Styio IDE` 背后的整条工具链面：adapter layer、local CLI/FFI、hosted control plane，以及上游 `pafio` / `styio` 合同。
+- 前端是面向用户的编辑器、运行视窗和产品交互界面；默认客户端入口在 `products/vityo_app/`（Flutter），`prototype/` 为已归档的 Draft 原型。
+- 后端不是单一服务，而是 `Vityo` 背后的整条工具链面：adapter layer、local CLI/FFI、hosted control plane，以及上游 `pafio` / `styio` 合同。
 - 前端只编排和展示 machine contract；工具链解析、依赖/发布/执行语义、仓库与云平台行为都留在后端。
 
-系统级边界定义见 [Styio IDE-System-Architecture.md](docs/design/Styio IDE-System-Architecture.md)。
+系统级边界定义见 [Vityo-System-Architecture.md](docs/design/Vityo-System-Architecture.md)。
 
 ## 开发环境
 

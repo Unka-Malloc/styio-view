@@ -10,7 +10,7 @@
 
 The canonical record shape is defined in:
 - `docs/specs/HOSTED-WORKSPACE-RECORD-SCHEMA.md` (schema baseline)
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph_contract.dart` (Dart snapshot: `HostedWorkspaceRecordSnapshot`, lines 183-209)
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart` (Dart snapshot: `HostedWorkspaceRecordSnapshot`, lines 183-209)
 - `docs/external/for-pafio/Pafio-Hosted-Control-Plane-Contract.md` (consumer-side handoff envelope, section "Workspace Envelope Fields Consumed By Frontend")
 
 The record MUST contain:
@@ -75,7 +75,7 @@ These routes are referenced by `HostedWorkspaceLifecycle.retryEndpointPlanFor()`
 | POST | `/hosted/workspaces/{workspace_id}/reopen` | `reopenWorkspace` |
 | POST | `/hosted/workspaces/{workspace_id}/core-files/export` | `exportCoreFiles` |
 
-Source: `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart`, method `retryEndpointPlanFor()`.
+Source: `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart`, method `retryEndpointPlanFor()`.
 
 ## 2. Product Boundaries
 
@@ -112,7 +112,7 @@ Every cloud route has a semantic equivalent in the CLI Adapter route family. The
 4. MUST NOT contain relative path segments (`.` or `..`).
 5. Web fallback: `window.location.origin + '/api/styio-hosted/v1'`.
 
-Source: `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane_io.dart`, `_normalizeHostedBaseUrl()`.
+Source: `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane_io.dart`, `_normalizeHostedBaseUrl()`.
 
 ### 3.2 Route segment validation
 
@@ -169,7 +169,7 @@ Each `runtime_event` entry:
 6. `origin: string`
 7. `payload: object`
 
-Source: `docs/external/for-pafio/Pafio-Hosted-Control-Plane-Contract.md` and `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane_io.dart` `_validateResponseEnvelope()`.
+Source: `docs/external/for-pafio/Pafio-Hosted-Control-Plane-Contract.md` and `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane_io.dart` `_validateResponseEnvelope()`.
 
 ### 3.6 Non-negotiable response rules
 
@@ -200,7 +200,7 @@ provisioning --> active --> closing --> pendingDeletion --> deleted
 Source:
 - `docs/specs/HOSTED-WORKSPACE-RECORD-SCHEMA.md` section 5.
 - `docs/adr/ADR-0015-uninstall-reclamation-and-hosted-workspace-retention.md`.
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph_contract.dart` enums `HostedWorkspaceStatus` and `HostedWorkspaceExportState`.
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart` enums `HostedWorkspaceStatus` and `HostedWorkspaceExportState`.
 
 ### 4.2 Export state machine
 
@@ -241,7 +241,7 @@ Based on these checks, the report status is one of:
 - `degraded`: Some required checks fail but recovery actions exist.
 - `expired`: Workspace retention deadline has passed.
 
-Source: `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart`.
+Source: `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart`.
 
 ### 4.5 Recovery actions
 
@@ -290,7 +290,7 @@ The lifecycle model defines these recovery endpoint plans:
 
 ### 6.1 HostedControlPlaneClient interface
 
-Abstract class at `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart`.
+Abstract class at `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart`.
 
 Two implementations:
 1. **IO client** (`hosted_control_plane_io.dart`): Uses `dart:io` `HttpClient`; supports bearer auth, timeout, response size limiting, envelope validation. Used on desktop/mobile native targets.
@@ -318,7 +318,7 @@ Each adapter contract consumes the cloud routes as follows:
 
 ### 6.3 HostedWorkspaceDocumentStore
 
-File: `products/styio_ide/lib/src/ide/workspace/hosted_workspace_document_store.dart`
+File: `products/vityo_app/lib/src/ide/workspace/hosted_workspace_document_store.dart`
 
 Consumes:
 - `POST /workspaces/{id}/documents/load` with `{ path }`
@@ -328,7 +328,7 @@ Document deletion is explicitly `UnsupportedError` in the hosted path.
 
 ### 6.4 HostedWorkspaceFileSystemProvider
 
-File: `products/styio_ide/lib/src/ide/workspace/hosted_workspace_file_system_provider.dart`
+File: `products/vityo_app/lib/src/ide/workspace/hosted_workspace_file_system_provider.dart`
 
 Consumes the same hosted document load/save routes as `HostedWorkspaceDocumentStore` and exposes:
 - `vityo-hosted://{workspace_id}/{document_path}` routing through `FileSystemProviderRouter`.
@@ -337,7 +337,7 @@ Consumes the same hosted document load/save routes as `HostedWorkspaceDocumentSt
 
 ### 6.5 HostedWorkspaceLifecycle
 
-File: `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart`
+File: `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart`
 
 Consumes the `HostedWorkspaceRecordSnapshot` from the project graph and computes:
 - `HostedWorkspaceClosePlan`: close confirmation requirements, export state, core file paths.
@@ -386,25 +386,25 @@ Referenced in `docs/external/for-pafio/Pafio-Hosted-Control-Plane-Contract.md`.
 
 ### 8.2 Frontend interface and implementation files
 
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart` (abstract interface)
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane_io.dart` (IO implementation, ~665 lines)
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane_web.dart` (web implementation)
-- `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` (lifecycle model, ~557 lines)
-- `products/styio_ide/lib/src/ide/workspace/hosted_workspace_document_store.dart` (document store)
-- `products/styio_ide/lib/src/ide/workspace/hosted_backend_retry_executor.dart` (retry executor)
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph_contract.dart` (`HostedWorkspaceRecordSnapshot`, enums)
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart` (abstract interface)
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane_io.dart` (IO implementation, ~665 lines)
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane_web.dart` (web implementation)
+- `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` (lifecycle model, ~557 lines)
+- `products/vityo_app/lib/src/ide/workspace/hosted_workspace_document_store.dart` (document store)
+- `products/vityo_app/lib/src/ide/workspace/hosted_backend_retry_executor.dart` (retry executor)
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart` (`HostedWorkspaceRecordSnapshot`, enums)
 
 ### 8.3 Test evidence
 
-- `products/styio_ide/test/hosted_control_plane_client_test.dart` (end-to-end hosted adapter contract path with bearer auth)
-- `products/styio_ide/test/hosted_control_plane_io_hardening_test.dart` (token requirement, auth/header, URL construction, non-2xx, timeout, response-size, non-JSON, non-object, malformed envelope)
-- `products/styio_ide/test/hosted_workspace_lifecycle_test.dart` (lifecycle state computing)
-- `products/styio_ide/test/hosted_workspace_lifecycle_golden_test.dart` (golden lifecycle tests)
-- `products/styio_ide/test/hosted_payload_codec_test.dart`
-- `products/styio_ide/test/hosted_execution_codec_test.dart`
-- `products/styio_ide/test/hosted_product_workflow_test.dart`
-- `products/styio_ide/test/hosted_runtime_execution_test.dart`
-- `products/styio_ide/test/hosted_workspace_document_store_test.dart`
+- `products/vityo_app/test/hosted_control_plane_client_test.dart` (end-to-end hosted adapter contract path with bearer auth)
+- `products/vityo_app/test/hosted_control_plane_io_hardening_test.dart` (token requirement, auth/header, URL construction, non-2xx, timeout, response-size, non-JSON, non-object, malformed envelope)
+- `products/vityo_app/test/hosted_workspace_lifecycle_test.dart` (lifecycle state computing)
+- `products/vityo_app/test/hosted_workspace_lifecycle_golden_test.dart` (golden lifecycle tests)
+- `products/vityo_app/test/hosted_payload_codec_test.dart`
+- `products/vityo_app/test/hosted_execution_codec_test.dart`
+- `products/vityo_app/test/hosted_product_workflow_test.dart`
+- `products/vityo_app/test/hosted_runtime_execution_test.dart`
+- `products/vityo_app/test/hosted_workspace_document_store_test.dart`
 
 ### 8.4 Audit evidence
 
@@ -418,5 +418,5 @@ Referenced in `docs/external/for-pafio/Pafio-Hosted-Control-Plane-Contract.md`.
 - `docs/contracts/ExecutionAdapter.md` (execution envelope, hosted route mapping)
 - `docs/contracts/DeploymentAdapter.md` (deployment hosted route mapping)
 - `docs/contracts/README.md` (contract rules: CLI / FFI / Cloud parity)
-- `docs/plan/styio-ide/Requirements.md` (IDE-owned hosted/client capability boundary and truthful degradation)
+- `docs/plan/vityo/Requirements.md` (IDE-owned hosted/client capability boundary and truthful degradation)
 - `docs/specs/REPOSITORY-MAP.md` (Vityo-cloud future split boundary)

@@ -16,12 +16,12 @@
 ## Planning Boundary
 
 `docs/design/` owns current product and architecture facts. `docs/plan/` owns Better Plan workflow
-state and contains exactly the independent Styio IDE and Styio Coding Agent plans.
+state and contains exactly the independent Vityo and Vityo Coding Agent plans.
 
 Use:
 
 1. [Vityo-Delivered-Design-Baseline.md](./Vityo-Delivered-Design-Baseline.md) for completed design baseline.
 2. [Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md) for unfinished implementation and integration gaps.
-3. [Styio IDE plan](../plan/styio-ide/Requirements.md) for IDE delivery workflow state.
-4. [Styio Coding Agent plan](../plan/styio-coding-agent/Requirements.md) for Agent delivery workflow state.
+3. [Vityo plan](../plan/vityo/Requirements.md) for IDE delivery workflow state.
+4. [Vityo Coding Agent plan](../plan/vityo-coding-agent/Requirements.md) for Agent delivery workflow state.
 5. [Vityo-Layer-Directory-Outline.md](./Vityo-Layer-Directory-Outline.md) for current architecture-layer directory ownership.

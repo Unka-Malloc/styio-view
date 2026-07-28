@@ -123,7 +123,7 @@ A practical way to measure readiness is by user workflow rather than file count.
 
 The project is already useful for:
 
-1. Product and UX review of the Styio IDE shell.
+1. Product and UX review of the Vityo shell.
 2. Manual inspection of current editor interactions.
 3. Single-file language-service preview.
 4. Early Styio syntax highlighting and tolerant tokenization.

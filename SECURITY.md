@@ -36,11 +36,11 @@ python3 scripts/check_security_baseline.py
 
 The baseline tracks these security-critical files:
 
-1. `frontend/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
-2. `frontend/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
-3. `frontend/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
-4. `frontend/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
-5. `frontend/vityo_app/lib/src/view_ide/agent/agent_permission_model.dart`
+1. `products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
+2. `products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
+3. `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
+4. `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+5. `products/vityo_app/lib/src/view_ide/agent/agent_permission_model.dart`
 
 ## Detailed Policy
 

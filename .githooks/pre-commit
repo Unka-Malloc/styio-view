@@ -23,7 +23,7 @@ if [ -z "$framework_root" ] || [ ! -x "$framework_root/bin/styio-audit" ]; then
   exit 1
 fi
 
-python3 "$framework_root/bin/styio-audit" pre-commit --repo "$repo_root" --project "$project"
+python3 "$framework_root/bin/styio-audit" gate --repo "$repo_root" --project "$project"
 
 git_common_dir="$(git rev-parse --git-common-dir)"
 legacy_hook="$git_common_dir/hooks/pre-commit"

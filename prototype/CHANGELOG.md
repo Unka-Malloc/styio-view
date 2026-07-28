@@ -3,7 +3,7 @@
 ## 2026-07-26 / Archived as Draft
 
 1. 整个 JavaScript 原型表面降为 Draft 存档，不再维护；`prototype-manifest.json` 中 `editor.html` 状态改为 `draft`，`canonical_entry` 置空。
-2. 默认客户端提升为 Flutter 应用（`frontend/vityo_app`），桌面壳已重做为 IDE 布局（左侧文件树、编辑器标签、底部 Agent 对话框）。
+2. 默认客户端提升为 Flutter 应用（`products/vityo_app`），桌面壳已重做为 IDE 布局（左侧文件树、编辑器标签、底部 Agent 对话框）。
 3. `editor.html` 顶栏加入可见的 DRAFT 徽标；治理规则新增 `draft` 表面类别，gate（`npm run governance`）继续覆盖存档状态。
 
 ## 2026-04-12 / Round 1

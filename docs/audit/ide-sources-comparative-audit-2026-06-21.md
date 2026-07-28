@@ -55,7 +55,7 @@ Vityo/Styio design topics to discuss before implementation:
 5. How task, run, debug, replay, and runtime-event models should represent Styio workflows rather than generic shell commands.
 6. How AI approvals should present semantic intent: affected Styio symbols, resources, tasks, runtime lanes, diagnostics, and execution routes.
 7. How much LSP/DAP/MCP compatibility Vityo should expose externally while keeping Styio-native contracts internally.
-8. What "mobile-first Styio IDE" interactions should look like instead of simply compressing a desktop workbench.
+8. What "mobile-first Vityo" interactions should look like instead of simply compressing a desktop workbench.
 
 ## Source Inventory
 

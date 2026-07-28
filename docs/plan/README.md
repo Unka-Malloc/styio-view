@@ -1,32 +1,32 @@
-# Styio IDE and Coding Agent — Better Plan Workspace
+# Vityo and Coding Agent — Better Plan Workspace
 
 **Purpose:** Keep the repository's two product lines explicit, independently acceptable, and safe to
 execute in parallel.
 **Last updated:** 2026-07-26
 
-`docs/plan` is the only current Better Plan root. The product is now **Styio IDE and Coding Agent**,
+`docs/plan` is the only current Better Plan root. The product is now **Vityo and Coding Agent**,
 with exactly two delivery plans:
 
-- `styio-ide`: the IDE, workbench, developer services, Agent Client, collaboration surfaces, and
+- `vityo`: the IDE, workbench, developer services, Agent Client, collaboration surfaces, and
   desktop product.
-- `styio-coding-agent`: the standalone Coding Agent runtime, providers, context engine, tools,
+- `vityo-coding-agent`: the standalone Coding Agent runtime, providers, context engine, tools,
   policy, orchestration, sessions, and multi-agent execution.
 
 The code target has the same two business-line roots:
 
 ```text
-products/styio_ide/
-products/styio_coding_agent/
-packages/styio_agent_protocol/   # neutral wire contract; not a third product line
+products/vityo_app/
+products/vityo_coding_agent/
+packages/vityo_agent_protocol/   # Vityo-owned shared wire contract; not a third product line
 ```
 
-`products/styio_ide` must never import Coding Agent runtime code.
-`products/styio_coding_agent` must never import Styio IDE or Flutter code. Both may depend on the
+`products/vityo_app` must never import Coding Agent runtime code.
+`products/vityo_coding_agent` must never import Vityo or Flutter code. Both may depend on the
 pure, versioned protocol package. IDE-to-Agent integration happens through the process/protocol
 boundary, not shared mutable objects.
 
 The first IDE lifecycle is the only cross-line implementation exception: it performs one atomic
-repository cutover from the current monolithic package to the two roots, creates the neutral protocol
+repository cutover from the current monolithic package to the two roots, creates the Vityo-owned shared protocol
 package, updates repository tooling, and removes all old source roots and compatibility exports in the
 same closure. After that barrier, an implementation lifecycle owns one product line only; cross-line
 changes are limited to versioned protocol contracts and integration fixtures.

@@ -63,7 +63,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
         )
 
         self.assertTrue(
-            any("view_ide must not depend on view_render" in error for error in errors),
+            any("IDE domain must not depend on view_render" in error for error in errors),
             errors,
         )
 
@@ -95,15 +95,15 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             tmp_root = Path(tmp_name)
             root_readme = tmp_root / "README.md"
             docs_readme = tmp_root / "docs" / "README.md"
-            app_readme = tmp_root / "frontend" / "vityo_app" / "README.md"
-            pubspec = tmp_root / "frontend" / "vityo_app" / "pubspec.yaml"
+            app_readme = tmp_root / "products" / "vityo_app" / "README.md"
+            pubspec = tmp_root / "products" / "vityo_app" / "pubspec.yaml"
             docs_readme.parent.mkdir(parents=True)
             app_readme.parent.mkdir(parents=True)
             root_readme.write_text("# Vityo\n", encoding="utf-8")
             docs_readme.write_text("# Vityo Docs\n", encoding="utf-8")
             app_readme.write_text("# Vityo Flutter Shell\n", encoding="utf-8")
             pubspec.write_text(
-                "description: Vityo IDE editor shell for web, desktop, and mobile targets.\n",
+                "description: Vityo editor shell for web, desktop, and mobile targets.\n",
                 encoding="utf-8",
             )
 
@@ -114,10 +114,10 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             self.gate.REQUIRED_PROJECT_BRAND_HEADINGS = {
                 Path("README.md"): "# Vityo",
                 Path("docs/README.md"): "# Vityo Docs",
-                Path("frontend/vityo_app/README.md"): "# Vityo Flutter Shell",
+                Path("products/vityo_app/README.md"): "# Vityo Flutter Shell",
             }
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo IDE editor shell",
+                Path("products/vityo_app/pubspec.yaml"): "description: Vityo editor shell",
             }
             try:
                 errors = self.gate.check_project_branding()
@@ -136,15 +136,15 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             tmp_root = Path(tmp_name)
             root_readme = tmp_root / "README.md"
             docs_readme = tmp_root / "docs" / "README.md"
-            app_readme = tmp_root / "frontend" / "vityo_app" / "README.md"
-            pubspec = tmp_root / "frontend" / "vityo_app" / "pubspec.yaml"
+            app_readme = tmp_root / "products" / "vityo_app" / "README.md"
+            pubspec = tmp_root / "products" / "vityo_app" / "pubspec.yaml"
             docs_readme.parent.mkdir(parents=True)
             app_readme.parent.mkdir(parents=True)
             root_readme.write_text("# " + "Styio" + " View\n", encoding="utf-8")
             docs_readme.write_text("# Vityo Docs\n", encoding="utf-8")
             app_readme.write_text("# Vityo Flutter Shell\n", encoding="utf-8")
             pubspec.write_text(
-                "description: Vityo IDE editor shell for web, desktop, and mobile targets.\n",
+                "description: Vityo editor shell for web, desktop, and mobile targets.\n",
                 encoding="utf-8",
             )
 
@@ -155,10 +155,10 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             self.gate.REQUIRED_PROJECT_BRAND_HEADINGS = {
                 Path("README.md"): "# Vityo",
                 Path("docs/README.md"): "# Vityo Docs",
-                Path("frontend/vityo_app/README.md"): "# Vityo Flutter Shell",
+                Path("products/vityo_app/README.md"): "# Vityo Flutter Shell",
             }
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("frontend/vityo_app/pubspec.yaml"): "description: Vityo IDE editor shell",
+                Path("products/vityo_app/pubspec.yaml"): "description: Vityo editor shell",
             }
             try:
                 errors = self.gate.check_project_branding()
@@ -178,12 +178,12 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             dir=REPO_ROOT,
         ) as tmp_name:
             tmp_root = Path(tmp_name)
-            linux_title = tmp_root / "frontend" / "vityo_app" / "linux" / "runner" / "my_application.cc"
-            ios_info = tmp_root / "frontend" / "vityo_app" / "ios" / "Runner" / "Info.plist"
-            windows_rc = tmp_root / "frontend" / "vityo_app" / "windows" / "runner" / "Runner.rc"
+            linux_title = tmp_root / "products" / "vityo_app" / "linux" / "runner" / "my_application.cc"
+            ios_info = tmp_root / "products" / "vityo_app" / "ios" / "Runner" / "Info.plist"
+            windows_rc = tmp_root / "products" / "vityo_app" / "windows" / "runner" / "Runner.rc"
             macos_config = (
                 tmp_root
-                / "frontend"
+                / "products"
                 / "vityo_app"
                 / "macos"
                 / "Runner"
@@ -214,17 +214,17 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             self.gate.REPO_ROOT = tmp_root
             self.gate.REQUIRED_PROJECT_BRAND_HEADINGS = {}
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("frontend/vityo_app/ios/Runner/Info.plist"): (
+                Path("products/vityo_app/ios/Runner/Info.plist"): (
                     "<key>CFBundleDisplayName</key>\n\t<string>Vityo</string>",
                     "<key>CFBundleName</key>\n\t<string>Vityo</string>",
                 ),
-                Path("frontend/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
-                Path("frontend/vityo_app/windows/runner/Runner.rc"): (
+                Path("products/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
+                Path("products/vityo_app/windows/runner/Runner.rc"): (
                     'VALUE "FileDescription", "Vityo"',
                     'VALUE "InternalName", "Vityo"',
                     'VALUE "ProductName", "Vityo"',
                 ),
-                Path("frontend/vityo_app/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Vityo",
+                Path("products/vityo_app/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Vityo",
             }
             try:
                 errors = self.gate.check_project_branding()
@@ -241,7 +241,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             dir=REPO_ROOT,
         ) as tmp_name:
             tmp_root = Path(tmp_name)
-            linux_title = tmp_root / "frontend" / "vityo_app" / "linux" / "runner" / "my_application.cc"
+            linux_title = tmp_root / "products" / "vityo_app" / "linux" / "runner" / "my_application.cc"
             linux_title.parent.mkdir(parents=True, exist_ok=True)
             linux_title.write_text('gtk_window_set_title(window, "vityo_app");\n', encoding="utf-8")
 
@@ -251,7 +251,7 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             self.gate.REPO_ROOT = tmp_root
             self.gate.REQUIRED_PROJECT_BRAND_HEADINGS = {}
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("frontend/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
+                Path("products/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
             }
             try:
                 errors = self.gate.check_project_branding()
@@ -264,166 +264,6 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             any("must use project metadata marker" in error for error in errors),
             errors,
         )
-
-    def test_legacy_backend_toolchain_accepts_one_line_facade(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="backend-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy = tmp_root / "backend_toolchain"
-            migrated = tmp_root / "view_ide" / "backend_toolchain"
-            legacy.mkdir()
-            migrated.mkdir(parents=True)
-            (legacy / "execution_adapter.dart").write_text(
-                "export '../view_ide/backend_toolchain/execution_adapter.dart';\n",
-                encoding="utf-8",
-            )
-            (migrated / "execution_adapter.dart").write_text(
-                "class ExecutionAdapter {}\n",
-                encoding="utf-8",
-            )
-
-            original_legacy = self.gate.LEGACY_BACKEND_TOOLCHAIN_ROOT
-            original_migrated = self.gate.VIEW_IDE_BACKEND_TOOLCHAIN_ROOT
-            self.gate.LEGACY_BACKEND_TOOLCHAIN_ROOT = legacy
-            self.gate.VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = migrated
-            try:
-                errors = self.gate.check_legacy_backend_toolchain_facades()
-            finally:
-                self.gate.LEGACY_BACKEND_TOOLCHAIN_ROOT = original_legacy
-                self.gate.VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = original_migrated
-
-        self.assertEqual(errors, [])
-
-    def test_legacy_backend_toolchain_rejects_implementation_body(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="backend-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy = tmp_root / "backend_toolchain"
-            migrated = tmp_root / "view_ide" / "backend_toolchain"
-            legacy.mkdir()
-            migrated.mkdir(parents=True)
-            (legacy / "execution_adapter.dart").write_text(
-                "class ExecutionAdapter {}\n",
-                encoding="utf-8",
-            )
-            (migrated / "execution_adapter.dart").write_text(
-                "class ExecutionAdapter {}\n",
-                encoding="utf-8",
-            )
-
-            original_legacy = self.gate.LEGACY_BACKEND_TOOLCHAIN_ROOT
-            original_migrated = self.gate.VIEW_IDE_BACKEND_TOOLCHAIN_ROOT
-            self.gate.LEGACY_BACKEND_TOOLCHAIN_ROOT = legacy
-            self.gate.VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = migrated
-            try:
-                errors = self.gate.check_legacy_backend_toolchain_facades()
-            finally:
-                self.gate.LEGACY_BACKEND_TOOLCHAIN_ROOT = original_legacy
-                self.gate.VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = original_migrated
-
-        self.assertTrue(
-            any("must stay one-line facades" in error for error in errors),
-            errors,
-        )
-
-    def test_legacy_language_accepts_one_line_facade(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="language-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy = tmp_root / "language"
-            migrated = tmp_root / "view_ide" / "language"
-            legacy.mkdir()
-            migrated.mkdir(parents=True)
-            (legacy / "styio_syntax_highlighter.dart").write_text(
-                "export '../view_ide/language/styio_syntax_highlighter.dart';\n",
-                encoding="utf-8",
-            )
-            (migrated / "styio_syntax_highlighter.dart").write_text(
-                "class StyioSyntaxHighlighter {}\n",
-                encoding="utf-8",
-            )
-
-            original_legacy = self.gate.LEGACY_LANGUAGE_ROOT
-            original_migrated = self.gate.VIEW_IDE_LANGUAGE_ROOT
-            self.gate.LEGACY_LANGUAGE_ROOT = legacy
-            self.gate.VIEW_IDE_LANGUAGE_ROOT = migrated
-            try:
-                errors = self.gate.check_legacy_language_facades()
-            finally:
-                self.gate.LEGACY_LANGUAGE_ROOT = original_legacy
-                self.gate.VIEW_IDE_LANGUAGE_ROOT = original_migrated
-
-        self.assertEqual(errors, [])
-
-    def test_legacy_language_rejects_implementation_body(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="language-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy = tmp_root / "language"
-            migrated = tmp_root / "view_ide" / "language"
-            legacy.mkdir()
-            migrated.mkdir(parents=True)
-            (legacy / "styio_syntax_highlighter.dart").write_text(
-                "class StyioSyntaxHighlighter {}\n",
-                encoding="utf-8",
-            )
-            (migrated / "styio_syntax_highlighter.dart").write_text(
-                "class StyioSyntaxHighlighter {}\n",
-                encoding="utf-8",
-            )
-
-            original_legacy = self.gate.LEGACY_LANGUAGE_ROOT
-            original_migrated = self.gate.VIEW_IDE_LANGUAGE_ROOT
-            self.gate.LEGACY_LANGUAGE_ROOT = legacy
-            self.gate.VIEW_IDE_LANGUAGE_ROOT = migrated
-            try:
-                errors = self.gate.check_legacy_language_facades()
-            finally:
-                self.gate.LEGACY_LANGUAGE_ROOT = original_legacy
-                self.gate.VIEW_IDE_LANGUAGE_ROOT = original_migrated
-
-        self.assertTrue(
-            any("legacy language files must stay one-line facades" in error for error in errors),
-            errors,
-        )
-
-    def test_legacy_workspace_accepts_custom_relative_facade(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="workspace-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy = tmp_root / "app" / "state"
-            migrated = tmp_root / "view_ide" / "workspace"
-            legacy.mkdir(parents=True)
-            migrated.mkdir(parents=True)
-            (legacy / "workspace_controller.dart").write_text(
-                "export '../../view_ide/workspace/workspace_controller.dart';\n",
-                encoding="utf-8",
-            )
-            (migrated / "workspace_controller.dart").write_text(
-                "class WorkspaceController {}\n",
-                encoding="utf-8",
-            )
-
-            errors = self.gate.check_legacy_view_ide_facades(
-                legacy_root=legacy,
-                migrated_root=migrated,
-                legacy_name="workspace",
-                file_names=("workspace_controller.dart",),
-                export_prefix="../../view_ide/workspace",
-            )
-
-        self.assertEqual(errors, [])
-
     def test_legacy_command_adapter_keeps_render_adapter_markers(self) -> None:
         with tempfile.TemporaryDirectory(
             prefix="commands-adapter-",
@@ -573,203 +413,6 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             errors,
         )
 
-    def test_legacy_view_render_surfaces_accept_one_line_facades(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="view-render-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy_agent = tmp_root / "agent"
-            legacy_editor = tmp_root / "editor"
-            legacy_runtime = tmp_root / "runtime"
-            legacy_theme = tmp_root / "theme"
-            legacy_platform = tmp_root / "platform"
-            render_agent = tmp_root / "view_render" / "agent"
-            render_editor = tmp_root / "view_render" / "editor"
-            render_runtime = tmp_root / "view_render" / "runtime"
-            render_theme = tmp_root / "view_render" / "theme"
-            render_platform = tmp_root / "view_render" / "platform"
-            for path in (
-                legacy_agent,
-                legacy_editor,
-                legacy_runtime,
-                legacy_theme,
-                legacy_platform,
-                render_agent,
-                render_editor,
-                render_runtime,
-                render_theme,
-                render_platform,
-            ):
-                path.mkdir(parents=True)
-            (legacy_agent / "agent_surface.dart").write_text(
-                "export '../view_render/agent/agent_surface.dart';\n",
-                encoding="utf-8",
-            )
-            (legacy_editor / "editor_surface.dart").write_text(
-                "export '../view_render/editor/editor_surface.dart';\n",
-                encoding="utf-8",
-            )
-            (legacy_runtime / "runtime_surface.dart").write_text(
-                "export '../view_render/runtime/runtime_surface.dart';\n",
-                encoding="utf-8",
-            )
-            (legacy_runtime / "debug_console_surface.dart").write_text(
-                "export '../view_render/runtime/debug_console_surface.dart';\n",
-                encoding="utf-8",
-            )
-            (legacy_theme / "vityo_theme.dart").write_text(
-                "export '../view_render/theme/vityo_theme.dart';\n",
-                encoding="utf-8",
-            )
-            (legacy_platform / "viewport_profile.dart").write_text(
-                "export '../view_render/platform/viewport_profile.dart';\n",
-                encoding="utf-8",
-            )
-            for root, filename in (
-                (render_agent, "agent_surface.dart"),
-                (render_editor, "editor_surface.dart"),
-                (render_runtime, "runtime_surface.dart"),
-                (render_runtime, "debug_console_surface.dart"),
-                (render_theme, "vityo_theme.dart"),
-                (render_platform, "viewport_profile.dart"),
-            ):
-                (root / filename).write_text(
-                    "class Placeholder {}\n",
-                    encoding="utf-8",
-                )
-
-            originals = (
-                self.gate.LEGACY_AGENT_ROOT,
-                self.gate.LEGACY_EDITOR_ROOT,
-                self.gate.LEGACY_RUNTIME_ROOT,
-                self.gate.LEGACY_THEME_ROOT,
-                self.gate.LEGACY_PLATFORM_ROOT,
-                self.gate.VIEW_RENDER_AGENT_ROOT,
-                self.gate.VIEW_RENDER_EDITOR_ROOT,
-                self.gate.VIEW_RENDER_RUNTIME_ROOT,
-                self.gate.VIEW_RENDER_THEME_ROOT,
-                self.gate.VIEW_RENDER_PLATFORM_ROOT,
-            )
-            self.gate.LEGACY_AGENT_ROOT = legacy_agent
-            self.gate.LEGACY_EDITOR_ROOT = legacy_editor
-            self.gate.LEGACY_RUNTIME_ROOT = legacy_runtime
-            self.gate.LEGACY_THEME_ROOT = legacy_theme
-            self.gate.LEGACY_PLATFORM_ROOT = legacy_platform
-            self.gate.VIEW_RENDER_AGENT_ROOT = render_agent
-            self.gate.VIEW_RENDER_EDITOR_ROOT = render_editor
-            self.gate.VIEW_RENDER_RUNTIME_ROOT = render_runtime
-            self.gate.VIEW_RENDER_THEME_ROOT = render_theme
-            self.gate.VIEW_RENDER_PLATFORM_ROOT = render_platform
-            try:
-                errors = self.gate.check_legacy_view_render_facades()
-            finally:
-                (
-                    self.gate.LEGACY_AGENT_ROOT,
-                    self.gate.LEGACY_EDITOR_ROOT,
-                    self.gate.LEGACY_RUNTIME_ROOT,
-                    self.gate.LEGACY_THEME_ROOT,
-                    self.gate.LEGACY_PLATFORM_ROOT,
-                    self.gate.VIEW_RENDER_AGENT_ROOT,
-                    self.gate.VIEW_RENDER_EDITOR_ROOT,
-                    self.gate.VIEW_RENDER_RUNTIME_ROOT,
-                    self.gate.VIEW_RENDER_THEME_ROOT,
-                    self.gate.VIEW_RENDER_PLATFORM_ROOT,
-                ) = originals
-
-        self.assertEqual(errors, [])
-
-    def test_legacy_view_render_surfaces_reject_implementation_body(self) -> None:
-        with tempfile.TemporaryDirectory(
-            prefix="view-render-facade-",
-            dir=REPO_ROOT,
-        ) as tmp_name:
-            tmp_root = Path(tmp_name)
-            legacy_agent = tmp_root / "agent"
-            render_agent = tmp_root / "view_render" / "agent"
-            for path in (
-                legacy_agent,
-                tmp_root / "editor",
-                tmp_root / "runtime",
-                tmp_root / "theme",
-                tmp_root / "platform",
-                render_agent,
-                tmp_root / "view_render" / "editor",
-                tmp_root / "view_render" / "runtime",
-                tmp_root / "view_render" / "theme",
-                tmp_root / "view_render" / "platform",
-            ):
-                path.mkdir(parents=True)
-            (legacy_agent / "agent_surface.dart").write_text(
-                "class AgentSurface {}\n",
-                encoding="utf-8",
-            )
-            for legacy_root, filename, export_target in (
-                (tmp_root / "editor", "editor_surface.dart", "../view_render/editor/editor_surface.dart"),
-                (tmp_root / "runtime", "runtime_surface.dart", "../view_render/runtime/runtime_surface.dart"),
-                (tmp_root / "runtime", "debug_console_surface.dart", "../view_render/runtime/debug_console_surface.dart"),
-                (tmp_root / "theme", "vityo_theme.dart", "../view_render/theme/vityo_theme.dart"),
-                (tmp_root / "platform", "viewport_profile.dart", "../view_render/platform/viewport_profile.dart"),
-            ):
-                (legacy_root / filename).write_text(
-                    f"export '{export_target}';\n",
-                    encoding="utf-8",
-                )
-            for render_root, filename in (
-                (render_agent, "agent_surface.dart"),
-                (tmp_root / "view_render" / "editor", "editor_surface.dart"),
-                (tmp_root / "view_render" / "runtime", "runtime_surface.dart"),
-                (tmp_root / "view_render" / "runtime", "debug_console_surface.dart"),
-                (tmp_root / "view_render" / "theme", "vityo_theme.dart"),
-                (tmp_root / "view_render" / "platform", "viewport_profile.dart"),
-            ):
-                (render_root / filename).write_text(
-                    "class Placeholder {}\n",
-                    encoding="utf-8",
-                )
-
-            originals = (
-                self.gate.LEGACY_AGENT_ROOT,
-                self.gate.LEGACY_EDITOR_ROOT,
-                self.gate.LEGACY_RUNTIME_ROOT,
-                self.gate.LEGACY_THEME_ROOT,
-                self.gate.LEGACY_PLATFORM_ROOT,
-                self.gate.VIEW_RENDER_AGENT_ROOT,
-                self.gate.VIEW_RENDER_EDITOR_ROOT,
-                self.gate.VIEW_RENDER_RUNTIME_ROOT,
-                self.gate.VIEW_RENDER_THEME_ROOT,
-                self.gate.VIEW_RENDER_PLATFORM_ROOT,
-            )
-            self.gate.LEGACY_AGENT_ROOT = legacy_agent
-            self.gate.LEGACY_EDITOR_ROOT = tmp_root / "editor"
-            self.gate.LEGACY_RUNTIME_ROOT = tmp_root / "runtime"
-            self.gate.LEGACY_THEME_ROOT = tmp_root / "theme"
-            self.gate.LEGACY_PLATFORM_ROOT = tmp_root / "platform"
-            self.gate.VIEW_RENDER_AGENT_ROOT = render_agent
-            self.gate.VIEW_RENDER_EDITOR_ROOT = tmp_root / "view_render" / "editor"
-            self.gate.VIEW_RENDER_RUNTIME_ROOT = tmp_root / "view_render" / "runtime"
-            self.gate.VIEW_RENDER_THEME_ROOT = tmp_root / "view_render" / "theme"
-            self.gate.VIEW_RENDER_PLATFORM_ROOT = tmp_root / "view_render" / "platform"
-            try:
-                errors = self.gate.check_legacy_view_render_facades()
-            finally:
-                (
-                    self.gate.LEGACY_AGENT_ROOT,
-                    self.gate.LEGACY_EDITOR_ROOT,
-                    self.gate.LEGACY_RUNTIME_ROOT,
-                    self.gate.LEGACY_THEME_ROOT,
-                    self.gate.LEGACY_PLATFORM_ROOT,
-                    self.gate.VIEW_RENDER_AGENT_ROOT,
-                    self.gate.VIEW_RENDER_EDITOR_ROOT,
-                    self.gate.VIEW_RENDER_RUNTIME_ROOT,
-                    self.gate.VIEW_RENDER_THEME_ROOT,
-                    self.gate.VIEW_RENDER_PLATFORM_ROOT,
-                ) = originals
-
-        self.assertTrue(
-            any("legacy render surface files must stay one-line facades" in error for error in errors),
-            errors,
-        )
 
     def test_shell_runtime_boundary_accepts_runtime_render_split(self) -> None:
         with tempfile.TemporaryDirectory(

@@ -20,14 +20,14 @@ jobs:
     timeout-minutes: 75
     env:
       PYTHON_BIN: python3
-      STYIO_PYTHON_VERSION: "3.13.5"
-      STYIO_NODE_VERSION: "24.15.0"
-      STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PYTHON_VERSION: "3.13.5"
+      VITYO_NODE_VERSION: "24.15.0"
+      VITYO_FLUTTER_VERSION: "3.41.7"
       VITYO_PRODUCT_GATE: "1"
 
     steps:
-      - name: Checkout Styio IDE nightly
-        uses: actions/checkout@v5
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           fetch-depth: 0
           path: vityo-nightly
@@ -52,42 +52,42 @@ jobs:
           PY
 
       - name: Checkout Styio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.product-matrix.outputs.styio }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.product-matrix.outputs.pafio }}
           path: styio-pafio
 
       - name: Set up standardized Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+          python-version: ${{ env.VITYO_PYTHON_VERSION }}
 
       - name: Set up standardized Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: ${{ env.STYIO_NODE_VERSION }}
+          node-version: ${{ env.VITYO_NODE_VERSION }}
 
       - name: Set up standardized Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
-          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+          flutter-version: ${{ env.VITYO_FLUTTER_VERSION }}
 
       - name: Set up MSVC command environment
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1
         with:
           arch: x64
 
       - name: Install CI Chrome
         id: setup-chrome
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd  # v2
         with:
           chrome-version: stable
           install-dependencies: true
@@ -99,10 +99,10 @@ jobs:
 
       - name: Verify standardized Linux toolchain
         run: |
-          "$PYTHON_BIN" --version | grep -F "${STYIO_PYTHON_VERSION}"
-          node --version | grep -F "v${STYIO_NODE_VERSION}"
+          "$PYTHON_BIN" --version | grep -F "${VITYO_PYTHON_VERSION}"
+          node --version | grep -F "v${VITYO_NODE_VERSION}"
           npm --version
-          flutter --version | grep -m1 '^Flutter ' | grep -F "${STYIO_FLUTTER_VERSION}"
+          flutter --version | grep -m1 '^Flutter ' | grep -F "${VITYO_FLUTTER_VERSION}"
           flutter config --enable-web --enable-linux-desktop
           "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
@@ -190,11 +190,11 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Styio IDE nightly Linux CI gate
+      - name: Run Vityo nightly Linux CI gate
         working-directory: vityo-nightly
         env:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
-          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: linux
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
@@ -209,7 +209,7 @@ jobs:
           --skip-audit
 
       - name: Build native Linux release target
-        working-directory: vityo-nightly/products/styio_ide
+        working-directory: vityo-nightly/products/vityo_app
         run: flutter build linux --release
 
       - name: Prove native Linux PTY matrix
@@ -219,25 +219,25 @@ jobs:
           --platform linux
           --output build/evidence/native-pty-linux.json
 
-      - name: styio-ide-linux-package-smoke
+      - name: vityo-linux-package-smoke
         working-directory: vityo-nightly
         run: |
           "$PYTHON_BIN" scripts/package-nightly.py --platform linux
-          artifact="$(find build/nightly -maxdepth 1 -name 'styio-ide-nightly-linux-*.deb' -print -quit)"
+          artifact="$(find build/nightly -maxdepth 1 -name 'vityo-nightly-linux-*.deb' -print -quit)"
           test -n "$artifact"
           dpkg-deb --info "$artifact"
           sudo dpkg -i "$artifact"
           mkdir -p build/nightly/smoke-workspace
           printf 'styio delivery smoke\n' >build/nightly/smoke-workspace/main.styio
           commit="$(git rev-parse HEAD)"
-          source_fingerprint="$("$PYTHON_BIN" scripts/styio_quality.py \
+          source_fingerprint="$("$PYTHON_BIN" scripts/vityo_quality.py \
             --product ide --suite source-fingerprint)"
-          xvfb-run -a styio-ide --styio-delivery-smoke \
+          xvfb-run -a vityo --vityo-delivery-smoke \
             --workspace build/nightly/smoke-workspace \
             --evidence build/nightly/linux-delivery.json \
             --commit "$commit" \
             --source-fingerprint "$source_fingerprint"
-          "$PYTHON_BIN" packaging/styio_ide/desktop_delivery.py \
+          "$PYTHON_BIN" packaging/vityo/desktop_delivery.py \
             --repo-root . --platform linux \
             --evidence build/nightly/linux-delivery.json
 
@@ -256,12 +256,12 @@ jobs:
 
       - name: Upload Linux coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-coverage-reports-linux
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/products/styio_ide/coverage/lcov.info
+            vityo-nightly/products/vityo_app/coverage/lcov.info
             vityo-nightly/build/evidence/product-gate-linux.json
             vityo-nightly/build/evidence/native-pty-linux.json
             vityo-nightly/build/evidence/product-matrix-linux.json
@@ -269,7 +269,7 @@ jobs:
 
       - name: Upload Linux Nightly package
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-nightly-linux
           path: vityo-nightly/build/nightly
@@ -281,14 +281,14 @@ jobs:
     timeout-minutes: 75
     env:
       PYTHON_BIN: python
-      STYIO_PYTHON_VERSION: "3.13.5"
-      STYIO_NODE_VERSION: "24.15.0"
-      STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PYTHON_VERSION: "3.13.5"
+      VITYO_NODE_VERSION: "24.15.0"
+      VITYO_FLUTTER_VERSION: "3.41.7"
       VITYO_PRODUCT_GATE: "1"
 
     steps:
-      - name: Checkout Styio IDE nightly
-        uses: actions/checkout@v5
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           fetch-depth: 0
           path: vityo-nightly
@@ -313,42 +313,42 @@ jobs:
           PY
 
       - name: Checkout Styio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.product-matrix.outputs.styio }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.product-matrix.outputs.pafio }}
           path: styio-pafio
 
       - name: Set up standardized Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+          python-version: ${{ env.VITYO_PYTHON_VERSION }}
 
       - name: Set up standardized Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: ${{ env.STYIO_NODE_VERSION }}
+          node-version: ${{ env.VITYO_NODE_VERSION }}
 
       - name: Set up standardized Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
-          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+          flutter-version: ${{ env.VITYO_FLUTTER_VERSION }}
 
       - name: Install CI Chrome
         id: setup-chrome
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd  # v2
         with:
           chrome-version: stable
 
       - name: Install CMake, Ninja, and LLVM 18 development package
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462  # v2
         with:
           environment-name: styio-llvm18
           cache-environment: true
@@ -399,14 +399,14 @@ jobs:
         shell: pwsh
         run: |
           $pythonVersion = python --version
-          if ($pythonVersion -notlike "*$env:STYIO_PYTHON_VERSION*") { throw "Unexpected Python version: $pythonVersion" }
+          if ($pythonVersion -notlike "*$env:VITYO_PYTHON_VERSION*") { throw "Unexpected Python version: $pythonVersion" }
           $nodeVersion = node --version
-          if ($nodeVersion -ne "v$env:STYIO_NODE_VERSION") { throw "Unexpected Node.js version: $nodeVersion" }
+          if ($nodeVersion -ne "v$env:VITYO_NODE_VERSION") { throw "Unexpected Node.js version: $nodeVersion" }
           npm --version
           $flutterVersionOutput = flutter --version
           $flutterVersion = ($flutterVersionOutput -split "`r?`n" | Where-Object { $_ -like "Flutter *" } | Select-Object -First 1)
           if (!$flutterVersion) { throw "Flutter version line not found: $flutterVersionOutput" }
-          if ($flutterVersion -notlike "*$env:STYIO_FLUTTER_VERSION*") { throw "Unexpected Flutter version: $flutterVersion" }
+          if ($flutterVersion -notlike "*$env:VITYO_FLUTTER_VERSION*") { throw "Unexpected Flutter version: $flutterVersion" }
           flutter config --enable-web --enable-windows-desktop
           & "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
@@ -496,12 +496,12 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Styio IDE nightly Windows CI gate
+      - name: Run Vityo nightly Windows CI gate
         shell: bash
         working-directory: vityo-nightly
         env:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
-          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: windows
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
@@ -517,7 +517,7 @@ jobs:
 
       - name: Build native Windows release target
         shell: pwsh
-        working-directory: vityo-nightly\products\styio_ide
+        working-directory: vityo-nightly\products\vityo_app
         run: flutter build windows --release
 
       - name: Prove native Windows PTY matrix
@@ -528,27 +528,27 @@ jobs:
           --platform windows
           --output build/evidence/native-pty-windows.json
 
-      - name: styio-ide-windows-package-smoke
+      - name: vityo-windows-package-smoke
         shell: pwsh
         working-directory: vityo-nightly
         run: |
           python scripts/package-nightly.py --platform windows
-          $artifact = Get-ChildItem build/nightly/styio-ide-nightly-windows-*.zip | Select-Object -First 1
+          $artifact = Get-ChildItem build/nightly/vityo-nightly-windows-*.zip | Select-Object -First 1
           if (!$artifact) { throw "Windows Nightly archive was not created" }
-          $extractRoot = Join-Path $env:RUNNER_TEMP "styio-ide-nightly-package"
-          $installRoot = Join-Path $env:RUNNER_TEMP "styio-ide-nightly-installed"
+          $extractRoot = Join-Path $env:RUNNER_TEMP "vityo-nightly-package"
+          $installRoot = Join-Path $env:RUNNER_TEMP "vityo-nightly-installed"
           Expand-Archive -LiteralPath $artifact.FullName -DestinationPath $extractRoot -Force
-          $packageRoot = Join-Path $extractRoot "Styio-IDE-Nightly"
+          $packageRoot = Join-Path $extractRoot "Vityo-Nightly"
           & (Join-Path $packageRoot "install.ps1") -Source $packageRoot -Destination $installRoot
-          $smokeWorkspace = Join-Path $env:RUNNER_TEMP "styio-ide-smoke-workspace"
+          $smokeWorkspace = Join-Path $env:RUNNER_TEMP "vityo-smoke-workspace"
           New-Item -ItemType Directory -Force -Path $smokeWorkspace | Out-Null
           Set-Content -LiteralPath (Join-Path $smokeWorkspace "main.styio") -Value "styio delivery smoke"
           $evidence = Join-Path $PWD "build/nightly/windows-delivery.json"
           $commit = (git rev-parse HEAD).Trim().ToLowerInvariant()
-          $sourceFingerprint = (python scripts/styio_quality.py --product ide --suite source-fingerprint).Trim()
-          $process = Start-Process -FilePath (Join-Path $installRoot "styio_ide.exe") -ArgumentList @("--styio-delivery-smoke", "--workspace", $smokeWorkspace, "--evidence", $evidence, "--commit", $commit, "--source-fingerprint", $sourceFingerprint) -WorkingDirectory $installRoot -WindowStyle Hidden -Wait -PassThru
+          $sourceFingerprint = (python scripts/vityo_quality.py --product ide --suite source-fingerprint).Trim()
+          $process = Start-Process -FilePath (Join-Path $installRoot "vityo_app.exe") -ArgumentList @("--vityo-delivery-smoke", "--workspace", $smokeWorkspace, "--evidence", $evidence, "--commit", $commit, "--source-fingerprint", $sourceFingerprint) -WorkingDirectory $installRoot -WindowStyle Hidden -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Installed Windows Nightly smoke failed with code $($process.ExitCode)" }
-          python packaging/styio_ide/desktop_delivery.py --repo-root . --platform windows --evidence $evidence
+          python packaging/vityo/desktop_delivery.py --repo-root . --platform windows --evidence $evidence
           & (Join-Path $packageRoot "uninstall.ps1") -Destination $installRoot
 
       - name: Record pinned Windows product matrix evidence
@@ -567,12 +567,12 @@ jobs:
 
       - name: Upload Windows coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-coverage-reports-windows
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/products/styio_ide/coverage/lcov.info
+            vityo-nightly/products/vityo_app/coverage/lcov.info
             vityo-nightly/build/evidence/product-gate-windows.json
             vityo-nightly/build/evidence/native-pty-windows.json
             vityo-nightly/build/evidence/product-matrix-windows.json
@@ -580,7 +580,7 @@ jobs:
 
       - name: Upload Windows Nightly package
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-nightly-windows
           path: vityo-nightly/build/nightly
@@ -592,14 +592,14 @@ jobs:
     timeout-minutes: 75
     env:
       PYTHON_BIN: python3
-      STYIO_PYTHON_VERSION: "3.13.5"
-      STYIO_NODE_VERSION: "24.15.0"
-      STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PYTHON_VERSION: "3.13.5"
+      VITYO_NODE_VERSION: "24.15.0"
+      VITYO_FLUTTER_VERSION: "3.41.7"
       VITYO_PRODUCT_GATE: "1"
 
     steps:
-      - name: Checkout Styio IDE nightly
-        uses: actions/checkout@v5
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           fetch-depth: 0
           path: vityo-nightly
@@ -624,37 +624,37 @@ jobs:
           PY
 
       - name: Checkout Styio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.product-matrix.outputs.styio }}
           path: styio-nightly
 
       - name: Checkout Pafio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.product-matrix.outputs.pafio }}
           path: styio-pafio
 
       - name: Set up standardized Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+          python-version: ${{ env.VITYO_PYTHON_VERSION }}
 
       - name: Set up standardized Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: ${{ env.STYIO_NODE_VERSION }}
+          node-version: ${{ env.VITYO_NODE_VERSION }}
 
       - name: Set up standardized Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
-          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+          flutter-version: ${{ env.VITYO_FLUTTER_VERSION }}
 
       - name: Install CI Chrome
         id: setup-chrome
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd  # v2
         with:
           chrome-version: stable
 
@@ -666,10 +666,10 @@ jobs:
 
       - name: Verify standardized macOS toolchain
         run: |
-          "$PYTHON_BIN" --version | grep -F "${STYIO_PYTHON_VERSION}"
-          node --version | grep -F "v${STYIO_NODE_VERSION}"
+          "$PYTHON_BIN" --version | grep -F "${VITYO_PYTHON_VERSION}"
+          node --version | grep -F "v${VITYO_NODE_VERSION}"
           npm --version
-          flutter --version | grep -m1 '^Flutter ' | grep -F "${STYIO_FLUTTER_VERSION}"
+          flutter --version | grep -m1 '^Flutter ' | grep -F "${VITYO_FLUTTER_VERSION}"
           flutter config --enable-web --enable-macos-desktop
           "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
@@ -757,11 +757,11 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Styio IDE nightly macOS CI gate
+      - name: Run Vityo nightly macOS CI gate
         working-directory: vityo-nightly
         env:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
-          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: macos
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
@@ -776,7 +776,7 @@ jobs:
           --skip-audit
 
       - name: Build native macOS release target
-        working-directory: vityo-nightly/products/styio_ide
+        working-directory: vityo-nightly/products/vityo_app
         run: flutter build macos --release
 
       - name: Prove native macOS PTY matrix
@@ -786,30 +786,30 @@ jobs:
           --platform macos
           --output build/evidence/native-pty-macos.json
 
-      - name: styio-ide-macos-package-smoke
+      - name: vityo-macos-package-smoke
         working-directory: vityo-nightly
         run: |
           "$PYTHON_BIN" scripts/package-nightly.py --platform macos
-          artifact="$(find build/nightly -maxdepth 1 -name 'styio-ide-nightly-macos-*.dmg' -print -quit)"
+          artifact="$(find build/nightly -maxdepth 1 -name 'vityo-nightly-macos-*.dmg' -print -quit)"
           test -n "$artifact"
           hdiutil verify "$artifact"
           mount_dir="$(mktemp -d)"
           install_dir="$(mktemp -d)"
           hdiutil attach "$artifact" -nobrowse -readonly -mountpoint "$mount_dir"
           trap 'hdiutil detach "$mount_dir" >/dev/null 2>&1 || true; rm -rf "$mount_dir" "$install_dir"' EXIT
-          cp -R "$mount_dir/Styio IDE Nightly.app" "$install_dir/Styio IDE Nightly.app"
+          cp -R "$mount_dir/Vityo Nightly.app" "$install_dir/Vityo Nightly.app"
           mkdir -p build/nightly/smoke-workspace
           printf 'styio delivery smoke\n' >build/nightly/smoke-workspace/main.styio
           commit="$(git rev-parse HEAD)"
-          source_fingerprint="$("$PYTHON_BIN" scripts/styio_quality.py \
+          source_fingerprint="$("$PYTHON_BIN" scripts/vityo_quality.py \
             --product ide --suite source-fingerprint)"
-          "$install_dir/Styio IDE Nightly.app/Contents/MacOS/Styio IDE" \
-            --styio-delivery-smoke \
+          "$install_dir/Vityo Nightly.app/Contents/MacOS/Vityo" \
+            --vityo-delivery-smoke \
             --workspace build/nightly/smoke-workspace \
             --evidence build/nightly/macos-delivery.json \
             --commit "$commit" \
             --source-fingerprint "$source_fingerprint"
-          "$PYTHON_BIN" packaging/styio_ide/desktop_delivery.py \
+          "$PYTHON_BIN" packaging/vityo/desktop_delivery.py \
             --repo-root . --platform macos \
             --evidence build/nightly/macos-delivery.json
           hdiutil detach "$mount_dir"
@@ -831,12 +831,12 @@ jobs:
 
       - name: Upload macOS coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-coverage-reports-macos
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/products/styio_ide/coverage/lcov.info
+            vityo-nightly/products/vityo_app/coverage/lcov.info
             vityo-nightly/build/evidence/product-gate-macos.json
             vityo-nightly/build/evidence/native-pty-macos.json
             vityo-nightly/build/evidence/product-matrix-macos.json
@@ -844,7 +844,7 @@ jobs:
 
       - name: Upload macOS Nightly package
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-nightly-macos
           path: vityo-nightly/build/nightly

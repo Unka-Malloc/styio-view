@@ -7,7 +7,7 @@
 ## Who This Is For
 
 1. Contributors bringing up `Vityo` on a fresh Debian/Ubuntu VM or container.
-2. Contributors working on the Flutter shell in `frontend/vityo_app/`.
+2. Contributors working on the Flutter shell in `products/vityo_app/`.
 3. Contributors working on the handwritten web prototype in `prototype/`.
 4. Contributors bringing up the native Windows desktop target without WSL or Docker.
 
@@ -15,7 +15,7 @@
 
 `Vityo` now ships both containerized and host-native environment entrypoints.
 
-Flutter source lives under `frontend/vityo_app/`, and the Dart package is
+Flutter source lives under `products/vityo_app/`, and the Dart package is
 `vityo_app`.
 
 ### Container / VM
@@ -123,7 +123,7 @@ Linux Android SDK profile management:
 ```bash
 ./scripts/android-sdk-profile.sh list
 eval "$(./scripts/android-sdk-profile.sh env android-35)"
-./scripts/android-sdk-profile.sh run android-36 -- bash -lc 'cd frontend/vityo_app && flutter build apk --debug'
+./scripts/android-sdk-profile.sh run android-36 -- bash -lc 'cd products/vityo_app && flutter build apk --debug'
 ./scripts/android-sdk-profile.sh build --profiles android-35,android-36 --parallel --artifact apk --mode debug
 ```
 
@@ -177,7 +177,7 @@ Use the same profile family for bootstrap, build, and device verification. Do no
 Flutter shell:
 
 ```bash
-cd frontend/vityo_app
+cd products/vityo_app
 flutter analyze
 flutter test
 flutter build web
@@ -213,7 +213,7 @@ If you use the bundled `dev_server.py` directly, set the focused editor URL expl
 
 ```bash
 cd prototype
-STYIO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
+VITYO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
 ```
 
 Repository docs and hygiene checks:
@@ -309,7 +309,7 @@ root `.gitignore` excludes `.cache/` from commits.
 
 ## Subsystem-Specific Follow-Ups
 
-1. Flutter shell details: [../frontend/vityo_app/README.md](../frontend/vityo_app/README.md)
+1. Flutter shell details: [../products/vityo_app/README.md](../products/vityo_app/README.md)
 2. Handwritten prototype details: [../prototype/README.md](../prototype/README.md)
 3. Product and system design: [design/Vityo-System-Architecture.md](./design/Vityo-System-Architecture.md)
 4. Team and review routing: [teams/COORDINATION-RUNBOOK.md](./teams/COORDINATION-RUNBOOK.md)

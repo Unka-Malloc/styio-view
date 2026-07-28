@@ -31,7 +31,7 @@ The downstream `nightly` delivery line now uses repository-local `local-ci-gate`
 
 ### Critical
 
-1. `prototype/dev_server.py` exposed unauthenticated local file and workspace mutation APIs. This is remediated for the prototype boundary: API routes now require the local session credential or explicit token, mutating routes also require same-origin requests, and file mutations are disabled unless `STYIO_DEV_SERVER_ENABLE_MUTATION=1` is set.
+1. `prototype/dev_server.py` exposed unauthenticated local file and workspace mutation APIs. This is remediated for the prototype boundary: API routes now require the local session credential or explicit token, mutating routes also require same-origin requests, and file mutations are disabled unless `VITYO_DEV_SERVER_ENABLE_MUTATION=1` is set.
    - Evidence: `prototype/dev_server.py:198`, `prototype/dev_server.py:305`, `prototype/dev_server.py:366`, `prototype/dev_server.py:381`, `prototype/dev_server.py:435`
    - Principles: 5 Secure And Bounded, 4 Fail Closed, 7 Recoverable Evolution
 

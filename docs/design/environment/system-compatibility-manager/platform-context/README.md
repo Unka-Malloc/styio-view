@@ -10,10 +10,10 @@
 Current implementation anchors:
 
 ```text
-products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_context/platform_context_model.dart
-products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_context/platform_context_controller.dart
-products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_detector/platform_detector.dart
-products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_context/platform_context_store.dart
+products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_context/platform_context_model.dart
+products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_context/platform_context_controller.dart
+products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_detector/platform_detector.dart
+products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_context/platform_context_store.dart
 ```
 
 `PlatformContextSnapshot` is the immutable fact snapshot. `PlatformContextController` owns loading, saving, applying fact-section updates, and accepting refreshes from `PlatformDetector`.

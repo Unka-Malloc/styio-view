@@ -41,7 +41,7 @@ The app shell is a visible composition surface. It shows entry points, status, r
 ## 4. Implementation Target
 
 ```text
-products/styio_ide/lib/src/view_render/app_shell/
+products/vityo_app/lib/src/view_render/app_shell/
   onboarding/
   recovery_surface/
   capability_status/

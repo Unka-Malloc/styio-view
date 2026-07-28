@@ -12,16 +12,16 @@
 
 Primary paths:
 
-1. `products/styio_ide/lib/src/view_render/theme/`
-2. `products/styio_ide/lib/src/view_render/platform/`
-3. `products/styio_ide/lib/src/theme/`
-4. `products/styio_ide/lib/src/platform/viewport_profile.dart`
+1. `products/vityo_app/lib/src/view_render/theme/`
+2. `products/vityo_app/lib/src/view_render/platform/`
+3. `products/vityo_app/lib/src/theme/`
+4. `products/vityo_app/lib/src/platform/viewport_profile.dart`
 5. `prototype/styles.css`
 6. `prototype/editor-styles/`
 7. `prototype/theme-config.example.jsonc`
 8. `docs/specs/UX-MAINTENANCE-GUIDELINES.md`
 9. `docs/specs/OPEN-SOURCE-UI-ASSET-POLICY.md`
-10. `docs/specs/STYIO-THEME-CONFIG.md`
+10. `docs/specs/VITYO-THEME-CONFIG.md`
 11. `prototype/styio-*.html`
 
 Key SSOTs:
@@ -55,7 +55,7 @@ Minimum:
 ```bash
 cd prototype && npm run governance
 cd prototype && npm run selftest:editor
-cd products/styio_ide && flutter analyze && flutter test
+cd products/vityo_app && flutter analyze && flutter test
 ```
 
 ## Cross-Team Dependencies

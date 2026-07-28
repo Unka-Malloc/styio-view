@@ -1,6 +1,6 @@
 # Cache Contract
 
-**Purpose:** Define the shared cache contract for Styio IDE — owner, key, entry, invalidation, dependency tracking, eviction, freshness, serialization, and observation.
+**Purpose:** Define the shared cache contract for Vityo — owner, key, entry, invalidation, dependency tracking, eviction, freshness, serialization, and observation.
 
 **Last updated:** 2026-06-25
 

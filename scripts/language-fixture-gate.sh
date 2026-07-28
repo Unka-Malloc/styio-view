@@ -9,7 +9,7 @@ Run the Vityo Styio language fixture confidence gate through the configured
 Styio executable.
 
 Options:
-  --flutter-dir <dir>    Flutter shell directory (default: products/styio_ide)
+  --flutter-dir <dir>    Flutter shell directory (default: products/vityo_app)
   --fixture-root <dir>   Fixture root inside the Flutter directory (can repeat).
                          Defaults to parser-backed CI fixture roots:
                          test/fixtures/language_service and
@@ -34,7 +34,7 @@ log() {
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-FLUTTER_DIR="products/styio_ide"
+FLUTTER_DIR="products/vityo_app"
 DEFAULT_FIXTURE_ROOTS=(
   "test/fixtures/language_service"
   "test/fixtures/styio_language/syntax_contract"

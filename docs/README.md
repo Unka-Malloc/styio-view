@@ -1,4 +1,4 @@
-# Styio IDE Docs
+# Vityo Docs
 
 **Purpose:** 定义 `docs/` 树的范围、入口和维护规则；具体主题分别由各目录下的 `README.md`、`INDEX.md` 和权威文档负责。
 

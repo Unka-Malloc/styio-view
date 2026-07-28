@@ -1,4 +1,4 @@
-# Styio IDE Core Implementation Gaps
+# Vityo Core Implementation Gaps
 
 **Purpose:** Record the Vityo Core Implementation Gaps reference material for Vityo architecture, release, or maintenance work.
 
@@ -20,7 +20,7 @@ For the checklist-style objective audit, see `docs/design/CORE-COMPLETION-AUDIT.
 
 | Area | Evidence currently present | Status |
 |---|---|---|
-| Foundation | `docs/design/foundation/README.md`; `products/styio_ide/lib/src/view_ide/foundation/`; `foundation_test.dart` and related owner/datastore tests. | Implemented surface exists; focused Foundation tests pass. |
+| Foundation | `docs/design/foundation/README.md`; `products/vityo_app/lib/src/view_ide/foundation/`; `foundation_test.dart` and related owner/datastore tests. | Implemented surface exists; focused Foundation tests pass. |
 | Platform stack | `Platform Detector -> Platform Context -> Platform Adapter -> Platform Manager` is documented in `docs/design/environment/README.md` and implemented under `environment/system_compatibility/`. | Implemented surface exists; focused Platform manager tests pass. |
 | Configuration | Configuration Store, Credential DataStore, environment overlays, and shell configuration are documented and tested. | Implemented surface exists; focused Configuration tests pass. |
 | Toolchain | Toolchain Manager, discovery, catalog persistence, runtime, install policy, install executor, Styio language-service catalog bootstrap, Ed25519 provenance verifier boundary, and managed-download provenance catalog metadata are present. | Implemented surface exists; focused Toolchain tests pass, but real Styio release provenance assets are not populated. |
@@ -113,7 +113,7 @@ This confirms the current upstream CLI still provides syntax diagnostics evidenc
 Current dependency note:
 
 ```text
-products/styio_ide/pubspec.yaml includes crypto for SHA-256 hashing and cryptography for Ed25519 signature verification.
+products/vityo_app/pubspec.yaml includes crypto for SHA-256 hashing and cryptography for Ed25519 signature verification.
 Toolchain descriptor metadata can store managedDownload config, including download URI, SHA-256, size, signature URI, trusted hosts, and trusted Ed25519 public keys.
 ```
 

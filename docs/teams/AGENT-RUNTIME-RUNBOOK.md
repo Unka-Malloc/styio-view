@@ -6,7 +6,7 @@
 
 ## Mission
 
-Own the standalone Styio Coding Agent runtime: model/provider routing, context selection, tools,
+Own the standalone Vityo Coding Agent runtime: model/provider routing, context selection, tools,
 policy, coding loops, durable sessions, and multi-agent scheduling. The IDE owns only the protocol
 client and collaboration workbench. The Agent never stores raw API keys, directly mutates IDE files,
 or bypasses host transactions.
@@ -14,11 +14,11 @@ or bypasses host transactions.
 ## Owned Surface
 
 Primary paths:
-1. `products/styio_coding_agent/lib/src/`
-2. `products/styio_coding_agent/bin/`
-3. `packages/styio_agent_protocol/`
-4. `products/styio_ide/lib/src/view_ide/agent_client/` (client-side protocol only)
-5. `products/styio_ide/lib/src/view_render/agent_workbench/` (IDE presentation only)
+1. `products/vityo_coding_agent/lib/src/`
+2. `products/vityo_coding_agent/bin/`
+3. `packages/vityo_agent_protocol/`
+4. `products/vityo_app/lib/src/view_ide/agent_client/` (client-side protocol only)
+5. `products/vityo_app/lib/src/view_render/agent_workbench/` (IDE presentation only)
 6. `docs/design/Vityo-Agent-Runtime-Architecture.md`
 7. `docs/teams/AGENT-RUNTIME-RUNBOOK.md`
 
@@ -48,8 +48,8 @@ Key SSOTs:
 
 Minimum:
 ```bash
-cd products/styio_ide && flutter test test/agent_context_test.dart test/agent_settings_test.dart test/agent_permission_policy_test.dart test/agent_patch_transaction_test.dart
-cd products/styio_ide && flutter analyze
+cd products/vityo_app && flutter test test/agent_context_test.dart test/agent_settings_test.dart test/agent_permission_policy_test.dart test/agent_patch_transaction_test.dart
+cd products/vityo_app && flutter analyze
 python3 scripts/check_security_baseline.py
 ```
 

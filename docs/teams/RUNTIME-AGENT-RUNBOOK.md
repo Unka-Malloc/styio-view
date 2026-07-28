@@ -12,17 +12,17 @@
 
 Primary paths:
 
-1. `products/styio_ide/lib/src/view_ide/runtime/`
-2. `products/styio_ide/lib/src/view_ide/agent_client/`
+1. `products/vityo_app/lib/src/view_ide/runtime/`
+2. `products/vityo_app/lib/src/view_ide/agent_client/`
    - `agent_execution_mode.dart` — agent execution mode (plan-only, build-capable)
    - `agent_provider_access_control.dart` — provider allowlist/denylist
    - `agent_tool_sandbox_router.dart` — sandboxed tool execution router
    - `agent_permission_model.dart` — governed permission model for agent tools, provider routes, and approval journals
-3. `products/styio_ide/lib/src/view_render/runtime/`
-4. `products/styio_ide/lib/src/view_render/agent_workbench/`
-5. `products/styio_ide/lib/src/runtime/`
+3. `products/vityo_app/lib/src/view_render/runtime/`
+4. `products/vityo_app/lib/src/view_render/agent_workbench/`
+5. `products/vityo_app/lib/src/runtime/`
    - `runtime_event_log.dart` — append-only runtime event log with ring buffer projection
-6. `products/styio_coding_agent/lib/src/` — Coding Agent 独立运行时，不得导出或依赖 IDE 内部实现
+6. `products/vityo_coding_agent/lib/src/` — Coding Agent 独立运行时，不得导出或依赖 IDE 内部实现
 7. `docs/specs/AGENT-PROVIDER-ADAPTER-SCHEMA.md`
 8. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`
 
@@ -57,7 +57,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd products/styio_ide && flutter analyze && flutter test
+cd products/vityo_app && flutter analyze && flutter test
 python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```

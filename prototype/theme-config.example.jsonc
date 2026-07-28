@@ -1,16 +1,16 @@
 {
   // VS Code-inspired customizations for the current prototype.
-  "$schema": "https://styio.dev/schemas/theme-customizations.json",
+  "$schema": "https://vityo.dev/schemas/theme-customizations.json",
   "name": "Custom Palette",
 
   "workbench.colorCustomizations": {
-    "styio.themePalette": "graphiteGold",
-    "styio.themeColor": "defaultGold",
-    "styio.themeText": "mist",
-    "styio.background": "graphite",
-    "styio.themeLines": "soft",
-    "styio.interfaceFont": "defaultSans",
-    "styio.interfaceSize": 15,
+    "vityo.themePalette": "graphiteGold",
+    "vityo.themeColor": "defaultGold",
+    "vityo.themeText": "mist",
+    "vityo.background": "graphite",
+    "vityo.themeLines": "soft",
+    "vityo.interfaceFont": "defaultSans",
+    "vityo.interfaceSize": 15,
   },
 
   "editor": {
@@ -19,7 +19,7 @@
     "fontSize": 15,
   },
 
-  "styioView": {
+  "vityoView": {
     // Supported styles: grid, editorial
     "style": "grid",
     "language": "zhCn",
@@ -52,14 +52,14 @@
   },
 
   "editor.tokenColorCustomizations": {
-    "styio.palette": "default",
-    "styio.editorBackground": "graphite",
-    "styio.textColor": "mist",
-    "styio.textHighlight": "defaultGold",
-    "styio.block": "graphite",
-    "styio.line": "graphite",
-    "styio.selection": "graphite",
-    "styio.symbolColors": {
+    "vityo.palette": "default",
+    "vityo.editorBackground": "graphite",
+    "vityo.textColor": "mist",
+    "vityo.textHighlight": "defaultGold",
+    "vityo.block": "graphite",
+    "vityo.line": "graphite",
+    "vityo.selection": "graphite",
+    "vityo.symbolColors": {
       "#": "#F4C76A",
       "@": "#F4C76A",
       ">_": "#F4C76A",

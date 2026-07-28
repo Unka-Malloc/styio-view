@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PUBSPEC_PATH = ROOT / "products" / "styio_ide" / "pubspec.yaml"
+PUBSPEC_PATH = ROOT / "products" / "vityo_app" / "pubspec.yaml"
 PACKAGE_JSON_PATH = ROOT / "prototype" / "package.json"
 POLICY_PATH = ROOT / "DEPENDENCY-USAGE.md"
 

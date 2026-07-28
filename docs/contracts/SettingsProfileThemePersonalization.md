@@ -7,8 +7,8 @@
 **Status:** Current  
 **Last updated:** 2026-07-26
 
-This owner contract supplies current facts to [Styio IDE requirements](../plan/styio-ide/Requirements.md)
-`REQ-IDE-006` through `REQ-IDE-008` and [Styio Coding Agent requirements](../plan/styio-coding-agent/Requirements.md)
+This owner contract supplies current facts to [Vityo requirements](../plan/vityo/Requirements.md)
+`REQ-IDE-006` through `REQ-IDE-008` and [Vityo Coding Agent requirements](../plan/vityo-coding-agent/Requirements.md)
 `REQ-AGENT-003` through `REQ-AGENT-005`; workflow state stays in those two product plans.
 
 ---
@@ -19,7 +19,7 @@ This owner contract supplies current facts to [Styio IDE requirements](../plan/s
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `ConfigurationStore` | `products/styio_ide/lib/src/view_ide/environment/configuration/configuration_store.dart` | Generic key-value configuration backed by `FoundationDataStore`. All settings flow through this store. |
+| `ConfigurationStore` | `products/vityo_app/lib/src/view_ide/environment/configuration/configuration_store.dart` | Generic key-value configuration backed by `FoundationDataStore`. All settings flow through this store. |
 | `ConfigurationSettingKey` | same file | Composite key: `namespace`, `name`, optional `workspaceId`. Stable key joins `namespace:workspaceId:name`. |
 | `ConfigurationSettingRecord` | same file | Value wrapper: `Map<String, Object?>value` plus `List<CredentialReference>`. |
 | `ConfigurationSettingChange` | same file | Event emitted on write/update/delete/migrate. |
@@ -31,7 +31,7 @@ This owner contract supplies current facts to [Styio IDE requirements](../plan/s
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `CredentialDataStoreKey` | `products/styio_ide/lib/.../credential_data_store.dart` | Composite key: `namespace`, `name`, `scope` (user|workspace|toolchain|service), optional `targetId`. |
+| `CredentialDataStoreKey` | `products/vityo_app/lib/.../credential_data_store.dart` | Composite key: `namespace`, `name`, `scope` (user|workspace|toolchain|service), optional `targetId`. |
 | `CredentialReference` | same file | Lightweight pointer to a stored credential. |
 | `CredentialSecretRecord` | same file | Full secret record with `secretValue`, expiry, metadata. |
 | `FoundationCredentialDataStore` | same file | Persists credentials under namespace `configuration.credentials`. |
@@ -44,17 +44,17 @@ This owner contract supplies current facts to [Styio IDE requirements](../plan/s
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `VityoThemePreset` | `products/styio_ide/lib/.../vityo_theme_override.dart` | Enum: `parchment`, `graphite`. |
+| `VityoThemePreset` | `products/vityo_app/lib/.../vityo_theme_override.dart` | Enum: `parchment`, `graphite`. |
 | `VityoThemeOverride` | same file | Per-field color overrides: `canvas`, `panel`, `ink`, `accent`, `muted`. |
 | `VityoThemeOverrideStore` | `.../configuration/theme_override_store.dart` | DataStore owner `vityo.theme-override`, namespace `theme.override`. |
-| `VityoTheme` | `products/styio_ide/lib/.../vityo_theme.dart` | Light theme builder. Accepts preset + overrides. |
+| `VityoTheme` | `products/vityo_app/lib/.../vityo_theme.dart` | Light theme builder. Accepts preset + overrides. |
 | `VityoThemeOverrideColorX` | same file | Extension converting `int?` color fields to `Color?`. |
 
 ### 4. Command Palette Preferences and Keybinding Profiles
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `CommandPaletteDisplayPreferences` | `products/styio_ide/lib/.../command_palette_recent_store.dart` | Workspace-level display options. |
+| `CommandPaletteDisplayPreferences` | `products/vityo_app/lib/.../command_palette_recent_store.dart` | Workspace-level display options. |
 | `CommandPaletteRecentCommandHistory` | same file | Ordered recent command list (max 20). |
 | `CommandPaletteDisplayPreferencesStore` | same file | DataStore owner `interaction.command-palette.preferences`. |
 | `CommandPaletteRecentCommandStore` | same file | DataStore owner `interaction.command-palette.recent`. |
@@ -65,7 +65,7 @@ This owner contract supplies current facts to [Styio IDE requirements](../plan/s
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `AgentPromptProfile` | `products/styio_ide/lib/.../agent/agent_profile.dart` | Profile with `AgentProviderEndpoint`. |
+| `AgentPromptProfile` | `products/vityo_app/lib/.../agent/agent_profile.dart` | Profile with `AgentProviderEndpoint`. |
 | `AgentProviderEndpoint` | same file | Route, base URL, model, credential policy. |
 | `AgentProviderCredentialPolicy` | same file | `explicitUserCredential`, `hostedSessionCredential`, `noClientCredential`. |
 | `AgentPromptProfileStore` | `.../agent_prompt_profile_store.dart` | DataStore owner `agent.prompt-profile`. |
@@ -74,21 +74,21 @@ This owner contract supplies current facts to [Styio IDE requirements](../plan/s
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `SettingsSurface` | `products/styio_ide/.../settings_surface.dart` | Product settings entry with toolchain, command palette, and theme cards. |
+| `SettingsSurface` | `products/vityo_app/.../settings_surface.dart` | Product settings entry with toolchain, command palette, and theme cards. |
 | `ViewportProfile` | `.../platform/viewport_profile.dart` | Desktop/mobile dimensions, drives compact layout. |
 
 ### 7. Log Redaction and Agent Context
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `LogRedactor` | `products/styio_ide/.../log_redactor.dart` | Regex-based redactor with 11 default rules. |
+| `LogRedactor` | `products/vityo_app/.../log_redactor.dart` | Regex-based redactor with 11 default rules. |
 | `ConfigurationStore._assertNoSecretLikeValues` | `configuration_store.dart` | Validate-before-write guard rejecting raw secrets. |
 
 ### 8. Import / Export Paths
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `TestRunConfigurationStore` | `products/styio_ide/.../test_run_configuration_store.dart` | DataStore owner `interaction.testing.run-configurations`. |
+| `TestRunConfigurationStore` | `products/vityo_app/.../test_run_configuration_store.dart` | DataStore owner `interaction.testing.run-configurations`. |
 | `TestRunHistoryStore` | `.../testing/test_run_history_store.dart` | Persisted test run history. |
 | `ShellConfiguration` | `.../configuration/shell_configuration.dart` | Shell profile list, default profile, environment overlay. |
 

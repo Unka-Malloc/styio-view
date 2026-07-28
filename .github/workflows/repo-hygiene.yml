@@ -13,11 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      STYIO_PYTHON_VERSION: "3.13.5"
+      VITYO_PYTHON_VERSION: "3.13.5"
 
     steps:
-      - name: Checkout Styio IDE nightly
-        uses: actions/checkout@v5
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           fetch-depth: 0
           path: vityo-nightly
@@ -43,23 +43,23 @@ jobs:
           exit 1
 
       - name: Check out Styio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
       - name: Check out Pafio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-pafio
 
       - name: Set up standardized Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+          python-version: ${{ env.VITYO_PYTHON_VERSION }}
 
       - name: Check tracked tree
         working-directory: vityo-nightly
@@ -73,9 +73,9 @@ jobs:
         working-directory: vityo-nightly
         run: python3 scripts/supply-chain-governance-gate.py
 
-      - name: GitHub Actions pin gate (audit)
+      - name: GitHub Actions pin gate (enforce)
         working-directory: vityo-nightly
-        run: python3 scripts/github-actions-pin-gate.py --mode audit
+        run: python3 scripts/github-actions-pin-gate.py --mode enforce
 
       - name: Architecture boundary gate
         working-directory: vityo-nightly

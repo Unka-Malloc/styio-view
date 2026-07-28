@@ -1,4 +1,4 @@
-# Styio IDE API Compatibility Policy
+# Vityo API Compatibility Policy
 
 **Purpose:** Define Vityo's API compatibility rules across public models, adapter contracts, module manifests, and agent tool interfaces. This is the SSOT for what constitutes a breaking change and how compatibility is maintained.
 
@@ -124,12 +124,12 @@ The effective capability set is the intersection of what both sides support. See
 
 ## 4.4 Product-line boundary policy
 
-Legacy Vityo source roots and compatibility exports were removed by the atomic Styio product
+Legacy Vityo source roots and compatibility exports were removed by the atomic Vityo product
 cutover. New code imports its final owner directly:
 
-- IDE implementation: `products/styio_ide`;
-- Coding Agent runtime: `products/styio_coding_agent`;
-- neutral protocol DTOs: `packages/styio_agent_protocol`.
+- IDE implementation: `products/vityo_app`;
+- Coding Agent runtime: `products/vityo_coding_agent`;
+- Vityo-owned shared protocol DTOs: `packages/vityo_agent_protocol`.
 
 The permanent enforcement command is:
 
@@ -198,7 +198,7 @@ Every public model/contract must have:
 - `scripts/check_security_baseline.py` enforces required sandbox, redaction, secret, manifest-security, and agent-permission files
 - `scripts/check_performance_budgets.py` enforces benchmark coverage markers for performance-sensitive paths
 - `scripts/ide-product-parity-gate.py` checks capability baseline coverage
-- `scripts/styio-ide-product-gate.py` checks product gate compliance
+- `scripts/vityo-product-gate.py` checks product gate compliance
 
 ## 8. Release And PR Checklist
 

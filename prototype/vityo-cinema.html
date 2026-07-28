@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vityo | Cinema Director's Cut</title>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Bungee+Outline&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --film-sepia: #c8b29b;
+            --film-dark: #0a0908;
+            --lamp-glow: rgba(200, 178, 155, 0.2);
+        }
+
+        * { box-sizing: border-box; }
+        body, html { margin: 0; padding: 0; background: #000; color: var(--film-sepia); font-family: 'Courier Prime', monospace; overflow: hidden; height: 100vh; }
+
+        .projection-room { position: fixed; inset: 0; background: radial-gradient(ellipse at center bottom, #111 0%, #000 100%); z-index: 1; }
+        .projector-beam {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); width: 120vw; height: 150vh;
+            background: radial-gradient(circle at top, var(--lamp-glow) 0%, transparent 70%); pointer-events: none; z-index: 2; opacity: 0.4;
+            animation: light-flicker 0.1s infinite;
+        }
+        @keyframes light-flicker { 0% { opacity: 0.38; } 50% { opacity: 0.42; } 100% { opacity: 0.4; } }
+
+        .film-reels-container { position: fixed; left: 40px; top: 50%; transform: translateY(-50%); z-index: 100; display: flex; flex-direction: column; gap: 40px; opacity: 0.6; }
+        .reel { width: 100px; height: 100px; border: 4px solid var(--film-sepia); border-radius: 50%; position: relative; animation: rotate-reel 4s linear infinite; }
+        .reel::before { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--film-sepia); width: 80%; height: 4px; }
+        .reel::after { content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--film-sepia); width: 4px; height: 80%; }
+        @keyframes rotate-reel { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* 银幕：移除 gate-weave，保持物理静止 */
+        .cinema-screen {
+            position: relative; z-index: 10; width: 75vw; height: 75vh; margin: 10vh auto;
+            background: #111; border: 30px solid #050505; border-radius: 40px / 10px;
+            box-shadow: 0 0 100px rgba(0,0,0,1); overflow: hidden; display: flex; flex-direction: column;
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .film-scratches { position: absolute; inset: 0; background-image: url('https://www.transparenttextures.com/patterns/stardust.png'); opacity: 0.1; pointer-events: none; z-index: 20; }
+        .film-strip-handle { position: absolute; left: 0; top: 0; bottom: 0; width: 30px; background: repeating-linear-gradient(0deg, #000 0 15px, var(--film-sepia) 15px 25px); opacity: 0.2; cursor: pointer; z-index: 30; transition: 0.3s; }
+        .film-strip-handle:hover { opacity: 0.6; width: 40px; }
+
+        .editor-header { padding: 20px 40px; font-size: 11px; letter-spacing: 5px; text-align: center; border-bottom: 1px solid rgba(200, 178, 155, 0.1); }
+        .code-projection { flex: 1; padding: 40px 80px; font-size: 22px; line-height: 1.6; outline: none; overflow-y: auto; color: #eee; text-shadow: 0 0 15px rgba(255,255,255,0.3); }
+
+        #countdownOverlay { position: absolute; inset: 0; background: #000; z-index: 1000; display: none; align-items: center; justify-content: center; font-family: 'Bungee Outline', cursive; font-size: 180px; }
+        .countdown-circle { position: absolute; width: 300px; height: 300px; border: 4px solid var(--film-sepia); border-radius: 50%; }
+
+        .clapper-btn { background: var(--film-sepia); color: #000; padding: 15px 40px; font-weight: 700; border: none; cursor: pointer; clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%); margin-top: 20px; transition: 0.2s; }
+        .vault-panel { position: fixed; left: -320px; top: 0; width: 320px; height: 100%; background: #050505; z-index: 500; padding: 60px 30px; transition: 0.6s cubic-bezier(0.16, 1, 0.3, 1); border-right: 1px solid rgba(255,255,255,0.05); }
+        .is-open .vault-panel { left: 0; }
+        .is-open .cinema-screen { transform: perspective(2000px) rotateY(2deg) translateX(100px); }
+
+    </style>
+</head>
+<body>
+    <div class="projection-room"></div>
+    <div class="projector-beam"></div>
+
+    <div class="film-reels-container">
+        <div class="reel"></div>
+        <div style="height: 100px; width: 4px; background: var(--film-sepia); margin-left: 48px; opacity: 0.3;"></div>
+        <div class="reel" style="animation-duration: 3s;"></div>
+    </div>
+
+    <div class="vault-panel" id="vault">
+        <div style="font-size: 10px; letter-spacing: 5px; margin-bottom: 40px;">PRIVATE_ARCHIVE</div>
+        <div style="padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor:pointer;">SCENE_A: LOGIC_SYNC.STYIO</div>
+        <div style="padding: 15px 0; border-bottom: 1px solid rgba(255,255,255,0.05); cursor:pointer;">SCENE_B: SPECTRAL_HUD.STYIO</div>
+        <button class="clapper-btn" onclick="playMovie()">ACTION!</button>
+    </div>
+
+    <div class="cinema-screen" id="screen">
+        <div class="film-strip-handle" onclick="toggleVault()"></div>
+        <div class="film-scratches"></div>
+        <div class="editor-header">
+            <span>APRIL_17_2026</span>
+            <span id="frameCounter">FRAME: 0000</span>
+        </div>
+        <main class="code-projection" contenteditable="true">
+/* PRODUCTION NO: 4182 */
+/* STATUS: STABLE VIEWPORT */
+
+fn main() {
+  let project = cinema.load("Steady_Lens");
+  
+  // No more jitter. 
+  // Stability is the foundation of logic.
+  
+  project.render({
+    grain: 0.1,
+    flicker: "subtle",
+    shaking: 0.0
+  });
+}
+        </main>
+        <div id="countdownOverlay"><div class="countdown-circle"></div><span id="countdownNumber">5</span></div>
+    </div>
+
+    <script>
+        function toggleVault() { document.body.classList.toggle('is-open'); }
+        function playMovie() {
+            const overlay = document.getElementById('countdownOverlay');
+            const num = document.getElementById('countdownNumber');
+            overlay.style.display = 'flex';
+            let count = 5;
+            const timer = setInterval(() => {
+                count--; num.innerText = count;
+                if(count <= 0) { clearInterval(timer); overlay.style.display = 'none'; }
+            }, 1000);
+        }
+        let frames = 0;
+        setInterval(() => { frames++; document.getElementById('frameCounter').innerText = `FRAME: ${String(frames).padStart(4, '0')}`; }, 41.6);
+        
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX / window.innerWidth - 0.5) * 3;
+            const y = (e.clientY / window.innerHeight - 0.5) * 3;
+            document.getElementById('screen').style.transform = `perspective(2000px) rotateY(${x}deg) rotateX(${-y}deg)`;
+        });
+    </script>
+</body>
+</html>

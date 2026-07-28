@@ -2,31 +2,31 @@
   {
     "id": "6417d29b-2356-49a5-b622-6a96de2dc92f",
     "status": "in_progress",
-    "title": "Styio IDE",
-    "directory": "styio-ide",
+    "title": "Vityo",
+    "directory": "vityo",
     "source_files": [
-      "docs/plan/styio-ide/Requirements.md",
-      "docs/plan/styio-ide/Evidence.md",
-      "docs/plan/styio-ide/Architecture.md",
-      "docs/plan/styio-ide/Validation.md"
+      "docs/plan/vityo/Requirements.md",
+      "docs/plan/vityo/Evidence.md",
+      "docs/plan/vityo/Architecture.md",
+      "docs/plan/vityo/Validation.md"
     ],
-    "goal": "Deliver Styio IDE as an independent, truthful developer environment and AI-native Agent Client.",
+    "goal": "Deliver Vityo as an independent, truthful developer environment and AI-native Agent Client.",
     "description": "The IDE product line owns editing, workbench, language and execution services, Agent collaboration UI, external-agent hosting, and desktop delivery; it never owns Coding Agent runtime implementation.",
-    "checkpoints": "styio-ide/Checkpoints.json"
+    "checkpoints": "vityo/Checkpoints.json"
   },
   {
     "id": "fbc92d9a-cb7e-47fc-a48f-e00bdd4de5d6",
     "status": "completed",
-    "title": "Styio Coding Agent",
-    "directory": "styio-coding-agent",
+    "title": "Vityo Coding Agent",
+    "directory": "vityo-coding-agent",
     "source_files": [
-      "docs/plan/styio-coding-agent/Requirements.md",
-      "docs/plan/styio-coding-agent/Evidence.md",
-      "docs/plan/styio-coding-agent/Architecture.md",
-      "docs/plan/styio-coding-agent/Validation.md"
+      "docs/plan/vityo-coding-agent/Requirements.md",
+      "docs/plan/vityo-coding-agent/Evidence.md",
+      "docs/plan/vityo-coding-agent/Architecture.md",
+      "docs/plan/vityo-coding-agent/Validation.md"
     ],
-    "goal": "Deliver Styio Coding Agent as an independent, secure, model-neutral coding runtime that collaborates with IDEs through open protocols.",
-    "description": "The Coding Agent product line owns model orchestration, context selection, tools, policy, coding loops, durable sessions, and multi-agent execution; it never imports Styio IDE or Flutter implementation.",
-    "checkpoints": "styio-coding-agent/Checkpoints.json"
+    "goal": "Deliver Vityo Coding Agent as an independent, secure, model-neutral coding runtime that collaborates with IDEs through open protocols.",
+    "description": "The Coding Agent product line owns model orchestration, context selection, tools, policy, coding loops, durable sessions, and multi-agent execution; it never imports Vityo or Flutter implementation.",
+    "checkpoints": "vityo-coding-agent/Checkpoints.json"
   }
 ]

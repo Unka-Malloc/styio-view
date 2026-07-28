@@ -74,9 +74,9 @@ def validate_release_inputs(platform: str, config: dict[str, object], versions: 
 
 def package_linux(config: dict[str, object], output: Path, version: str) -> Path:
     build = require_dir(ROOT / str(config["build_relative_path"]))
-    with tempfile.TemporaryDirectory(prefix="styio-ide-deb-") as raw_stage:
+    with tempfile.TemporaryDirectory(prefix="vityo-deb-") as raw_stage:
         stage = Path(raw_stage)
-        app_root = stage / "opt/styio-ide"
+        app_root = stage / "opt/vityo"
         copy_tree_contents(build, app_root)
         control_root = stage / "DEBIAN"
         control_root.mkdir(parents=True)
@@ -86,26 +86,35 @@ def package_linux(config: dict[str, object], output: Path, version: str) -> Path
         (control_root / "control").write_text(control, encoding="utf-8")
         bin_root = stage / "usr/bin"
         bin_root.mkdir(parents=True)
-        wrapper = bin_root / "styio-ide"
-        wrapper.write_text('#!/usr/bin/env sh\nexec /opt/styio-ide/styio_ide "$@"\n', encoding="utf-8")
+        wrapper = bin_root / "vityo"
+        wrapper.write_text('#!/usr/bin/env sh\nexec /opt/vityo/vityo_app "$@"\n', encoding="utf-8")
         wrapper.chmod(wrapper.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         applications = stage / "usr/share/applications"
         applications.mkdir(parents=True)
-        shutil.copy2(ROOT / "packaging/linux/io.styio.ide.desktop", applications / "io.styio.ide.desktop")
+        shutil.copy2(
+            ROOT / "packaging/linux/io.vityo.desktop",
+            applications / "io.vityo.desktop",
+        )
         metainfo = stage / "usr/share/metainfo"
         metainfo.mkdir(parents=True)
-        shutil.copy2(ROOT / "packaging/linux/io.styio.ide.metainfo.xml", metainfo / "io.styio.ide.metainfo.xml")
+        shutil.copy2(
+            ROOT / "packaging/linux/io.vityo.metainfo.xml",
+            metainfo / "io.vityo.metainfo.xml",
+        )
         icons = stage / "usr/share/icons/hicolor/512x512/apps"
         icons.mkdir(parents=True)
-        shutil.copy2(require_file(ROOT / str(config["icon_relative_path"])), icons / "io.styio.ide.png")
+        shutil.copy2(
+            require_file(ROOT / str(config["icon_relative_path"])),
+            icons / "io.vityo.png",
+        )
         subprocess.run(["dpkg-deb", "--build", "--root-owner-group", stage, output], check=True)
     return output
 
 
 def package_windows(config: dict[str, object], output: Path) -> Path:
     build = require_dir(ROOT / str(config["build_relative_path"]))
-    with tempfile.TemporaryDirectory(prefix="styio-ide-win-") as raw_stage:
-        stage = Path(raw_stage) / "Styio-IDE-Nightly"
+    with tempfile.TemporaryDirectory(prefix="vityo-win-") as raw_stage:
+        stage = Path(raw_stage) / "Vityo-Nightly"
         copy_tree_contents(build, stage)
         shutil.copy2(ROOT / "packaging/windows/install.ps1", stage / "install.ps1")
         shutil.copy2(ROOT / "packaging/windows/uninstall.ps1", stage / "uninstall.ps1")
@@ -124,7 +133,7 @@ def package_macos(config: dict[str, object], output: Path) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build one independently releasable Styio IDE Nightly package")
+    parser = argparse.ArgumentParser(description="Build one independently releasable Vityo Nightly package")
     parser.add_argument("--platform", required=True, choices=("linux", "windows", "macos"))
     parser.add_argument("--output-dir", type=Path, default=ROOT / "build/nightly")
     args = parser.parse_args()
@@ -133,7 +142,7 @@ def main() -> int:
     version = validate_release_inputs(args.platform, config, versions)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     suffix = {"linux": ".deb", "windows": ".zip", "macos": ".dmg"}[args.platform]
-    output = args.output_dir / f"styio-ide-nightly-{args.platform}-{version}{suffix}"
+    output = args.output_dir / f"vityo-nightly-{args.platform}-{version}{suffix}"
     if output.exists():
         output.unlink()
     artifact = {"linux": package_linux, "windows": package_windows, "macos": package_macos}[args.platform]

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vityo | The Monolith</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;700&family=Azeret+Mono:wght@200;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --monolith-black: #020202;
+            --monolith-glow: rgba(255, 255, 255, 0.05);
+            --ink-white: #ffffff;
+            --marker-red: #ff0033;
+        }
+
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body, html { margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Plus Jakarta Sans', sans-serif; overflow: hidden; height: 100vh; }
+
+        /* 1. 虚空背景：漂浮的尘埃与深度 */
+        .void-background {
+            position: fixed; inset: 0; z-index: 1;
+            background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+        }
+        canvas#dustCanvas { position: fixed; inset: 0; z-index: 2; opacity: 0.3; pointer-events: none; }
+
+        /* 2. 核心：黑色方碑编辑器 */
+        .monolith-stage {
+            position: relative; z-index: 10;
+            width: 100vw; height: 100vh;
+            display: flex; align-items: center; justify-content: center;
+            perspective: 2000px;
+        }
+
+        .the-monolith {
+            width: 500px; height: 85vh;
+            background: var(--monolith-black);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex; flex-direction: column;
+            box-shadow: 
+                0 0 100px rgba(255,255,255,0.02),
+                inset 0 0 50px rgba(255,255,255,0.01);
+            transform: rotateY(-5deg);
+            transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+        .the-monolith:hover { transform: rotateY(0deg) scale(1.02); border-color: rgba(255,255,255,0.1); }
+
+        .editor-header {
+            padding: 40px; font-size: 10px; letter-spacing: 12px; opacity: 0.3; text-align: center;
+        }
+
+        .code-script {
+            flex: 1; padding: 0 60px 60px 60px;
+            font-family: 'Azeret Mono', monospace; font-size: 16px; line-height: 2.2;
+            outline: none; color: rgba(255,255,255,0.8); overflow-y: auto;
+            text-align: left;
+        }
+
+        /* 3. 离经叛道交互：发光几何基座 */
+        .monolith-base {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 300px; height: 10px;
+            background: var(--ink-white);
+            box-shadow: 0 0 50px #fff;
+            z-index: 1001; cursor: pointer;
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .monolith-base:hover { height: 40px; }
+
+        /* 方碑生长转场 */
+        .is-open .the-monolith {
+            height: 95vh; width: 1000px; transform: rotateY(0deg);
+        }
+        .is-open .monolith-base { width: 100vw; height: 4px; box-shadow: 0 0 20px #fff; }
+
+        /* 4. 视觉模块：红色偏差监控 */
+        .error-marker {
+            position: absolute; right: 20px; top: 100px;
+            width: 2px; height: 0; background: var(--marker-red);
+            box-shadow: 0 0 15px var(--marker-red);
+            transition: 0.5s;
+        }
+        .the-monolith:hover .error-marker { height: 100px; }
+
+        /* 5. 导航节点 */
+        .nav-nodes {
+            position: fixed; left: 60px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 40px; z-index: 100;
+        }
+        .node {
+            width: 6px; height: 6px; background: rgba(255,255,255,0.2); border-radius: 50%;
+            cursor: pointer; position: relative; transition: 0.3s;
+        }
+        .node:hover { background: #fff; transform: scale(2); box-shadow: 0 0 10px #fff; }
+        .node::after {
+            content: attr(data-label); position: absolute; left: 20px; top: -5px;
+            font-size: 9px; letter-spacing: 3px; opacity: 0; transition: 0.3s;
+        }
+        .node:hover::after { opacity: 0.5; left: 30px; }
+
+    </style>
+</head>
+<body>
+    <div class="void-background"></div>
+    <canvas id="dustCanvas"></canvas>
+
+    <!-- 侧边导航节点 -->
+    <nav class="nav-nodes">
+        <div class="node" data-label="CORE_01"></div>
+        <div class="node" data-label="LOGIC_02"></div>
+        <div class="node" data-label="VOID_03"></div>
+    </nav>
+
+    <!-- 几何基座 -->
+    <div class="monolith-base" onclick="toggleMonolith()"></div>
+
+    <div class="monolith-stage">
+        <!-- 黑色方碑 -->
+        <article class="the-monolith" id="monolith">
+            <div class="error-marker"></div>
+            <div class="editor-header">VITYO // MONOLITH_X1</div>
+            <div class="code-script" contenteditable="true">
+/* 
+ * BEYOND THE LIMITS OF HUMAN COGNITION.
+ * PROJECTING LOGIC INTO THE VOID.
+ */
+
+fn main() {
+  let silence = consciousness.absolute();
+  
+  pipe void 
+    >> filter_noise 
+    >> become_monolith;
+    
+  @log("Evolution sequence active.");
+}
+            </div>
+        </article>
+    </div>
+
+    <script>
+        function toggleMonolith() {
+            document.body.classList.toggle('is-open');
+        }
+
+        // 尘埃引擎 (Canvas)
+        const canvas = document.getElementById('dustCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.size = Math.random() * 2;
+                this.v = Math.random() * 0.3;
+                this.alpha = Math.random() * 0.5;
+            }
+            update() {
+                this.y -= this.v;
+                if(this.y < 0) this.reset();
+            }
+            draw() {
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+            }
+        }
+        const particles = Array.from({length: 100}, () => new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // 视角联动
+        document.addEventListener('mousemove', (e) => {
+            if(!document.body.classList.contains('is-open')) {
+                const x = (e.clientX / window.innerWidth - 0.5) * 15;
+                document.getElementById('monolith').style.transform = `rotateY(${x}deg)`;
+            }
+        });
+    </script>
+</body>
+</html>

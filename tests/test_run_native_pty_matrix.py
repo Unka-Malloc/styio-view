@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -21,6 +25,36 @@ def load_module():
 
 
 class NativePtyMatrixTest(unittest.TestCase):
+    def test_host_platform_normalizes_supported_hosts(self) -> None:
+        module = load_module()
+        for raw, expected in (
+            ("linux", "linux"),
+            ("linux2", "linux"),
+            ("darwin", "macos"),
+            ("win32", "windows"),
+            ("other", None),
+        ):
+            with self.subTest(platform=raw):
+                with mock.patch.object(module.sys, "platform", raw):
+                    self.assertEqual(module.host_platform(), expected)
+
+    def test_git_head_reads_repository_commit(self) -> None:
+        module = load_module()
+        completed = mock.Mock(stdout=("a" * 40) + "\n")
+        with mock.patch.object(
+            module.subprocess,
+            "run",
+            return_value=completed,
+        ) as run:
+            self.assertEqual(module.git_head(Path("repo")), "a" * 40)
+
+        run.assert_called_once_with(
+            ["git", "-C", "repo", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
     def test_matrix_runs_real_pty_and_terminal_environment_suites(self) -> None:
         module = load_module()
         with (
@@ -35,6 +69,15 @@ class NativePtyMatrixTest(unittest.TestCase):
         self.assertIn("--plain-name", run.call_args_list[1].args[0])
         for call in run.call_args_list:
             self.assertTrue(call.kwargs["check"])
+
+    def test_matrix_rejects_missing_flutter(self) -> None:
+        module = load_module()
+        with mock.patch.object(module.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(ValueError, "unavailable"):
+                module.run_matrix(
+                    flutter="missing-flutter",
+                    app_root=Path("app"),
+                )
 
     def test_report_is_platform_bound_and_complete(self) -> None:
         module = load_module()
@@ -57,6 +100,80 @@ class NativePtyMatrixTest(unittest.TestCase):
         ):
             with self.assertRaisesRegex(ValueError, "pinned exactly"):
                 module.require_pinned_pty_dependency(Path("app"))
+
+    def test_main_writes_commit_bound_report(self) -> None:
+        module = load_module()
+        with tempfile.TemporaryDirectory(
+            prefix="native-pty-matrix-",
+        ) as tmp_name:
+            output = Path(tmp_name) / "nested" / "report.json"
+            stdout = io.StringIO()
+            with (
+                mock.patch.object(
+                    sys,
+                    "argv",
+                    [
+                        str(SCRIPT_PATH),
+                        "--platform",
+                        "macos",
+                        "--vityo",
+                        str(REPO_ROOT),
+                        "--output",
+                        str(output),
+                    ],
+                ),
+                mock.patch.object(
+                    module,
+                    "host_platform",
+                    return_value="macos",
+                ),
+                mock.patch.object(
+                    module,
+                    "require_pinned_pty_dependency",
+                ) as require,
+                mock.patch.object(module, "run_matrix") as run_matrix,
+                mock.patch.object(
+                    module,
+                    "git_head",
+                    return_value="a" * 40,
+                ),
+                redirect_stdout(stdout),
+            ):
+                self.assertEqual(module.main(), 0)
+
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(payload["vityoCommit"], "a" * 40)
+            self.assertEqual(json.loads(stdout.getvalue()), payload)
+            app_root = REPO_ROOT / "products" / "vityo_app"
+            require.assert_called_once_with(app_root)
+            run_matrix.assert_called_once_with(
+                flutter="flutter",
+                app_root=app_root,
+            )
+
+    def test_main_rejects_declared_platform_mismatch(self) -> None:
+        module = load_module()
+        with (
+            mock.patch.object(
+                sys,
+                "argv",
+                [
+                    str(SCRIPT_PATH),
+                    "--platform",
+                    "windows",
+                    "--output",
+                    "unused.json",
+                ],
+            ),
+            mock.patch.object(
+                module,
+                "host_platform",
+                return_value="linux",
+            ),
+            redirect_stderr(io.StringIO()),
+        ):
+            with self.assertRaises(SystemExit):
+                module.main()
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# Styio IDE Team Runbooks
+# Vityo Team Runbooks
 
 **Purpose:** 定义 `docs/teams/` 的范围、命名和维护规则；产品语义、系统边界、adapter 合同与平台策略仍由现有 SSOT 文档持有。
 

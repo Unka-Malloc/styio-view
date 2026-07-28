@@ -1,4 +1,4 @@
-# Styio IDE System Architecture
+# Vityo System Architecture
 
 **Purpose:** 定义 `Vityo` 的系统层次、adapter 边界、平台执行后端与主线实现策略；具体产品语义以 [Vityo-Product-Spec.md](./Vityo-Product-Spec.md) 为准。
 
@@ -37,9 +37,9 @@ flowchart TB
 
 - 前端是面向用户的 `Flutter UI Runtime + Custom Editor Engine + Panels + Module Host`，负责编辑、浏览、交互和状态呈现。
 - 后端是 `Vityo` 背后的整条工具链面，包含 adapter layer、local CLI / FFI、hosted control plane，以及上游 `pafio` / `styio` 提供的 machine contract。
-- `prototype/` 与 `products/styio_ide/lib/src/app|editor|runtime|agent|theme|module_host|platform` 属于前端主面；`products/styio_ide/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/` 是后端工具链接入的实现根目录，承载 adapter、hosted control plane codec 和产品运维 lane。
-- `products/styio_ide/lib/src/view_ide/backend_toolchain/` 只保留 legacy compatibility exports；它继续服务旧 import 路径，但不再承载新的后端实现。
+- `prototype/` 与 `products/vityo_app/lib/src/app|editor|runtime|agent|theme|module_host|platform` 属于前端主面；`products/vityo_app/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/` 是后端工具链接入的实现根目录，承载 adapter、hosted control plane codec 和产品运维 lane。
+- `products/vityo_app/lib/src/view_ide/backend_toolchain/` 只保留 legacy compatibility exports；它继续服务旧 import 路径，但不再承载新的后端实现。
 
 非协商规则：
 
@@ -52,15 +52,15 @@ flowchart TB
 
 当前 Flutter 主线分为三个可审计层：
 
-1. `products/styio_ide/lib/src/view_ide/`：domain/application/contracts/state 层，承载 editor document、workspace、language service、agent permission、module host、environment sandbox、commands、registry 和 backend toolchain 合同。该层不得 import Flutter presentation APIs。
-2. `products/styio_ide/lib/src/view_render/`：Flutter presentation 层，承载 shell、editor/runtime/agent/debug surfaces、theme 和 viewport profile。该层只能依赖已登记的 `view_ide/` contract/model surface。
-3. `products/styio_ide/lib/src/app/`：composition root，负责把 `view_ide` 对象接到 `view_render` widgets。
+1. `products/vityo_app/lib/src/view_ide/`：domain/application/contracts/state 层，承载 editor document、workspace、language service、agent permission、module host、environment sandbox、commands、registry 和 backend toolchain 合同。该层不得 import Flutter presentation APIs。
+2. `products/vityo_app/lib/src/view_render/`：Flutter presentation 层，承载 shell、editor/runtime/agent/debug surfaces、theme 和 viewport profile。该层只能依赖已登记的 `view_ide/` contract/model surface。
+3. `products/vityo_app/lib/src/app/`：composition root，负责把 `view_ide` 对象接到 `view_render` widgets。
 
 Legacy roots 只保留迁移兼容：
 
-1. `products/styio_ide/lib/src/view_ide/backend_toolchain/` -> `view_ide/backend_toolchain/`
-2. `products/styio_ide/lib/src/ide/editor/` -> `ide/editor/` 或 `view_render/editor/`
-3. `products/styio_ide/lib/src/view_ide/language/` -> `view_ide/language/`
+1. `products/vityo_app/lib/src/view_ide/backend_toolchain/` -> `view_ide/backend_toolchain/`
+2. `products/vityo_app/lib/src/ide/editor/` -> `ide/editor/` 或 `view_render/editor/`
+3. `products/vityo_app/lib/src/view_ide/language/` -> `view_ide/language/`
 
 这些 legacy 文件只能是一行 `export` façade，不得继续承载 parser、adapter、fallback、security policy 或 UI 逻辑。
 
@@ -148,7 +148,7 @@ python3 scripts/check_compat_facades.py
 1. 每个平台拥有独立的 `BackendProvider` 入口，负责创建该平台的 project graph、execution、runtime event、dependency、deployment 与 toolchain management adapters。
 2. `AppBootstrap` 只解析一次当前平台 Provider，不再直接调用各 Adapter 的全局平台工厂。
 3. Provider 注册以稳定 `id`、支持平台集合和优先级为选择合同；同平台同优先级冲突、重复 `id` 或缺少 Provider 都必须 fail closed。
-4. 默认 Provider 位于 `products/styio_ide/lib/src/view_ide/backend_toolchain/providers/`；平台专项实现可以通过注入 `BackendProviderRegistry` 独立开发和测试，不需要修改 `AppBootstrap`。
+4. 默认 Provider 位于 `products/vityo_app/lib/src/view_ide/backend_toolchain/providers/`；平台专项实现可以通过注入 `BackendProviderRegistry` 独立开发和测试，不需要修改 `AppBootstrap`。
 5. Web 构建只注册 hosted Web Provider；IO 构建分别注册 Windows、Linux、macOS、Android、iOS 和 unknown fallback Provider，禁止在 IO 测试中伪装 Web 后端。
 
 ### 2.5 Language Workspace Service
@@ -224,11 +224,11 @@ python3 scripts/check_compat_facades.py
 
 Agent、sandbox、secret 和 manifest trust 属于 `view_ide` domain/application policy，不属于 Flutter surface：
 
-1. Agent permission model：`products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart`
-2. Execution sandbox：`products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart`
-3. Secret store：`products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart`
-4. Log redactor：`products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart`
-5. Module manifest security：`products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart`
+1. Agent permission model：`products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart`
+2. Execution sandbox：`products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
+3. Secret store：`products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
+4. Log redactor：`products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
+5. Module manifest security：`products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
 
 本组安全文件由 `python3 scripts/check_security_baseline.py` 保护。UI 和 agent context 只能消费 redacted projection，不得显示或序列化 raw credential。
 
@@ -252,17 +252,17 @@ Agent、sandbox、secret 和 manifest trust 属于 `view_ide` domain/application
 
 当前已落地的实现入口：
 
-1. `products/styio_ide/lib/src/view_ide/`
-2. `products/styio_ide/lib/src/view_ide/backend_toolchain/`
-3. `products/styio_ide/lib/src/ide/editor/`
-4. `products/styio_ide/lib/src/view_ide/language/`
-5. `products/styio_ide/lib/src/ide/workspace/`
-6. `products/styio_ide/lib/src/view_ide/agent_client/`
-7. `products/styio_ide/lib/src/view_ide/module_host/`
-8. `products/styio_ide/lib/src/view_ide/environment/`
-9. `products/styio_ide/lib/src/view_render/`
-10. `products/styio_ide/lib/src/app/`
-11. `products/styio_ide/lib/src/view_ide/backend_toolchain/` compatibility façade
-12. `products/styio_ide/lib/src/ide/editor/` compatibility façade for migrated entries
-13. `products/styio_ide/lib/src/view_ide/language/` compatibility façade
-14. `products/styio_ide/lib/src/view_ide/backend_toolchain/` legacy compatibility exports
+1. `products/vityo_app/lib/src/view_ide/`
+2. `products/vityo_app/lib/src/view_ide/backend_toolchain/`
+3. `products/vityo_app/lib/src/ide/editor/`
+4. `products/vityo_app/lib/src/view_ide/language/`
+5. `products/vityo_app/lib/src/ide/workspace/`
+6. `products/vityo_app/lib/src/view_ide/agent_client/`
+7. `products/vityo_app/lib/src/view_ide/module_host/`
+8. `products/vityo_app/lib/src/view_ide/environment/`
+9. `products/vityo_app/lib/src/view_render/`
+10. `products/vityo_app/lib/src/app/`
+11. `products/vityo_app/lib/src/view_ide/backend_toolchain/` compatibility façade
+12. `products/vityo_app/lib/src/ide/editor/` compatibility façade for migrated entries
+13. `products/vityo_app/lib/src/view_ide/language/` compatibility façade
+14. `products/vityo_app/lib/src/view_ide/backend_toolchain/` legacy compatibility exports

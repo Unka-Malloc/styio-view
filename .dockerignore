@@ -1,7 +1,7 @@
 .git
 .devcontainer
-frontend/vityo_app/build
-frontend/vityo_app/.dart_tool
-frontend/vityo_app/.flutter-plugins-dependencies
+products/vityo_app/build
+products/vityo_app/.dart_tool
+products/vityo_app/.flutter-plugins-dependencies
 prototype/node_modules
 prototype/.artifacts

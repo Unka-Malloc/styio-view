@@ -11,7 +11,7 @@
 | Path | Entry | Summary |
 |------|-------|---------|
 | `AdapterCapabilitySnapshot.md` | [AdapterCapabilitySnapshot](./AdapterCapabilitySnapshot.md) | 给 Vityo 一个统一的 adapter 能力视图，让 UI 在 CLI / FFI / Cloud 三类 route 之间保持同一套降级语义。 |
-| `CacheContract.md` | [Cache Contract](./CacheContract.md) | Define the shared cache contract for Styio IDE — owner, key, entry, invalidation, dependency tracking, eviction, freshness, serialization, and observation. |
+| `CacheContract.md` | [Cache Contract](./CacheContract.md) | Define the shared cache contract for Vityo — owner, key, entry, invalidation, dependency tracking, eviction, freshness, serialization, and observation. |
 | `DependencySourceAdapter.md` | [DependencySourceAdapter](./DependencySourceAdapter.md) | 冻结依赖源物化接口，让 Vityo 可以在不关心 pafio 内部缓存布局的前提下完成 fetch/vendor 工作流。 |
 | `DeploymentAdapter.md` | [DeploymentAdapter](./DeploymentAdapter.md) | 冻结打包、发布预检和 registry 发布接口，让前端可以围绕 package artifact 与 publishability 状态独立开发。 |
 | `ExecutionAdapter.md` | [ExecutionAdapter](./ExecutionAdapter.md) | 冻结 compile/run 会话与其机器输出；Vityo 的保存、运行、debug console 与 runtime surface 都围绕本合同消费结果。 |
@@ -23,4 +23,4 @@
 | `SettingsProfileThemePersonalization.md` | [Settings Profile Theme Personalization Contract](./SettingsProfileThemePersonalization.md) | Define ownership, product boundaries, invariants, data flow, capability gaps, downstream consumers, and validation targets for Vityo settings, profile, theme, personalization, and agent-context redaction. |
 | `ToolchainManagementAdapter.md` | [ToolchainManagementAdapter](./ToolchainManagementAdapter.md) | 冻结 managed compiler 安装、切换与项目 pin 操作，让前端与后端能围绕统一 toolchain 管控语义独立演进。 |
 | `UserFacingWorkflows.md` | [User Facing Workflows Contract](./UserFacingWorkflows.md) | Define the product workflow contract for first launch, workspace lifecycle, editing, command routing, run/debug, diagnostics, agent review, settings, modules, hosted export, and recovery UX. |
-| `WorkbenchShellSurfaces.md` | [Workbench Shell Surfaces Contract](./WorkbenchShellSurfaces.md) | Define the workbench shell surface, layout, focus, command routing, capability, and responsive behavior contract for the current Styio IDE shell. |
+| `WorkbenchShellSurfaces.md` | [Workbench Shell Surfaces Contract](./WorkbenchShellSurfaces.md) | Define the workbench shell surface, layout, focus, command routing, capability, and responsive behavior contract for the current Vityo shell. |

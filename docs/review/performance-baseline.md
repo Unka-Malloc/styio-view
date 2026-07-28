@@ -11,7 +11,7 @@
 - **Host:** Windows native shell
 - **Runner:** Windows Python 3.10 with UTF-8 output and Dart from `T:\DevEnv\flutter\bin\cache\dart-sdk\bin`
 - **Gate script:** `scripts/performance-gate.py --json`
-- **Benchmark directory:** `frontend/vityo_app/benchmark/`
+- **Benchmark directory:** `products/vityo_app/benchmark/`
 - **Gate result:** passed
 - **Runner availability:** runner available, Dart available, Flutter not required for this benchmark set
 
@@ -34,7 +34,7 @@
 
 The `scripts/performance-gate.py` script:
 
-- Discovers benchmarks in `frontend/vityo_app/benchmark/`
+- Discovers benchmarks in `products/vityo_app/benchmark/`
 - Runs them via `dart run` when Dart VM is available
 - Compares against baseline JSON when present
 - Fails on regression greater than the configured threshold, defaulting to 10 percent

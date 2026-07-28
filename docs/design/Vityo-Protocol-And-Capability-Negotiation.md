@@ -1,4 +1,4 @@
-# Styio IDE Protocol and Capability Negotiation
+# Vityo Protocol and Capability Negotiation
 
 **Purpose:** Define Vityo's schema for versioned protocol contracts, capability negotiation, and backward-compatible evolution across all adapter boundaries. Inspired by LSP/DAP capability exchange but Styio-native.
 
@@ -72,7 +72,7 @@ class LanguageServiceContract {
 }
 ```
 
-Reference: `products/styio_ide/lib/src/view_ide/language/contract/language_contract.dart`
+Reference: `products/vityo_app/lib/src/view_ide/language/contract/language_contract.dart`
 
 ### 3.2 ProjectGraphAdapter
 
@@ -86,7 +86,7 @@ class ProjectGraphContract {
 }
 ```
 
-Reference: `products/styio_ide/lib/src/view_ide/backend_toolchain/project_graph_contract.dart`
+Reference: `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart`
 
 ### 3.3 ExecutionAdapter
 
@@ -100,7 +100,7 @@ class ExecutionContract {
 }
 ```
 
-Reference: `products/styio_ide/lib/src/view_ide/backend_toolchain/execution_adapter.dart`
+Reference: `products/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter.dart`
 
 ### 3.4 RuntimeEventAdapter
 
@@ -114,7 +114,7 @@ class RuntimeEventContract {
 }
 ```
 
-Reference: `products/styio_ide/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart`
+Reference: `products/vityo_app/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart`
 
 ### 3.5 DebugWorkbenchContract
 
@@ -131,7 +131,7 @@ class DebugWorkbenchContract {
 enum DebugSessionLifecycle { idle, launching, attaching, running, paused, terminated, detached }
 ```
 
-Reference: `products/styio_ide/lib/src/view_ide/runtime/debug_workbench_contract.dart`
+Reference: `products/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart`
 
 ### 3.6 AgentProviderAdapter
 
@@ -158,7 +158,7 @@ class SourceControlContract {
 }
 ```
 
-Reference: `products/styio_ide/lib/src/ide/workspace/source_control_adapter.dart`
+Reference: `products/vityo_app/lib/src/ide/workspace/source_control_adapter.dart`
 
 ## 4. Unknown Field Tolerance
 

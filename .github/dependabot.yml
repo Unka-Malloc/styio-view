@@ -16,7 +16,7 @@ updates:
     open-pull-requests-limit: 5
 
   - package-ecosystem: "pub"
-    directory: "/products/styio_ide"
+    directory: "/products/vityo_app"
     schedule:
       interval: "weekly"
       day: "monday"

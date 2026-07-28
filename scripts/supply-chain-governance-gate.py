@@ -18,7 +18,7 @@ REQUIRED_POLICY_FILES = (
     Path("LICENSE-POLICY.md"),
     Path("docs/governance/SECURITY-AND-SUPPLY-CHAIN.md"),
     Path("docs/specs/THIRD-PARTY.md"),
-    Path("products/styio_ide/pubspec.lock"),
+    Path("products/vityo_app/pubspec.lock"),
     Path("prototype/package-lock.json"),
 )
 
@@ -49,7 +49,7 @@ REQUIRED_WORKFLOW_COMMANDS = {
 
 REQUIRED_DEPENDABOT_UPDATES = (
     ("github-actions", "/"),
-    ("pub", "/products/styio_ide"),
+    ("pub", "/products/vityo_app"),
     ("npm", "/prototype"),
 )
 

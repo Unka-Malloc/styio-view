@@ -103,16 +103,16 @@ class ReleaseReadinessGateTest(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("placeholder\n", encoding="utf-8")
 
-        pubspec_path = root / "frontend/vityo_app/pubspec.yaml"
+        pubspec_path = root / "products/vityo_app/pubspec.yaml"
         pubspec_path.write_text(
             "name: vityo_app\n"
-            "description: Vityo IDE editor shell for web, desktop, and mobile targets.\n"
+            "description: Vityo editor shell for web, desktop, and mobile targets.\n"
             "publish_to: \"none\"\n"
             "version: 0.1.0+1\n",
             encoding="utf-8",
         )
 
-        readme_path = root / "frontend/vityo_app/README.md"
+        readme_path = root / "products/vityo_app/README.md"
         readme_path.write_text(
             "# Vityo Flutter Shell\n\n"
             "## Release readiness gate\n\n"
@@ -203,7 +203,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         self.assertTrue(all(result.ok for result in results), results)
@@ -212,12 +212,12 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
             tmp_root = Path(tmp_name)
             self._write_minimal_release_tree(tmp_root)
-            missing_path = tmp_root / "frontend/vityo_app/test/styio_completion_feature_test.dart"
+            missing_path = tmp_root / "products/vityo_app/test/styio_completion_feature_test.dart"
             missing_path.unlink()
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         self.assertTrue(
@@ -234,7 +234,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
             tmp_root = Path(tmp_name)
             self._write_minimal_release_tree(tmp_root)
-            (tmp_root / "frontend/vityo_app/pubspec.yaml").write_text(
+            (tmp_root / "products/vityo_app/pubspec.yaml").write_text(
                 "name: legacy_view_app\n"
                 "description: old shell\n"
                 "publish_to: \"none\"\n"
@@ -244,7 +244,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         failed_names = {result.name for result in results if not result.ok}
@@ -262,7 +262,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         self.assertTrue(
@@ -282,7 +282,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         by_name = {result.name: result for result in results}
@@ -306,7 +306,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         by_name = {result.name: result for result in results}
@@ -324,7 +324,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         self.assertTrue(
@@ -348,7 +348,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
 
             results = self.gate.collect_static_checks(
                 tmp_root,
-                Path("frontend/vityo_app"),
+                Path("products/vityo_app"),
             )
 
         self.assertTrue(
@@ -373,7 +373,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
                         "--repo-root",
                         str(tmp_root),
                         "--flutter-dir",
-                        "frontend/vityo_app",
+                        "products/vityo_app",
                         "--skip-build",
                         "--json",
                     ]
@@ -390,12 +390,12 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         parsed = self.gate.parse_pubspec_fields(
             "# comment\n"
             "name: 'vityo_app'\n"
-            "description: \"Vityo IDE editor shell\"\n"
+            "description: \"Vityo editor shell\"\n"
             " nested: ignored\n"
             "bad line\n"
         )
         self.assertEqual(parsed["name"], "vityo_app")
-        self.assertEqual(parsed["description"], "Vityo IDE editor shell")
+        self.assertEqual(parsed["description"], "Vityo editor shell")
         self.assertNotIn("nested", parsed)
 
         self.assertIsNone(self.gate.parse_policy_date(None))
@@ -442,11 +442,11 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)
             self.assertEqual(
-                self.gate.check_pubspec(root, Path("frontend/vityo_app"))[0].name,
+                self.gate.check_pubspec(root, Path("products/vityo_app"))[0].name,
                 "pubspec metadata",
             )
             self.assertEqual(
-                self.gate.check_readme(root, Path("frontend/vityo_app"))[0].name,
+                self.gate.check_readme(root, Path("products/vityo_app"))[0].name,
                 "release README markers",
             )
             manifest_path = root / self.gate.TOOLING_MANIFEST_PATH
@@ -559,17 +559,17 @@ class ReleaseReadinessGateTest(unittest.TestCase):
     def test_release_build_payload_human_output_and_main_build_path(self) -> None:
         with tempfile.TemporaryDirectory(prefix="release-gate-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)
-            missing = self.gate.run_release_build(root, Path("frontend/vityo_app"))
+            missing = self.gate.run_release_build(root, Path("products/vityo_app"))
             self.assertFalse(missing.ok)
             self.assertIn("missing", missing.detail)
 
-            app_dir = root / "frontend/vityo_app"
+            app_dir = root / "products/vityo_app"
             app_dir.mkdir(parents=True)
             with mock.patch.object(self.gate.subprocess, "run") as run:
                 run.return_value.returncode = 0
-                passed = self.gate.run_release_build(root, Path("frontend/vityo_app"))
+                passed = self.gate.run_release_build(root, Path("products/vityo_app"))
                 run.return_value.returncode = 2
-                failed = self.gate.run_release_build(root, Path("frontend/vityo_app"))
+                failed = self.gate.run_release_build(root, Path("products/vityo_app"))
 
         self.assertTrue(passed.ok)
         self.assertEqual(passed.detail, "flutter build web --release")
@@ -602,7 +602,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
             ) as build:
                 output = io.StringIO()
                 with redirect_stdout(output):
-                    code = self.gate.main(["--repo-root", ".", "--flutter-dir", "frontend/vityo_app"])
+                    code = self.gate.main(["--repo-root", ".", "--flutter-dir", "products/vityo_app"])
 
         self.assertEqual(code, 1)
         collect.assert_called_once()

@@ -22,8 +22,8 @@
       "id": "vityo-ide-product-gate",
       "kind": "gate",
       "status": "current",
-      "path": "scripts/styio-ide-product-gate.py",
-      "command": "python3 scripts/styio-ide-product-gate.py",
+      "path": "scripts/vityo-product-gate.py",
+      "command": "python3 scripts/vityo-product-gate.py",
       "scope": ["product", "ide-quality", "checkpoint"]
     },
     {
@@ -71,7 +71,7 @@
       "kind": "gate",
       "status": "current",
       "path": "scripts/project-coverage-gate.py",
-      "command": "python3 scripts/project-coverage-gate.py --fail-under 95 --flutter-dir products/styio_ide",
+      "command": "python3 scripts/project-coverage-gate.py --fail-under 95 --flutter-dir products/vityo_app",
       "scope": ["coverage", "frontend", "tooling"]
     },
     {
@@ -151,23 +151,23 @@
       "kind": "gate",
       "status": "current",
       "path": "scripts/language-fixture-gate.sh",
-      "command": "./scripts/language-fixture-gate.sh --flutter-dir products/styio_ide",
+      "command": "./scripts/language-fixture-gate.sh --flutter-dir products/vityo_app",
       "scope": ["language", "fixture"]
     },
     {
       "id": "flutter-analyze",
       "kind": "verification",
       "status": "current",
-      "path": "products/styio_ide/analysis_options.yaml",
-      "command": "cd products/styio_ide && flutter analyze",
+      "path": "products/vityo_app/analysis_options.yaml",
+      "command": "cd products/vityo_app && flutter analyze",
       "scope": ["frontend", "static-analysis"]
     },
     {
       "id": "flutter-test",
       "kind": "verification",
       "status": "current",
-      "path": "products/styio_ide/pubspec.yaml",
-      "command": "cd products/styio_ide && flutter test",
+      "path": "products/vityo_app/pubspec.yaml",
+      "command": "cd products/vityo_app && flutter test",
       "scope": ["frontend", "test"]
     },
     {
@@ -419,9 +419,9 @@
       "status": "current",
       "runbook": "docs/teams/SHELL-EDITOR-RUNBOOK.md",
       "owned_paths": [
-        "products/styio_ide/lib/src/app/",
-        "products/styio_ide/lib/src/view_ide/editor/",
-        "products/styio_ide/lib/src/view_render/shell/",
+        "products/vityo_app/lib/src/app/",
+        "products/vityo_app/lib/src/view_ide/editor/",
+        "products/vityo_app/lib/src/view_render/shell/",
         "prototype/"
       ],
       "maintenance_tools": [
@@ -442,10 +442,10 @@
       "status": "current",
       "runbook": "docs/teams/RUNTIME-AGENT-RUNBOOK.md",
       "owned_paths": [
-        "products/styio_ide/lib/src/view_ide/runtime/",
-        "products/styio_ide/lib/src/view_ide/agent_client/",
-        "products/styio_ide/lib/src/view_render/runtime/",
-        "products/styio_ide/lib/src/view_render/agent_workbench/"
+        "products/vityo_app/lib/src/view_ide/runtime/",
+        "products/vityo_app/lib/src/view_ide/agent_client/",
+        "products/vityo_app/lib/src/view_render/runtime/",
+        "products/vityo_app/lib/src/view_render/agent_workbench/"
       ],
       "maintenance_tools": ["flutter-analyze", "flutter-test", "checkpoint-health"],
       "skills": ["frontend-shell-maintenance", "release-operations"]
@@ -455,16 +455,16 @@
       "status": "current",
       "runbook": "docs/teams/MODULE-PLATFORM-RUNBOOK.md",
       "owned_paths": [
-        "products/styio_ide/lib/src/view_ide/module_host/",
-        "products/styio_ide/lib/src/view_ide/platform/",
-        "products/styio_ide/assets/module_manifests/",
-        "products/styio_ide/assets/capability_matrices/",
-        "products/styio_ide/android/",
-        "products/styio_ide/ios/",
-        "products/styio_ide/linux/",
-        "products/styio_ide/macos/",
-        "products/styio_ide/windows/",
-        "products/styio_ide/web/"
+        "products/vityo_app/lib/src/view_ide/module_host/",
+        "products/vityo_app/lib/src/view_ide/platform/",
+        "products/vityo_app/assets/module_manifests/",
+        "products/vityo_app/assets/capability_matrices/",
+        "products/vityo_app/android/",
+        "products/vityo_app/ios/",
+        "products/vityo_app/linux/",
+        "products/vityo_app/macos/",
+        "products/vityo_app/windows/",
+        "products/vityo_app/web/"
       ],
       "maintenance_tools": [
         "android-sdk-profile",
@@ -480,8 +480,8 @@
       "status": "current",
       "runbook": "docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md",
       "owned_paths": [
-        "products/styio_ide/lib/src/view_ide/backend_toolchain/",
-        "products/styio_ide/lib/src/integration/",
+        "products/vityo_app/lib/src/view_ide/backend_toolchain/",
+        "products/vityo_app/lib/src/integration/",
         "docs/contracts/",
         "docs/external/"
       ],
@@ -498,8 +498,8 @@
       "status": "current",
       "runbook": "docs/teams/THEME-UX-RUNBOOK.md",
       "owned_paths": [
-        "products/styio_ide/lib/src/view_render/theme/",
-        "products/styio_ide/lib/src/view_render/platform/",
+        "products/vityo_app/lib/src/view_render/theme/",
+        "products/vityo_app/lib/src/view_render/platform/",
         "prototype/editor-styles/",
         "prototype/styles.css"
       ],
@@ -516,8 +516,8 @@
       "status": "current",
       "runbook": "docs/teams/DOCS-DELIVERY-RUNBOOK.md",
       "owned_paths": [
-        "products/styio_ide/lib/src/view_ide/foundation/",
-        "products/styio_ide/lib/src/view_ide/environment/",
+        "products/vityo_app/lib/src/view_ide/foundation/",
+        "products/vityo_app/lib/src/view_ide/environment/",
         "docker/",
         ".devcontainer/"
       ],

@@ -63,15 +63,25 @@ class ResourceFacts {
   bool get supportsLinuxDebianArmTarget =>
       operatingSystem == 'linux' &&
       (distributionId == 'debian' || distributionId == 'raspbian') &&
-      (architecture == 'aarch64' || architecture == 'arm64' || architecture.startsWith('armv') || architecture == 'arm');
+      (architecture == 'aarch64' ||
+          architecture == 'arm64' ||
+          architecture.startsWith('armv') ||
+          architecture == 'arm');
 
   String get compatibilityTarget {
     if (supportsLinuxDebianArmTarget) return 'linux-debian-arm';
     if (operatingSystem == 'linux') return 'linux-generic';
+    if (operatingSystem == 'macos') {
+      return 'macos';
+    }
     if (operatingSystem == 'windows') {
       final arch = architecture.toLowerCase();
-      if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') return 'windows-x64';
-      if (arch == 'arm64' || arch == 'aarch64') return 'windows-arm64';
+      if (arch == 'amd64' || arch == 'x64' || arch == 'x86_64') {
+        return 'windows-x64';
+      }
+      if (arch == 'arm64' || arch == 'aarch64') {
+        return 'windows-arm64';
+      }
       return 'windows-generic';
     }
     return 'unsupported';

@@ -1,27 +1,8 @@
-enum ShellFactCertainty {
-  confirmed,
-  inferred,
-  unknown,
-  unsupported,
-  stale,
-}
+enum ShellFactCertainty { confirmed, inferred, unknown, unsupported, stale }
 
-enum ShellFamily {
-  bash,
-  sh,
-  zsh,
-  fish,
-  powershell,
-  cmd,
-  unknown,
-}
+enum ShellFamily { bash, sh, zsh, fish, powershell, cmd, unknown }
 
-enum ShellProviderKind {
-  local,
-  hosted,
-  virtual,
-  unknown,
-}
+enum ShellProviderKind { local, hosted, virtual, unknown }
 
 extension ShellFactCertaintyX on ShellFactCertainty {
   String get wireValue => switch (this) {
@@ -137,7 +118,8 @@ class ShellFacts {
     List<ShellExecutableFact>? availableShells,
     DateTime? detectedAt,
   }) {
-    final shells = availableShells ??
+    final shells =
+        availableShells ??
         <ShellExecutableFact>[
           ShellExecutableFact(
             path: defaultShellPath,
@@ -180,7 +162,6 @@ class ShellFacts {
     );
   }
 
-
   factory ShellFacts.windowsX64({
     String targetId = 'local',
     String defaultShellPath = 'powershell.exe',
@@ -188,7 +169,8 @@ class ShellFacts {
     List<ShellExecutableFact>? availableShells,
     DateTime? detectedAt,
   }) {
-    final shells = availableShells ??
+    final shells =
+        availableShells ??
         <ShellExecutableFact>[
           ShellExecutableFact(
             path: defaultShellPath,
@@ -289,6 +271,9 @@ class ShellFacts {
     }
     if (isLinux) {
       return 'linux-generic';
+    }
+    if (operatingSystem == 'macos') {
+      return 'macos';
     }
     if (operatingSystem == 'windows') {
       final arch = architecture.toLowerCase();

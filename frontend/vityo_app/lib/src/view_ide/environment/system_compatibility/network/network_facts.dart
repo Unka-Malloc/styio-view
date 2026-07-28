@@ -64,13 +64,21 @@ class NetworkFacts {
   final Map<String, String> proxyEnvironment;
   final DateTime? detectedAt;
 
-  bool get supportsLinuxDebianArmTarget => operatingSystem == 'linux' && (distributionId == 'debian' || distributionId == 'raspbian') && (architecture == 'aarch64' || architecture == 'arm64' || architecture.startsWith('armv') || architecture == 'arm');
+  bool get supportsLinuxDebianArmTarget =>
+      operatingSystem == 'linux' &&
+      (distributionId == 'debian' || distributionId == 'raspbian') &&
+      (architecture == 'aarch64' ||
+          architecture == 'arm64' ||
+          architecture.startsWith('armv') ||
+          architecture == 'arm');
   String get compatibilityTarget => operatingSystem == 'web'
       ? 'web-hosted'
       : supportsLinuxDebianArmTarget
       ? 'linux-debian-arm'
       : operatingSystem == 'linux'
       ? 'linux-generic'
+      : operatingSystem == 'macos'
+      ? 'macos'
       : operatingSystem == 'windows'
       ? 'windows-generic'
       : 'unsupported';

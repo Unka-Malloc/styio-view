@@ -87,7 +87,34 @@ void main() {
     expect(localService.supportsEphemeralPort, isTrue);
   });
 
-  test('Windows process shell and pty facts expose blocked terminal state', () {
+  test(
+    'macOS probers expose supported manager compatibility targets',
+    () async {
+      final clipboard = await LocalClipboardProber(
+        operatingSystem: 'macos',
+        environment: const <String, String>{},
+        architectureReader: () async => 'arm64',
+      ).probe();
+      final notification = await LocalNotificationProber(
+        operatingSystem: 'macos',
+        environment: const <String, String>{},
+        architectureReader: () async => 'arm64',
+      ).probe();
+      final localService = await LocalLoopbackServiceProber(
+        operatingSystem: 'macos',
+        architectureReader: () async => 'arm64',
+      ).probe();
+
+      expect(clipboard.compatibilityTarget, 'macos');
+      expect(clipboard.supportsMemoryFallback, isTrue);
+      expect(notification.compatibilityTarget, 'macos');
+      expect(notification.supportsDesktopNotifications, isTrue);
+      expect(localService.compatibilityTarget, 'macos');
+      expect(localService.supportsLoopbackHttpServer, isTrue);
+    },
+  );
+
+  test('Windows process shell and pty facts expose ConPTY terminal state', () {
     final process = ProcessFacts.windowsX64();
     final shell = ShellFacts.windowsX64();
     final pty = PtyFacts.windowsX64();
@@ -118,10 +145,10 @@ void main() {
     expect(shell.supportsInteractiveShell, isTrue);
     expect(shell.supportsPty, isFalse);
     expect(pty.compatibilityTarget, 'windows-x64');
-    expect(pty.providerKind, PtyProviderKind.unsupported);
-    expect(pty.supportsPty, isFalse);
-    expect(pty.supportsConPty, isFalse);
-    expect(pty.entries['pty.supported']?.value, isFalse);
+    expect(pty.providerKind, PtyProviderKind.conPty);
+    expect(pty.supportsPty, isTrue);
+    expect(pty.supportsConPty, isTrue);
+    expect(pty.entries['pty.supported']?.value, isTrue);
     expect(compatibility.process.compatibilityTarget, 'windows-x64');
     expect(compatibility.shell.compatibilityTarget, 'windows-x64');
     expect(compatibility.pty.compatibilityTarget, 'windows-x64');
@@ -133,8 +160,8 @@ void main() {
       final manager = LocalProcessManager.linuxDebianArmForTest();
 
       final result = await manager.run(
-        const ProcessCommandRequest(
-          executablePath: '/usr/bin/cat',
+        ProcessCommandRequest(
+          executablePath: Platform.isMacOS ? '/bin/cat' : '/usr/bin/cat',
           standardInput: 'process-stdin',
         ),
       );

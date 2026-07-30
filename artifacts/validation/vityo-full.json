@@ -1,0 +1,54 @@
+{
+  "acceptance_fixtures_sha256": "662850ab320eaa76a063f39af9b40925b9e8f3704bb1d3f2ed88bc9b863821b3",
+  "commit": "7fde72c0fa6f6c0e63e3c616b56ba166839c5ce4",
+  "failure_code": null,
+  "platform": "macos",
+  "product": "vityo",
+  "protocol_schema_sha256": "00416d560b58f5ec44654bfbd9a757c7d88c49cbc21b2fcb9664f0c2fb4c7eba",
+  "requirements": {
+    "REQ-IDE-001": {
+      "duration_ms": 21505,
+      "status": "passed",
+      "suite": "cutover"
+    },
+    "REQ-IDE-002": {
+      "duration_ms": 2792,
+      "status": "passed",
+      "suite": "workspace-transactions"
+    },
+    "REQ-IDE-003": {
+      "duration_ms": 2537,
+      "status": "passed",
+      "suite": "developer-loop"
+    },
+    "REQ-IDE-004": {
+      "duration_ms": 7402,
+      "status": "passed",
+      "suite": "agent-workbench"
+    },
+    "REQ-IDE-005": {
+      "duration_ms": 4611,
+      "status": "passed",
+      "suite": "agent-client-protocol"
+    },
+    "REQ-IDE-006": {
+      "duration_ms": 1870,
+      "status": "passed",
+      "suite": "mcp-host"
+    },
+    "REQ-IDE-007": {
+      "duration_ms": 956,
+      "status": "passed",
+      "suite": "ide-security"
+    },
+    "REQ-IDE-008": {
+      "duration_ms": 8696,
+      "status": "passed",
+      "suite": "ide-quality"
+    }
+  },
+  "schema_version": 1,
+  "source_fingerprint": "3c22e4c86d3f50348e97bcc633b12a50b7295f72867c59a0018513f6f5712852",
+  "status": "passed",
+  "suite": "full"
+}

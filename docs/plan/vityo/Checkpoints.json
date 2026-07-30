@@ -2767,7 +2767,7 @@
   },
   {
     "id": "c5bfe53f-4094-4771-b323-12a99750c95b",
-    "status": "pending",
+    "status": "completed",
     "role": "final_validation",
     "prerequisites": [
       "3d7617da-83cb-4c41-a2e9-6c89ba60352f",
@@ -2842,20 +2842,52 @@
     },
     "acceptance_criteria": [
       {
-        "checked": false,
-        "text": "Before regression-requested, all implementation prerequisites are completed, the candidate is committed and clean, plan-only and preflight pass without suite execution, explicit final-run authority exists, and no receipt already covers the same commit/source fingerprint."
+        "checked": true,
+        "text": "Before regression-requested, all implementation prerequisites are completed, the candidate is committed and clean, plan-only and preflight pass without suite execution, explicit final-run authority exists, and no receipt already covers the same commit/source fingerprint.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "de763aa3a93a462b63a1c1c624b11f53d9e0cb3be36c128e77f94a1aba1f35c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T18:44:14Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "The single formal ide/full invocation writes artifacts/validation/vityo-full.json with overall passed status and exactly one passed outcome for every REQ-IDE-001 through REQ-IDE-008, including standalone IDE use, Agent Workbench collaboration, protocol, MCP/security, recovery, performance, and packaging contracts."
+        "checked": true,
+        "text": "The single formal ide/full invocation writes artifacts/validation/vityo-full.json with overall passed status and exactly one passed outcome for every REQ-IDE-001 through REQ-IDE-008, including standalone IDE use, Agent Workbench collaboration, protocol, MCP/security, recovery, performance, and packaging contracts.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "de763aa3a93a462b63a1c1c624b11f53d9e0cb3be36c128e77f94a1aba1f35c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T18:44:14Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "The receipt binds commit, supported host class, stable source fingerprint, protocol-schema digest, and acceptance-fixture digest; start/end sources do not drift; no native package artifact or Coding Agent full-suite result is consumed."
+        "checked": true,
+        "text": "The receipt binds commit, supported host class, stable source fingerprint, protocol-schema digest, and acceptance-fixture digest; start/end sources do not drift; no native package artifact or Coding Agent full-suite result is consumed.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "de763aa3a93a462b63a1c1c624b11f53d9e0cb3be36c128e77f94a1aba1f35c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T18:44:14Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "After evidence is recorded, Better Plan workspace validation and requirement-label checking pass, no Vityo implementation Node remains incomplete, and the read-only audit confirms scope without rerunning the full suite."
+        "checked": true,
+        "text": "After evidence is recorded, Better Plan workspace validation and requirement-label checking pass, no Vityo implementation Node remains incomplete, and the read-only audit confirms scope without rerunning the full suite.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "de763aa3a93a462b63a1c1c624b11f53d9e0cb3be36c128e77f94a1aba1f35c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T18:44:14Z"
+          }
+        ]
       }
     ],
     "commit": {
@@ -2903,13 +2935,26 @@
         "docs/plan/vityo/Evidence.md",
         "docs/plan/vityo/Architecture.md",
         "docs/plan/vityo/Validation.md"
-      ]
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-30T18:44:14Z",
+        "contract_digest": "646d30c957538b7e3cda2eb1c04579d9005e66797ef7bc72b0d8173d272a6621",
+        "content_fingerprint": "0e234d231a640ad68cd952868765b9a6bff70b8996ee61dffa4c0bbd35ef5e4a"
+      }
     },
     "next": [],
     "acceptance": {
-      "phase": "acceptance_revision_required",
+      "phase": "accepted",
       "attempt": 0,
-      "outcome": "none"
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-30T18:45:58Z",
+        "contract_digest": "646d30c957538b7e3cda2eb1c04579d9005e66797ef7bc72b0d8173d272a6621",
+        "content_fingerprint": "0e234d231a640ad68cd952868765b9a6bff70b8996ee61dffa4c0bbd35ef5e4a"
+      },
+      "design_digest": "2a83cb6f2fddf8dc05f330370cd2da90a25df9bcb3ab842093b7cdd8e0005377",
+      "scaffold_fingerprint": "91e1ebfcd1c61cd313ced9c1dad148abb49eca52254be18ccf125f5b1ccde622",
+      "acceptance_fingerprint": "de4999861958113824fc028997b5bc5ba5fc25315602ba93847539d214806308"
     }
   }
 ]

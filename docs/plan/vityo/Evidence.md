@@ -2,30 +2,23 @@
 
 **Plan:** `vityo`
 **Purpose:** Record current repository facts that determine the remaining Vityo execution order and stop conditions.
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Current repository facts
 
 | Fact | Repository evidence | Execution consequence |
 |---|---|---|
 | The product split is complete. | `products/vityo_app`, `products/vityo_coding_agent`, and `packages/vityo_agent_protocol` exist; the product-line boundary gate passes. | The atomic cutover Node is historical and must never be replayed. |
-| Vityo has a canonical protocol-oriented Agent Client foundation. | `products/vityo_app/lib/src/ide/agent_client/`, `lib/src/ide/workbench/agent_collaboration/`, and `lib/src/presentation/agent_workbench/`. | These are the keep/converge seams for the remaining IDE migration. |
-| Legacy IDE-owned Agent runtime behavior still exists. | `lib/src/view_ide/agent_client/`, `app/app_bootstrap.dart`, shell controllers, and current tests still construct provider transport, provider configuration, coding-loop, tool-loop policy, and durable session-controller objects. | Final validation must not start until Node `014e7fb0-3f51-4033-be71-eca130a4a2ea` removes this ownership completely. |
+| Vityo collaborates only through the protocol-oriented Agent Client. | `products/vityo_app/lib/src/ide/agent_client/`, `lib/src/ide/workbench/agent_collaboration/`, and `lib/src/presentation/agent_workbench/`; IDE-owned model/provider and coding-loop surfaces are removed. | Do not reintroduce IDE-owned Agent runtime ownership. |
 | The first-party companion already owns Agent-runtime domains. | `products/vityo_coding_agent/lib/src/providers/`, `orchestration/`, `sessions/`, `tools/`, `policy/`, and `multi_agent/`. | Do not move these responsibilities back into the IDE and do not reopen the completed Coding Agent plan. |
-| The IDE full runner exists and its plan-only mode maps eight requirements exactly once. | `scripts/vityo_quality.py --product ide --suite full --plan-only` and `tests/acceptance/vityo_app/full_runner_acceptance_test.py`. | Plan-only inspection is safe and does not consume final-run authority. |
-| The full runner is not yet ready for a simple final executor. | `_run_plan_validation()` assumes an unavailable sibling `better-plan` checkout; early IDE harness failures can exit before a bounded receipt; there is no explicit `--preflight`. | Node `63016713-c527-4428-a87d-2613f8c43ac9` must close these harness gaps without executing `ide/full`. |
-| No final IDE receipt exists. | `artifacts/validation/vityo-full.json` is absent and the final-validation Node is pending. | No agent may claim REQ-IDE-001 through REQ-IDE-008 final acceptance yet. |
+| The IDE full runner supports plan-only and preflight without consuming final-run authority. | `scripts/vityo_quality.py --product ide --suite full --plan-only` / `--preflight` and `tests/acceptance/vityo_app/full_runner_acceptance_test.py`. | Plan-only and preflight prove harness readiness only. |
+| Final IDE validation is recorded. | `artifacts/validation/vityo-full.json` binds commit `7fde72c0fa6f6c0e63e3c616b56ba166839c5ce4` with overall `passed` and REQ-IDE-001 through REQ-IDE-008 each `passed`. | Claim final acceptance only for that commit and source fingerprint; do not rerun the unchanged candidate. |
 | The Coding Agent plan is sealed. | All Coding Agent Nodes are completed and its Requirements, Architecture, Validation, Checkpoints, and protocol fingerprint are preserved. | Consume compatible protocol evidence only; never rerun or rewrite that plan during IDE closure. |
+| The Vityo plan is sealed. | Every Vityo Node is `completed` / `accepted`, including final validation `c5bfe53f-4094-4771-b323-12a99750c95b`. | No further Vityo implementation or final-validation Node remains advanceable. |
 
 ## Current blockers before final validation
 
-1. Remove direct IDE model/provider and coding-loop ownership.
-2. Remove provider-profile UI and behavior-bearing capability claims from the IDE.
-3. Preserve protocol sessions, bounded context export, permission presentation, revision-bound
-   proposals, workspace transactions, and verification receipts.
-4. Add a side-effect-free full-suite preflight.
-5. Make all full-harness failure paths produce a bounded diagnostic receipt.
-6. Bind final evidence to the acceptance fixtures and protocol inputs that were actually executed.
+None. Final validation has completed for the recorded commit and fingerprint.
 
 ## Evidence interpretation rules
 

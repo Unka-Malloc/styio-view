@@ -112,7 +112,7 @@ claims.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
-30. The ecosystem product gate must create its fixture through public `pafio new` and consume only fixed Pafio and Styio executables. It must not import sibling-repository scripts, read `PAFIO_HOME`, or depend on a Pafio source checkout.
+30. The ecosystem product gate must create its fixture through public `pafio new` and consume only fixed Pafio and Styio executables. It must not import sibling-repository scripts, read private package-manager home state, or depend on a Pafio source checkout.
 
 ## Change Classes
 

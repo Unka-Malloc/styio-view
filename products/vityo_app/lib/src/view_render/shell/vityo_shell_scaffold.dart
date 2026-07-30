@@ -1629,7 +1629,7 @@ class _ProjectOperationsCard extends StatelessWidget {
               statusLabel: dependencyStatus,
               statusColor: _laneColor(context, dependencyStatus),
               detail: lastDependency == null
-                  ? 'Fetch/vendor has not been materialized in this shell session yet.'
+                  ? 'Sync/vendor has not been materialized in this shell session yet.'
                   : '${lastDependency.command} ${lastDependency.status.name}: ${lastDependency.statusMessage}',
               metaLabels: [
                 'git $gitDependencies',

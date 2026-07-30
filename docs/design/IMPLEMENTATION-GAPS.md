@@ -39,7 +39,7 @@ For the checklist-style objective audit, see `docs/design/CORE-COMPLETION-AUDIT.
 | Follow-up | Reason |
 |---|---|
 | Add a stable embedded or daemon StyioService contract once upstream exposes parser/semantic API facts. | Avoid parsing CLI text output and keep Vityo decoupled from Styio implementation internals. |
-| Populate production Toolchain release trust roots and signature metadata. | The config and verifier path exists, but managed downloads need real Styio release provenance inputs instead of test-only keys. |
+| Populate production trust roots for IDE-owned downloadable tools when such tools are added. | The generic verifier path exists, but it is not a Styio distribution channel. |
 | Build a checklist-driven completion audit for Foundation, Platform, Configuration, Toolchain, and Service. | Prevents treating substantial implementation effort as completion proof. |
 | Run full repo gates only when the current change set is ready for delivery closure. | Focused tests are sufficient during implementation, but not for final completion. |
 
@@ -124,7 +124,7 @@ The current implementation is advancing core and necessary functionality. It sho
 
 ```text
 Foundation, Platform, Configuration, Toolchain, and Language Service have substantial implemented surfaces and focused tests.
-The full objective is not complete because upstream language facts, real Styio release provenance assets, and full completion audit coverage remain open.
+The full objective is not complete because upstream language facts and full completion audit coverage remain open.
 ```
 
 Do not mark the active goal complete until each blocking gap has either been implemented or explicitly removed from the objective.

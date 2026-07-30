@@ -62,7 +62,7 @@ Device verification stays host-driven:
 
 ## Standardized Baseline
 
-`Vityo` now follows the same shared project-level version discipline used by `styio-nightly` and `styio-pafio` where the tool overlaps:
+`Vityo` now follows the same shared project-level version discipline used by `styio-nightly` and `pafio-nightly` where the tool overlaps:
 
 1. Development host standard: Debian `13` (`trixie`).
 2. Compiler helper toolchain standard: LLVM / Clang `18.1.x` and CMake / CTest `3.31.6`.
@@ -279,8 +279,8 @@ Full checkpoint delivery floor:
 ### Ecosystem product-gate environment
 
 The product gate expects sibling checkouts named `styio-nightly` and
-`styio-pafio` beside this repository. CI and scheduled matrix runs fail closed
-when the canonical `styio-pafio/scripts/ecosystem-product-gate.py` entrypoint is
+`pafio-nightly` beside this repository. CI and scheduled matrix runs fail closed
+when the canonical `pafio-nightly/scripts/ecosystem-product-gate.py` entrypoint is
 missing. Local runs may omit the siblings, but the result is reported as
 `ok=false`, `skipped=true`; set `VITYO_PRODUCT_GATE=1` to make the same condition
 fatal locally.

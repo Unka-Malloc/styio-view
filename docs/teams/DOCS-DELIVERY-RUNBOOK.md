@@ -174,4 +174,12 @@ identity. The obsolete line-anchored plan, its permanent verifier, and the outda
 Better Plan validator/test copy were removed; generated documentation indexes and lifecycle records
 were refreshed.
 
+2026-07-30: Completed the owner-adapter documentation migration. System Styio
+discovery and machine-contract consumption replaced the former managed Styio
+toolchain claims; generic IDE-owned tool provenance remains separate. Refreshed
+implementation gaps, foundation ownership, post-commit checks, lifecycle
+records, generated indexes, and team document statistics. Removed the obsolete
+ecosystem sample-workflow gate after the Pafio metadata and Platform hosted
+contracts became the authoritative validation surfaces.
+
 <!-- codex merge: docs/build/scripts assets imported -->

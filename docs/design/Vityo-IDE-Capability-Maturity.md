@@ -91,7 +91,7 @@ Vityo capability maturity is measured in six levels. A capability advances by cr
 |---|---|---|---|---|
 | Run command | L3 | L4 | Run command exists with keyboard shortcut | Run command wired through command registry |
 | Target selector | L2 | L3 | Minimal compilable unit concept exists | Ambiguous/missing target returns structured blocked reason |
-| Workflow lanes | L3 | L4 | Run/fetch/vendor/environment/deploy lanes exist | Each lane has independent blocked/success/failed state |
+| Workflow lanes | L3 | L4 | Run/sync/vendor/environment/deploy lanes exist | Each lane has independent blocked/success/failed state |
 | Capability gap blocking | L1 | L2 | Not explicitly modeled | Missing execution capability returns structured blocked reason |
 | Route trace | L2 | L3 | Execution route summary exists | Route shows which adapter path was used |
 

@@ -237,7 +237,7 @@ Toolchain backend ownership is split:
 | `toolchain/` | Vityo toolchain backend profile assets, normalization notes, handoff examples, and local backend surface. |
 | `docs/contracts/` | Vityo product adapter contracts. |
 | `styio-nightly` | Compiler binary truth, machine-info, compile-plan consumption, diagnostics, receipt, runtime events, and language-service capability SSOT. |
-| `styio-pafio` | Package/workspace/dependency/target metadata, lock/resolution/vendor state, and local project workflow truth. |
+| `pafio-nightly` | Package/workspace/dependency/target metadata, lock/resolution/vendor state, and local project workflow truth. |
 | Styio Platform | Hosted workspace lifecycle, registry control, cloud jobs, and workers. |
 
 Frontend should consume product contracts and normalized machine payloads, not raw profile files, compiler symlinks, cache layout, or `.pafio` internals on the main runtime path.

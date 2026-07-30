@@ -431,7 +431,7 @@ If a module owns user intent, external tool behavior, or OS compatibility, it do
 | User settings values | Configuration |
 | Shell Configuration | Configuration |
 | Credential DataStore | Configuration |
-| Styio compiler selection | Toolchain |
+| System Styio discovery and contract consumption | Service / Styio adapter |
 | Terminal Runtime / Shell Runtime | Toolchain |
 | FileSystem / Process / Shell / PTY managers | Environment |
 | Extension activation semantics | Extension |
@@ -742,7 +742,7 @@ Examples:
 | Compiler install command | Toolchain |
 | Shell Runtime | Toolchain |
 | Terminal Runtime | Toolchain |
-| Styio compiler selection | Toolchain / Configuration |
+| System Styio discovery | Service / Styio adapter |
 | Process/Shell/PTY OS managers | Environment |
 
 ## 11. Relationship With Environment

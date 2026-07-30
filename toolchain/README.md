@@ -9,7 +9,7 @@
 - stable profile tables consumed by repo bootstrap and verification scripts
 - the current maintenance tool and skill inventory consumed by the release gate
 - backend-side normalization notes for toolchain state, route selection, and management actions
-- frontend handoff guidance for install/use/pin status and capability rendering
+- frontend handoff guidance for system Styio discovery and generic non-Styio tool status
 - non-authoritative example payloads that let frontend and backend work in parallel
 
 ## Directory Map

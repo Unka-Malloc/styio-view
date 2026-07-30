@@ -63,7 +63,7 @@ jobs:
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.product-matrix.outputs.pafio }}
-          path: styio-pafio
+          path: pafio-nightly
 
       - name: Set up standardized Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
@@ -136,7 +136,7 @@ jobs:
           echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
 
       - name: Build real Pafio CLI
-        working-directory: styio-pafio
+        working-directory: pafio-nightly
         run: |
           cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
           cmake --build build/default --target spio --config Release -j2
@@ -144,7 +144,7 @@ jobs:
       - name: Resolve Pafio executable
         id: pafio-bin
         shell: bash
-        working-directory: styio-pafio
+        working-directory: pafio-nightly
         run: |
           pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
           if [[ -z "$pafio_path" ]]; then
@@ -199,7 +199,7 @@ jobs:
           VITYO_PRODUCT_PLATFORM: linux
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
-          VITYO_PAFIO_ROOT: ../styio-pafio
+          VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-linux.json
         run: >
           bash scripts/delivery-gate.sh
@@ -248,7 +248,7 @@ jobs:
           --platform linux
           --vityo .
           --styio ../styio-nightly
-          --pafio ../styio-pafio
+          --pafio ../pafio-nightly
           --matrix toolchain/product-matrix.json
           --gate-report build/evidence/product-gate-linux.json
           --pty-report build/evidence/native-pty-linux.json
@@ -324,7 +324,7 @@ jobs:
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.product-matrix.outputs.pafio }}
-          path: styio-pafio
+          path: pafio-nightly
 
       - name: Set up standardized Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
@@ -442,7 +442,7 @@ jobs:
           echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
 
       - name: Build real Pafio CLI
-        working-directory: styio-pafio
+        working-directory: pafio-nightly
         run: |
           cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
           cmake --build build/default --target spio --config Release -j2
@@ -450,7 +450,7 @@ jobs:
       - name: Resolve Pafio executable
         id: pafio-bin
         shell: bash
-        working-directory: styio-pafio
+        working-directory: pafio-nightly
         run: |
           pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
           if [[ -z "$pafio_path" ]]; then
@@ -506,7 +506,7 @@ jobs:
           VITYO_PRODUCT_PLATFORM: windows
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
-          VITYO_PAFIO_ROOT: ../styio-pafio
+          VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-windows.json
         run: >
           bash scripts/delivery-gate.sh
@@ -559,7 +559,7 @@ jobs:
           --platform windows
           --vityo .
           --styio ../styio-nightly
-          --pafio ../styio-pafio
+          --pafio ../pafio-nightly
           --matrix toolchain/product-matrix.json
           --gate-report build/evidence/product-gate-windows.json
           --pty-report build/evidence/native-pty-windows.json
@@ -635,7 +635,7 @@ jobs:
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.product-matrix.outputs.pafio }}
-          path: styio-pafio
+          path: pafio-nightly
 
       - name: Set up standardized Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
@@ -703,7 +703,7 @@ jobs:
           echo "path=$absolute_path" >> "$GITHUB_OUTPUT"
 
       - name: Build real Pafio CLI
-        working-directory: styio-pafio
+        working-directory: pafio-nightly
         run: |
           cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
           cmake --build build/default --target spio --config Release -j2
@@ -711,7 +711,7 @@ jobs:
       - name: Resolve Pafio executable
         id: pafio-bin
         shell: bash
-        working-directory: styio-pafio
+        working-directory: pafio-nightly
         run: |
           pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
           if [[ -z "$pafio_path" ]]; then
@@ -766,7 +766,7 @@ jobs:
           VITYO_PRODUCT_PLATFORM: macos
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
-          VITYO_PAFIO_ROOT: ../styio-pafio
+          VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-macos.json
         run: >
           bash scripts/delivery-gate.sh
@@ -823,7 +823,7 @@ jobs:
           --platform macos
           --vityo .
           --styio ../styio-nightly
-          --pafio ../styio-pafio
+          --pafio ../pafio-nightly
           --matrix toolchain/product-matrix.json
           --gate-report build/evidence/product-gate-macos.json
           --pty-report build/evidence/native-pty-macos.json

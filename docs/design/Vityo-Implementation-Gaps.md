@@ -1,8 +1,8 @@
 # Vityo Implementation Gaps
 
-**Purpose:** Track current implementation and integration facts that ground the Vityo and Coding Agent delivery plans without duplicating their workflow state.
+**Purpose:** Track current implementation and integration facts that ground the two delivery tracks for one Vityo product without duplicating their workflow state.
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 **Latest audit run:** 2026-06-25 02:00–02:30 UTC
 
@@ -27,6 +27,13 @@ Status values:
 | Partially implemented | Repo-local anchors exist, but the full product or integration path is not complete. |
 | Validation needed | Code or design anchors exist, but product-level gates are not proven. |
 | Decision needed | The design boundary is not settled enough to implement. |
+
+## 1.1 Agent-Native Convergence Gap
+
+| Gap | Status | Owner | Required closure |
+|---|---|---|---|
+| Retire IDE direct model-provider/controller ownership | Implementation needed | Vityo IDE + Coding Agent runtime | The current IDE code still contains provider profiles, OpenAI-compatible transport, provider routing, tool-loop policy, and session-controller implementation inherited from the superseded panel-first architecture. Move model/provider, tool-loop, policy, durable-session, and multi-Agent orchestration ownership into `products/vityo_coding_agent` (or another compatible Agent), keep the IDE as a versioned protocol client, then remove the superseded IDE implementation and tests atomically. Preserve IDE-owned revisions, Styio facts, permission presentation, change preview, and workspace transaction application. This documentation convergence does not claim that code migration is complete. |
+| Agent Workbench product closure | Partially implemented | Vityo | Prove a task loop with plan visibility, explicit permission decisions, revision-bound change preview, IDE-owned apply/rollback, and verification receipts through the shared Agent protocol. The IDE must also prove `edit -> analyze -> test -> run -> observe` with no Agent connected. |
 
 ## 2. Language And StyioService Gaps
 
@@ -85,14 +92,19 @@ Status values:
 |---|---|---|---|
 | Real JIT compiler/backend contract | Upstream blocked | styio-nightly / backend service | Replace route intent and capability gap with published execution contract. |
 | Toolchain route selection | Partially implemented | Vityo | `BackendExecutionRouteSelection` now normalizes workflow/JIT route decisions into `local-cli`, `ffi`, `hosted`, and `blocked` states with adapter kind, allowed/preview flags, detail, and blocked reason for build/run/test surfaces. Shell `run` command gating now consumes this normalized selection instead of raw summary text/preview flags. Native build/test command results now carry top-level `backendRouteSelection` metadata, the Agent provider/profile contract tells coding agents to inspect that metadata before proposing build, run, test, retry, or provider/toolchain reconfiguration, and native-tool result summaries render route state in runtime/agent UI. Runtime/Project Workflow surfaces render the normalized route kind. Remaining closure: extend route policy from metadata reporting into real build/test product workflow fixtures. |
-| Managed Styio toolchain lifecycle | Partially implemented | Vityo | Local/manual registration, workspace catalog binding, runtime/health execution, external installer command execution, managed binary artifact staging, policy-required SHA-256 gate, explicit fail-closed `requireManagedDownloadSignature` policy gate with `provenanceSignatureUri` carried through request/plan, isolated artifact verifier, optional size verification, staged/extracted executable-bit application, direct staged-artifact registration with rollback, simple tar extraction, extracted executable registration, archive manifest layout registration, install-failure rollback, structured recovery actions, StyioService startup from selected toolchain, product-facing `ToolchainStatusSurface` rendering, and Shell recovery action routing have unit/widget anchors. Remaining closure: actual signature or stronger provenance verifier and full selector/installer UI flows for recovery actions. |
+| System Styio discovery | Implemented | Styio / Vityo | Styio owns compiler distribution and machine contracts. Vityo resolves the system compiler through `VITYO_STYIO_BIN` or `PATH`, consumes `styio --machine-info=json`, and surfaces a blocked state when the executable or contract is unavailable. Vityo does not install, update, pin, switch, or cache Styio. |
 | Normalized toolchain state snapshots | Partially implemented | Vityo | Catalog snapshots cover registered descriptors, active state, version, channel, executable path, target id, and workspace id. Toolchain catalog configuration changes can be observed through Configuration Store, and manager registration/selection/clear-active flows use transaction-backed `editCatalog` with no-op support for duplicate, missing, and empty-clear cases. `ToolchainManager.statusReport` provides manager-backed catalog snapshot + resolution + normalized capability states + durable recovery state + persisted install history + optional health aggregation, `ToolchainStatusSurface` / Shell can consume that report while falling back to `ProjectGraphSnapshot.toolchain`, and `AppBootstrap.load` wires a live manager report notifier that refreshes on toolchain catalog changes. Runtime and Settings surfaces now render manager-backed status. Settings can render catalog candidates, capability states, recovery state, and install history through `ToolchainSettingsSurface`; registered candidate selection and active-candidate clearing now call `ToolchainManager` through Shell and refresh the status report. Managed-install recovery now creates a `ToolchainInstallPlan` through `ToolchainManager.planInstallation`, Settings can render that plan through `ToolchainInstallPlanSurface`, and manual-selection plan continuation can produce `ToolchainInstallExecutionResult.requiresUserAction` plus refreshed install history. Remaining closure: external-command/managed-download execution confirmation, real manual executable picker, managed download endpoint policy, and richer selector UX. |
 | Install/use/pin result envelopes | Partially implemented | Vityo | Registration, selection, clear-active, runtime, health, install plan, external install execution, staged managed download, tar extraction, extracted executable registration, archive manifest registration, direct/archive install registration envelopes with rollback status, platform failure envelopes, recovery action hints, UI-facing command recovery projection, and retry/log route invocation exist. Remaining closure: partial install state plus selector/installer recovery action flows. |
 | Toolchain backend handoff examples | Implementation needed | Vityo | Keep examples non-authoritative and aligned with contracts. |
 | Build/run/test product gate | Partially implemented | Vityo | `backend_route_product_gate_test.dart` validates local-cli, hosted, and blocked backend route states against `BackendExecutionRouteSelection`, Runtime Surface rendering, and build/test native result summaries without invoking real compilers or cloud providers. Shell runtime tests assert that native build/test result metadata exposes normalized backend route facts for agent coding context. Live local/hosted product workflow gates now assert `selectBackendExecutionRoute` when `VITYO_PRODUCT_GATE=1` supplies the external fixtures. Remaining closure: keep adding concrete workflow fixtures as product lanes mature. |
-| Package/workflow payload maturity | Upstream blocked | styio-pafio | Published project graph, toolchain state, registry/package state, dependency, and workflow success payloads. |
+| Package/workflow payload maturity | Implemented baseline | Pafio / Styio Platform | Local project facts consume Pafio metadata v1 and workflow JSON; hosted workspaces consume Platform hosted-workspace v1. |
 
-## 7. AI, Theme, Module, And Mobile Gaps
+## 7. Agent, Theme, Module, And Mobile Gaps
+
+The provider/controller rows below inventory the legacy IDE implementation so the later migration
+can remove it completely. They are not accepted IDE ownership and must not be extended. Provider
+validation and provider credentials belong to the Agent-runtime delivery track; the IDE closure is
+protocol interoperability, Workbench review, and workspace-transaction enforcement.
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
@@ -116,12 +128,13 @@ Status values:
 | M6 IDE hardening | Validation needed | Vityo | Product-level full UI, contract, sample matrix, and workflow gates. |
 | Runtime event product completeness | Partially implemented | Vityo | `StyioServiceRuntimeSession` emits lifecycle events and metadata-only `StyioServiceRuntimeStatusSnapshot` values that expose provider manifest state plus diagnostics/completion/hover/semantic-token capability states and counts without raw language payloads. Interaction now has `LanguageServiceStatusSurface` to project those snapshots into UI-consumable status models without rendering ownership. `AppBootstrap`, `ShellRuntimeModel`, and `EditorSurface` now carry and render that status in the real editor language pane, with a widget-test anchor for the status card surface. Remaining closure: validate the full app flow against a real asynchronous StyioService update on every supported platform. |
 | Hosted workspace retention/export UX | Validation needed | Vityo | User-visible close/export/retention/delete path. |
-| Dual-line Better Plan documentation routing | Resolved | Vityo and Coding Agent | `docs/plan/` is the canonical workflow root and contains exactly the independent `vityo` and `vityo-coding-agent` plans. Current owner facts stay in design, contract, ADR, review, and validation documents; the current Better Plan tool validates the root manifest, both state files, and requirement labels. |
+| Two-track Better Plan documentation routing | Resolved | Vityo | `docs/plan/` is the canonical workflow root and contains an IDE delivery track plus a first-party companion-runtime delivery track for one Vityo product. Current owner facts stay in design, contract, ADR, review, and validation documents; the current Better Plan tool validates the root manifest, both state files, and requirement labels. |
 
 ## 9. Plan and Owner Routing Rule
 
-Do not create a third product plan or duplicate workflow state in owner documents. Route work by
-product line and keep shared protocol changes inside the consuming IDE and Coding Agent lifecycles.
+Do not create a third delivery track or duplicate workflow state in owner documents. Route work by
+delivery track and keep shared protocol changes inside both consuming IDE and Coding Agent
+lifecycles.
 
 Use these destinations:
 
@@ -178,7 +191,7 @@ All items marked **Upstream blocked** in sections 2–8 remain unchanged. Key it
 - Rename / Code actions / Formatting / Inlay hints — need StyioService machine contract
 - Embedded parser API — needs styio-nightly stable facade
 - Real JIT compiler/backend contract — needs styio-nightly/backend service
-- Package/workflow payload maturity — needs styio-pafio
+- Pafio/Platform contract growth — extend only through their published owner contracts
 
 ### Remaining Repo-Local Items (Not Addressed This Audit)
 

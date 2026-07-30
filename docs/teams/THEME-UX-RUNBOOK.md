@@ -61,7 +61,8 @@ cd products/vityo_app && flutter analyze && flutter test
 ## Cross-Team Dependencies
 
 1. Shell / Editor 必须 review 影响编辑器层级、focused editor 或 language inspector 的视觉变更。
-2. Runtime / Agent 必须 review 影响 runtime/debug/agent panel 结构的视觉变更。
+2. Runtime / Agent Client must review visual changes that affect runtime, debug, or Agent
+   Workbench structure. `Agent Panel` may remain a concrete view label only.
 3. Docs / Delivery 必须 review UX 文档、handbook 或视觉基线记录更新。
 4. Module / Platform 必须 review 平台 profile 或 capability 展示层变化。
 

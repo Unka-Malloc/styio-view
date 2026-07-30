@@ -75,7 +75,7 @@ All cache keys MUST include, where applicable:
 | Project Graph | Per-workspace | Canonical file change, manifest edit |
 | File Gist | Per-file | File content change, toolchain change |
 | Runtime Event Derived | Per-session | New events appended, session reset |
-| AI Context | Per-request | Context candidate list change |
+| Agent Context | Per-request | Context candidate list change |
 
 ## 6. Invalidation Rules
 

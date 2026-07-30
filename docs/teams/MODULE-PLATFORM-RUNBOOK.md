@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 module host、platform capability、六端 runner 与分发路径的日常维护入口。
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -51,6 +51,8 @@ Key SSOTs:
 8. Browser and memory file-system provider changes must preserve lexical path/URI behavior across Web, Linux, macOS, and Windows; update Windows path tests when provider normalization, separators, or URI handling changes.
 9. Module package store changes must keep the public `src/module_host/` entrypoint and the IDE-owned `src/view_ide/module_host/` implementation in sync; update package-store persistence, validation, and rollback tests together.
 10. Flutter platform bootstrap script changes must preserve Windows host, WSL Debian, and Docker Linux behavior, including executable bits, LF line endings, and explicit toolchain path overrides.
+11. The `agent.surface.basic` capability matrix describes where the Agent Workbench can connect to Vityo Coding Agent or another compatible Agent through the versioned protocol. It must not imply that Vityo owns or directly connects to a model provider.
+12. The behavior-bearing `agent.surface.basic` module manifest remains current migration input until the separately tracked runtime migration closes; documentation-only positioning work must not silently change its activation or dependency semantics.
 
 ## Change Classes
 
@@ -93,3 +95,5 @@ For module package-store and platform bootstrap changes, include the host matrix
 - `file_system_provider.dart`, `browser_virtual_file_system_provider.dart`, `memory_file_system_provider.dart`: Added direct import of `file_system_adapter.dart` (`FileSystemCompatibility` not available through transitive import); implemented `supportsScheme()` override required by `implements FileSystemProvider`.
 - `file_system_operation_result.dart`: Rewrote sealed-class object patterns to `is`/`as` type checks for Dart SDK compatibility; added explicit `const` constructor for sealed superclass.
 - No behavioral changes. All existing API contracts preserved.
+
+2026-07-30: Updated the `agent.surface.basic` capability-matrix notes to name the Agent Workbench and its protocol connection to compatible Agents. The matrix change is descriptive only; module activation, protocol schema, and runtime behavior are unchanged.

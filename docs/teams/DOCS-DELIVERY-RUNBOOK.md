@@ -104,7 +104,10 @@ claims.
 23. Governance docs are part of docs delivery. API compatibility, security, release checklist, CODEOWNERS policy, root contribution/security entries, and PR template changes must keep generated docs indexes current.
 24. When a new docs collection is added, update `scripts/docs-index.py` collection metadata and run `python3 scripts/docs-index.py --write` in the same change.
 25. Platform-native CI changes must keep `README.md`, `docs/BUILD-AND-DEV-ENV.md`, `.github/workflows/local-ci-gate.yml`, and bootstrap script comments aligned. The PowerShell workspace bootstrap may create Flutter plugin junctions on Windows to avoid Developer Mode or admin symlink requirements, but it must restore tracked `.metadata` and `pubspec.lock` after runner generation and dependency restore.
-26. Better Plan workflow state lives under `docs/plan/` and has exactly two independent product plans: `vityo` and `vityo-coding-agent`. Validate the root manifest and both state files with the current Better Plan manifest tool; keep shared protocol work inside those plans instead of creating a third product line.
+26. Better Plan workflow state lives under `docs/plan/` as exactly two delivery tracks for one
+    Vityo product: the `vityo` IDE track and the `vityo-coding-agent` first-party companion-runtime
+    track. Validate the root manifest and both state files with the current Better Plan manifest
+    tool; keep shared protocol work inside both tracks instead of creating a third track.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
@@ -163,6 +166,12 @@ Record:
 
 2026-06-28: Split the end-to-end mainstream IDE work into granular Better Plan entries for app composition, foundation registries, shell, editor buffers, language protocols, project graph/toolchain protocols, execution/debug protocols, agent interaction, user-facing workflows, module contributions, settings/profile/theme, hosted cloud routes, search/navigation/refactor workflows, problems/testing/source-control surfaces, security/audit, and the prototype editor harness.
 
-2026-07-26: Replaced the former convergence and product-delivery plans with independent `Vityo` and `Vityo Coding Agent` Better Plans. The target repository layout now uses two product roots plus one Vityo-owned shared protocol package. The obsolete line-anchored plan, its permanent verifier, and the outdated repository-local Better Plan validator/test copy were removed; generated documentation indexes and lifecycle records were refreshed.
+2026-07-26: Replaced the former convergence and product-delivery plans with separate IDE and Coding
+Agent Better Plan tracks. The repository layout uses two implementation roots plus one Vityo-owned
+shared protocol package. As clarified by ADR-0019 on 2026-07-30, these are delivery tracks for one
+Vityo product; Vityo Coding Agent is the first-party companion runtime, not a second product
+identity. The obsolete line-anchored plan, its permanent verifier, and the outdated repository-local
+Better Plan validator/test copy were removed; generated documentation indexes and lifecycle records
+were refreshed.
 
 <!-- codex merge: docs/build/scripts assets imported -->

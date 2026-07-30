@@ -52,6 +52,8 @@ Key SSOTs:
     facts, Styio machine contracts provide compiler and language facts, and
     Platform hosted APIs provide hosted state. No adapter may reconstruct one
     owner's facts from another owner's private files or legacy routes.
+14. Agent integration is protocol-only: Vityo owns source revisions, Styio analyze/test/run facts, change previews, and workspace transactions; Vityo Coding Agent or another compatible Agent owns model/provider access, tool loops, policy, durable sessions, and multi-Agent orchestration.
+15. Any IDE-side provider profile, provider controller, tool dispatcher, or policy-store artifact is migration inventory under `Vityo-Implementation-Gaps.md`, not an accepted adapter contract. Do not extend it while completing the Agent-Native IDE migration.
 
 ## Change Classes
 
@@ -88,3 +90,5 @@ Record:
 2026-06-25: contracts/README.md 更新 — CacheContract 正式列为第九份已发布合同。Vityo-Implementation-Gaps.md 中此前误标为 Closed 的 Remote/browser/virtual providers 与 Cache Contract 已校正为 Partially implemented。
 
 2026-07-26: Moved the hosted-workspace delivery-plan cross-reference to the `Vityo` Better Plan. This documentation-only routing change does not alter the hosted workspace contract schema or runtime behavior.
+
+2026-07-30: Aligned CacheContract, HostedWorkspaceCloudRoutes, SettingsProfileThemePersonalization, and UserFacingWorkflows with the Agent-Native IDE boundary. `Agent Context` replaces the old AI label, hosted workspace routes remain separate from the Agent Workbench, and legacy IDE provider/controller artifacts are recorded only as migration inventory. No contract schema or runtime behavior changed.

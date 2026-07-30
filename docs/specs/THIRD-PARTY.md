@@ -1,8 +1,8 @@
 # Third-Party Inventory
 
-**Purpose:** 记录 `Vityo` 当前接受、计划或明确暂缓的第三方依赖与运行时边界；第一方上游 `styio` 也在此登记，便于实现期核对。
+**Purpose:** Record accepted, planned, and deferred dependencies across the Vityo IDE and its first-party companion Agent runtime.
 
-**Last updated:** 2026-04-13
+**Last updated:** 2026-07-30
 
 ## 1. 已接受依赖
 
@@ -38,8 +38,8 @@
 | 云容器执行平面 | Planned | iOS 与远程工作区执行后端 | 资源调度、计费与沙箱边界待定。 |
 | 本地 AI 模型运行时 | Planned | 移动端输入预测 agent / 本地 coding agent | 模型大小、授权与设备门槛待定。 |
 | 模块分发与更新服务 | Planned | 模块下载、筛选、staged update | 平台分发、签名和缓存策略待定。 |
-| OpenAI-compatible cloud endpoint | Planned | 云端 coding agent 的兼容服务接口 | 首批需要验证兼容端点、鉴权和错误模型。 |
-| OpenRouter provider | Planned (prelaunch candidate) | 预上线阶段的云端 agent provider | 通过 OpenAI-compatible adapter 接入，不写死在主壳。 |
+| OpenAI-compatible cloud endpoint | Planned, Agent runtime only | Compatible service interface for the Coding Agent | Validate endpoint, authentication, and error behavior inside the Agent runtime; never add the dependency to the IDE. |
+| OpenRouter provider | Planned prelaunch candidate, Agent runtime only | Optional Coding Agent provider | Connect through an Agent-runtime adapter; never hardcode it in Vityo. |
 | Profile sync service | Planned | prompt / profile 的可选云同步组件 | 未挂载时必须保持 local-only。 |
 
 ## 3. 明确暂缓

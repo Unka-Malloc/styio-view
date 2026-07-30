@@ -1,13 +1,18 @@
 # IDE Sources Comparative Audit For Vityo
 
-**Purpose:** Compare Vityo with external IDE and agentic-coding sources in `../ide-sources/`, identify architecture, feature, and algorithm gaps, and define an optimization route for making Vityo a Styio-first IDE with mainstream IDE core capabilities.
+**Purpose:** Preserve the 2026-06-21 IDE-source comparison as historical research provenance; it is not a current product or Agent ownership audit.
 
 **Last updated:** 2026-06-21
 
 **Date:** 2026-06-21
 **Scope:** `frontend/vityo_app/lib/src/`, `docs/design/`, `docs/contracts/`, and external source trees under `../ide-sources/vscode`, `../ide-sources/intellij-community`, `../ide-sources/codex`, and `../ide-sources/opencode`.
 **Method:** Main-thread source review plus four read-only subagent shards for VS Code, IntelliJ Community, Codex, and opencode.
-**Status:** Open planning audit.
+**Archived:** 2026-07-30
+
+**Status:** Historical provenance. Its AI/provider observations predate the standalone companion
+runtime and ADR-0019. Current product truth lives in
+[Vityo Product Spec](../../design/Vityo-Product-Spec.md), and current migration facts live in
+[Vityo Implementation Gaps](../../design/Vityo-Implementation-Gaps.md).
 
 ## Bottom Line
 

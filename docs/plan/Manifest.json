@@ -10,8 +10,8 @@
       "docs/plan/vityo/Architecture.md",
       "docs/plan/vityo/Validation.md"
     ],
-    "goal": "Deliver Vityo as an independent, truthful developer environment and AI-native Agent Client.",
-    "description": "The IDE product line owns editing, workbench, language and execution services, Agent collaboration UI, external-agent hosting, and desktop delivery; it never owns Coding Agent runtime implementation.",
+    "goal": "Deliver Vityo as the agent-native IDE for Styio, complete without an Agent and reviewable with compatible Agents.",
+    "description": "The IDE delivery track owns editing, the Styio developer loop, Agent Client and Workbench, workspace revisions and transactions, and desktop delivery; it never owns model/provider, tool-loop, durable-session, or multi-Agent runtime implementation.",
     "checkpoints": "vityo/Checkpoints.json"
   },
   {
@@ -25,8 +25,8 @@
       "docs/plan/vityo-coding-agent/Architecture.md",
       "docs/plan/vityo-coding-agent/Validation.md"
     ],
-    "goal": "Deliver Vityo Coding Agent as an independent, secure, model-neutral coding runtime that collaborates with IDEs through open protocols.",
-    "description": "The Coding Agent product line owns model orchestration, context selection, tools, policy, coding loops, durable sessions, and multi-agent execution; it never imports Vityo or Flutter implementation.",
+    "goal": "Deliver Vityo Coding Agent as the independent, secure, model-neutral first-party companion runtime for Vityo and other compatible clients.",
+    "description": "The companion-runtime delivery track owns model orchestration, context selection, tools, policy, coding loops, durable sessions, and multi-Agent execution; it never imports Vityo or Flutter implementation and is not a second product identity.",
     "checkpoints": "vityo-coding-agent/Checkpoints.json"
   }
 ]

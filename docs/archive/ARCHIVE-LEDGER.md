@@ -2,7 +2,7 @@
 
 **Purpose:** Track archived `Vityo` documentation provenance and lifecycle status; the machine-readable source of truth lives in [ARCHIVE-MANIFEST.json](./ARCHIVE-MANIFEST.json).
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Status
 
@@ -12,4 +12,9 @@
 
 ## Entries
 
-- No archived `Vityo` docs are recorded yet. When active history or other provenance files are archived, register them in `ARCHIVE-MANIFEST.json` and refresh this ledger.
+| Source | Status | Archive Path |
+|--------|--------|--------------|
+| `docs/rollups/architecture-mainstream-alignment-report-20260624.md` | `archived` | `docs/archive/history/architecture-mainstream-alignment-report.md` |
+| `docs/rollups/NEXT-STAGE-GAP-LEDGER.md` | `archived` | `docs/archive/history/next-stage-gap-ledger.md` |
+| `docs/rollups/nightly-subbranch-merge-report-20260624.md` | `archived` | `docs/archive/history/nightly-subbranch-merge-report.md` |
+| `docs/audit/ide-sources-comparative-audit-2026-06-21.md` | `archived` | `docs/archive/history/ide-sources-comparative-audit.md` |

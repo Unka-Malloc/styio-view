@@ -261,7 +261,7 @@ This contract prevents `Foundation` from growing into a hidden
 |---|---|
 | setting keys, defaults, validation, user preferences, environment overlay semantics | Configuration |
 | credential classification, credential storage policy, secret lifecycle | Configuration / Credential DataStore |
-| Styio compiler discovery, installation, selected version, executable resolution | Toolchain |
+| System Styio discovery, executable resolution, and machine-contract consumption | Service / Styio adapter |
 | encoder/decoder protocol contracts for external tools | Toolchain |
 | shell runtime, terminal runtime, task/runtime composition | Toolchain |
 | OS facts, probing, file/process/network/shell/PTY APIs | Environment / System Compatibility |
@@ -521,7 +521,7 @@ Before a new module is added under `foundation/`, classify it by the operation i
 | Route a storage namespace to an app/cache/state/temp location. | Yes. | N/A |
 | Define a user setting key or default value. | No. | Configuration |
 | Decide how environment variables are merged. | No. | Configuration |
-| Select or install a Styio compiler. | No. | Toolchain |
+| Install, update, pin, or switch a Styio compiler. | No. | External system package distribution; Vityo only discovers and consumes it. |
 | Provide encoder/decoder contracts for tool output. | No. | Toolchain |
 | Launch shell, terminal, process, or PTY runtime. | No. | Toolchain or Environment, depending on direct OS interaction. |
 | Parse Styio, resolve symbols, or produce language facts. | No. | Service / Styio Language Service |

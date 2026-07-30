@@ -1,29 +1,49 @@
 # Vityo — Requirements
 
 **Plan:** `vityo`
-**Purpose:** Define Vityo as an independent developer environment and AI-native Agent Client.
-**Last updated:** 2026-07-26
+**Purpose:** Define Vityo as the Styio Agent-Native IDE and open Agent Client.
+**Last updated:** 2026-07-30
 
 ## Product definition
 
-Vityo is the user-facing editor and workbench. It owns source buffers, workspace revisions,
-language and execution facts, reviewable workspace transactions, development surfaces, and the
-client side of Agent collaboration. It remains useful when no Coding Agent is installed.
+**Vityo is the agent-native IDE for Styio.** It is the sole user-facing product identity. It owns
+source buffers, workspace revisions, Styio language/compiler/runtime facts, reviewable workspace
+transactions, development surfaces, and the client side of Agent collaboration. Editing, language
+service, build, test, run, and observation remain available when no Agent is installed or
+connected.
 
-AI-native means the IDE can host several long-running Agent sessions as first-class workbench tasks:
+Agent-native means the IDE can host several long-running Agent sessions as first-class workbench tasks:
 users can see plans and tool activity, steer or cancel work, answer permission requests, review every
-change set, and attach either Vityo Coding Agent or another compatible Agent. It does not mean adding
-another chat tab to a monolithic application.
+change set and verification receipt, and attach either Vityo Coding Agent or another compatible
+Agent through the versioned protocol. It does not mean adding another chat tab or connecting the IDE
+directly to a model provider.
+
+## Current delivery state
+
+Requirements describe the accepted product, not permission to replay historical work.
+
+| State | Lifecycle | Execution rule |
+|---|---|---|
+| Completed | Package cutover, workspace transactions, developer loop, Agent Client foundation, Workbench foundation, MCP/context export, quality hardening, validation runner scaffold, desktop receipt binding, and product-document convergence | Read-only evidence. Never rerun or rewrite these Nodes. |
+| Pending | `014e7fb0-3f51-4033-be71-eca130a4a2ea` — protocol-only Agent boundary | Remove the remaining IDE-owned provider/coding-loop implementation while preserving IDE-owned context, review, permissions, transactions, and receipts. |
+| Pending | `63016713-c527-4428-a87d-2613f8c43ac9` — final-harness readiness | Add side-effect-free preflight and fail-closed receipts without running `ide/full`. |
+| Pending | `c5bfe53f-4094-4771-b323-12a99750c95b` — final validation | Run only after both pending implementation Nodes complete and explicit final-run authority is given. |
+
+The mandatory mechanical procedure is
+[the Better Plan execution runbook](../EXECUTION-RUNBOOK.md). A Node goal or eligible status alone
+never authorizes execution.
 
 ## Functional requirements
 
 - **REQ-IDE-001 — Product identity and hard repository boundary.**
-  The current monolithic application is atomically cut over to `products/vityo_app`,
+  The repository is cut over to `products/vityo_app`,
   `products/vityo_coding_agent`, and the Vityo-owned shared `packages/vityo_agent_protocol`. Active product
-  metadata uses Vityo and Coding Agent naming. The old application root, duplicate agent roots,
+  metadata uses Vityo as the sole product identity and describes Coding Agent as its first-party
+  companion runtime. The old application root, duplicate Agent roots,
   one-line compatibility exports, and obsolete gate exceptions are removed in the same closure.
-  *Acceptance:* both products analyze and smoke-test from their final roots; the boundary gate proves
-  the forbidden dependency directions and a one-time removal check finds no active old import/path.
+  *Acceptance:* both implementation packages analyze and smoke-test from their final roots; the
+  boundary gate proves the forbidden dependency directions and a one-time removal check finds no
+  active old import/path.
 
 - **REQ-IDE-002 — Independent IDE and authoritative workspace transactions.**
   Vityo launches, opens a workspace, edits, saves, searches, and reviews changes without an Agent
@@ -38,10 +58,11 @@ another chat tab to a monolithic application.
   toolchain, and package workflows expose typed facts and receipts. An unavailable or heuristic
   capability remains visibly degraded or blocked; no surface invents success. Agent consumers receive
   the same revision-bound facts as the user-facing surfaces.
-  *Acceptance:* a representative local project completes edit–save–analyze–test–run with structured
-  receipts, while unavailable routes produce tested capability-gap states.
+  *Acceptance:* a representative local project completes
+  `edit -> analyze -> test -> run -> observe` on one revision with structured receipts, while
+  unavailable routes produce tested capability-gap states.
 
-- **REQ-IDE-004 — AI-native collaboration workbench.**
+- **REQ-IDE-004 — Agent-native collaboration workbench.**
   The workbench provides a task/thread list, multiple concurrent sessions, streaming turns, plan and
   step state, tool-call timeline, artifacts, diagnostics, proposed diffs, validation receipts, and
   explicit steer/cancel/retry controls. Permission requests and change review stay visible even when
@@ -56,8 +77,9 @@ another chat tab to a monolithic application.
   notifications, concurrent sessions, bidirectional requests, cancellation, permission prompts,
   terminal output, artifacts, and capability changes. Styio-specific additions use namespaced,
   negotiated extensions rather than forking standard messages.
-  *Acceptance:* protocol conformance and process-lifecycle tests pass against a fake Agent and Styio
-  Coding Agent; an unsupported protocol version fails closed with a useful diagnostic.
+  *Acceptance:* protocol conformance and process-lifecycle tests pass against a fake Agent and the
+  first-party Vityo Coding Agent; an unsupported protocol version fails closed with a useful
+  diagnostic.
 
 - **REQ-IDE-006 — Context, tools, and extension export.**
   Deep editor operations are exposed as narrow IDE-owned tools. External tools, resources, prompts,
@@ -91,10 +113,13 @@ another chat tab to a monolithic application.
 2. Integration is protocol/process based; no shared mutable session objects cross the line.
 3. `packages/vityo_agent_protocol` is pure, versioned, presentation-free, and contains no product
    orchestration.
-4. IDE workspace revisions and transactions are the authority for edits made through the IDE.
-5. Streams, event histories, and context snapshots are bounded and expose dropped/truncated counts.
-6. Missing capabilities are explicit states, not placeholders or simulated success.
-7. The cutover removes old implementations and compatibility facades; it does not preserve them as a
+4. Vityo Coding Agent is a first-party companion runtime, not a second product identity.
+5. Model/provider access, Agent tool loops, policy, durable sessions, and multi-Agent orchestration
+   never belong to the IDE.
+6. IDE workspace revisions and transactions are the authority for edits made through the IDE.
+7. Streams, event histories, and context snapshots are bounded and expose dropped/truncated counts.
+8. Missing capabilities are explicit states, not placeholders or simulated success.
+9. The cutover removes old implementations and compatibility facades; it does not preserve them as a
    long-term migration layer.
 
 ## Scope
@@ -104,7 +129,8 @@ repository gates needed for the new roots, IDE tests/benchmarks, and current pro
 
 ## Non-goals
 
-- Implementing model inference, prompt orchestration, Agent tool loops, or multi-agent scheduling.
+- Implementing model/provider access, prompt orchestration, Agent tool loops, durable Agent
+  sessions, or multi-Agent scheduling in the IDE.
 - Reimplementing Styio compiler truth inside the IDE.
 - Building a hosted control plane in this repository.
 - Preserving Vityo import paths, source roots, or compatibility facades after cutover.
@@ -112,7 +138,10 @@ repository gates needed for the new roots, IDE tests/benchmarks, and current pro
 
 ## Final acceptance
 
-On one head commit, Vityo operates without an Agent, collaborates with Vityo Coding Agent through
-the versioned boundary, hosts two concurrent sessions safely, completes a reviewed coding change, and
-passes its platform-independent full regression without importing Agent runtime code. Each desktop
-platform is released independently only after its matching-host delivery checks pass.
+On one head commit, Vityo completes `edit -> analyze -> test -> run -> observe` without an Agent,
+collaborates with Vityo Coding Agent through the versioned boundary, hosts two concurrent sessions
+safely, and completes a reviewed coding change with plan, permission, change, transaction, and
+verification receipts. The IDE contains no model-provider transport, provider credential routing,
+coding-loop orchestration, durable Agent session owner, or multi-Agent scheduler. It passes its
+platform-independent full regression without importing Agent runtime code. Each desktop platform is
+released independently only after its matching-host delivery checks pass.

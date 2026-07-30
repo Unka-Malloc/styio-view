@@ -1,9 +1,9 @@
 # Vityo Protocol and Capability Negotiation
 
-**Purpose:** Define Vityo's schema for versioned protocol contracts, capability negotiation, and backward-compatible evolution across all adapter boundaries. Inspired by LSP/DAP capability exchange but Styio-native.
+**Purpose:** Define versioning and capability-negotiation rules across Vityo adapter contracts and the IDE-to-Agent protocol without assigning model/provider ownership to the IDE.
 
 **Owner:** Adapter contracts owner (`CODEOWNERS` → adapter-contracts domain)
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-30
 
 ---
 
@@ -133,17 +133,27 @@ enum DebugSessionLifecycle { idle, launching, attaching, running, paused, termin
 
 Reference: `products/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart`
 
-### 3.6 AgentProviderAdapter
+### 3.6 Vityo Agent Protocol
 
-```dart
-class AgentProviderContract {
-  final int schemaVersion;
-  final Map<String, bool> capabilities;  // completion, chat, tool-use, streaming, vision
-  final String providerId;
-  final String sourceRevision;       // Provider version or model ID
-  final Map<String, dynamic> extensions;
-}
-```
+Vityo's Agent boundary is the versioned JSON-RPC/ACP contract in
+`packages/vityo_agent_protocol`. It covers initialization, session creation/loading, prompts,
+cancellation, session updates, permission requests, and negotiated Vityo capability extensions.
+
+Ownership rules:
+
+1. Vityo is the protocol client and owns the workspace revision, scoped context export, permission
+   presentation, change preview, and transaction result.
+2. Vityo Coding Agent or another compatible Agent is the protocol server/runtime and owns
+   model/provider routing, context selection, tool loops, Agent policy, durable sessions, and
+   multi-Agent orchestration.
+3. The protocol carries proposals and receipts; it never grants the Agent direct access to the
+   IDE's source buffers or workspace mutation primitives.
+4. No Agent connection is a valid IDE state. It does not block editing, language service, build,
+   test, run, or observation.
+5. Provider-specific contracts are runtime-internal and must not become IDE adapter contracts.
+
+This document describes ownership only. It does not change the current protocol messages, schema,
+or wire compatibility.
 
 ### 3.7 SourceControlAdapter
 
@@ -255,7 +265,7 @@ Every adapter contract test must verify:
 
 - [Vityo Mainstream Architecture Alignment](./Vityo-Mainstream-Architecture-Alignment.md)
 - [Vityo Extension And Contribution Model](./Vityo-Extension-And-Contribution-Model.md)
-- [Vityo Agent Runtime Architecture](./Vityo-Agent-Runtime-Architecture.md)
+- [Vityo Agent-Native IDE Architecture](./Vityo-Agent-Native-IDE-Architecture.md)
 - [Adapter Contracts Runbook](../teams/ADAPTER-CONTRACTS-RUNBOOK.md)
 - [LSP 3.17 Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/) (reference only)
 - [DAP Specification](https://microsoft.github.io/debug-adapter-protocol/specification) (reference only)

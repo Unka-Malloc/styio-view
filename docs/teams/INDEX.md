@@ -18,6 +18,6 @@
 | `DOCS-DELIVERY-RUNBOOK.md` | [Docs / Delivery Runbook](./DOCS-DELIVERY-RUNBOOK.md) | 提供 Vityo 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。 |
 | `EXTENSION-MODULE-RUNBOOK.md` | [Extension Module Runbook](./EXTENSION-MODULE-RUNBOOK.md) | Define the extension/module domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo's extension and contribution system. Enforce manifest schema validation, contribution routing, activation lifecycle, and extension isolation. |
 | `MODULE-PLATFORM-RUNBOOK.md` | [Module / Platform Runbook](./MODULE-PLATFORM-RUNBOOK.md) | 提供 module host、platform capability、六端 runner 与分发路径的日常维护入口。 |
-| `RUNTIME-AGENT-RUNBOOK.md` | [Runtime / Agent Runbook](./RUNTIME-AGENT-RUNBOOK.md) | 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。 |
+| `RUNTIME-AGENT-RUNBOOK.md` | [Runtime / Agent Runbook](./RUNTIME-AGENT-RUNBOOK.md) | Define ownership for runtime/debug surfaces and the IDE-side Agent Workbench without assigning Agent-runtime execution to the IDE. |
 | `SHELL-EDITOR-RUNBOOK.md` | [Shell / Editor Runbook](./SHELL-EDITOR-RUNBOOK.md) | 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。 |
 | `THEME-UX-RUNBOOK.md` | [Theme / UX Runbook](./THEME-UX-RUNBOOK.md) | 提供 theme、视觉系统、样式层和 UX guardrail 的日常维护入口。 |

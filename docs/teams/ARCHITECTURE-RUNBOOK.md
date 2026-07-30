@@ -2,7 +2,7 @@
 
 **Purpose:** Define the architecture domain owner's responsibilities, owned paths, review checklist, and required gates for Vityo system architecture governance.
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -15,7 +15,7 @@ Primary paths:
 2. `docs/design/Vityo-System-Architecture.md`
 3. `docs/design/Vityo-Protocol-And-Capability-Negotiation.md`
 4. `docs/design/Vityo-Extension-And-Contribution-Model.md`
-5. `docs/design/Vityo-Agent-Runtime-Architecture.md`
+5. `docs/design/Vityo-Agent-Native-IDE-Architecture.md`
 6. `docs/adr/`
 7. `docs/teams/ARCHITECTURE-RUNBOOK.md`
 8. `docs/governance/`
@@ -40,7 +40,10 @@ Key SSOTs:
 5. Verify no competitor brand names enter UI-visible strings.
 6. Create standalone ADRs only for significant architectural decisions that still need direct review.
 7. When a decision is implemented and absorbed by code and owner SSOTs, compress the durable result into `docs/adr/IMPLEMENTED-DECISIONS.md` instead of leaving a stale plan or one-off ADR trail.
-8. Keep IDE, Coding Agent, and shared protocol in their final owner packages; never recreate removed forwarding roots.
+8. Keep Vityo as one product with an IDE delivery track, a first-party companion-runtime track, and
+   a shared protocol boundary; never recreate removed forwarding roots or dual product identities.
+9. Reject model/provider, tool-loop, durable-session, or multi-Agent orchestration ownership in the
+   IDE. Reject direct IDE workspace mutation by an Agent runtime.
 
 ## Change Classes
 

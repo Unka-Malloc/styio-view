@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 `Vityo` 的文档目录、单一事实来源、联动更新规则与最小维护要求；产品行为与系统边界分别以 `docs/design/` 中的权威文档为准。
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 ## 0. 文档维护准则
 
@@ -40,7 +40,7 @@
 | 第三方依赖清单 | `THIRD-PARTY.md` | 与实现同步更新 |
 | `styio` 对接边界与接口合同 | `../external/for-styio/` | 链接 |
 | `pafio` 对接边界与接口合同 | `../external/for-pafio/` | 链接 |
-| Active delivery plans | `../plan/INDEX.md` | Link to the Vityo and Coding Agent Better Plan workspace |
+| Active delivery tracks | `../plan/INDEX.md` | Link to the IDE and first-party companion-runtime tracks for one Vityo product |
 | 测试与验收映射 | `../assets/workflow/TEST-CATALOG.md` | 链接 |
 | 架构裁决与已实现决策 | `../adr/` | 只保留仍需评审的 ADR 与当前实现决策摘要 |
 | 未决风险与冲突 | `../review/Logic-Conflicts.md` | 链接 |
@@ -48,9 +48,10 @@
 ### 0.5 文档状态
 
 1. `docs/design/` 是产品、系统、已交付设计基线和活跃缺口登记的 SSOT。
-2. `docs/plan/` is the canonical local Better Plan workspace. It contains exactly two active product
-   plans, `vityo` and `vityo-coding-agent`; product facts remain grounded in their requirements,
-   evidence, architecture, and validation contracts.
+2. `docs/plan/` is the canonical local Better Plan workspace. It contains exactly two delivery
+   tracks for one Vityo product: `vityo` for the IDE and `vityo-coding-agent` for the first-party
+   companion runtime. Product facts remain grounded in their requirements, evidence, architecture,
+   and validation contracts.
 3. `docs/rollups/` 负责压缩当前状态和活跃缺口，不替代 owner 文档。
 4. `docs/history/` 负责活跃恢复记录；原始历史一旦退役，应迁入 `docs/archive/`。
 5. `docs/archive/` 负责归档 provenance 与 lifecycle 元数据，不用来隐藏仍活跃的 owner 文档。
@@ -97,9 +98,10 @@
 
 1. 设计级文档使用稳定主题名，优先 `Vityo-*.md`。
 2. 规范文件使用稳定全大写或描述性短横线命名。
-3. Keep Better Plan workflow state only in `docs/plan/`, with one directory for `vityo` and one
-   for `vityo-coding-agent`. Product facts remain in owner documents; validate plan state with the
-   current Better Plan manifest tool rather than a repository-local validator copy.
+3. Keep Better Plan workflow state only in `docs/plan/`, with one IDE delivery track in `vityo`
+   and one first-party companion-runtime track in `vityo-coding-agent`. Product facts remain in
+   owner documents; validate plan state with the current Better Plan manifest tool rather than a
+   repository-local validator copy.
 4. 历史、审计和 rollup 文件使用稳定主题名；日期只能写入 `Date`、`Last updated` 或正文状态说明。
 5. 独立 ADR 文件严格使用 `ADR-XXXX-<slug>.md`；`docs/adr/IMPLEMENTED-DECISIONS.md` 不编号，只作为当前已实现决策的压缩索引。
 6. 里程碑文件使用稳定功能主题名；不得使用日期目录、版本号目录、阶段编号前缀或 `00-` 入口文件组织里程碑。

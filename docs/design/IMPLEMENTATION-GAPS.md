@@ -23,7 +23,7 @@ For the checklist-style objective audit, see `docs/design/CORE-COMPLETION-AUDIT.
 | Foundation | `docs/design/foundation/README.md`; `products/vityo_app/lib/src/view_ide/foundation/`; `foundation_test.dart` and related owner/datastore tests. | Implemented surface exists; focused Foundation tests pass. |
 | Platform stack | `Platform Detector -> Platform Context -> Platform Adapter -> Platform Manager` is documented in `docs/design/environment/README.md` and implemented under `environment/system_compatibility/`. | Implemented surface exists; focused Platform manager tests pass. |
 | Configuration | Configuration Store, Credential DataStore, environment overlays, and shell configuration are documented and tested. | Implemented surface exists; focused Configuration tests pass. |
-| Toolchain | Toolchain Manager, discovery, catalog persistence, runtime, install policy, install executor, Styio language-service catalog bootstrap, Ed25519 provenance verifier boundary, and managed-download provenance catalog metadata are present. | Implemented surface exists; focused Toolchain tests pass, but real Styio release provenance assets are not populated. |
+| Toolchain | Generic non-Styio discovery, catalog persistence, runtime, install policy, and provenance verification remain available; system Styio discovery is isolated behind its machine contract. | Implemented surface exists; focused Toolchain and owner-adapter tests pass. |
 | Language Service | Routed/cached service, result adapter, capability detector, project document service, project language service, fixture matrix, and Styio CLI connector are present and tested. | Vityo-side service is substantially implemented; upstream StyioService facts are incomplete. |
 
 ## 2. Known Blocking Gaps
@@ -31,7 +31,6 @@ For the checklist-style objective audit, see `docs/design/CORE-COMPLETION-AUDIT.
 | Gap | Owner | Why it blocks "complete" |
 |---|---|---|
 | Styio CLI currently emits JSONL diagnostics for parse failures, but does not currently emit observed JSONL completion, hover, semantic token, symbol, or reference facts. | StyioService / Styio toolchain upstream, consumed by Vityo Service. | Vityo can route, cache, display, and derive from facts, but a functionally complete language service needs real upstream language facts. |
-| Real Styio release provenance assets are not populated. | Styio release process / Vityo Toolchain configuration. | Vityo can now persist managed-download metadata, carry trusted public keys, plan signed downloads, and verify Ed25519 signatures before staging, but complete managed install requires real release keys, signature URLs, and signed artifacts from the Styio release process. |
 | Full all-gates completion audit has not been performed for every Platform Manager component and integration path. | Vityo Environment. | Focused manager tests pass, but the objective requires complete delivery evidence, not only focused test evidence. |
 | Full repo delivery gates beyond frontend Flutter tests have not been performed after the latest core changes. | Vityo repo delivery. | The frontend Flutter suite is green, but repo-level delivery gates and objective-level completion audit are broader than Flutter tests alone. |
 

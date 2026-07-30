@@ -8,9 +8,15 @@
 
 ### Vityo
 
-The sole product and repository identity owned here. Application names, package
-names, installer identities, release artifacts, product plans, user-visible
-copy, and Vityo-owned components must derive their identity from Vityo.
+The sole product and repository identity owned here, positioned as the
+agent-native IDE for Styio. Application names, package names, installer
+identities, release artifacts, product plans, and user-visible copy derive
+their identity from Vityo.
+
+Vityo remains a complete IDE when no Agent is installed. Its Agent Workbench
+connects to first-party or compatible Agent runtimes through the versioned
+Vityo Agent Protocol; the IDE does not own model-provider integration or Agent
+execution orchestration.
 
 ### Styio
 
@@ -26,9 +32,19 @@ Vityo product, package, installer, or release identity.
 
 ### Vityo Coding Agent
 
-A Vityo-owned coding-agent runtime. It is an independently testable Vityo
-component and communicates with the Vityo application through a versioned
-Vityo-owned protocol package.
+The first-party, independently executable companion Agent runtime for Vityo.
+It may be launched by Vityo or another compatible client. It owns
+model/provider routing, context selection, tools, policy, coding loops,
+durable sessions, and multi-Agent coordination, and communicates through the
+versioned Vityo Agent Protocol.
+
+It is an independent engineering delivery track, not a second Vityo product
+identity.
+
+### Vityo Agent Protocol
+
+The pure, versioned wire contract shared by Vityo and compatible Agents. It is
+not a product and contains no IDE presentation or Agent orchestration.
 
 ## Naming Invariant
 

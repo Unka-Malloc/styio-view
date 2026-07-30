@@ -256,7 +256,9 @@ Unit tests:
 python3 -m unittest tests.test_linux_host_readiness_gate -v
 ```
 
-When Dart or Flutter is available and the change touches editor data structures, language cache, workspace graph, runtime events, AI context packing, watchers, or UI virtualization, run the benchmark regression gate:
+When Dart or Flutter is available and the change touches editor data structures, language cache,
+workspace graph, runtime events, Agent context packing, watchers, or UI virtualization, run the
+benchmark regression gate:
 
 ```bash
 python3 scripts/performance-gate.py --threshold 1.10

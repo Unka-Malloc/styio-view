@@ -3,7 +3,7 @@
 **Purpose:** Define the product workflow contract for first launch, workspace lifecycle, editing, command routing, run/debug, diagnostics, agent review, settings, modules, hosted export, and recovery UX.
 
 **Owner:** `products/vityo_app/lib/src/` (app bootstrap, shell/runtime, workspace, editor, commands, runtime, agent, diagnostics, settings, module host, hosted lifecycle)
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 **Plan traceability:** [Vityo requirements](../plan/vityo/Requirements.md)
 `REQ-IDE-002`, `REQ-IDE-003`, `REQ-IDE-004`, and `REQ-IDE-008`
 
@@ -71,14 +71,20 @@
 
 ### 1.7 Agent Review
 
+The target workflow is protocol-backed Agent Workbench review. The IDE owns context export,
+permission presentation, revision-bound change preview, and workspace transactions. The connected
+Agent owns provider/model access, tool loops, policy, and durable sessions. Provider/controller
+artifacts listed below are current migration inventory only; they are not accepted IDE ownership.
+
 | Artifact | File | Role |
 |----------|------|------|
-| `AgentSurface` | `products/vityo_app/lib/src/view_render/agent_workbench/agent_surface.dart` | Agent surface widget: provider profile, runtime status, pending patch. |
-| `AgentCodingSessionController` | `products/vityo_app/lib/src/view_ide/agent_client/agent_coding_session_controller.dart` | Coding session lifecycle: dispatch, recovery, patch queue. |
+| `AgentSurface` | `products/vityo_app/lib/src/view_render/agent_workbench/agent_surface.dart` | Agent Workbench view for task state, permission, change preview, and receipts. |
+| `ProtocolAgentClient` | `products/vityo_app/lib/src/view_ide/agent_client/protocol_agent_client.dart` | Versioned connection to Vityo Coding Agent or another compatible Agent. |
+| `AgentCodingSessionController` | `products/vityo_app/lib/src/view_ide/agent_client/agent_coding_session_controller.dart` | Legacy IDE controller retained only as migration inventory. |
 | `AgentCodePatchApplier` | `products/vityo_app/lib/src/view_ide/agent_client/agent_code_patch_applier.dart` | Patch application: `WorkspaceEditPlan` from patch text. |
 | `AgentWorkspaceSnapshot` | `products/vityo_app/lib/src/view_ide/agent_client/agent_workspace_snapshot.dart` | Workspace snapshot for agent context. |
-| `AgentToolCallDispatcher` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_call_dispatcher.dart` | Tool call dispatch with permission check. |
-| `AgentToolPermissionPolicyStore` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Per-tool permission policies (allow/deny/confirm). |
+| `AgentToolCallDispatcher` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_call_dispatcher.dart` | Legacy IDE tool dispatcher retained only until Agent-runtime migration. |
+| `AgentToolPermissionPolicyStore` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Legacy IDE policy store retained only until Agent-runtime migration. |
 
 ### 1.8 Settings
 
@@ -254,10 +260,14 @@
 - **Recovery:** `refreshWorkspaceDiagnostics`.
 
 ### 4.6 Agent Review
-- **Success:** Patch preview; user applies or cancels.
-- **Blocked provider unavailable:** Recovery draft.
-- **Blocked patch conflict:** Conflict reported; user reverts.
-- **Recovery:** Adjust provider or retry.
+- **Success:** The Workbench shows plan and permission state; a revision-bound change proposal is
+  previewed and accepted or rejected; the IDE returns transaction and verification receipts.
+- **Blocked Agent unavailable:** The Workbench reports a disconnected/blocked Agent while the IDE's
+  edit, analyze, test, run, and observe paths remain usable.
+- **Blocked stale or conflicting change:** No partial mutation; the user may request a refreshed
+  proposal or reject it.
+- **Recovery:** Reconnect/switch the compatible Agent, refresh the proposal, retry validation, or
+  continue the developer loop without an Agent.
 
 ### 4.7 Settings / Toolchain
 - **Success:** Selection or install completes.

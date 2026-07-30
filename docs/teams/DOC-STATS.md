@@ -15,17 +15,17 @@
 
 | Team | Document | Word count | Character count |
 |------|----------|------------|-----------------|
-| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,506 | 4,464 |
-| Agent Runtime | [AGENT-RUNTIME-RUNBOOK.md](./AGENT-RUNTIME-RUNBOOK.md) | 663 | 3,094 |
-| Architecture | [ARCHITECTURE-RUNBOOK.md](./ARCHITECTURE-RUNBOOK.md) | 859 | 3,777 |
-| Coordination | [COORDINATION-RUNBOOK.md](./COORDINATION-RUNBOOK.md) | 2,362 | 6,131 |
-| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 4,138 | 13,641 |
-| Extension Module | [EXTENSION-MODULE-RUNBOOK.md](./EXTENSION-MODULE-RUNBOOK.md) | 644 | 3,048 |
-| Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | 1,305 | 4,647 |
-| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,149 | 3,686 |
+| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,680 | 5,416 |
+| Agent Runtime | [AGENT-RUNTIME-RUNBOOK.md](./AGENT-RUNTIME-RUNBOOK.md) | 707 | 3,263 |
+| Architecture | [ARCHITECTURE-RUNBOOK.md](./ARCHITECTURE-RUNBOOK.md) | 911 | 4,026 |
+| Coordination | [COORDINATION-RUNBOOK.md](./COORDINATION-RUNBOOK.md) | 2,366 | 6,328 |
+| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 4,183 | 13,871 |
+| Extension Module | [EXTENSION-MODULE-RUNBOOK.md](./EXTENSION-MODULE-RUNBOOK.md) | 669 | 3,192 |
+| Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | 1,445 | 5,412 |
+| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,104 | 4,408 |
 | Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,405 | 12,287 |
-| Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | 1,118 | 2,676 |
-| **Total** | Team runbooks only | **17,149** | **57,451** |
+| Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | 1,127 | 2,776 |
+| **Total** | Team runbooks only | **17,597** | **60,979** |
 
 ## Support File Size
 

@@ -127,6 +127,7 @@ class DocsLifecycleToolTest(unittest.TestCase):
         self.tool.ROLLUPS = self.tool.DOCS / "rollups"
         self.tool.ARCHIVE = self.tool.DOCS / "archive"
         self.tool.ARCHIVE_HISTORY = self.tool.ARCHIVE / "history"
+        self.tool.ACTIVE_GAPS_PATH = self.tool.DOCS / "design" / "Vityo-Implementation-Gaps.md"
         self.tool.MANIFEST_PATH = self.tool.ARCHIVE / "ARCHIVE-MANIFEST.json"
         self.tool.LEDGER_PATH = self.tool.ARCHIVE / "ARCHIVE-LEDGER.md"
 
@@ -135,8 +136,9 @@ class DocsLifecycleToolTest(unittest.TestCase):
             root = Path(tmp_name)
             self._configure_root(root)
             (root / "docs/rollups").mkdir(parents=True)
+            (root / "docs/design").mkdir(parents=True)
             (root / "docs/rollups/CURRENT-STATE.md").write_text("current\n", encoding="utf-8")
-            (root / "docs/rollups/NEXT-STAGE-GAP-LEDGER.md").write_text("gaps\n", encoding="utf-8")
+            self.tool.ACTIVE_GAPS_PATH.write_text("gaps\n", encoding="utf-8")
 
             self.assertEqual(self.tool.refresh(), 0)
             stdout = io.StringIO()
@@ -213,7 +215,8 @@ class DocsLifecycleToolTest(unittest.TestCase):
             for path in (self.tool.HISTORY, self.tool.ROLLUPS, self.tool.ARCHIVE, self.tool.ARCHIVE_HISTORY):
                 path.mkdir(parents=True, exist_ok=True)
             (root / "docs/rollups/CURRENT-STATE.md").write_text("current\n", encoding="utf-8")
-            (root / "docs/rollups/NEXT-STAGE-GAP-LEDGER.md").write_text("gaps\n", encoding="utf-8")
+            self.tool.ACTIVE_GAPS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            self.tool.ACTIVE_GAPS_PATH.write_text("gaps\n", encoding="utf-8")
             manifest = {
                 "version": 1,
                 "last_updated": "2026-01-01",

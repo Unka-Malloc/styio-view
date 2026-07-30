@@ -1,8 +1,18 @@
 # Next Stage Gap Ledger
 
-**Purpose:** 压缩记录 `Vityo` 仍与三仓统一文件治理基线存在的活跃缺口，确保治理债务能以 checkpoint 大小推进，而不是继续靠人工兜底。
+**Purpose:** Preserve the former next-stage gap ledger as historical provenance; current product and implementation facts live in the active design SSOTs.
 
 **Last updated:** 2026-05-19
+
+**Archived:** 2026-07-30
+
+**Status:** Historical provenance. This ledger contains implementation claims from the former
+panel-first and IDE-owned-provider architecture. It must not be used as current product truth.
+Current positioning is defined by
+[Vityo Product Spec](../../design/Vityo-Product-Spec.md); current ownership by
+[Vityo Agent-Native IDE Architecture](../../design/Vityo-Agent-Native-IDE-Architecture.md); and the
+remaining direct-provider migration is tracked in
+[Vityo Implementation Gaps](../../design/Vityo-Implementation-Gaps.md).
 
 ## Active Gaps and Closure Evidence
 

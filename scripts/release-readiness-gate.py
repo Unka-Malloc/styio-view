@@ -180,7 +180,9 @@ def check_pubspec(repo_root: Path, flutter_dir: Path) -> list[CheckResult]:
         ("pubspec name", fields.get("name") == "vityo_app", fields.get("name", "")),
         (
             "pubspec description",
-            fields.get("description", "").startswith("Vityo editor shell"),
+            fields.get("description", "").startswith(
+                "Vityo, the agent-native IDE for Styio"
+            ),
             fields.get("description", ""),
         ),
         ("pubspec publish_to", fields.get("publish_to") == "none", fields.get("publish_to", "")),

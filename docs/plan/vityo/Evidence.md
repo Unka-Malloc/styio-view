@@ -1,51 +1,44 @@
 # Vityo — Evidence
 
 **Plan:** `vityo`
-**Purpose:** Ground the IDE plan in current repository evidence and official first-party references.
-**Last updated:** 2026-07-26
+**Purpose:** Record current repository facts that determine the remaining Vityo execution order and stop conditions.
+**Last updated:** 2026-07-30
 
-## Current repository findings
+## Current repository facts
 
-The counts below are a planning snapshot, not a permanent metric.
-
-| Finding | Repository evidence | Consequence |
+| Fact | Repository evidence | Execution consequence |
 |---|---|---|
-| One Flutter package owns both products. | `frontend/vityo_app/pubspec.yaml` and `lib/main.dart` are the only current application package/entrypoint. | IDE and Agent cannot be released, tested, or failed independently. |
-| Layer separation is not product-line separation. | `lib/src/view_ide` contains about 557 Dart files, including about 50 Agent files; `lib/src/view_render/agent` owns Agent UI. | The current `view_ide` / `view_render` split is useful inside the IDE but cannot define the IDE / Coding Agent boundary. |
-| Compatibility roots keep the old topology alive. | `lib/src/agent` contains 28 one-line exports; similar facades exist for editor, language, backend toolchain, and integration paths. | A second reorganization would otherwise add another compatibility layer and preserve ambiguity. |
-| Composition knows concrete Agent runtime types. | `lib/src/app/app_bootstrap.dart` constructs provider, controller, tool, history, snapshot, and extension-tool objects; shell code invokes concrete Agent controllers. | The IDE is not an Agent Client; it is an in-process owner of the Agent runtime. |
-| Existing IDE foundations are valuable. | Editor transactions, workspace stores, language/service boundaries, runtime events, debugger, SCM, terminal, module host, capability states, and hundreds of tests already exist. | The plan migrates and sharpens these capabilities rather than replacing the editor stack. |
-| The current architecture policy explicitly permits legacy facades. | `docs/adr/ADR-0010-vityo-view-ide-view-render-boundary.md` and current gates describe incremental compatibility. | The new product split must supersede this policy with an atomic cutover and a new product-line gate. |
+| The product split is complete. | `products/vityo_app`, `products/vityo_coding_agent`, and `packages/vityo_agent_protocol` exist; the product-line boundary gate passes. | The atomic cutover Node is historical and must never be replayed. |
+| Vityo has a canonical protocol-oriented Agent Client foundation. | `products/vityo_app/lib/src/ide/agent_client/`, `lib/src/ide/workbench/agent_collaboration/`, and `lib/src/presentation/agent_workbench/`. | These are the keep/converge seams for the remaining IDE migration. |
+| Legacy IDE-owned Agent runtime behavior still exists. | `lib/src/view_ide/agent_client/`, `app/app_bootstrap.dart`, shell controllers, and current tests still construct provider transport, provider configuration, coding-loop, tool-loop policy, and durable session-controller objects. | Final validation must not start until Node `014e7fb0-3f51-4033-be71-eca130a4a2ea` removes this ownership completely. |
+| The first-party companion already owns Agent-runtime domains. | `products/vityo_coding_agent/lib/src/providers/`, `orchestration/`, `sessions/`, `tools/`, `policy/`, and `multi_agent/`. | Do not move these responsibilities back into the IDE and do not reopen the completed Coding Agent plan. |
+| The IDE full runner exists and its plan-only mode maps eight requirements exactly once. | `scripts/vityo_quality.py --product ide --suite full --plan-only` and `tests/acceptance/vityo_app/full_runner_acceptance_test.py`. | Plan-only inspection is safe and does not consume final-run authority. |
+| The full runner is not yet ready for a simple final executor. | `_run_plan_validation()` assumes an unavailable sibling `better-plan` checkout; early IDE harness failures can exit before a bounded receipt; there is no explicit `--preflight`. | Node `63016713-c527-4428-a87d-2613f8c43ac9` must close these harness gaps without executing `ide/full`. |
+| No final IDE receipt exists. | `artifacts/validation/vityo-full.json` is absent and the final-validation Node is pending. | No agent may claim REQ-IDE-001 through REQ-IDE-008 final acceptance yet. |
+| The Coding Agent plan is sealed. | All Coding Agent Nodes are completed and its Requirements, Architecture, Validation, Checkpoints, and protocol fingerprint are preserved. | Consume compatible protocol evidence only; never rerun or rewrite that plan during IDE closure. |
 
-## Official architecture research
+## Current blockers before final validation
 
-| Source | First-party signal | Planning conclusion |
-|---|---|---|
-| [VS Code AI extensibility overview](https://code.visualstudio.com/api/extension-guides/ai/ai-extensibility-overview) | Separates deep editor tools, reusable MCP tools, chat participants, and direct language-model features; Agent mode plans and invokes tools. | Vityo should expose narrow native IDE tools and reusable MCP tools as different surfaces, not one global command catalog. |
-| [VS Code Language Model API](https://code.visualstudio.com/api/extension-guides/ai/language-model) | Models can be unavailable, and editor APIs are used to build task-specific context. | Model identity cannot be hard-wired into IDE state; context must be revisioned and capability-aware. |
-| [VS Code MCP developer guide](https://code.visualstudio.com/api/extension-guides/ai/mcp) | Supports tools, prompts, resources, dynamic discovery, confirmations, roots, and multiple transports. | MCP is the external context/tool boundary; IDE-private operations remain IDE tools. |
-| [Zed Agents](https://zed.dev/docs/ai/agents) and [External Agents](https://zed.dev/docs/ai/external-agents) | Native, ACP, and terminal Agent harnesses share a thread-oriented UX while an external Agent owns its runtime and authentication. | The workbench hosts sessions; it does not absorb every Agent implementation. |
-| [Agent Client Protocol architecture](https://agentclientprotocol.com/get-started/architecture) | Defines a JSON-RPC Agent/client boundary with streaming notifications, bidirectional permission requests, concurrent sessions, and MCP exposure. | Use ACP-compatible session semantics and namespaced extensions instead of a private monolithic bridge. |
-| [MCP roots](https://modelcontextprotocol.io/specification/2025-06-18/client/roots) | Roots require explicit consent, path validation, access controls, and change notification. | Workspace scope is a live security capability, not a path string copied into a prompt. |
-| [MCP authorization](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) | Requires audience-bound OAuth behavior, PKCE, secure storage, and forbids token passthrough. | IDE credentials must be resolved for the intended server/tool only and never forwarded through Agent payloads. |
-| [GitHub Copilot hooks](https://docs.github.com/en/copilot/concepts/agents/hooks) | Session/tool hooks can approve, deny, scan, enforce policy, and create audit trails. | Permission UI needs an enforceable policy/hook layer and durable receipts, not a modal-only implementation. |
+1. Remove direct IDE model/provider and coding-loop ownership.
+2. Remove provider-profile UI and behavior-bearing capability claims from the IDE.
+3. Preserve protocol sessions, bounded context export, permission presentation, revision-bound
+   proposals, workspace transactions, and verification receipts.
+4. Add a side-effect-free full-suite preflight.
+5. Make all full-harness failure paths produce a bounded diagnostic receipt.
+6. Bind final evidence to the acceptance fixtures and protocol inputs that were actually executed.
 
-## Resulting design decisions
+## Evidence interpretation rules
 
-1. The IDE is a client/host. Coding Agent runtime crosses a process and protocol boundary.
-2. The repository has two product roots and one Vityo-owned shared protocol package; there is no shared product
-   implementation directory.
-3. The current editor/workspace transaction model becomes the Agent edit authority.
-4. Agent collaboration is a workbench task model with concurrent sessions, not a bottom-panel chat
-   singleton.
-5. ACP-compatible session semantics carry interaction; MCP carries reusable tools/resources/roots.
-6. The one-time migration deletes old roots and updates current design/gates instead of adding new
-   facades.
+1. A passing focused Node receipt proves only that Node's declared capability.
+2. Completed Node text is historical evidence, not an instruction to run it again.
+3. `--plan-only` and future `--preflight` output prove runner readiness only; they are not product
+   acceptance.
+4. The final receipt is valid only for its recorded commit and source fingerprint.
+5. A missing tool, fixture, compatible Agent, or required path is `blocked` or `failed`, never
+   skipped-as-passed.
+6. A failed final receipt must be preserved. The unchanged candidate must not be rerun.
 
-## Evidence gaps to close during delivery
+## Authoritative execution reference
 
-- No current product-line boundary gate exists.
-- No current Agent process lifecycle or protocol conformance fixture exists.
-- No current root-change/revocation integration test exists.
-- No current two-session workbench test demonstrates routing and isolation.
-- Current packaging and scripts assume `frontend/vityo_app`.
+Use [the Better Plan execution runbook](../EXECUTION-RUNBOOK.md) for exact lifecycle transitions,
+remaining Node order, per-Node work phases, failure routing, and final-run semantics.

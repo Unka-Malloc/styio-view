@@ -1,8 +1,17 @@
 # Vityo Architecture Mainstream Alignment Report
 
-**Purpose:** Record the 2026-06-24 architecture alignment sprint outcomes, audit findings, gap closure status, and remaining work.
+**Purpose:** Preserve the 2026-06-24 architecture-alignment report as historical provenance; it does not describe the current Vityo product or Agent ownership model.
 
 **Last updated:** 2026-06-24
+
+**Archived:** 2026-07-30
+
+**Status:** Historical provenance. Current product and Agent ownership are defined by
+[Vityo Product Spec](../../design/Vityo-Product-Spec.md),
+[Vityo Agent-Native IDE Architecture](../../design/Vityo-Agent-Native-IDE-Architecture.md), and
+[ADR-0019](../../adr/ADR-0019-vityo-is-the-styio-agent-native-ide.md). References below to an
+embedded Agent, IDE-owned model provider, or the superseded Agent runtime architecture describe
+the repository at the time of the report only.
 
 ---
 

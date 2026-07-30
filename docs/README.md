@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 `docs/` 树的范围、入口和维护规则；具体主题分别由各目录下的 `README.md`、`INDEX.md` 和权威文档负责。
 
-**Last updated:** 2026-05-16
+**Last updated:** 2026-07-30
 
 ## Tree Contract
 
@@ -31,7 +31,7 @@
 6. 活跃缺口登记：[design/Vityo-Implementation-Gaps.md](./design/Vityo-Implementation-Gaps.md)
 7. 文档策略：[specs/DOCUMENTATION-POLICY.md](./specs/DOCUMENTATION-POLICY.md)
 8. 当前状态摘要：[rollups/CURRENT-STATE.md](./rollups/CURRENT-STATE.md)
-9. 双线计划入口：[plan/INDEX.md](./plan/INDEX.md)
+9. 单一 Vityo 产品的双交付轨道入口：[plan/INDEX.md](./plan/INDEX.md)
 10. ADR 入口：[adr/INDEX.md](./adr/INDEX.md)
 11. 产品合同入口：[contracts/INDEX.md](./contracts/INDEX.md)
 12. `styio` 对接入口：[external/for-styio/INDEX.md](./external/for-styio/INDEX.md)

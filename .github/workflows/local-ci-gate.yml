@@ -138,15 +138,15 @@ jobs:
       - name: Build real Pafio CLI
         working-directory: pafio-nightly
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
-          cmake --build build/default --target spio --config Release -j2
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DPAFIO_BUILD_TESTS=OFF
+          cmake --build build/default --target pafio --config Release -j2
 
       - name: Resolve Pafio executable
         id: pafio-bin
         shell: bash
         working-directory: pafio-nightly
         run: |
-          pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
+          pafio_path="$(find build/default -type f \( -name pafio -o -name pafio.exe \) | head -n 1)"
           if [[ -z "$pafio_path" ]]; then
             echo "No built Pafio executable found under build/default." >&2
             exit 1
@@ -444,15 +444,15 @@ jobs:
       - name: Build real Pafio CLI
         working-directory: pafio-nightly
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
-          cmake --build build/default --target spio --config Release -j2
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DPAFIO_BUILD_TESTS=OFF
+          cmake --build build/default --target pafio --config Release -j2
 
       - name: Resolve Pafio executable
         id: pafio-bin
         shell: bash
         working-directory: pafio-nightly
         run: |
-          pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
+          pafio_path="$(find build/default -type f \( -name pafio -o -name pafio.exe \) | head -n 1)"
           if [[ -z "$pafio_path" ]]; then
             echo "No built Pafio executable found under build/default." >&2
             exit 1
@@ -705,15 +705,15 @@ jobs:
       - name: Build real Pafio CLI
         working-directory: pafio-nightly
         run: |
-          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DSPIO_BUILD_TESTS=OFF
-          cmake --build build/default --target spio --config Release -j2
+          cmake -S . -B build/default -DCMAKE_BUILD_TYPE=Release -DPAFIO_BUILD_TESTS=OFF
+          cmake --build build/default --target pafio --config Release -j2
 
       - name: Resolve Pafio executable
         id: pafio-bin
         shell: bash
         working-directory: pafio-nightly
         run: |
-          pafio_path="$(find build/default -type f \( -name spio -o -name spio.exe \) | head -n 1)"
+          pafio_path="$(find build/default -type f \( -name pafio -o -name pafio.exe \) | head -n 1)"
           if [[ -z "$pafio_path" ]]; then
             echo "No built Pafio executable found under build/default." >&2
             exit 1

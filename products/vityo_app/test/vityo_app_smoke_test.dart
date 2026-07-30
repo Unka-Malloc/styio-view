@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_coding_session_controller.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_context.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_profile.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_adapter.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_configurator.dart';
 import 'package:vityo_app/src/frontend_shell/frontend_shell.dart';
 import 'package:vityo_app/src/ide/editor/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document_state.dart';
@@ -313,45 +308,6 @@ void main() {
     );
   }
 
-  AgentCodingSessionController createSmokeAgentController({
-    required PlatformTarget target,
-    required WorkspaceController workspaceController,
-    required EditorSessionController editorController,
-    required ValueNotifier<ToolchainManagerStatusReport> toolchainStatusReport,
-  }) {
-    final controller = AgentCodingSessionController(
-      profile: AgentPromptProfile.defaultForPlatform(target),
-      adapter: const LocalOnlyAgentProviderAdapter(),
-      contextProvider: () => AgentSessionContext.fromEditorState(
-        document: editorController.document,
-        selection: editorController.selection,
-        diagnostics: editorController.analysis.diagnostics,
-        hover: editorController.hoverAtSelection,
-        definition: editorController.definitionAtSelection,
-        references: editorController.referencesAtSelection,
-        completions: editorController.completionsAtSelection,
-        codeActions: editorController.contextActionsAtSelection,
-        workspaceFiles: workspaceController.files,
-        openDocumentIds: workspaceController.openFilePaths,
-        workspaceDocuments: <DocumentState>[editorController.document],
-        workspaceRoot: workspaceController.activeProject.workspaceRoot,
-        activeFilePath: workspaceController.activeFilePath,
-        toolchainSnapshot: toolchainStatusReport.value.snapshot,
-      ),
-    );
-    return controller;
-  }
-
-  AgentProviderConfigurator createSmokeAgentProviderConfigurator() {
-    return AgentProviderConfigurator(
-      workspaceId: 'smoke-workspace',
-      saveProfile: ({required workspaceId, required key, required profile}) {
-        return Future<void>.value();
-      },
-      createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
-    );
-  }
-
   Future<AppBootstrap> createBootstrap(
     PlatformTarget target, {
     ProjectGraphSnapshot? projectSnapshot,
@@ -441,13 +397,6 @@ void main() {
       runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: target),
       dependencySourceAdapter: const _FakeDependencySourceAdapter(),
       deploymentAdapter: const _FakeDeploymentAdapter(),
-      agentCodingController: createSmokeAgentController(
-        target: target,
-        workspaceController: workspaceController,
-        editorController: editorController,
-        toolchainStatusReport: toolchainStatusReport,
-      ),
-      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -678,13 +627,6 @@ void main() {
       runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: target),
       dependencySourceAdapter: const _LiveDependencySourceAdapter(),
       deploymentAdapter: const _LiveDeploymentAdapter(),
-      agentCodingController: createSmokeAgentController(
-        target: target,
-        workspaceController: workspaceController,
-        editorController: editorController,
-        toolchainStatusReport: toolchainStatusReport,
-      ),
-      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -768,10 +710,6 @@ fn blend(left: f64, right: f64): f64 {
     expect(find.byKey(const ValueKey('language-pane-desktop')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('editor-language-family-desktop')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('agent-surface-desktop')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('explorer-tree-scroll')), findsOneWidget);
@@ -1118,24 +1056,11 @@ fn blend(left: f64, right: f64): f64 {
 
     shell.selectBottomTab(BottomSurfaceTab.agent);
     await tester.pumpAndSettle();
-    final agentSurfaceScrollable = find.descendant(
-      of: find.byKey(const ValueKey('agent-surface-desktop')),
-      matching: find.byType(Scrollable),
+    expect(
+      find.byKey(const ValueKey('agent-workbench-surface')),
+      findsOneWidget,
     );
-    await tester.scrollUntilVisible(
-      find.text('Mounted Adapters And Slots'),
-      120,
-      scrollable: agentSurfaceScrollable.first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Mounted Adapters And Slots'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Smoke Agent Prompts'),
-      120,
-      scrollable: agentSurfaceScrollable.first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Smoke Agent Prompts'), findsWidgets);
+    expect(find.textContaining('No Agent is connected'), findsOneWidget);
   });
 
   testWidgets('renders module sidebar in mobile viewport family', (

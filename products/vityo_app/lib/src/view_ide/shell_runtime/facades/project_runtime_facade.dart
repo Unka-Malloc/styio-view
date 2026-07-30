@@ -32,10 +32,6 @@ mixin ShellRuntimeProjectRuntimeFacade on ShellRuntimeFacadeHost {
   DeploymentCommandResult? get lastDeploymentCommand =>
       _deploymentController.lastCommand;
 
-  Future<NativeToolCommandResult> _runNativeToolCommand(
-    NativeToolCommand command,
-  ) => _nativeToolRuntimeController.run(command);
-
   bool openFirstNativeToolDiagnostic(AppCommandId commandId) =>
       _nativeToolRuntimeController.openFirstDiagnostic(commandId);
 

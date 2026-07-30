@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../view_ide/agent_client/agent_context.dart';
 import '../../ide/workspace/workspace.dart';
 import '../platform/viewport_profile.dart';
 
@@ -12,6 +11,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
     this.workspaceFiles = const <String>[],
     this.lastSearch,
     this.lastSymbolSearch,
+    this.lastSearchQuery,
+    this.lastSearchScannedDocumentCount = 0,
     this.lastReplacePreview,
     this.lastReplacePreviewWindow,
     this.searchIndex,
@@ -30,8 +31,10 @@ class WorkspaceSearchSurface extends StatefulWidget {
   final ViewportProfile viewportProfile;
   final int workspaceFileCount;
   final List<String> workspaceFiles;
-  final AgentWorkspaceSearchResultContext? lastSearch;
-  final AgentWorkspaceSymbolSearchResultContext? lastSymbolSearch;
+  final WorkspaceSearchResult? lastSearch;
+  final WorkspaceSymbolSearchResult? lastSymbolSearch;
+  final String? lastSearchQuery;
+  final int lastSearchScannedDocumentCount;
   final WorkspaceReplacePreview? lastReplacePreview;
   final WorkspaceReplacePreviewWindow? lastReplacePreviewWindow;
   final WorkspaceSearchIndex? searchIndex;
@@ -46,10 +49,8 @@ class WorkspaceSearchSurface extends StatefulWidget {
   onApplyReplacePreview;
   final Future<void> Function(String documentId)?
   onToggleReplaceDocumentExpansion;
-  final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
-  onOpenMatch;
-  final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
-  onOpenSymbolMatch;
+  final Future<void> Function(WorkspaceSearchMatch match)? onOpenMatch;
+  final Future<void> Function(WorkspaceSymbolMatch match)? onOpenSymbolMatch;
 
   @override
   State<WorkspaceSearchSurface> createState() => _WorkspaceSearchSurfaceState();
@@ -69,7 +70,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   void initState() {
     super.initState();
     _queryController = TextEditingController(
-      text: widget.lastSearch?.query ?? '',
+      text: widget.lastSearchQuery ?? '',
     );
     _quickOpenController = TextEditingController();
     _replaceController = TextEditingController();
@@ -78,7 +79,7 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
   @override
   void didUpdateWidget(covariant WorkspaceSearchSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final nextQuery = widget.lastSearch?.query;
+    final nextQuery = widget.lastSearchQuery;
     if (nextQuery != null &&
         nextQuery.isNotEmpty &&
         _queryController.text != nextQuery) {
@@ -384,14 +385,18 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             else
               _WorkspaceSearchResultView(
                 result: lastSearch,
+                query: widget.lastSearchQuery ?? '',
+                scannedDocumentCount: widget.lastSearchScannedDocumentCount,
                 onOpenMatch: widget.onOpenMatch,
               ),
             if (lastSymbolSearch != null) ...[
               const SizedBox(height: 12),
               _WorkspaceSymbolSearchResultView(
-                result: lastSymbolSearch,
-                onOpenMatch: widget.onOpenSymbolMatch,
-              ),
+                  result: lastSymbolSearch,
+                  query: widget.lastSearchQuery ?? '',
+                  scannedDocumentCount: widget.lastSearchScannedDocumentCount,
+                  onOpenMatch: widget.onOpenSymbolMatch,
+                ),
             ],
           ],
         ),
@@ -437,12 +442,15 @@ class _WorkspaceSearchHistoryView extends StatelessWidget {
 class _WorkspaceSymbolSearchResultView extends StatelessWidget {
   const _WorkspaceSymbolSearchResultView({
     required this.result,
+    required this.query,
+    required this.scannedDocumentCount,
     required this.onOpenMatch,
   });
 
-  final AgentWorkspaceSymbolSearchResultContext result;
-  final Future<void> Function(AgentWorkspaceSymbolMatchContext match)?
-  onOpenMatch;
+  final WorkspaceSymbolSearchResult result;
+  final String query;
+  final int scannedDocumentCount;
+  final Future<void> Function(WorkspaceSymbolMatch match)? onOpenMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -455,10 +463,10 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
           spacing: 10,
           runSpacing: 8,
           children: [
-            Chip(label: Text('symbols ${result.matchCount}')),
-            Chip(label: Text('symbol query ${result.query}')),
-            Chip(label: Text('symbol scanned ${result.scannedDocumentCount}')),
-            Chip(label: Text('symbol truncated ${result.matchesTruncated}')),
+            Chip(label: Text('symbols ${result.matches.length}')),
+            Chip(label: Text('symbol query $query')),
+            Chip(label: Text('symbol scanned $scannedDocumentCount')),
+            Chip(label: Text('symbol truncated ${result.truncated}')),
           ],
         ),
         const SizedBox(height: 10),
@@ -477,7 +485,7 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
                 final match = result.matches[index];
                 return ListTile(
                   key: ValueKey(
-                    'workspace-symbol-search-match-${match.documentId}-${match.name}-${match.start}',
+                    'workspace-symbol-search-match-${match.documentId}-${match.name}-${match.nameRange.start}',
                   ),
                   dense: true,
                   title: Text('${match.name} · ${match.kind}'),
@@ -671,12 +679,15 @@ String _workspaceReplacePreviewSnippet(String text, {int maxLength = 96}) {
 class _WorkspaceSearchResultView extends StatelessWidget {
   const _WorkspaceSearchResultView({
     required this.result,
+    required this.query,
+    required this.scannedDocumentCount,
     required this.onOpenMatch,
   });
 
-  final AgentWorkspaceSearchResultContext result;
-  final Future<void> Function(AgentWorkspaceSearchMatchContext match)?
-  onOpenMatch;
+  final WorkspaceSearchResult result;
+  final String query;
+  final int scannedDocumentCount;
+  final Future<void> Function(WorkspaceSearchMatch match)? onOpenMatch;
 
   @override
   Widget build(BuildContext context) {
@@ -689,10 +700,10 @@ class _WorkspaceSearchResultView extends StatelessWidget {
           spacing: 10,
           runSpacing: 8,
           children: [
-            Chip(label: Text('query ${result.query}')),
-            Chip(label: Text('matches ${result.matchCount}')),
-            Chip(label: Text('scanned ${result.scannedDocumentCount}')),
-            Chip(label: Text('truncated ${result.matchesTruncated}')),
+            Chip(label: Text('query $query')),
+            Chip(label: Text('matches ${result.matches.length}')),
+            Chip(label: Text('scanned $scannedDocumentCount')),
+            Chip(label: Text('truncated ${result.truncated}')),
           ],
         ),
         const SizedBox(height: 10),
@@ -711,7 +722,7 @@ class _WorkspaceSearchResultView extends StatelessWidget {
                 final match = result.matches[index];
                 return ListTile(
                   key: ValueKey(
-                    'workspace-search-match-${match.documentId}-${match.lineNumber}-${match.start}',
+                    'workspace-search-match-${match.documentId}-${match.lineNumber}-${match.range.start}',
                   ),
                   dense: true,
                   title: Text(match.documentId),

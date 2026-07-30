@@ -13,16 +13,23 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import Mapping
+
+_SCRIPTS_DIR = pathlib.Path(__file__).resolve().parent
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from vityo_validation_receipt import (
+    SUPPORTED_HOST_PLATFORMS,
     ValidationReceiptError,
+    build_ide_failure_receipt,
     build_ide_receipt,
     validate_full_suite_plan,
     write_receipt_atomic,
 )
 
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = _SCRIPTS_DIR.parent
 
 
 @dataclasses.dataclass(frozen=True)
@@ -74,10 +81,15 @@ _FINGERPRINT_ROOTS = (
     "products/vityo_app/benchmark",
     "packages/vityo_agent_protocol/lib",
     "packages/vityo_agent_protocol/test",
+    "packages/vityo_agent_protocol/schema",
+    "tests/acceptance/vityo_app",
     "scripts",
     "packaging",
     ".github/workflows",
 )
+_PROTOCOL_SCHEMA_ROOT = "packages/vityo_agent_protocol/schema"
+_ACCEPTANCE_FIXTURES_ROOT = "tests/acceptance/vityo_app"
+_IDE_FULL_REQUIRED_TOOLS = ("dart", "flutter")
 _AGENT_FINGERPRINT_ROOTS = (
     "products/vityo_coding_agent",
     "packages/vityo_agent_protocol",
@@ -800,9 +812,7 @@ def full_suite_plan() -> list[dict[str, str]]:
     return plan
 
 
-def _source_fingerprint(
-    roots: tuple[str, ...] = _FINGERPRINT_ROOTS,
-) -> str:
+def _digest_roots(roots: tuple[str, ...]) -> str:
     digest = hashlib.sha256()
     for root_name in roots:
         root = ROOT / root_name
@@ -825,6 +835,20 @@ def _source_fingerprint(
                     digest.update(chunk)
             digest.update(b"\0")
     return digest.hexdigest()
+
+
+def _source_fingerprint(
+    roots: tuple[str, ...] = _FINGERPRINT_ROOTS,
+) -> str:
+    return _digest_roots(roots)
+
+
+def _protocol_schema_digest() -> str:
+    return _digest_roots((_PROTOCOL_SCHEMA_ROOT,))
+
+
+def _acceptance_fixtures_digest() -> str:
+    return _digest_roots((_ACCEPTANCE_FIXTURES_ROOT,))
 
 
 def _head_commit() -> str:
@@ -852,95 +876,367 @@ def _host_platform() -> str:
     }.get(sys.platform, sys.platform)
 
 
-def _run_plan_validation() -> int:
-    manifest_tool = ROOT.parent / "better-plan" / "scripts" / "manifest_tool.py"
-    commands = (
-        [sys.executable, str(manifest_tool), "validate", "docs/plan"],
-        [sys.executable, str(manifest_tool), "check-labels", "docs/plan"],
+def _source_tree_dirty(
+    roots: tuple[str, ...] = _FINGERPRINT_ROOTS,
+) -> bool:
+    completed = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=normal", "--", *roots],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
     )
-    for command in commands:
-        result = run(command)
-        if result:
-            return result
-    return 0
+    if completed.returncode != 0:
+        raise ValidationReceiptError(
+            "dirty_candidate",
+            "unable to determine whether source-bearing paths are clean",
+        )
+    return bool(completed.stdout.strip())
+
+
+def _resolve_required_tools() -> None:
+    for name in _IDE_FULL_REQUIRED_TOOLS:
+        if shutil.which(name) is None:
+            raise ValidationReceiptError(
+                "tool_unavailable",
+                f"required tool is not available on PATH: {name}",
+            )
+
+
+def _verify_fingerprint_inputs() -> None:
+    for root_name in (
+        *_FINGERPRINT_ROOTS,
+        _PROTOCOL_SCHEMA_ROOT,
+        _ACCEPTANCE_FIXTURES_ROOT,
+    ):
+        if not (ROOT / root_name).exists():
+            raise ValidationReceiptError(
+                "source_path_missing",
+                f"required validation path is missing: {root_name}",
+            )
+
+
+def _receipt_destination_usable(destination: pathlib.Path) -> None:
+    parent = destination.parent
+    if not parent.exists() or not parent.is_dir():
+        raise ValidationReceiptError(
+            "receipt_destination_unavailable",
+            "receipt destination parent is not an existing directory",
+        )
+    if not os.access(parent, os.W_OK | os.X_OK):
+        raise ValidationReceiptError(
+            "receipt_destination_unavailable",
+            "receipt destination parent is not writable",
+        )
+    if destination.exists():
+        if not destination.is_file():
+            raise ValidationReceiptError(
+                "receipt_destination_unavailable",
+                "receipt destination exists and is not a replaceable file",
+            )
+        if not os.access(destination, os.W_OK):
+            raise ValidationReceiptError(
+                "receipt_destination_unavailable",
+                "receipt destination is not writable",
+            )
+
+
+def _existing_duplicate_receipt(
+    destination: pathlib.Path,
+    *,
+    commit: str,
+    source_fingerprint: str,
+) -> bool:
+    if not destination.is_file():
+        return False
+    try:
+        payload = json.loads(destination.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict):
+        return False
+    return (
+        payload.get("commit") == commit
+        and payload.get("source_fingerprint") == source_fingerprint
+    )
+
+
+def _placeholder_outcomes(
+    failure_code: str,
+) -> dict[str, dict[str, object]]:
+    return {
+        entry.requirement: {
+            "status": "failed",
+            "suite": entry.suite,
+            "duration_ms": 0,
+            "failure_code": failure_code,
+        }
+        for entry in FULL_IDE_PLAN
+    }
+
+
+def _print_json(payload: Mapping[str, object]) -> None:
+    print(
+        json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=False,
+        )
+    )
+
+
+def _preflight_ide_full(receipt_path: pathlib.Path) -> dict[str, object]:
+    plan: list[dict[str, str]] = []
+    checks: list[dict[str, object]] = []
+    failure_code: str | None = None
+    commit: str | None = None
+    platform: str | None = None
+    source_fingerprint: str | None = None
+    protocol_digest: str | None = None
+    fixtures_digest: str | None = None
+
+    def record(name: str, action) -> None:
+        nonlocal failure_code
+        try:
+            action()
+            checks.append({"name": name, "status": "passed"})
+        except ValidationReceiptError as error:
+            checks.append(
+                {
+                    "name": name,
+                    "status": "failed",
+                    "failure_code": error.code,
+                }
+            )
+            if failure_code is None:
+                failure_code = error.code
+
+    def check_requirement_mapping() -> None:
+        nonlocal plan
+        plan = full_suite_plan()
+
+    def check_source_paths() -> None:
+        _verify_fingerprint_inputs()
+
+    def check_tools() -> None:
+        _resolve_required_tools()
+
+    def check_host() -> None:
+        nonlocal platform
+        platform = _host_platform()
+        if platform not in SUPPORTED_HOST_PLATFORMS:
+            raise ValidationReceiptError(
+                "unsupported_host",
+                "validation platform is unsupported",
+            )
+
+    def check_commit() -> None:
+        nonlocal commit
+        commit = _head_commit()
+        if _source_tree_dirty():
+            raise ValidationReceiptError(
+                "dirty_candidate",
+                "source-bearing paths differ from the candidate commit",
+            )
+
+    def check_digests() -> None:
+        nonlocal source_fingerprint, protocol_digest, fixtures_digest
+        source_fingerprint = _source_fingerprint()
+        protocol_digest = _protocol_schema_digest()
+        fixtures_digest = _acceptance_fixtures_digest()
+
+    def check_duplicate() -> None:
+        if commit is None or source_fingerprint is None:
+            raise ValidationReceiptError(
+                failure_code or "validation_harness_failed",
+                "duplicate inspection requires commit and source fingerprint",
+            )
+        if _existing_duplicate_receipt(
+            receipt_path,
+            commit=commit,
+            source_fingerprint=source_fingerprint,
+        ):
+            raise ValidationReceiptError(
+                "duplicate_candidate_receipt",
+                "destination already records this commit and fingerprint",
+            )
+
+    def check_destination() -> None:
+        _receipt_destination_usable(receipt_path)
+
+    record("requirement_mapping", check_requirement_mapping)
+    record("source_paths", check_source_paths)
+    record("tools", check_tools)
+    record("host", check_host)
+    record("commit", check_commit)
+    record("digests", check_digests)
+    record("duplicate_receipt", check_duplicate)
+    record("receipt_destination", check_destination)
+
+    if not plan:
+        try:
+            plan = [
+                {
+                    "requirement": entry.requirement,
+                    "suite": entry.suite,
+                    "runner": entry.runner_name,
+                }
+                for entry in FULL_IDE_PLAN
+            ]
+        except Exception:
+            plan = []
+
+    ready = failure_code is None
+    report: dict[str, object] = {
+        "schema_version": 1,
+        "product": "vityo",
+        "suite": "full",
+        "mode": "preflight",
+        "ready": ready,
+        "requirements": plan,
+        "checks": checks,
+        "failure_code": failure_code,
+        "commit": commit,
+        "platform": platform,
+        "source_fingerprint": source_fingerprint,
+        "protocol_schema_sha256": protocol_digest,
+        "acceptance_fixtures_sha256": fixtures_digest,
+    }
+    return report
+
+
+def _write_formal_receipt(
+    receipt_path: pathlib.Path,
+    payload: Mapping[str, object],
+) -> int:
+    try:
+        write_receipt_atomic(receipt_path, payload)
+    except Exception:
+        _print_json(
+            {
+                "schema_version": 1,
+                "product": "vityo",
+                "suite": "full",
+                "status": "failed",
+                "failure_code": "receipt_write_failed",
+            }
+        )
+        return 1
+    return 0 if payload.get("status") == "passed" else 1
+
+
+def _ide_full_formal(receipt_path: pathlib.Path) -> int:
+    commit: str | None = None
+    platform: str | None = None
+    source_fingerprint: str | None = None
+    protocol_digest: str | None = None
+    fixtures_digest: str | None = None
+    outcomes = _placeholder_outcomes("validation_harness_failed")
+    suites_started = False
+    try:
+        validate_full_suite_plan(full_suite_plan())
+        platform = _host_platform()
+        if platform not in SUPPORTED_HOST_PLATFORMS:
+            raise ValidationReceiptError(
+                "unsupported_host",
+                "validation platform is unsupported",
+            )
+        commit = _head_commit()
+        source_fingerprint = _source_fingerprint()
+        protocol_digest = _protocol_schema_digest()
+        fixtures_digest = _acceptance_fixtures_digest()
+        outcomes = {}
+        suite_failed = False
+        suites_started = True
+        for entry in FULL_IDE_PLAN:
+            started = time.monotonic()
+            runner = globals()[entry.runner_name]
+            try:
+                exit_code = int(runner())
+            except Exception:
+                exit_code = 1
+            duration_ms = max(
+                0,
+                round((time.monotonic() - started) * 1000),
+            )
+            if exit_code == 0:
+                outcomes[entry.requirement] = {
+                    "status": "passed",
+                    "suite": entry.suite,
+                    "duration_ms": duration_ms,
+                }
+            else:
+                suite_failed = True
+                outcomes[entry.requirement] = {
+                    "status": "failed",
+                    "suite": entry.suite,
+                    "duration_ms": duration_ms,
+                    "failure_code": "suite_failed",
+                }
+        end_fingerprint = _source_fingerprint()
+        payload = build_ide_receipt(
+            start_fingerprint=source_fingerprint,
+            end_fingerprint=end_fingerprint,
+            commit=commit,
+            platform=platform,
+            outcomes=outcomes,
+            protocol_schema_sha256=protocol_digest,
+            acceptance_fixtures_sha256=fixtures_digest,
+            failure_code="suite_failed" if suite_failed else None,
+        )
+    except ValidationReceiptError as error:
+        if not suites_started:
+            outcomes = _placeholder_outcomes(error.code)
+        payload = build_ide_failure_receipt(
+            failure_code=error.code,
+            commit=commit,
+            platform=platform,
+            source_fingerprint=source_fingerprint,
+            protocol_schema_sha256=protocol_digest,
+            acceptance_fixtures_sha256=fixtures_digest,
+            outcomes=outcomes,
+        )
+    except Exception:
+        if not suites_started:
+            outcomes = _placeholder_outcomes("validation_harness_failed")
+        payload = build_ide_failure_receipt(
+            failure_code="validation_harness_failed",
+            commit=commit,
+            platform=platform,
+            source_fingerprint=source_fingerprint,
+            protocol_schema_sha256=protocol_digest,
+            acceptance_fixtures_sha256=fixtures_digest,
+            outcomes=outcomes,
+        )
+    return _write_formal_receipt(receipt_path, payload)
 
 
 def ide_full(
     *,
     plan_only: bool,
+    preflight: bool,
     receipt_path: pathlib.Path,
 ) -> int:
+    if plan_only and preflight:
+        raise ValueError("plan_only and preflight are mutually exclusive")
     plan = full_suite_plan()
     if plan_only:
-        print(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "product": "vityo",
-                    "suite": "full",
-                    "mode": "plan_only",
-                    "requirements": plan,
-                    "final_checks": [
-                        "better-plan/validate",
-                        "better-plan/check-labels",
-                    ],
-                },
-                indent=2,
-                sort_keys=True,
-            )
+        _print_json(
+            {
+                "schema_version": 1,
+                "product": "vityo",
+                "suite": "full",
+                "mode": "plan_only",
+                "requirements": plan,
+            }
         )
         return 0
-
-    start_fingerprint = _source_fingerprint()
-    commit = _head_commit()
-    outcomes: dict[str, dict[str, object]] = {}
-    for entry in FULL_IDE_PLAN:
-        started = time.monotonic()
-        runner = globals()[entry.runner_name]
-        try:
-            exit_code = int(runner())
-        except Exception:
-            exit_code = 1
-        outcomes[entry.requirement] = {
-            "status": "passed" if exit_code == 0 else "failed",
-            "suite": entry.suite,
-            "duration_ms": max(
-                0,
-                round((time.monotonic() - started) * 1000),
-            ),
-        }
-
-    plan_validation_exit = _run_plan_validation()
-    if plan_validation_exit:
-        outcomes["REQ-IDE-001"] = {
-            **outcomes["REQ-IDE-001"],
-            "status": "failed",
-            "plan_validation": "failed",
-        }
-    end_fingerprint = _source_fingerprint()
-    try:
-        payload = build_ide_receipt(
-            start_fingerprint=start_fingerprint,
-            end_fingerprint=end_fingerprint,
-            commit=commit,
-            platform=_host_platform(),
-            outcomes=outcomes,
-        )
-    except ValidationReceiptError as error:
-        payload = {
-            "schema_version": 1,
-            "product": "vityo",
-            "suite": "full",
-            "status": "failed",
-            "failure_code": error.code,
-            "commit": commit,
-            "platform": _host_platform(),
-            "start_fingerprint": start_fingerprint,
-            "end_fingerprint": end_fingerprint,
-            "requirements": outcomes,
-        }
-    write_receipt_atomic(receipt_path, payload)
-    return 0 if payload.get("status") == "passed" else 1
+    if preflight:
+        report = _preflight_ide_full(receipt_path)
+        _print_json(report)
+        return 0 if report.get("ready") else 1
+    return _ide_full_formal(receipt_path)
 
 
 def coding_agent_full(*, receipt_path: pathlib.Path) -> int:
@@ -986,7 +1282,6 @@ def _coding_agent_full_inner(*, receipt_path: pathlib.Path) -> int:
             ),
         }
 
-    plan_validation_exit = _run_plan_validation()
     end_fingerprint = _source_fingerprint(_AGENT_FINGERPRINT_ROOTS)
     stable = start_fingerprint == end_fingerprint
     all_passed = all(
@@ -996,19 +1291,12 @@ def _coding_agent_full_inner(*, receipt_path: pathlib.Path) -> int:
         "schema_version": 1,
         "product": "vityo_coding_agent",
         "suite": "full",
-        "status": (
-            "passed"
-            if all_passed and plan_validation_exit == 0 and stable
-            else "failed"
-        ),
+        "status": "passed" if all_passed and stable else "failed",
         "commit": commit,
         "platform": _host_platform(),
         "start_fingerprint": start_fingerprint,
         "end_fingerprint": end_fingerprint,
         "requirements": outcomes,
-        "plan_validation": (
-            "passed" if plan_validation_exit == 0 else "failed"
-        ),
         "protocol_schema_sha256": hashlib.sha256(
             (
                 ROOT
@@ -1038,14 +1326,19 @@ def main() -> int:
     parser.add_argument("--product", required=True)
     parser.add_argument("--suite", required=True)
     parser.add_argument("--plan-only", action="store_true")
+    parser.add_argument("--preflight", action="store_true")
     parser.add_argument(
         "--receipt",
         type=pathlib.Path,
         default=None,
     )
     args = parser.parse_args()
+    if args.plan_only and args.preflight:
+        parser.error("--plan-only and --preflight are mutually exclusive")
     if args.plan_only and (args.product, args.suite) != ("ide", "full"):
         parser.error("--plan-only is supported only for ide/full")
+    if args.preflight and (args.product, args.suite) != ("ide", "full"):
+        parser.error("--preflight is supported only for ide/full")
     if (args.product, args.suite) == ("ide", "source-fingerprint"):
         print(_source_fingerprint())
         return 0
@@ -1097,6 +1390,7 @@ def main() -> int:
         )
         return ide_full(
             plan_only=args.plan_only,
+            preflight=args.preflight,
             receipt_path=receipt.resolve(),
         )
     parser.error(f"unsupported suite: {args.product}/{args.suite}")

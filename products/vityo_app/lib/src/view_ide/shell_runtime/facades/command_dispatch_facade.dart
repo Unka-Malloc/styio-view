@@ -23,32 +23,29 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
         return;
       case AppCommandId.refreshWorkspaceDiagnostics:
         final snapshot = await refreshWorkspaceDiagnostics();
-        _recordAgentIdeCommandResult(
-          AgentIdeCommandSuggestion(commandId: commandId.name),
-          applied: _workspaceDiagnosticsRuntimeController.available,
-          message: _workspaceDiagnosticsRefreshMessage(snapshot),
-          metadata: <String, Object?>{
-            'workspaceDiagnostics': snapshot.toJson(),
-          },
-        );
+        appendLog(_workspaceDiagnosticsRefreshMessage(snapshot));
         return;
       case AppCommandId.refreshSourceControl:
+        final status = await _sourceControlController.refreshStatus();
+        appendLog(_sourceControlController.refreshMessage(status));
+        return;
       case AppCommandId.previewSourceControlDiff:
+        final diff = await _sourceControlController.previewDiff(
+          workspaceController.activeFilePath,
+        );
+        appendLog(_sourceControlController.diffPreviewMessage(diff));
+        return;
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
       case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.planSourceControlCommitDraft:
-        await _agentSourceControlCommandController.executeOrdinary(commandId);
+      case AppCommandId.runTestConfiguration:
+      case AppCommandId.debugTestConfiguration:
+        _shellCommandFallbackController.execute(commandId);
         return;
-      case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
-        await _agentContextCommandController.executeOrdinary(commandId);
-        return;
-      case AppCommandId.retryAgentProvider:
-      case AppCommandId.replayAgentPrompt:
-        await _agentProviderRecoveryCommandController.apply(
-          AgentIdeCommandSuggestion(commandId: commandId.name),
-        );
+        await _projectLanguageContextController.collect();
+        appendLog('Project language context collected.');
         return;
       case AppCommandId.run:
         await _executionController.run(
@@ -67,15 +64,13 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
         await vendorDependencies();
         return;
       case AppCommandId.executeToolchainInstallPlan:
-        await _agentToolchainCommandController.apply(
-          AgentIdeCommandSuggestion(commandId: commandId.name),
-        );
+        await _toolchainController.executeLastInstallPlan();
         return;
       case AppCommandId.packProject:
-        await packProject();
+        await _deploymentController.packProject();
         return;
       case AppCommandId.preparePublish:
-        await preparePublish();
+        await _deploymentController.preparePublish();
         return;
       case AppCommandId.nextDiagnostic:
       case AppCommandId.previousDiagnostic:
@@ -104,25 +99,31 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
         await _editorQuickFixCommandController.execute(commandId);
         return;
       case AppCommandId.applyWorkspaceReplace:
-        await _agentWorkspaceReplaceCommandController.apply(
-          AgentIdeCommandSuggestion(commandId: commandId.name),
-        );
+        final preview = _workspaceReplaceController.lastPreview;
+        if (preview == null) {
+          appendLog('Apply Workspace Replace skipped: no preview is available.');
+          return;
+        }
+        await _workspaceReplaceController.apply(preview);
         return;
       case AppCommandId.runBuild:
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
-        await _agentNativeToolCommandController.executeOrdinary(commandId);
+        final result = await _nativeToolRuntimeController.run(
+          NativeToolCommand.fromAppCommandId(commandId),
+        );
+        appendLog(result.message);
         return;
       case AppCommandId.rerunFailedTests:
+        await _testingController.rerunFailed();
+        return;
       case AppCommandId.debugFailedTests:
-      case AppCommandId.runTestConfiguration:
-      case AppCommandId.debugTestConfiguration:
-        await _agentTestingCommandController.executeOrdinary(commandId);
+        await _testingController.debugFailed();
         return;
       case AppCommandId.safeDelete:
       case AppCommandId.inlineVariable:
-        _agentRefactorCommandController.executeEditorCommand(commandId);
+        _shellCommandFallbackController.execute(commandId);
         return;
       case AppCommandId.refreshModules:
         await _moduleController.refresh();

@@ -1,12 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart';
-import 'package:vityo_app/src/ide/editor/document_state.dart';
-import 'package:vityo_app/src/ide/editor/selection_state.dart';
-import 'package:vityo_app/src/view_ide/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
@@ -189,75 +183,4 @@ void main() {
     });
   });
 
-  group('Agent context redaction', () {
-    test('minimizer removes emails, private paths, and cloud session ids', () {
-      const minimizer = AgentContextMinimizer();
-      final minimized = minimizer.minimize(
-        'contact ada@example.com\n'
-        'path /home/ada/project/private.styio\n'
-        'cloud-session-id-abcdef123456\n'
-        'Authorization: Bearer bearer-token-123456\n',
-      );
-
-      expect(minimized, isNot(contains('ada@example.com')));
-      expect(minimized, isNot(contains('/home/ada')));
-      expect(minimized, isNot(contains('cloud-session-id-abcdef123456')));
-      expect(minimized, isNot(contains('bearer-token-123456')));
-      expect(minimized, contains('<redacted-email>'));
-      expect(minimized, contains('<redacted-path>'));
-    });
-
-    test('session context JSON redacts document, runtime, and workspace data', () {
-      final context = AgentSessionContext.fromEditorState(
-        document: const DocumentState(
-          documentId: '/home/alice/private/main.styio',
-          text: 'OPENAI_API_KEY=sk-proj-agentsecret123456\n'
-              'owner=ada@example.com\n',
-          revision: 1,
-        ),
-        selection: const SelectionState.collapsed(0),
-        diagnostics: const <Diagnostic>[],
-        workspaceRoot: '/home/alice/private',
-        workspaceFiles: const <String>['/home/alice/private/main.styio'],
-        openDocumentIds: const <String>['/home/alice/private/main.styio'],
-        lastExecutionSession: const ExecutionSession(
-          sessionId: 'run-tail',
-          kind: 'run',
-          status: ExecutionSessionStatus.succeeded,
-          statusMessage: 'Authorization: Bearer status-token-123456',
-          diagnostics: <Diagnostic>[],
-          stdoutEvents: <ExecutionLogEvent>[
-            ExecutionLogEvent(
-              message: 'Authorization: Bearer stdout-token-123456',
-            ),
-          ],
-          stderrEvents: <ExecutionLogEvent>[
-            ExecutionLogEvent(
-              message:
-                  'contact ada@example.com at /home/alice/.codex/auth.json '
-                  'cloud-session-id-abcdef123456',
-            ),
-          ],
-        ),
-      );
-
-      final json = context.toJson();
-      final encoded = jsonEncode(json);
-      final runtime = json['runtime']! as Map<String, Object?>;
-      final workspace = json['workspace']! as Map<String, Object?>;
-
-      expect(runtime['statusMessage'], 'Authorization: Bearer <redacted>');
-      expect(
-        runtime['stdoutTail'],
-        <String>['Authorization: Bearer <redacted>'],
-      );
-      expect(workspace['workspaceRoot'], '<redacted-path>');
-      expect(encoded, isNot(contains('sk-proj-agentsecret123456')));
-      expect(encoded, isNot(contains('status-token-123456')));
-      expect(encoded, isNot(contains('stdout-token-123456')));
-      expect(encoded, isNot(contains('ada@example.com')));
-      expect(encoded, isNot(contains('/home/alice')));
-      expect(encoded, isNot(contains('cloud-session-id-abcdef123456')));
-    });
-  });
 }

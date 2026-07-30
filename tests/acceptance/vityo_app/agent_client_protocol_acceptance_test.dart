@@ -6,6 +6,8 @@ import 'package:vityo_agent_protocol/vityo_agent_protocol.dart';
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
 
 Future<void> main() async {
+  _protocolOnlyBoundaryRemovesLegacyOwnership();
+  _compositionAndMetadataAgreeOnProtocolOnlyBoundary();
   await _canonicalAcpV1ContractReplacesPrivateEnvelope();
   await _negotiationConcurrentStreamingPermissionAndCancellation();
   await _dynamicCapabilityRevocationAndReconnect();
@@ -81,23 +83,232 @@ Future<void> _canonicalAcpV1ContractReplacesPrivateEnvelope() async {
       '../../../packages/vityo_agent_protocol/lib/src/protocol.dart',
     ),
   ).readAsString();
-  final formerClientSource = await File.fromUri(
-    Platform.script.resolve(
-      '../../../products/vityo_app/lib/src/view_ide/agent_client/'
-      'protocol_agent_client.dart',
-    ),
-  ).readAsString();
   for (final retiredSymbol in <String>[
     'AgentSessionEnvelope',
     'AgentClientConnection',
   ]) {
     _expect(
-      !protocolSource.contains(retiredSymbol) &&
-          !formerClientSource.contains(retiredSymbol),
+      !protocolSource.contains(retiredSymbol),
       '$retiredSymbol must be removed rather than retained as compatibility',
     );
   }
 }
+
+/// Node criterion 0 / one-time removed-path and symbol scan.
+///
+/// Precondition: the executor deleted legacy IDE-owned Agent runtime subtrees.
+/// Action: inventory canonical paths, shell controllers, production symbols,
+/// and legacy compatibility tests.
+/// Oracle: every retired path is absent, every retired symbol is absent from
+/// production Dart, and only canonical contract tests remain under test/agent_*.
+void _protocolOnlyBoundaryRemovesLegacyOwnership() {
+  final repository = _repositoryRoot();
+  final product = Directory.fromUri(
+    repository.uri.resolve('products/vityo_app/'),
+  );
+  for (final retiredPath in const <String>[
+    'lib/src/view_ide/agent_client',
+    'lib/src/view_render/agent_workbench',
+  ]) {
+    _expect(
+      !Directory.fromUri(product.uri.resolve('$retiredPath/')).existsSync(),
+      '$retiredPath must be deleted rather than aliased',
+    );
+  }
+
+  final shellRuntime = Directory.fromUri(
+    product.uri.resolve('lib/src/view_ide/shell_runtime/'),
+  );
+  _expect(shellRuntime.existsSync(), 'shell_runtime must remain');
+  final legacyShellControllers = shellRuntime
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where(
+        (entry) =>
+            entry.path.endsWith('.dart') &&
+            entry.uri.pathSegments.last.startsWith('agent_'),
+      )
+      .map((entry) => entry.path)
+      .toList(growable: false);
+  _expect(
+    legacyShellControllers.isEmpty,
+    'shell_runtime must not retain agent_* controllers or facades',
+  );
+
+  const retiredSymbols = <String>[
+    'AgentCodingSessionController',
+    'NetworkAgentProviderTransport',
+    'ConfiguredAgentProviderAdapterFactory',
+    'AgentCodingToolLoopRuntime',
+    'AgentProviderConfigurator',
+    'AgentPromptProfile',
+    'LocalOnlyAgentProviderAdapter',
+  ];
+  final productionRoot = Directory.fromUri(product.uri.resolve('lib/src/'));
+  for (final file in productionRoot
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((entry) => entry.path.endsWith('.dart'))) {
+    final source = file.readAsStringSync();
+    for (final symbol in retiredSymbols) {
+      _expect(
+        !source.contains(symbol),
+        '${file.path} must not reference retired symbol $symbol',
+      );
+    }
+  }
+
+  final testRoot = Directory.fromUri(product.uri.resolve('test/'));
+  final legacyRootTests = testRoot
+      .listSync(recursive: false)
+      .whereType<File>()
+      .where(
+        (entry) =>
+            entry.path.endsWith('.dart') &&
+            (entry.uri.pathSegments.last.startsWith('agent_') ||
+                entry.uri.pathSegments.last ==
+                    'extension_agent_provider_contributions_test.dart'),
+      )
+      .map((entry) => entry.path)
+      .toList(growable: false);
+  _expect(
+    legacyRootTests.isEmpty,
+    'legacy provider/controller root tests must be deleted with their subjects',
+  );
+
+  final presentationRoot = Directory.fromUri(
+    product.uri.resolve('lib/src/presentation/agent_workbench/'),
+  );
+  _expect(presentationRoot.existsSync(), 'canonical presentation workbench must exist');
+  for (final file in presentationRoot
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((entry) => entry.path.endsWith('.dart'))) {
+    final source = file.readAsStringSync();
+    _expect(
+      !source.contains('view_render/agent_workbench') &&
+          !source.contains('/view_ide/agent_client/'),
+      '${file.path} must consume canonical projections only',
+    );
+  }
+}
+
+/// Node criterion 2 / composition and metadata agreement scan.
+///
+/// Precondition: AppBootstrap, capability metadata, and gap register are owned
+/// by the same protocol-only closure as the acceptance tests.
+/// Action: inspect bootstrap composition, module manifest, capability matrix,
+/// baseline JSON, and the direct-provider gap row.
+/// Oracle: bootstrap constructs only AgentClientRegistry/collaboration seams,
+/// metadata describes protocol-client capabilities only, and the gap register
+/// records the achieved boundary without behavior-bearing provider claims.
+void _compositionAndMetadataAgreeOnProtocolOnlyBoundary() {
+  final repository = _repositoryRoot();
+  final product = Directory.fromUri(
+    repository.uri.resolve('products/vityo_app/'),
+  );
+  final bootstrap = File.fromUri(
+    product.uri.resolve('lib/src/app/app_bootstrap.dart'),
+  );
+  _expect(bootstrap.existsSync(), 'app_bootstrap.dart must exist');
+  final bootstrapSource = bootstrap.readAsStringSync();
+  for (final forbidden in const <String>[
+    'AgentCodingSessionController',
+    'AgentProviderConfigurator',
+    'createNetworkAgentProviderTransport',
+    'AgentPromptProfileStore',
+    'AgentCodingToolLoopRuntime',
+    'view_render/agent_workbench',
+    'view_ide/agent_client/',
+  ]) {
+    _expect(
+      !bootstrapSource.contains(forbidden),
+      'AppBootstrap must not construct legacy provider/controller surface ($forbidden)',
+    );
+  }
+  _expect(
+    bootstrapSource.contains('AgentClientRegistry') ||
+        bootstrapSource.contains('agent_client/agent_client.dart'),
+    'AppBootstrap must compose the canonical Agent Client registry',
+  );
+
+  final manifest = jsonDecode(
+    File.fromUri(
+      product.uri.resolve(
+        'assets/module_manifests/agent.surface.basic.json',
+      ),
+    ).readAsStringSync(),
+  ) as Map<String, Object?>;
+  _expect(
+    manifest['entrypoint'] ==
+        'lib/src/presentation/agent_workbench/task_center.dart',
+    'module manifest must route to canonical Agent Workbench presentation',
+  );
+  final capabilityFlags =
+      manifest['capabilityFlags'] as Map<String, Object?>? ?? const {};
+  _expect(
+    capabilityFlags['providerAdapters'] != true &&
+        capabilityFlags['profileInjection'] != true,
+    'module manifest must not advertise IDE-owned provider behavior',
+  );
+  final contributions =
+      ((manifest['extension'] as Map<String, Object?>?)?['contributions']
+              as List<Object?>? ??
+          const <Object?>[]);
+  for (final contribution in contributions) {
+    final metadata =
+        ((contribution as Map<String, Object?>?)?['metadata']
+                as Map<String, Object?>? ??
+            const <String, Object?>{});
+    _expect(
+      metadata['supportedProviderKinds'] == null &&
+          metadata['supportedProtocols'] == null &&
+          !metadata.containsKey('provider.context'),
+      'module contributions must not carry provider transport metadata',
+    );
+  }
+
+  final baseline = jsonDecode(
+    File.fromUri(
+      repository.uri.resolve('toolchain/vityo-ide-capability-baseline.json'),
+    ).readAsStringSync(),
+  ) as Map<String, Object?>;
+  final agentWorkflow =
+      (baseline['domains'] as Map<String, Object?>?)?['agent_workflow']
+          as Map<String, Object?>?;
+  _expect(agentWorkflow != null, 'agent_workflow baseline domain must exist');
+  final currentStatus = agentWorkflow!['currentStatus'] as String? ?? '';
+  _expect(
+    !currentStatus.contains('legacy IDE-owned provider/controller'),
+    'agent_workflow baseline must not claim legacy IDE provider ownership',
+  );
+  final knownGaps =
+      (agentWorkflow['knownGaps'] as List<Object?>? ?? const <Object?>[])
+          .map((entry) => entry.toString())
+          .toList(growable: false);
+  _expect(
+    knownGaps.every(
+      (gap) =>
+          !gap.contains('Legacy IDE-owned model/provider') &&
+          !gap.contains('session-controller implementation must be removed'),
+    ),
+    'agent_workflow knownGaps must not retain the direct-provider migration row',
+  );
+
+  final gapsDoc = File.fromUri(
+    repository.uri.resolve('docs/design/Vityo-Implementation-Gaps.md'),
+  ).readAsStringSync();
+  _expect(
+    gapsDoc.contains('| Retire IDE direct model-provider/controller ownership | Closed |') ||
+        gapsDoc.contains(
+          '| Retire IDE direct model-provider/controller ownership | Complete |',
+        ),
+    'implementation gap register must mark direct-provider ownership closed',
+  );
+}
+
+Directory _repositoryRoot() =>
+    Directory.fromUri(Platform.script).parent.parent.parent.parent;
 
 /// REQ-IDE-005 / criterion 1 / real stdio process and reducer seams.
 ///

@@ -13,6 +13,7 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.d
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/ide/editor/controller/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/interaction/toolchain_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
@@ -20,6 +21,7 @@ import 'package:vityo_app/src/view_ide/language/service/styio_language_service.d
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/shell_runtime/controllers/debug_controller.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_breadcrumbs.dart';
@@ -222,7 +224,7 @@ void main() {
     expect(result.status, WorkspaceTextSearchStatus.completed);
     expect(result.matches.single.filePath, 'src/worker.styio');
     final match = result.matches.single;
-    expect(await shell.openWorkspaceFileForAgent(match.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(match.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: match.range.start,
       extentOffset: match.range.end,
@@ -240,7 +242,7 @@ void main() {
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/worker.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/worker.styio'),
       ),
       isTrue,
     );
@@ -378,7 +380,7 @@ void main() {
     expect(result.status, WorkspaceSymbolSearchStatus.completed);
     expect(result.items.single.name, 'workerJob');
     final symbol = result.items.single;
-    expect(await shell.openWorkspaceFileForAgent(symbol.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(symbol.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: symbol.nameRange.start,
       extentOffset: symbol.nameRange.end,
@@ -396,7 +398,7 @@ void main() {
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/worker.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/worker.styio'),
       ),
       isTrue,
     );
@@ -466,7 +468,7 @@ value = blend()
     expect(result.links.single.resolvedFilePath, 'lib/runtime.styio');
 
     expect(
-      await shell.openWorkspaceFileForAgent(
+      await shell.openWorkspaceFile(
         result.links.single.resolvedFilePath!,
       ),
       isTrue,
@@ -479,7 +481,7 @@ value = blend()
     expect(shell.editorController.selection.end, 0);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/runtime.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/runtime.styio'),
       ),
       isTrue,
     );
@@ -552,7 +554,7 @@ next -> @prices
     final write = result.highlights.singleWhere(
       (item) => item.kind == WorkspaceDocumentHighlightKind.write,
     );
-    expect(await shell.openWorkspaceFileForAgent(write.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(write.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: write.range.start,
       extentOffset: write.range.end,
@@ -563,7 +565,7 @@ next -> @prices
     expect(shell.editorController.selection.end, write.range.end);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened resources.styio'),
+        (entry) => entry.contains('Workspace openFile opened resources.styio'),
       ),
       isTrue,
     );
@@ -634,7 +636,7 @@ value = blend(1.0, 2.0)
     expect(result.lensCount, 1);
     expect(result.lenses.single.usageCount, 1);
     final lens = result.lenses.single;
-    expect(await shell.openWorkspaceFileForAgent(lens.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(lens.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: lens.range.start,
       extentOffset: lens.range.end,
@@ -645,7 +647,7 @@ value = blend(1.0, 2.0)
     expect(shell.editorController.selection.end, lens.range.end);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/runtime.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/runtime.styio'),
       ),
       isTrue,
     );
@@ -724,7 +726,7 @@ book: OrderBook
     expect(result.declarations.first.kind, WorkspaceDeclarationKind.schema);
 
     final declaration = result.declarations.first;
-    expect(await shell.openWorkspaceFileForAgent(declaration.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(declaration.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: declaration.range.start,
       extentOffset: declaration.range.end,
@@ -740,7 +742,7 @@ book: OrderBook
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -816,7 +818,7 @@ value = blend(1.0, 2.0)
     expect(result.definitions.first.filePath, 'lib/runtime.styio');
 
     final definition = result.definitions.first;
-    expect(await shell.openWorkspaceFileForAgent(definition.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(definition.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: definition.range.start,
       extentOffset: definition.range.end,
@@ -834,7 +836,7 @@ value = blend(1.0, 2.0)
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/runtime.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/runtime.styio'),
       ),
       isTrue,
     );
@@ -914,7 +916,7 @@ book: OrderBook
 
     final typeDefinition = result.types.first;
     expect(
-      await shell.openWorkspaceFileForAgent(typeDefinition.filePath),
+      await shell.openWorkspaceFile(typeDefinition.filePath),
       isTrue,
     );
     shell.editorController.selectRange(
@@ -932,7 +934,7 @@ book: OrderBook
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -1013,7 +1015,7 @@ target: Price
 
     final implementation = result.implementations.single;
     expect(
-      await shell.openWorkspaceFileForAgent(implementation.filePath),
+      await shell.openWorkspaceFile(implementation.filePath),
       isTrue,
     );
     shell.editorController.selectRange(
@@ -1031,7 +1033,7 @@ target: Price
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -1109,7 +1111,7 @@ book: OrderBook
     expect(result.status, WorkspaceTypeHierarchyStatus.completed);
     expect(result.relations.single.symbol.name, 'Price');
     final symbol = result.relations.single.symbol;
-    expect(await shell.openWorkspaceFileForAgent(symbol.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(symbol.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: symbol.range.start,
       extentOffset: symbol.range.end,
@@ -1125,7 +1127,7 @@ book: OrderBook
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -1283,7 +1285,7 @@ entry = 1
     final item = result.items.firstWhere(
       (item) => item.name == 'calculate' && item.kind == SymbolKind.function,
     );
-    expect(await shell.openWorkspaceFileForAgent(item.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(item.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: item.nameRange.start,
       extentOffset: item.nameRange.end,
@@ -1300,7 +1302,7 @@ entry = 1
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/main.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/main.styio'),
       ),
       isTrue,
     );
@@ -1454,7 +1456,7 @@ value = blend(1.0, 2.0)
     expect(result.status, WorkspaceReferenceSearchStatus.completed);
     expect(result.references.single.filePath, 'main.styio');
     final reference = result.references.single;
-    expect(await shell.openWorkspaceFileForAgent(reference.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(reference.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: reference.range.start,
       extentOffset: reference.range.end,
@@ -1472,7 +1474,7 @@ value = blend(1.0, 2.0)
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened main.styio'),
+        (entry) => entry.contains('Workspace openFile opened main.styio'),
       ),
       isTrue,
     );
@@ -1544,7 +1546,7 @@ fn run(): f64 {
     expect(result.status, WorkspaceCallHierarchyStatus.completed);
     expect(result.calls.single.symbol.name, 'run');
     final location = result.calls.single.firstLocation;
-    expect(await shell.openWorkspaceFileForAgent(location.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(location.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: location.range.start,
       extentOffset: location.range.end,
@@ -1562,7 +1564,7 @@ fn run(): f64 {
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened main.styio'),
+        (entry) => entry.contains('Workspace openFile opened main.styio'),
       ),
       isTrue,
     );
@@ -1619,7 +1621,7 @@ price -> @prices
     final problem = result.problems.singleWhere(
       (problem) => problem.diagnostic.code == 'unresolved-resource',
     );
-    expect(await shell.openWorkspaceFileForAgent(problem.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(problem.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: problem.diagnostic.range.start,
       extentOffset: problem.diagnostic.range.end,
@@ -1641,7 +1643,7 @@ price -> @prices
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/main.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/main.styio'),
       ),
       isTrue,
     );
@@ -1779,7 +1781,7 @@ value = 1
       expect(result.items.single.filePath, 'src/worker.styio');
 
       expect(
-        await shell.openWorkspaceFileForAgent(result.items.single.filePath),
+        await shell.openWorkspaceFile(result.items.single.filePath),
         isTrue,
       );
       shell.editorController.selectCollapsed(0);
@@ -1791,7 +1793,7 @@ value = 1
       expect(
         shell.debugLog.any(
           (entry) =>
-              entry.contains('openWorkspaceFile opened src/worker.styio'),
+              entry.contains('Workspace openFile opened src/worker.styio'),
         ),
         isTrue,
       );
@@ -1803,7 +1805,7 @@ value = 1
       );
       expect(recentResult.items.first.filePath, 'src/worker.styio');
 
-      expect(await shell.openWorkspaceFileForAgent('src/main.styio'), isTrue);
+      expect(await shell.openWorkspaceFile('src/main.styio'), isTrue);
       shell.editorController.selectCollapsed(0);
       expect(shell.workspaceController.activeFilePath, 'src/main.styio');
       expect(shell.editorController.document.documentId, 'src/main.styio');
@@ -2315,7 +2317,7 @@ value = 1
     // FIXME: API removed during merge: ),
     // FIXME: API removed during merge: );
 
-    expect(await shell.openWorkspaceFileForAgent('missing.styio'), isFalse);
+    expect(await shell.openWorkspaceFile('missing.styio'), isFalse);
     expect(
       shell.debugLog.any(
         (entry) => entry.contains('missing.styio is not in the workspace'),
@@ -2461,7 +2463,7 @@ value = 1
       );
       addTearDown(shell.dispose);
 
-      expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+      expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
       await shell.executeCommand(AppCommandId.navigateBack);
       await shell.executeCommand(AppCommandId.navigateForward);
       await shell.executeCommand(AppCommandId.run);
@@ -2512,38 +2514,38 @@ value = 1
       if (shell.workspaceController.activeFilePath == 'src/main.styio') {
         return;
       }
-      expect(await shell.openWorkspaceFileForAgent('src/main.styio'), isTrue);
+      expect(await shell.openWorkspaceFile('src/main.styio'), isTrue);
       shell.editorController.selectCollapsed(0);
     }
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 5, extentOffset: 11);
     expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
     expect(shell.editorController.selection.start, 5);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectCollapsed(0);
     expect(shell.editorController.selection.start, 0);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 16, extentOffset: 21);
     expect(shell.editorController.selection.start, 16);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 5, extentOffset: 11);
     expect(shell.editorController.selection.start, 5);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 16, extentOffset: 21);
     expect(shell.editorController.selection.start, 16);
 
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/worker.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/worker.styio'),
       ),
       isTrue,
     );
@@ -2757,7 +2759,7 @@ value = 1
     },
   );
 
-  test('shell agent session context composes current typed domain facts', () {
+  test('shell runtime composes current typed domain facts for binding', () {
     final projectGraph = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/context',
       activeFilePath: 'src/main.styio',
@@ -2780,15 +2782,18 @@ value = 1
     );
     addTearDown(shell.dispose);
 
-    final context = shell.agentSessionContext;
-
-    expect(context.document.documentId, document.documentId);
-    expect(context.document.revision, document.revision);
-    expect(context.workspace.workspaceRoot, projectGraph.workspaceRoot);
-    expect(context.workspace.activeFilePath, 'src/main.styio');
-    expect(context.debug.status, 'idle');
-    expect(context.language.serviceStatus?.severity, 'unavailable');
-    expect(context.agent.savedProviderProfiles, isEmpty);
+    expect(shell.editorController.document.documentId, document.documentId);
+    expect(shell.editorController.document.revision, document.revision);
+    expect(
+      shell.workspaceController.activeProject.workspaceRoot,
+      projectGraph.workspaceRoot,
+    );
+    expect(shell.workspaceController.activeFilePath, 'src/main.styio');
+    expect(shell.debugSession.status, DebugSessionStatus.idle);
+    expect(
+      shell.languageServiceStatus.value.severity,
+      LanguageServiceStatusSeverity.unavailable,
+    );
   });
 }
 

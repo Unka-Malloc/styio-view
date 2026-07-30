@@ -9,9 +9,8 @@ abstract class ShellRuntimeFacadeHost extends ChangeNotifier {
   dynamic get workspaceDocumentStore;
   EditorSessionController get editorController;
   dynamic get toolchainManager;
-  dynamic get agentCodingController;
-  dynamic get agentExtensionToolExecutionRegistry;
-  dynamic get agentProviderConfigurator;
+  AgentClientRegistry? get agentClientRegistry;
+  AgentCollaborationService? get agentCollaboration;
   dynamic get languageServiceStatus;
   dynamic get toolchainStatusReport;
   dynamic get projectLanguageService;
@@ -43,25 +42,6 @@ abstract class ShellRuntimeFacadeHost extends ChangeNotifier {
   dynamic get _moduleController;
   dynamic get _nativeToolRuntimeController;
   dynamic get _debugController;
-  dynamic get _agentController;
-  dynamic get _agentCommandReceiptController;
-  dynamic get _agentQuickFixCommandController;
-  dynamic get _agentDebugCommandController;
-  dynamic get _agentContextCommandController;
-  dynamic get _agentExecutionCommandController;
-  dynamic get _agentRefactorCommandController;
-  dynamic get _agentProjectLifecycleCommandController;
-  dynamic get _agentNativeToolCommandController;
-  dynamic get _agentPatchLifecycleController;
-  dynamic get _agentProviderConfigurationController;
-  dynamic get _agentProviderRecoveryCommandController;
-  dynamic get _agentSourceControlCommandController;
-  dynamic get _agentSurfaceCommandController;
-  dynamic get _agentTestingCommandController;
-  dynamic get _agentToolchainCommandController;
-  dynamic get _agentSessionContextController;
-  dynamic get _agentWorkspaceCommandController;
-  dynamic get _agentWorkspaceReplaceCommandController;
   dynamic get _backendCommandPolicyController;
   dynamic get _sourceControlController;
   dynamic get _testingController;
@@ -74,25 +54,13 @@ abstract class ShellRuntimeFacadeHost extends ChangeNotifier {
     StreamSubscription<DocumentResourceBindingSnapshot>? value,
   );
   dynamic get _ownsLanguageServiceStatus;
-  dynamic get _ownsAgentCodingController;
   dynamic get _ownsRuntimeOutputBuffer;
 
   String get _activeDocumentPath;
-  AgentCommandResultContext? get _lastAgentIdeCommandResult;
-  AgentPromptProfileManifest get _agentProviderProfileManifest;
-  List<DocumentState> get _agentWorkspaceDocumentSamples;
+  List<DocumentState> get _workspaceDocumentSamples;
 
   void appendLog(String message);
   void _notifyShellListeners();
-  void _recordAgentIdeCommandResult(
-    AgentIdeCommandSuggestion suggestion, {
-    required bool applied,
-    required String message,
-    Map<String, Object?> metadata = const <String, Object?>{},
-  });
-  bool _blockAgentDiskBackedCommandWhenDirty(
-    AgentIdeCommandSuggestion suggestion,
-  );
   String _workspaceDiagnosticsRefreshMessage(
     WorkspaceDiagnosticsSnapshot snapshot,
   );

@@ -1,3 +1,10 @@
+"""Focused unit freeze for IDE full-harness readiness seams.
+
+Adjacent to acceptance_paths because injectable runners, missing tools, early
+harness failure, source drift, and receipt-destination failures cannot be
+oracled safely through a real suite subprocess. Never invokes bare ide/full.
+"""
+
 from __future__ import annotations
 
 import importlib.util
@@ -123,7 +130,11 @@ class VityoQualityTest(unittest.TestCase):
                         self.assertEqual(runner(), 9)
                 self.assertEqual(run.call_count, 1)
 
-    def test_source_fingerprint_is_bounded_and_deterministic(self) -> None:
+    def test_source_fingerprint_binds_fixtures_and_is_deterministic(self) -> None:
+        roots = self.quality._FINGERPRINT_ROOTS
+        self.assertIn("tests/acceptance/vityo_app", roots)
+        self.assertIn("packages/vityo_agent_protocol/schema", roots)
+
         with tempfile.TemporaryDirectory(prefix="vityo-quality-") as tmp_name:
             root = Path(tmp_name)
             single = root / "single.txt"
@@ -175,7 +186,7 @@ class VityoQualityTest(unittest.TestCase):
 
         self.assertRegex(first, r"^[0-9a-f]{64}$")
 
-    def test_commit_platform_and_plan_validation_helpers(self) -> None:
+    def test_commit_and_platform_helpers(self) -> None:
         completed = SimpleNamespace(
             returncode=0,
             stdout=("A" * 40) + "\n",
@@ -216,22 +227,61 @@ class VityoQualityTest(unittest.TestCase):
                         expected,
                     )
 
-        with mock.patch.object(
-            self.quality,
-            "run",
-            side_effect=(0, 0),
-        ) as run:
-            self.assertEqual(self.quality._run_plan_validation(), 0)
-            self.assertEqual(run.call_count, 2)
-        with mock.patch.object(
-            self.quality,
-            "run",
-            return_value=4,
-        ) as run:
-            self.assertEqual(self.quality._run_plan_validation(), 4)
-            self.assertEqual(run.call_count, 1)
+        self.assertFalse(hasattr(self.quality, "_run_plan_validation"))
 
-    def test_ide_full_plan_and_receipt_outcomes(self) -> None:
+    def _patch_formal_success(self, stack: ExitStack, *, written: list) -> None:
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "_source_fingerprint",
+                side_effect=("a" * 64, "a" * 64),
+            )
+        )
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "_head_commit",
+                return_value="b" * 40,
+            )
+        )
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "_host_platform",
+                return_value="linux",
+            )
+        )
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "_protocol_schema_digest",
+                return_value="d" * 64,
+            )
+        )
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "_acceptance_fixtures_digest",
+                return_value="e" * 64,
+            )
+        )
+        for entry in self.quality.FULL_IDE_PLAN:
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    entry.runner_name,
+                    return_value=0,
+                )
+            )
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "write_receipt_atomic",
+                side_effect=lambda _path, payload: written.append(dict(payload)),
+            )
+        )
+
+    def test_ide_full_plan_only_and_preflight_never_call_runners(self) -> None:
         plan = self.quality.full_suite_plan()
         self.assertEqual(
             [entry["requirement"] for entry in plan],
@@ -243,22 +293,242 @@ class VityoQualityTest(unittest.TestCase):
             self.assertEqual(
                 self.quality.ide_full(
                     plan_only=True,
+                    preflight=False,
                     receipt_path=Path("unused.json"),
                 ),
                 0,
             )
+        self.assertEqual(json.loads(stdout.getvalue())["mode"], "plan_only")
+
+        runner_mocks = []
+        with ExitStack() as stack:
+            for entry in self.quality.FULL_IDE_PLAN:
+                runner_mocks.append(
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            entry.runner_name,
+                            return_value=0,
+                        )
+                    )
+                )
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "write_receipt_atomic",
+                    side_effect=AssertionError("preflight must not write"),
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "_preflight_ide_full",
+                    return_value={
+                        "schema_version": 1,
+                        "product": "vityo",
+                        "suite": "full",
+                        "mode": "preflight",
+                        "ready": True,
+                        "requirements": plan,
+                        "checks": [
+                            {"name": name, "status": "passed"}
+                            for name in (
+                                "requirement_mapping",
+                                "source_paths",
+                                "tools",
+                                "host",
+                                "commit",
+                                "digests",
+                                "duplicate_receipt",
+                                "receipt_destination",
+                            )
+                        ],
+                        "failure_code": None,
+                    },
+                )
+            )
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(
+                    self.quality.ide_full(
+                        plan_only=False,
+                        preflight=True,
+                        receipt_path=Path("unused.json"),
+                    ),
+                    0,
+                )
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["mode"], "preflight")
+        self.assertTrue(payload["ready"])
+        for runner in runner_mocks:
+            runner.assert_not_called()
+
+    def test_preflight_reports_stable_failures_without_runners(self) -> None:
+        cases = (
+            "tool_unavailable",
+            "source_path_missing",
+            "invalid_requirement_mapping",
+            "unsupported_host",
+            "dirty_candidate",
+            "duplicate_candidate_receipt",
+            "receipt_destination_unavailable",
+        )
+        for code in cases:
+            with self.subTest(code=code):
+                runner_mocks = []
+                with ExitStack() as stack:
+                    for entry in self.quality.FULL_IDE_PLAN:
+                        runner_mocks.append(
+                            stack.enter_context(
+                                mock.patch.object(
+                                    self.quality,
+                                    entry.runner_name,
+                                    return_value=0,
+                                )
+                            )
+                        )
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "_preflight_ide_full",
+                            return_value={
+                                "schema_version": 1,
+                                "product": "vityo",
+                                "suite": "full",
+                                "mode": "preflight",
+                                "ready": False,
+                                "requirements": self.quality.full_suite_plan(),
+                                "checks": [
+                                    {
+                                        "name": "tools",
+                                        "status": "failed",
+                                        "failure_code": code,
+                                    }
+                                ],
+                                "failure_code": code,
+                            },
+                        )
+                    )
+                    stdout = io.StringIO()
+                    with redirect_stdout(stdout):
+                        self.assertEqual(
+                            self.quality.ide_full(
+                                plan_only=False,
+                                preflight=True,
+                                receipt_path=Path("unused.json"),
+                            ),
+                            1,
+                        )
+                payload = json.loads(stdout.getvalue())
+                self.assertFalse(payload["ready"])
+                self.assertEqual(payload["failure_code"], code)
+                for runner in runner_mocks:
+                    runner.assert_not_called()
+
+    def test_formal_full_success_writes_complete_receipt(self) -> None:
+        written: list[dict[str, object]] = []
+        with ExitStack() as stack:
+            self._patch_formal_success(stack, written=written)
+            self.assertEqual(
+                self.quality.ide_full(
+                    plan_only=False,
+                    preflight=False,
+                    receipt_path=Path("passed.json"),
+                ),
+                0,
+            )
+        payload = written[0]
+        self.assertEqual(payload["status"], "passed")
+        self.assertEqual(payload["protocol_schema_sha256"], "d" * 64)
+        self.assertEqual(payload["acceptance_fixtures_sha256"], "e" * 64)
         self.assertEqual(
-            json.loads(stdout.getvalue())["mode"],
-            "plan_only",
+            tuple(payload["requirements"]),
+            tuple(f"REQ-IDE-{index:03d}" for index in range(1, 9)),
         )
 
+    def test_suite_failure_keeps_eight_receipt_slots(self) -> None:
+        for fail_index in (0, 3, 7):
+            with self.subTest(fail_index=fail_index):
+                written: list[dict[str, object]] = []
+                with ExitStack() as stack:
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "_source_fingerprint",
+                            side_effect=("a" * 64, "a" * 64),
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "_head_commit",
+                            return_value="b" * 40,
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "_host_platform",
+                            return_value="linux",
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "_protocol_schema_digest",
+                            return_value="d" * 64,
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "_acceptance_fixtures_digest",
+                            return_value="e" * 64,
+                        )
+                    )
+                    for index, entry in enumerate(self.quality.FULL_IDE_PLAN):
+                        stack.enter_context(
+                            mock.patch.object(
+                                self.quality,
+                                entry.runner_name,
+                                return_value=1 if index == fail_index else 0,
+                            )
+                        )
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            "write_receipt_atomic",
+                            side_effect=lambda _path, payload: written.append(
+                                dict(payload)
+                            ),
+                        )
+                    )
+                    self.assertEqual(
+                        self.quality.ide_full(
+                            plan_only=False,
+                            preflight=False,
+                            receipt_path=Path("failed.json"),
+                        ),
+                        1,
+                    )
+                payload = written[0]
+                self.assertEqual(payload["status"], "failed")
+                self.assertEqual(payload.get("failure_code"), "suite_failed")
+                self.assertEqual(len(payload["requirements"]), 8)
+                failed_key = f"REQ-IDE-{fail_index + 1:03d}"
+                self.assertEqual(
+                    payload["requirements"][failed_key]["status"],
+                    "failed",
+                )
+
+    def test_early_harness_failure_writes_validation_harness_failed(self) -> None:
         written: list[dict[str, object]] = []
         with ExitStack() as stack:
             stack.enter_context(
                 mock.patch.object(
                     self.quality,
                     "_source_fingerprint",
-                    side_effect=("a" * 64, "a" * 64),
+                    side_effect=RuntimeError("synthetic early failure"),
                 )
             )
             stack.enter_context(
@@ -278,21 +548,6 @@ class VityoQualityTest(unittest.TestCase):
             stack.enter_context(
                 mock.patch.object(
                     self.quality,
-                    "_run_plan_validation",
-                    return_value=0,
-                )
-            )
-            for entry in self.quality.FULL_IDE_PLAN:
-                stack.enter_context(
-                    mock.patch.object(
-                        self.quality,
-                        entry.runner_name,
-                        return_value=0,
-                    )
-                )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
                     "write_receipt_atomic",
                     side_effect=lambda _path, payload: written.append(
                         dict(payload)
@@ -302,80 +557,19 @@ class VityoQualityTest(unittest.TestCase):
             self.assertEqual(
                 self.quality.ide_full(
                     plan_only=False,
-                    receipt_path=Path("passed.json"),
-                ),
-                0,
-            )
-        self.assertEqual(written[0]["status"], "passed")
-
-        written.clear()
-        with ExitStack() as stack:
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "_source_fingerprint",
-                    side_effect=("a" * 64, "a" * 64),
-                )
-            )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "_head_commit",
-                    return_value="b" * 40,
-                )
-            )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "_host_platform",
-                    return_value="linux",
-                )
-            )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "_run_plan_validation",
-                    return_value=3,
-                )
-            )
-            for index, entry in enumerate(self.quality.FULL_IDE_PLAN):
-                stack.enter_context(
-                    mock.patch.object(
-                        self.quality,
-                        entry.runner_name,
-                        side_effect=(
-                            RuntimeError("synthetic failure")
-                            if index == 0
-                            else None
-                        ),
-                        return_value=0,
-                    )
-                )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "write_receipt_atomic",
-                    side_effect=lambda _path, payload: written.append(
-                        dict(payload)
-                    ),
-                )
-            )
-            self.assertEqual(
-                self.quality.ide_full(
-                    plan_only=False,
-                    receipt_path=Path("failed.json"),
+                    preflight=False,
+                    receipt_path=Path("harness-failed.json"),
                 ),
                 1,
             )
-        self.assertEqual(written[0]["status"], "failed")
-        self.assertEqual(
-            written[0]["requirements"]["REQ-IDE-001"][
-                "plan_validation"
-            ],
-            "failed",
-        )
+        payload = written[0]
+        self.assertEqual(payload["failure_code"], "validation_harness_failed")
+        self.assertEqual(len(payload["requirements"]), 8)
+        encoded = json.dumps(payload)
+        self.assertNotIn("synthetic early failure", encoded)
+        self.assertNotIn("Traceback", encoded)
 
-    def test_ide_full_serializes_schema_failure_without_raw_exception(self) -> None:
+    def test_source_drift_writes_failed_receipt(self) -> None:
         written: list[dict[str, object]] = []
         with ExitStack() as stack:
             stack.enter_context(
@@ -402,8 +596,15 @@ class VityoQualityTest(unittest.TestCase):
             stack.enter_context(
                 mock.patch.object(
                     self.quality,
-                    "_run_plan_validation",
-                    return_value=0,
+                    "_protocol_schema_digest",
+                    return_value="d" * 64,
+                )
+            )
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "_acceptance_fixtures_digest",
+                    return_value="e" * 64,
                 )
             )
             for entry in self.quality.FULL_IDE_PLAN:
@@ -426,16 +627,42 @@ class VityoQualityTest(unittest.TestCase):
             self.assertEqual(
                 self.quality.ide_full(
                     plan_only=False,
-                    receipt_path=Path("failed.json"),
+                    preflight=False,
+                    receipt_path=Path("drift.json"),
                 ),
                 1,
             )
+        self.assertEqual(written[0]["failure_code"], "source_fingerprint_drift")
+        self.assertEqual(len(written[0]["requirements"]), 8)
 
-        self.assertEqual(
-            written[0]["failure_code"],
-            "source_fingerprint_drift",
-        )
-        self.assertNotIn("message", written[0])
+    def test_receipt_write_failure_leaves_no_partial_file(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="vityo-receipt-") as tmp_name:
+            destination = Path(tmp_name) / "ide-full.json"
+            with ExitStack() as stack:
+                self._patch_formal_success(stack, written=[])
+                stack.enter_context(
+                    mock.patch.object(
+                        self.quality,
+                        "write_receipt_atomic",
+                        side_effect=OSError("synthetic replace failure"),
+                    )
+                )
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    code = self.quality.ide_full(
+                        plan_only=False,
+                        preflight=False,
+                        receipt_path=destination,
+                    )
+            self.assertEqual(code, 1)
+            envelope = json.loads(stdout.getvalue())
+            self.assertEqual(
+                envelope["failure_code"],
+                "receipt_write_failed",
+            )
+            self.assertFalse(destination.exists())
+            self.assertEqual(list(destination.parent.glob(".*.tmp")), [])
+            self.assertNotIn("synthetic replace failure", stdout.getvalue())
 
     def test_coding_agent_full_success_failure_and_harness_failure(self) -> None:
         written: list[dict[str, object]] = []
@@ -459,13 +686,6 @@ class VityoQualityTest(unittest.TestCase):
                     self.quality,
                     "_host_platform",
                     return_value="linux",
-                )
-            )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "_run_plan_validation",
-                    return_value=0,
                 )
             )
             for entry in self.quality.FULL_AGENT_PLAN:
@@ -514,13 +734,6 @@ class VityoQualityTest(unittest.TestCase):
                     self.quality,
                     "_host_platform",
                     return_value="linux",
-                )
-            )
-            stack.enter_context(
-                mock.patch.object(
-                    self.quality,
-                    "_run_plan_validation",
-                    return_value=2,
                 )
             )
             for index, entry in enumerate(self.quality.FULL_AGENT_PLAN):
@@ -645,6 +858,27 @@ class VityoQualityTest(unittest.TestCase):
                     self.assertEqual(self.quality.main(), 0)
         self.assertEqual(stdout.getvalue().strip(), "a" * 64)
 
+        with mock.patch.object(
+            self.quality,
+            "ide_full",
+            return_value=0,
+        ) as routed:
+            with mock.patch.object(
+                sys,
+                "argv",
+                [
+                    str(SCRIPT_PATH),
+                    "--product",
+                    "ide",
+                    "--suite",
+                    "full",
+                    "--preflight",
+                ],
+            ):
+                self.assertEqual(self.quality.main(), 0)
+        routed.assert_called_once()
+        self.assertTrue(routed.call_args.kwargs.get("preflight"))
+
         for args in (
             (
                 "--product",
@@ -652,6 +886,14 @@ class VityoQualityTest(unittest.TestCase):
                 "--suite",
                 "full",
                 "--plan-only",
+            ),
+            (
+                "--product",
+                "ide",
+                "--suite",
+                "full",
+                "--plan-only",
+                "--preflight",
             ),
             ("--product", "ide", "--suite", "unknown"),
         ):

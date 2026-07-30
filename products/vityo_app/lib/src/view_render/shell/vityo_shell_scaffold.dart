@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../agent_workbench/agent.dart';
+import '../../presentation/agent_workbench/task_center.dart';
 import '../commands/command_palette_surface.dart';
 import '../editor/editor.dart';
 import '../extensions/extensions.dart';
@@ -14,8 +14,6 @@ import '../../view_ide/backend_toolchain/required_handoff_summary.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_definition.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_manifest.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
-import '../../view_ide/agent_client/agent.dart'
-    show AgentWorkspaceSnapshotService;
 import '../platform/platform.dart';
 import '../problems/problems.dart';
 import '../runtime/runtime.dart';
@@ -170,41 +168,8 @@ class VityoShellScaffold extends StatelessWidget {
           blockedReasonForCommand: shell.blockedReasonForCommand,
         );
       case BottomSurfaceTab.agent:
-        return AgentSurface(
-          platformTarget: shell.platformTarget,
-          viewportProfile: viewportProfile,
-          visibleModules: shell.visibleModules,
-          adapterCapabilities: shell.adapterCapabilities,
-          sessionContext: shell.agentSessionContext,
-          codingController: shell.agentCodingController,
-          activityHistory: shell.agentCodingController.sessionHistorySnapshot,
-          onApplyPendingPatch: () async {
-            await shell.applyAgentPendingPatch();
-          },
-          workspaceSnapshotService: AgentWorkspaceSnapshotService(
-            editorController: shell.editorController,
-            workspaceDocumentStore: shell.workspaceDocumentStore,
-          ),
-          extensionToolExecutionRegistry:
-              shell.agentExtensionToolExecutionRegistry,
-          onApplyAgentWorkspacePatch: (patch) async {
-            return shell.applyAgentWorkspacePatchTool(patch);
-          },
-          onApplyIdeCommandSuggestion: (suggestion) async {
-            return shell.applyAgentIdeCommandSuggestion(suggestion);
-          },
-          onResolveIdeCommandResult: (suggestion) {
-            return shell.lastAgentIdeCommandResult;
-          },
-          onSaveProviderProfile: (profile, {bearerToken}) async {
-            await shell.saveAndMountAgentProfile(
-              profile,
-              bearerToken: bearerToken,
-            );
-          },
-          onMountSavedProviderProfile: (profileKey) async {
-            await shell.failoverAgentProviderProfile(profileKey);
-          },
+        return TaskCenter(
+          collaboration: shell.agentCollaboration,
         );
       case BottomSurfaceTab.sourceControl:
         final sourceControlController = shell.sourceControlStatusController;
@@ -220,7 +185,7 @@ class VityoShellScaffold extends StatelessWidget {
             branchSnapshot: shell.sourceControlBranchSnapshot,
             historySnapshot: shell.sourceControlHistorySnapshot,
             lastHunkActionResult: shell.sourceControlHunkActionResult,
-            onOpenFile: shell.openWorkspaceFileForAgent,
+            onOpenFile: shell.openWorkspaceFile,
             onSaveAll: () {
               return shell.executeCommand(AppCommandId.saveAll);
             },
@@ -258,12 +223,13 @@ class VityoShellScaffold extends StatelessWidget {
           viewportProfile: viewportProfile,
           workspaceFileCount: shell.workspaceController.files.length,
           workspaceFiles: shell.workspaceController.files,
-          lastSearch: shell.agentSessionContext.workspace.lastSearch,
-          lastSymbolSearch:
-              shell.agentSessionContext.workspace.lastSymbolSearch,
+          lastSearch: shell.lastWorkspaceSearch,
+          lastSymbolSearch: shell.lastWorkspaceSymbolSearch,
+          lastSearchQuery: shell.lastWorkspaceSearchQuery,
+          lastSearchScannedDocumentCount: shell.lastWorkspaceSearchScannedCount,
           lastReplacePreview: shell.lastWorkspaceReplacePreview,
-          onSearch: shell.searchWorkspaceForAgent,
-          onOpenFile: shell.openWorkspaceFileForAgent,
+          onSearch: shell.searchWorkspace,
+          onOpenFile: shell.openWorkspaceFile,
           onPreviewReplace: (query, replacement) async {
             await shell.previewWorkspaceReplace(
               query: query,
@@ -271,10 +237,9 @@ class VityoShellScaffold extends StatelessWidget {
             );
           },
           onApplyReplacePreview: shell.applyWorkspaceReplacePreview,
-          onOpenMatch: (match) =>
-              shell.openWorkspaceFileForAgent(match.documentId),
+          onOpenMatch: (match) => shell.openWorkspaceFile(match.documentId),
           onOpenSymbolMatch: (match) =>
-              shell.openWorkspaceFileForAgent(match.documentId),
+              shell.openWorkspaceFile(match.documentId),
         );
       case BottomSurfaceTab.problems:
         final diagnosticsController = shell.workspaceDiagnosticsController;

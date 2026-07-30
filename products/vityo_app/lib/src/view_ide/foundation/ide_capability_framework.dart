@@ -326,7 +326,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/agent',
           summary:
-              'Agent provider route selection, user-managed OpenAI API credential references for Codex/Codex Spark profiles, AgentSurface preset credential binding and credential-reference visibility, preferred credential writes through AgentProviderConfigurator, credential readiness, endpoint probing, fallback selection, retry policy execution, remote service health reports, Foundation DataStore-backed health history, OpenAI-compatible/Responses provider routing, hosted backend connector parity action plans, HostedBackendRetryEndpointPlan retry/reopen/export/settings route contracts, HostedBackendRetryActionExecutor, HostedControlPlaneRetryTransport, and HostedBackendRetryRuntimeOutputBinding telemetry snapshots are wired.',
+              'Agent provider route selection, user-managed OpenAI API credential references for Codex/Codex Spark profiles, Agent Workbench preset credential binding and credential-reference visibility, hosted backend connector parity action plans, HostedBackendRetryEndpointPlan retry/reopen/export/settings route contracts, HostedBackendRetryActionExecutor, HostedControlPlaneRetryTransport, and HostedBackendRetryRuntimeOutputBinding telemetry snapshots are wired. Direct Agent model-provider credential routing is not owned by the IDE.',
           todo:
               'TODO: bind hosted settings recovery handlers to concrete Settings UI.',
           runtimeMaturityBlocking: false,
@@ -578,24 +578,29 @@ class VityoIdeCapabilityFramework {
           ],
         ),
         IdeCapabilityDescriptor(
-          id: 'agent.provider',
+          id: 'agent.client',
           layer: IdeCapabilityLayer.agent,
-          title: 'Agent provider and credential framework',
+          title: 'Versioned Agent Client',
           status: IdeCapabilityStatus.wired,
-          ownerPath: 'lib/src/view_ide/agent',
+          ownerPath: 'lib/src/ide/agent_client',
           summary:
-              'OpenAI-compatible and OpenAI Responses providers, explicit OpenAI Codex Spark preset, serializable client credential policy, Credential DataStore-backed bearer token references, redacted AgentProviderCredentialLookupPlan, credential-backed routes, AgentProviderSelectionPlan registry selection, configurator selection result propagation, saved profile loading by profile key/profile id, mounted provider profile key tracking, Agent Surface saved provider profile picker mount action, failover provider mount execution, explicit retrying adapter mount policy, configurator retry telemetry propagation, retry execution telemetry sink, retry RuntimeOutput event binding, fallback readiness, provider execution context, checkpoint-aware prompt rules, structured response tool definitions, streaming provider event contracts, OpenAI-compatible and Responses streaming transport contracts, streaming response collection, streaming runtime output binding, and extension agent provider contribution manifests.',
+              'Supervised Agent process lifecycle, versioned protocol session negotiation, permission request stream, session reducer snapshots, context/MCP host surface, and disconnect/reconnect receipts. The IDE does not own model endpoints, provider credentials, prompt profiles, or coding-loop scheduling.',
+          references: <String>[
+            'packages/vityo_agent_protocol',
+            'Agent Client Protocol',
+          ],
         ),
         IdeCapabilityDescriptor(
-          id: 'agent.coding-loop',
+          id: 'agent.workbench',
           layer: IdeCapabilityLayer.agent,
-          title: 'Agent coding loop',
+          title: 'Agent Workbench collaboration',
           status: IdeCapabilityStatus.wired,
-          ownerPath: 'lib/src/view_ide/agent',
+          ownerPath: 'lib/src/ide/workbench/agent_collaboration',
           summary:
-              'Structured plan, diagnostics, code patch, IDE command, command result, streaming content deltas, AgentCodingSessionController streaming adapter dispatch, WorkspaceEdit bridge, stable workspace edit preview/apply-result context, deterministic workspace fix plan ids, agent applyQuickFix preview gate, stale preview rejection, workspace apply failure metadata propagation, workspace-edit risk prompt guidance, Source Control Agent context bridge, Source Control stage/unstage command routing, failed-test rerun context, StyioService readiness checkpoints, StyioService capability-health-aware skill activation and prompt guidance, Styio language provider readiness context and skill activation reasons, SemanticSnapshotPanelViewModel Problems/Refactor context, semantic feature confidence matrix context and prompt guidance, AgentCodingExecutionReadiness issue facts, provider execution health blocking/degraded readiness facts, Agent Surface readiness issue visibility, provider dispatch gate enforcement, blocked dispatch runtime activity evidence, AgentCodingChangeReviewGate patch review facts with concrete review surface action ids, AgentCodingAutonomyPolicy review-before-apply contracts, Agent Surface autonomy policy visibility, AgentCodingValidationPlan and AgentCodingValidationCommandPlan registered command routing, Agent Surface validation command controls, AgentCodingValidationResult validation outcome summaries, AgentCodingValidationPipeline next-command progress facts, blocked validation plan activity visibility, failed patch repair prompt drafting, patch application runtime activity evidence, patch application validation snapshot binding, immediate validation snapshot persistence, provider adapter coding gate metadata summaries, checkpoint result prompt replay, patch application loop, validation-summary-aware persisted coding session history, serializable AgentCodingSessionCheckpoint recovery facts, AgentCodingSessionRecoveryPlan retry/failover/replay facts, AgentCodingSessionRecoveryCommandPlan command routing facts, AgentCodingSessionRecoveryRequestDraft prompt restoration, explicit AgentCodingSessionRecoveryDispatchResult confirmation gates, ShellRuntime retry/replay recovery command dispatch, Agent Surface recovery command action controls, recovery validation summary visibility, validation failure evidence visibility, recovery continue-validation action routing, recovery validation failure fix draft, recovery validation failure evidence prompt drafting, validation failure command evidence persistence, Agent Surface recovery dispatch status feedback, history restore/persistence failure output events, RuntimeOutputLiveBuffer agent activity publishing, AgentProviderSelectionContext prompt injection, provider credential/execution readiness selection, provider readiness context serialization, provider selection status rendering, and embeddable activity history surface with controller snapshot binding, failed-record reason, and diagnostic summary count visibility, and validation summary visibility.',
-          dependencies: <String>['workspace.edit-application'],
+              'Immutable bounded collaboration projections for tasks, permissions, plans, artifacts, change reviews, and verification receipts, plus presentation Workbench widgets that consume those projections only. Workspace mutation remains IDE-owned through revision-bound transactions.',
+          dependencies: <String>['agent.client', 'workspace.edit-application'],
           references: <String>[
+            'lib/src/presentation/agent_workbench',
             'VS Code chat participants',
             'JetBrains AI Assistant workflows',
           ],

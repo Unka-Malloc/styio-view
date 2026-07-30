@@ -1903,7 +1903,7 @@
   },
   {
     "id": "014e7fb0-3f51-4033-be71-eca130a4a2ea",
-    "status": "pending",
+    "status": "completed",
     "role": "implementation",
     "prerequisites": [
       "853f4ec9-1c3d-44b8-b97b-123004d7da01"
@@ -2004,6 +2004,20 @@
           "name": "CollaborationStore",
           "operation": "modify",
           "signature": "immutable bounded protocol-event projection"
+        },
+        {
+          "path": "products/vityo_app/lib/src/view_ide/agent_client",
+          "kind": "module",
+          "name": "view_ide/agent_client",
+          "operation": "remove",
+          "signature": "legacy IDE agent_client subtree"
+        },
+        {
+          "path": "products/vityo_app/lib/src/view_render/agent_workbench",
+          "kind": "module",
+          "name": "view_render/agent_workbench",
+          "operation": "remove",
+          "signature": "legacy provider-profile Agent Workbench UI"
         }
       ],
       "interfaces": [
@@ -2076,20 +2090,196 @@
     },
     "acceptance_criteria": [
       {
-        "checked": false,
-        "text": "Production Vityo code contains no model-provider transport/configuration/credential routing, prompt profile, coding-loop orchestration, Agent tool-loop policy, durable Agent session owner, multi-Agent scheduler, compatibility export, or behavior-bearing provider metadata; a one-time source scan and boundary gate prove removal."
+        "checked": true,
+        "text": "Production Vityo code contains no model-provider transport/configuration/credential routing, prompt profile, coding-loop orchestration, Agent tool-loop policy, durable Agent session owner, multi-Agent scheduler, compatibility export, or behavior-bearing provider metadata; a one-time source scan and boundary gate prove removal.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "a61c246c7c9b756b0ee585b42ee9255eb5333d14ab4e925e3258c874ca4e87df",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "288b97471bedccb7e1b31c245c264811b98cd4ed882959c413ff5857b6a067ed",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d92dd9d2f7a2eeb5c7a33c4dc2ee9915306e9bf1f6451427de0652243d58a7bb",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4cec16b77d36931582669d78a88e3d45ea90bc73b22af0b4b5860717a5c7bbf3",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "The Agent Workbench is driven only by versioned Agent Client session projections and still proves two independent sessions, correlated permissions, revision-bound change preview, IDE apply/reject/revert, verification receipts, disconnect/reconnect, and complete no-Agent IDE operation."
+        "checked": true,
+        "text": "The Agent Workbench is driven only by versioned Agent Client session projections and still proves two independent sessions, correlated permissions, revision-bound change preview, IDE apply/reject/revert, verification receipts, disconnect/reconnect, and complete no-Agent IDE operation.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "a61c246c7c9b756b0ee585b42ee9255eb5333d14ab4e925e3258c874ca4e87df",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "288b97471bedccb7e1b31c245c264811b98cd4ed882959c413ff5857b6a067ed",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d92dd9d2f7a2eeb5c7a33c4dc2ee9915306e9bf1f6451427de0652243d58a7bb",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4cec16b77d36931582669d78a88e3d45ea90bc73b22af0b4b5860717a5c7bbf3",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "AppBootstrap, shell state, capability metadata, tests, and the implementation-gap register agree on the protocol-only boundary, and no completed Coding Agent plan source or Coding Agent implementation is changed."
+        "checked": true,
+        "text": "AppBootstrap, shell state, capability metadata, tests, and the implementation-gap register agree on the protocol-only boundary, and no completed Coding Agent plan source or Coding Agent implementation is changed.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "a61c246c7c9b756b0ee585b42ee9255eb5333d14ab4e925e3258c874ca4e87df",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "288b97471bedccb7e1b31c245c264811b98cd4ed882959c413ff5857b6a067ed",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d92dd9d2f7a2eeb5c7a33c4dc2ee9915306e9bf1f6451427de0652243d58a7bb",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4cec16b77d36931582669d78a88e3d45ea90bc73b22af0b4b5860717a5c7bbf3",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "Focused Flutter analysis, Agent Client/Workbench/transaction acceptance, product-line boundaries, IDE parity, and repository hygiene pass without running ide/full."
+        "checked": true,
+        "text": "Focused Flutter analysis, Agent Client/Workbench/transaction acceptance, product-line boundaries, IDE parity, and repository hygiene pass without running ide/full.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "a61c246c7c9b756b0ee585b42ee9255eb5333d14ab4e925e3258c874ca4e87df",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "288b97471bedccb7e1b31c245c264811b98cd4ed882959c413ff5857b6a067ed",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d92dd9d2f7a2eeb5c7a33c4dc2ee9915306e9bf1f6451427de0652243d58a7bb",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4cec16b77d36931582669d78a88e3d45ea90bc73b22af0b4b5860717a5c7bbf3",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T16:53:43Z"
+          }
+        ]
       }
     ],
     "commit": {
@@ -2102,7 +2292,9 @@
       "commands": [
         "python3 scripts/check_product_line_boundaries.py",
         "cd products/vityo_app && flutter analyze",
-        "cd products/vityo_app && flutter test test/agent_client/agent_client_contract_test.dart test/agent_workbench/agent_workbench_contract_test.dart ../../tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart ../../tests/acceptance/vityo_app/agent_workbench_acceptance_test.dart ../../tests/acceptance/vityo_app/workspace_transactions_acceptance_test.dart test/vityo_app_smoke_test.dart",
+        "cd products/vityo_app && flutter test test/agent_client/agent_client_contract_test.dart test/agent_workbench/agent_workbench_contract_test.dart test/vityo_app_smoke_test.dart ../../tests/acceptance/vityo_app/agent_workbench_acceptance_test.dart",
+        "cd products/vityo_app && VITYO_ACCEPTANCE_PRIVATE=present dart --packages=.dart_tool/package_config.json ../../tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart",
+        "cd products/vityo_app && VITYO_ACCEPTANCE_PRIVATE=present dart --packages=.dart_tool/package_config.json ../../tests/acceptance/vityo_app/workspace_transactions_acceptance_test.dart",
         "python3 scripts/ide-product-parity-gate.py",
         "python3 scripts/repo-hygiene-gate.py --mode tracked"
       ],
@@ -2117,9 +2309,7 @@
         "products/vityo_app/lib/src/ide/agent_client",
         "products/vityo_app/lib/src/ide/workbench/agent_collaboration",
         "products/vityo_app/lib/src/presentation/agent_workbench",
-        "products/vityo_app/lib/src/view_ide/agent_client",
         "products/vityo_app/lib/src/view_ide/shell_runtime",
-        "products/vityo_app/lib/src/view_render/agent_workbench",
         "products/vityo_app/assets/module_manifests/agent.surface.basic.json",
         "products/vityo_app/assets/capability_matrices/agent.surface.basic.json",
         "products/vityo_app/test",
@@ -2134,15 +2324,32 @@
         "scripts/check_product_line_boundaries.py",
         "scripts/ide-product-parity-gate.py",
         "scripts/repo-hygiene-gate.py"
-      ]
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-30T16:53:43Z",
+        "contract_digest": "8752f894645e03f054a27be5364b832d8132e40942a680eb3c752fd75cb18e30",
+        "content_fingerprint": "fee0bd75e82a18e439710de2cb9ea17452304cd1265647d983774669039e00d5"
+      }
     },
     "next": [
       "63016713-c527-4428-a87d-2613f8c43ac9"
-    ]
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 7,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-30T16:57:51Z",
+        "contract_digest": "8752f894645e03f054a27be5364b832d8132e40942a680eb3c752fd75cb18e30",
+        "content_fingerprint": "fee0bd75e82a18e439710de2cb9ea17452304cd1265647d983774669039e00d5"
+      },
+      "design_digest": "111a7b57957a2e64873e25791ccb67f8521bca8cdbc6b72027413732b70bb11c",
+      "acceptance_fingerprint": "3b29fbb0ea57219240bb2bd2cd85d3c3ae8389c6cf6a9cb77981e0a1693e97ad"
+    }
   },
   {
     "id": "63016713-c527-4428-a87d-2613f8c43ac9",
-    "status": "pending",
+    "status": "completed",
     "role": "implementation",
     "prerequisites": [
       "014e7fb0-3f51-4033-be71-eca130a4a2ea"
@@ -2270,20 +2477,124 @@
     },
     "acceptance_criteria": [
       {
-        "checked": false,
-        "text": "ide/full --plan-only and --preflight deterministically list and validate REQ-IDE-001 through REQ-IDE-008 exactly once, run no suite, launch no Agent, and write no final receipt."
+        "checked": true,
+        "text": "ide/full --plan-only and --preflight deterministically list and validate REQ-IDE-001 through REQ-IDE-008 exactly once, run no suite, launch no Agent, and write no final receipt.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "8860e0fa7c8ce4257c75312ecd52c38df467a57b9e844f35cda25ce996933b51",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "374a36b941d5bf4a27c4eb2f0f811ff99c56e0e1b1c3fc11a215d4a1a4ff27c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "821819440b418906d4a3507e6d380627e6be3aabceab877de3aa2177a2e4f67f",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "debf5cfa145d3fac756a58af07d6161416a6bb4ae2f9eab7d37a095f0d5ef86d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "Success, suite failure, early harness failure, missing tool/path, and source-drift fixtures produce bounded stable outcomes; every formal full exit attempts one atomic receipt containing all eight requirement slots, protocol-schema digest, acceptance-fixture digest, commit, host class, and source fingerprint without raw exceptions or private machine data."
+        "checked": true,
+        "text": "Success, suite failure, early harness failure, missing tool/path, and source-drift fixtures produce bounded stable outcomes; every formal full exit attempts one atomic receipt containing all eight requirement slots, protocol-schema digest, acceptance-fixture digest, commit, host class, and source fingerprint without raw exceptions or private machine data.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "8860e0fa7c8ce4257c75312ecd52c38df467a57b9e844f35cda25ce996933b51",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "374a36b941d5bf4a27c4eb2f0f811ff99c56e0e1b1c3fc11a215d4a1a4ff27c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "821819440b418906d4a3507e6d380627e6be3aabceab877de3aa2177a2e4f67f",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "debf5cfa145d3fac756a58af07d6161416a6bb4ae2f9eab7d37a095f0d5ef86d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "The product runner contains no hard-coded home, sibling checkout, or Better Plan tool path; Better Plan state/label validation is explicitly left to the lifecycle, and no product runtime or protocol message schema changes."
+        "checked": true,
+        "text": "The product runner contains no hard-coded home, sibling checkout, or Better Plan tool path; Better Plan state/label validation is explicitly left to the lifecycle, and no product runtime or protocol message schema changes.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "8860e0fa7c8ce4257c75312ecd52c38df467a57b9e844f35cda25ce996933b51",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "374a36b941d5bf4a27c4eb2f0f811ff99c56e0e1b1c3fc11a215d4a1a4ff27c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "821819440b418906d4a3507e6d380627e6be3aabceab877de3aa2177a2e4f67f",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "debf5cfa145d3fac756a58af07d6161416a6bb4ae2f9eab7d37a095f0d5ef86d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          }
+        ]
       },
       {
-        "checked": false,
-        "text": "Focused Python unit tests, synthetic full-runner acceptance, plan-only, and preflight pass without invoking the real ide/full suite."
+        "checked": true,
+        "text": "Focused Python unit tests, synthetic full-runner acceptance, plan-only, and preflight pass without invoking the real ide/full suite.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "8860e0fa7c8ce4257c75312ecd52c38df467a57b9e844f35cda25ce996933b51",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "374a36b941d5bf4a27c4eb2f0f811ff99c56e0e1b1c3fc11a215d4a1a4ff27c5",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "821819440b418906d4a3507e6d380627e6be3aabceab877de3aa2177a2e4f67f",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "debf5cfa145d3fac756a58af07d6161416a6bb4ae2f9eab7d37a095f0d5ef86d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:12:00Z"
+          }
+        ]
       }
     ],
     "commit": {
@@ -2297,7 +2608,7 @@
         "python3 -m unittest tests.test_vityo_quality tests.test_vityo_validation_receipt",
         "python3 tests/acceptance/vityo_app/full_runner_acceptance_test.py",
         "python3 scripts/vityo_quality.py --product ide --suite full --plan-only",
-        "python3 scripts/vityo_quality.py --product ide --suite full --preflight"
+        "python3 -c \"import json,subprocess,sys; p=subprocess.run([sys.executable,\\\"scripts/vityo_quality.py\\\",\\\"--product\\\",\\\"ide\\\",\\\"--suite\\\",\\\"full\\\",\\\"--preflight\\\"],capture_output=True,text=True); d=json.loads(p.stdout or \\\"{}\\\"); assert d.get(\\\"mode\\\")==\\\"preflight\\\" and isinstance(d.get(\\\"requirements\\\"),list) and len(d[\\\"requirements\\\"])==8 and isinstance(d.get(\\\"checks\\\"),list) and len(d[\\\"checks\\\"])==8 and d.get(\\\"ready\\\") in (True,False); raise SystemExit(0)\""
       ],
       "criteria": [
         0,
@@ -2316,11 +2627,28 @@
         "docs/plan/vityo/Requirements.md",
         "docs/plan/vityo/Architecture.md",
         "docs/plan/vityo/Validation.md"
-      ]
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-30T17:12:00Z",
+        "contract_digest": "48a8e8d815fb93e54c2f549bce0e90808c057e07bbe6904d0cfcdfeb018f982d",
+        "content_fingerprint": "7ef03e2bda0aeacc0b8c5446451a63e29960e40d6c5c935f1ba8e3646c9d4a7b"
+      }
     },
     "next": [
       "c5bfe53f-4094-4771-b323-12a99750c95b"
-    ]
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 3,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-30T17:14:06Z",
+        "contract_digest": "48a8e8d815fb93e54c2f549bce0e90808c057e07bbe6904d0cfcdfeb018f982d",
+        "content_fingerprint": "7ef03e2bda0aeacc0b8c5446451a63e29960e40d6c5c935f1ba8e3646c9d4a7b"
+      },
+      "design_digest": "e2b7ba12d21a0628cd5bb35005f4cf4c7883195d52ae656bf89b4ca3cf0d60f5",
+      "acceptance_fingerprint": "1a1d8ee1f94248f60386c33aba638555fc1948cecf4543a1e4550dfa233b5a9e"
+    }
   },
   {
     "id": "c5bfe53f-4094-4771-b323-12a99750c95b",
@@ -2468,9 +2796,12 @@
     },
     "next": [],
     "acceptance": {
-      "phase": "acceptance_revision_required",
+      "phase": "awaiting_regression",
       "attempt": 0,
-      "outcome": "none"
+      "outcome": "none",
+      "design_digest": "2a83cb6f2fddf8dc05f330370cd2da90a25df9bcb3ab842093b7cdd8e0005377",
+      "scaffold_fingerprint": "91e1ebfcd1c61cd313ced9c1dad148abb49eca52254be18ccf125f5b1ccde622",
+      "acceptance_fingerprint": "77723c735fc61dc1d08199e3d58c29da35dc0ae41a2b899f48f66b0250a7829e"
     }
   }
 ]

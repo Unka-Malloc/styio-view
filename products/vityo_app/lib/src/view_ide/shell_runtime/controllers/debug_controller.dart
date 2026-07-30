@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
-import '../../agent_client/agent.dart';
 import '../../debugger/debug_launch_contract.dart';
 import '../../debugger/debug_launch_telemetry_store.dart';
 import '../../debugger/debug_runtime_task_history.dart';
@@ -156,72 +155,6 @@ final class DebugController extends ChangeNotifier {
   DebugSessionSnapshot get session => _session;
   List<DebugBreakpoint> get breakpoints =>
       List<DebugBreakpoint>.unmodifiable(_breakpoints);
-  AgentDebugContext get agentContext => AgentDebugContext(
-    status: _session.status.name,
-    message: _session.message,
-    debuggerId: _session.debuggerId,
-    debuggerLabel: _session.debuggerLabel,
-    breakpointCount: _breakpoints.length,
-    breakpoints: _breakpoints
-        .map(
-          (breakpoint) => AgentDebugBreakpointContext(
-            filePath: breakpoint.filePath,
-            line: breakpoint.line,
-            enabled: breakpoint.enabled,
-          ),
-        )
-        .toList(growable: false),
-    threadCount: _session.threads.length,
-    threads: _session.threads
-        .map(
-          (thread) => AgentDebugThreadContext(id: thread.id, name: thread.name),
-        )
-        .toList(growable: false),
-    stackFrameCount: _session.stackFrames.length,
-    stackFrames: _session.stackFrames
-        .map(
-          (frame) => AgentDebugStackFrameContext(
-            id: frame.id,
-            name: frame.name,
-            filePath: frame.filePath,
-            line: frame.line,
-            column: frame.column,
-          ),
-        )
-        .toList(growable: false),
-    variableCount: _session.variables.length,
-    variables: _session.variables
-        .map(
-          (variable) => AgentDebugVariableContext(
-            name: variable.name,
-            value: variable.value,
-            type: variable.type,
-          ),
-        )
-        .toList(growable: false),
-    launch: _session.launchConfiguration == null
-        ? null
-        : AgentDebugLaunchContext(
-            ready: _session.launchConfiguration!.ready,
-            readiness: _session.launchConfiguration!.readiness.wireValue,
-            reason: _session.launchConfiguration!.reason,
-            adapterProtocol: _session.launchConfiguration!.adapterProtocol,
-            debuggerId: _session.launchConfiguration!.debuggerId,
-            debuggerLabel: _session.launchConfiguration!.debuggerLabel,
-            debuggerExecutablePath:
-                _session.launchConfiguration!.debuggerExecutablePath,
-            debuggerArguments: _session.launchConfiguration!.debuggerArguments,
-            programPath: _session.launchConfiguration!.programPath,
-            cwd: _session.launchConfiguration!.cwd,
-            arguments: _session.launchConfiguration!.arguments,
-            environment: _session.launchConfiguration!.environment,
-            stopOnEntry: _session.launchConfiguration!.stopOnEntry,
-            breakpointCount: _session.launchConfiguration!.breakpoints.length,
-          ),
-    adapterSessionStatus: _session.adapterSessionStatus,
-    adapterPendingRequestCount: _session.adapterPendingRequestCount,
-    adapterEventCount: _session.adapterEventCount,
-  );
   DebugRuntimeExecutionResult? get lastRuntimeExecutionResult =>
       _lastRuntimeExecutionResult;
   DapDebugSessionHandle? get sessionHandle => _sessionHandle;

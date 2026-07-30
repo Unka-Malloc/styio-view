@@ -2,10 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_context.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_profile.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_adapter.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_configurator.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/adapter_contracts.dart';
@@ -14,12 +10,10 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/deployment_adapter.dart
 import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/ide/editor/selection_state.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/hosted_control_plane.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/ide/editor/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
@@ -287,13 +281,6 @@ AppBootstrap _createMinimalBootstrap() {
       resultCache: StyioServiceResultCache(),
     ),
   );
-  final agentController = AgentCodingSessionController(
-    profile: AgentPromptProfile.openAICodexSparkForPlatform(
-      PlatformTarget.windows,
-    ),
-    adapter: const LocalOnlyAgentProviderAdapter(),
-    contextProvider: _emptyAgentContext,
-  );
   return AppBootstrap(
     platformTarget: PlatformTarget.windows,
     backendProvider: backendProviderFor(PlatformTarget.windows),
@@ -318,25 +305,6 @@ AppBootstrap _createMinimalBootstrap() {
     ),
     dependencySourceAdapter: _NoopDependencySourceAdapter(),
     deploymentAdapter: _NoopDeploymentAdapter(),
-    agentCodingController: agentController,
-    agentProviderConfigurator: AgentProviderConfigurator(
-      workspaceId: 'bootstrap-fixture',
-      saveProfile:
-          ({required workspaceId, required key, required profile}) async {},
-      createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
-    ),
-  );
-}
-
-AgentSessionContext _emptyAgentContext() {
-  return AgentSessionContext.fromEditorState(
-    document: const DocumentState(
-      documentId: '/workspace/bootstrap/src/main.styio',
-      text: '#main := () => {}',
-      revision: 1,
-    ),
-    selection: const SelectionState.collapsed(0),
-    diagnostics: const <Diagnostic>[],
   );
 }
 

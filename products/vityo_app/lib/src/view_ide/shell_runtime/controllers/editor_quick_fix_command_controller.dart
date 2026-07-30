@@ -1,7 +1,5 @@
-import '../../agent_client/agent.dart';
 import '../../commands/commands.dart';
 import '../../../ide/workspace/workspace.dart';
-import 'agent_controller.dart';
 
 typedef DiagnosticActionTelemetryRecorder =
     void Function(
@@ -11,10 +9,9 @@ typedef DiagnosticActionTelemetryRecorder =
       Map<String, Object?> metadata,
     );
 
-/// Owns editor quick-fix preview/application and diagnostic receipts.
+/// Owns editor quick-fix preview/application and diagnostic telemetry.
 final class EditorQuickFixCommandController {
   const EditorQuickFixCommandController({
-    required this.agentController,
     required this.previewProjectQuickFix,
     required this.applyLocalQuickFix,
     required this.applyProjectQuickFix,
@@ -24,7 +21,6 @@ final class EditorQuickFixCommandController {
     required this.notify,
   });
 
-  final AgentController agentController;
   final Future<WorkspaceEditPreview?> Function() previewProjectQuickFix;
   final bool Function() applyLocalQuickFix;
   final Future<bool> Function() applyProjectQuickFix;
@@ -60,15 +56,6 @@ final class EditorQuickFixCommandController {
       if (preview != null) 'workspaceEditPreview': preview.toJson(),
     };
     recordTelemetry('previewQuickFix', succeeded, message, metadata);
-    agentController.recordCommandResult(
-      AgentCommandResultContext(
-        commandId: AppCommandId.previewQuickFix.name,
-        applied: succeeded,
-        message: message,
-        metadata: metadata,
-        completedAt: DateTime.now().toUtc(),
-      ),
-    );
     notify();
   }
 

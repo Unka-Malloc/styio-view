@@ -1,40 +1,33 @@
 {
   "moduleId": "agent.surface.basic",
-  "displayName": "Agent Surface",
-  "version": "0.1.0",
+  "displayName": "Agent Workbench",
+  "version": "0.2.0",
   "kind": "optional",
   "slot": "agentSurface",
-  "description": "First-class AI panel host with provider adapter slots.",
+  "description": "Protocol-only Agent Workbench host for versioned Agent Client collaboration projections.",
   "enabledByDefault": true,
-  "entrypoint": "lib/src/view_render/agent_workbench/agent_surface.dart",
+  "entrypoint": "lib/src/presentation/agent_workbench/task_center.dart",
   "distributionPolicyRef": "cross-platform-ui",
   "extension": {
-    "activationEvents": ["onStartup"],
+    "activationEvents": [
+      "onStartup"
+    ],
     "metadata": {
       "isolationMode": "in-process"
     },
     "contributions": [
       {
         "kind": "agent",
-        "id": "collect-agent-surface-context",
-        "target": "agent.tools",
-        "title": "Collect Agent Surface Context",
+        "id": "agent-workbench-surface",
+        "target": "agent.workbench",
+        "title": "Agent Workbench Surface",
         "metadata": {
-          "toolId": "collectAgentSurfaceContext",
-          "handlerId": "collect-agent-surface-context",
-          "description": "Collect agent surface and provider context from the extension host.",
+          "description": "Present immutable Agent Client collaboration projections and IDE workspace transaction review.",
           "permissionMode": "never",
-          "supportedProviderKinds": ["cloud_openai_compatible", "local_bridge"],
-          "supportedProtocols": ["openai-responses", "openai-compatible"],
-          "capabilities": ["agent.surface.context", "provider.context"],
-          "outputLimit": 4096,
-          "schema": [
-            {
-              "name": "includeProviderStatus",
-              "type": "boolean",
-              "required": false,
-              "description": "Include provider readiness and selection status."
-            }
+          "capabilities": [
+            "agent.client",
+            "agent.workbench",
+            "workspace.transactions"
           ]
         }
       }
@@ -42,7 +35,9 @@
   },
   "capabilityFlags": {
     "agentPanel": true,
-    "providerAdapters": true,
-    "profileInjection": true
+    "providerAdapters": false,
+    "profileInjection": false,
+    "protocolClient": true,
+    "collaborationProjection": true
   }
 }

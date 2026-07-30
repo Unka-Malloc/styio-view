@@ -180,6 +180,9 @@ REQUIRED_PROJECT_BRAND_METADATA = {
 }
 VIEW_IDE_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "view_ide"
 IDE_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "ide"
+PRESENTATION_ROOT = (
+    REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "presentation"
+)
 VIEW_RENDER_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "view_render"
 VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = VIEW_IDE_ROOT / "backend_toolchain"
 VIEW_IDE_COMMANDS_ROOT = VIEW_IDE_ROOT / "commands"
@@ -189,10 +192,10 @@ VIEW_IDE_WORKSPACE_ROOT = IDE_ROOT / "workspace"
 VIEW_IDE_MODULE_HOST_ROOT = VIEW_IDE_ROOT / "module_host"
 VIEW_IDE_RUNTIME_ROOT = VIEW_IDE_ROOT / "runtime"
 VIEW_IDE_SHELL_RUNTIME_ROOT = VIEW_IDE_ROOT / "shell_runtime"
-VIEW_IDE_AGENT_CLIENT_ROOT = VIEW_IDE_ROOT / "agent_client"
+IDE_AGENT_CLIENT_ROOT = IDE_ROOT / "agent_client"
 VIEW_IDE_PLATFORM_ROOT = VIEW_IDE_ROOT / "platform"
 VIEW_RENDER_SHELL_ROOT = VIEW_RENDER_ROOT / "shell"
-VIEW_RENDER_AGENT_WORKBENCH_ROOT = VIEW_RENDER_ROOT / "agent_workbench"
+PRESENTATION_AGENT_WORKBENCH_ROOT = PRESENTATION_ROOT / "agent_workbench"
 VIEW_RENDER_EDITOR_ROOT = VIEW_RENDER_ROOT / "editor"
 VIEW_RENDER_RUNTIME_ROOT = VIEW_RENDER_ROOT / "runtime"
 VIEW_RENDER_THEME_ROOT = VIEW_RENDER_ROOT / "theme"
@@ -415,10 +418,10 @@ def check_view_boundary_imports() -> list[str]:
         VIEW_IDE_MODULE_HOST_ROOT,
         VIEW_IDE_RUNTIME_ROOT,
         VIEW_IDE_SHELL_RUNTIME_ROOT,
-        VIEW_IDE_AGENT_CLIENT_ROOT,
+        IDE_AGENT_CLIENT_ROOT,
         VIEW_IDE_PLATFORM_ROOT,
         VIEW_RENDER_SHELL_ROOT,
-        VIEW_RENDER_AGENT_WORKBENCH_ROOT,
+        PRESENTATION_AGENT_WORKBENCH_ROOT,
         VIEW_RENDER_EDITOR_ROOT,
         VIEW_RENDER_RUNTIME_ROOT,
         VIEW_RENDER_THEME_ROOT,

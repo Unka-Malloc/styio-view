@@ -1,3 +1,9 @@
+"""Focused unit freeze for bounded IDE validation receipts.
+
+Adjacent to acceptance_paths for digest/oracle edge cases on
+build_ide_receipt and atomic write failure cleanup.
+"""
+
 from __future__ import annotations
 
 import importlib.util
@@ -49,6 +55,12 @@ class VityoValidationReceiptTest(unittest.TestCase):
             for index in range(1, 9)
         }
 
+    def _digests(self) -> dict[str, str]:
+        return {
+            "protocol_schema_sha256": "d" * 64,
+            "acceptance_fixtures_sha256": "e" * 64,
+        }
+
     def test_full_suite_plan_requires_canonical_unique_mapping(self) -> None:
         self.receipt.validate_full_suite_plan(self._plan())
 
@@ -76,15 +88,20 @@ class VityoValidationReceiptTest(unittest.TestCase):
 
     def test_receipt_builds_passed_and_failed_terminal_results(self) -> None:
         outcomes = self._outcomes()
+        digests = self._digests()
         passed = self.receipt.build_ide_receipt(
             start_fingerprint="a" * 64,
             end_fingerprint="a" * 64,
             commit="b" * 40,
             platform="linux",
             outcomes=outcomes,
+            **digests,
         )
         self.assertEqual(passed["status"], "passed")
         self.assertEqual(passed["product"], "vityo")
+        self.assertEqual(passed["failure_code"], None)
+        self.assertEqual(passed["protocol_schema_sha256"], "d" * 64)
+        self.assertEqual(passed["acceptance_fixtures_sha256"], "e" * 64)
         self.assertEqual(tuple(passed["requirements"]), tuple(outcomes))
 
         outcomes["REQ-IDE-008"]["status"] = "blocked"
@@ -94,10 +111,13 @@ class VityoValidationReceiptTest(unittest.TestCase):
             commit="b" * 64,
             platform="windows",
             outcomes=outcomes,
+            failure_code="suite_failed",
+            **digests,
         )
         self.assertEqual(failed["status"], "failed")
+        self.assertEqual(failed["failure_code"], "suite_failed")
 
-    def test_receipt_rejects_invalid_identity_and_outcomes(self) -> None:
+    def test_receipt_rejects_invalid_identity_outcomes_and_digests(self) -> None:
         cases = []
 
         cases.append(
@@ -142,6 +162,18 @@ class VityoValidationReceiptTest(unittest.TestCase):
                 {"outcomes": invalid_suite},
             )
         )
+        cases.append(
+            (
+                "invalid_evidence_digest",
+                {"protocol_schema_sha256": "bad"},
+            )
+        )
+        cases.append(
+            (
+                "invalid_evidence_digest",
+                {"acceptance_fixtures_sha256": "bad"},
+            )
+        )
 
         defaults = {
             "start_fingerprint": "a" * 64,
@@ -149,9 +181,10 @@ class VityoValidationReceiptTest(unittest.TestCase):
             "commit": "b" * 40,
             "platform": "macos",
             "outcomes": self._outcomes(),
+            **self._digests(),
         }
         for expected_code, overrides in cases:
-            with self.subTest(expected_code=expected_code):
+            with self.subTest(expected_code=expected_code, overrides=overrides):
                 with self.assertRaisesRegex(
                     self.receipt.ValidationReceiptError,
                     expected_code,
@@ -159,6 +192,32 @@ class VityoValidationReceiptTest(unittest.TestCase):
                     self.receipt.build_ide_receipt(
                         **{**defaults, **overrides}
                     )
+
+    def test_early_failure_receipt_allows_null_identity_fields(self) -> None:
+        payload = self.receipt.build_ide_failure_receipt(
+            failure_code="validation_harness_failed",
+            commit=None,
+            platform="linux",
+            source_fingerprint=None,
+            protocol_schema_sha256=None,
+            acceptance_fixtures_sha256=None,
+            outcomes={
+                f"REQ-IDE-{index:03d}": {
+                    "status": "failed",
+                    "suite": f"suite-{index}",
+                    "duration_ms": 0,
+                    "failure_code": "validation_harness_failed",
+                }
+                for index in range(1, 9)
+            },
+        )
+        self.assertEqual(payload["status"], "failed")
+        self.assertEqual(payload["failure_code"], "validation_harness_failed")
+        self.assertIsNone(payload["commit"])
+        self.assertIsNone(payload["source_fingerprint"])
+        self.assertIsNone(payload["protocol_schema_sha256"])
+        self.assertIsNone(payload["acceptance_fixtures_sha256"])
+        self.assertEqual(len(payload["requirements"]), 8)
 
     def test_atomic_write_persists_and_cleans_up_failures(self) -> None:
         payload = {

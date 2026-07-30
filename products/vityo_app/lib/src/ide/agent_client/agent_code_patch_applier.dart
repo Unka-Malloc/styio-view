@@ -1,34 +1,57 @@
-import '../../ide/workspace/workspace_change_set.dart';
-import '../../ide/workspace/workspace_revision_service.dart';
-import '../../ide/workspace/workspace_transaction_service.dart';
-import 'agent_provider_adapter.dart';
+import '../workspace/workspace_change_set.dart';
+import '../workspace/workspace_revision_service.dart';
+import '../workspace/workspace_transaction_service.dart';
 
 const int _maxAgentPatchEditCount = 500;
 const int _maxAgentPatchReplacementTextLength = 200000;
 
-class AgentCodePatchApplicationResult {
+/// Protocol-neutral Agent text replacement proposed against one document.
+final class AgentCodePatchEdit {
+  const AgentCodePatchEdit({
+    required this.documentId,
+    required this.start,
+    required this.end,
+    required this.replacementText,
+    this.baseRevision,
+  });
+
+  final String documentId;
+  final int start;
+  final int end;
+  final String replacementText;
+  final int? baseRevision;
+}
+
+/// Protocol-neutral Agent-proposed text patch.
+final class AgentCodePatch {
+  const AgentCodePatch({
+    required this.patchId,
+    required this.edits,
+    this.baseRevision,
+  });
+
+  final String patchId;
+  final int? baseRevision;
+  final List<AgentCodePatchEdit> edits;
+}
+
+final class AgentCodePatchApplicationResult {
   const AgentCodePatchApplicationResult({
     required this.applied,
     required this.message,
     this.appliedEditCount = 0,
-    this.appliedOperationCounts = const <String, int>{},
     this.appliedDocumentIds = const <String>[],
-    this.createdDocumentIds = const <String>[],
-    this.deletedDocumentIds = const <String>[],
     this.skippedNoOpDocumentIds = const <String>[],
   });
 
   final bool applied;
   final String message;
   final int appliedEditCount;
-  final Map<String, int> appliedOperationCounts;
   final List<String> appliedDocumentIds;
-  final List<String> createdDocumentIds;
-  final List<String> deletedDocumentIds;
   final List<String> skippedNoOpDocumentIds;
 }
 
-/// Converts an Agent DTO into the IDE's sole revisioned mutation authority.
+/// Bridges Agent-proposed text patches into [WorkspaceTransactionService] only.
 final class AgentCodePatchApplier {
   const AgentCodePatchApplier({
     required this.transactionService,
@@ -58,14 +81,11 @@ final class AgentCodePatchApplier {
       );
     }
     if (patch.edits.any(
-      (edit) =>
-          edit.operation != AgentCodePatchEditOperation.replace ||
-          edit.replacementText.length > _maxAgentPatchReplacementTextLength,
+      (edit) => edit.replacementText.length > _maxAgentPatchReplacementTextLength,
     )) {
       return AgentCodePatchApplicationResult(
         applied: false,
-        message:
-            'Agent patch ${patch.patchId} contains an unsupported or oversized edit.',
+        message: 'Agent patch ${patch.patchId} contains an oversized edit.',
       );
     }
     for (final edit in patch.edits) {
@@ -209,9 +229,6 @@ final class AgentCodePatchApplier {
       applied: true,
       message: 'Applied Agent patch ${patch.patchId} atomically.',
       appliedEditCount: patch.edits.length,
-      appliedOperationCounts: <String, int>{
-        AgentCodePatchEditOperation.replace.wireValue: patch.edits.length,
-      },
       appliedDocumentIds: List<String>.unmodifiable(documentIds),
       skippedNoOpDocumentIds: List<String>.unmodifiable(skippedNoOpDocumentIds),
     );

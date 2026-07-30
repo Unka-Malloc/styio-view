@@ -2,8 +2,6 @@ part of '../shell_runtime_model.dart';
 
 /// Listener callbacks and deterministic owned-resource teardown.
 mixin ShellRuntimeLifecycleFacade on ShellRuntimeFacadeHost {
-  void _handleAgentCodingSessionChanged() => _notifyShellListeners();
-  void _handleAgentControllerChanged() => _notifyShellListeners();
   void _handleSettingsChanged() => _notifyShellListeners();
   void _handleExecutionChanged() => _notifyShellListeners();
   void _handleDebugChanged() => _notifyShellListeners();
@@ -65,15 +63,11 @@ mixin ShellRuntimeLifecycleFacade on ShellRuntimeFacadeHost {
   }
 
   void _disposeOwnedResources() {
-    agentCodingController.removeListener(_handleAgentCodingSessionChanged);
     workspaceController.removeListener(_handleWorkspaceChanged);
     editorController.removeListener(_handleDocumentChanged);
     languageServiceStatus.removeListener(_handleLanguageServiceStatusChanged);
     unawaited(_editorFileBindingSubscription?.cancel());
     _editorFileBindingSubscription = null;
-    if (_ownsAgentCodingController) {
-      agentCodingController.dispose();
-    }
     _settingsController.removeListener(_handleSettingsChanged);
     _settingsController.dispose();
     _executionController.removeListener(_handleExecutionChanged);
@@ -110,8 +104,6 @@ mixin ShellRuntimeLifecycleFacade on ShellRuntimeFacadeHost {
     _moduleController.dispose();
     _debugController.removeListener(_handleDebugChanged);
     _debugController.dispose();
-    _agentController.removeListener(_handleAgentControllerChanged);
-    _agentController.dispose();
     _sourceControlController.removeListener(_handleSourceControlChanged);
     _sourceControlController.dispose();
     _testingController.removeListener(_handleTestingChanged);

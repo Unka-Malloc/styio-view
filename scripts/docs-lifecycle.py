@@ -14,6 +14,7 @@ HISTORY = DOCS / "history"
 ROLLUPS = DOCS / "rollups"
 ARCHIVE = DOCS / "archive"
 ARCHIVE_HISTORY = ARCHIVE / "history"
+ACTIVE_GAPS_PATH = DOCS / "design" / "Vityo-Implementation-Gaps.md"
 MANIFEST_PATH = ARCHIVE / "ARCHIVE-MANIFEST.json"
 LEDGER_PATH = ARCHIVE / "ARCHIVE-LEDGER.md"
 TODAY = date.today().isoformat()
@@ -101,7 +102,12 @@ def validate() -> int:
     for path in (HISTORY, ROLLUPS, ARCHIVE, ARCHIVE_HISTORY):
         if not path.exists():
             errors.append(f"missing lifecycle directory: {path.relative_to(ROOT).as_posix()}")
-    for path in (ROLLUPS / "CURRENT-STATE.md", ROLLUPS / "NEXT-STAGE-GAP-LEDGER.md", MANIFEST_PATH, LEDGER_PATH):
+    for path in (
+        ROLLUPS / "CURRENT-STATE.md",
+        ACTIVE_GAPS_PATH,
+        MANIFEST_PATH,
+        LEDGER_PATH,
+    ):
         if not path.exists():
             errors.append(f"missing lifecycle file: {path.relative_to(ROOT).as_posix()}")
 

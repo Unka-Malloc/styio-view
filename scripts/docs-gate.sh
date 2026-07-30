@@ -88,7 +88,7 @@ case "$MODE" in
 esac
 
 run_cmd "${TEAM_CMD[@]}"
-run_cmd env STYIO_SKIP_TEAM_DOC_GATE=1 "$PYTHON_BIN" scripts/docs-audit.py
+run_cmd env VITYO_SKIP_TEAM_DOC_GATE=1 "$PYTHON_BIN" scripts/docs-audit.py
 if [[ "$SKIP_ECOSYSTEM" -eq 1 ]]; then
   log "ecosystem CLI doc consistency check skipped"
 else

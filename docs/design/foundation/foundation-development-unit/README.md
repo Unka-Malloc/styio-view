@@ -65,7 +65,7 @@ Bad:
 The first Foundation implementation cut is intentionally narrow:
 
 ```text
-products/styio_ide/lib/src/view_ide/foundation/
+products/vityo_app/lib/src/view_ide/foundation/
   datastore/
   data-store-owner/
   registry/

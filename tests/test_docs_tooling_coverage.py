@@ -127,6 +127,7 @@ class DocsLifecycleToolTest(unittest.TestCase):
         self.tool.ROLLUPS = self.tool.DOCS / "rollups"
         self.tool.ARCHIVE = self.tool.DOCS / "archive"
         self.tool.ARCHIVE_HISTORY = self.tool.ARCHIVE / "history"
+        self.tool.ACTIVE_GAPS_PATH = self.tool.DOCS / "design" / "Vityo-Implementation-Gaps.md"
         self.tool.MANIFEST_PATH = self.tool.ARCHIVE / "ARCHIVE-MANIFEST.json"
         self.tool.LEDGER_PATH = self.tool.ARCHIVE / "ARCHIVE-LEDGER.md"
 
@@ -135,8 +136,9 @@ class DocsLifecycleToolTest(unittest.TestCase):
             root = Path(tmp_name)
             self._configure_root(root)
             (root / "docs/rollups").mkdir(parents=True)
+            (root / "docs/design").mkdir(parents=True)
             (root / "docs/rollups/CURRENT-STATE.md").write_text("current\n", encoding="utf-8")
-            (root / "docs/rollups/NEXT-STAGE-GAP-LEDGER.md").write_text("gaps\n", encoding="utf-8")
+            self.tool.ACTIVE_GAPS_PATH.write_text("gaps\n", encoding="utf-8")
 
             self.assertEqual(self.tool.refresh(), 0)
             stdout = io.StringIO()
@@ -213,7 +215,8 @@ class DocsLifecycleToolTest(unittest.TestCase):
             for path in (self.tool.HISTORY, self.tool.ROLLUPS, self.tool.ARCHIVE, self.tool.ARCHIVE_HISTORY):
                 path.mkdir(parents=True, exist_ok=True)
             (root / "docs/rollups/CURRENT-STATE.md").write_text("current\n", encoding="utf-8")
-            (root / "docs/rollups/NEXT-STAGE-GAP-LEDGER.md").write_text("gaps\n", encoding="utf-8")
+            self.tool.ACTIVE_GAPS_PATH.parent.mkdir(parents=True, exist_ok=True)
+            self.tool.ACTIVE_GAPS_PATH.write_text("gaps\n", encoding="utf-8")
             manifest = {
                 "version": 1,
                 "last_updated": "2026-01-01",
@@ -302,7 +305,7 @@ class DocsAuditToolTest(unittest.TestCase):
             root = Path(tmp_name)
             self._configure_root(root)
             (root / "docs").mkdir(parents=True)
-            with mock.patch.dict(self.tool.os.environ, {"STYIO_SKIP_TEAM_DOC_GATE": "1"}, clear=False):
+            with mock.patch.dict(self.tool.os.environ, {"VITYO_SKIP_TEAM_DOC_GATE": "1"}, clear=False):
                 with mock.patch.object(self.tool, "run_check", side_effect=[["index stale"], []]):
                     stderr = io.StringIO()
                     with redirect_stderr(stderr):
@@ -362,7 +365,7 @@ class DocsAuditToolTest(unittest.TestCase):
                     "# Index\n\n**Purpose:** Index docs.\n\n**Last updated:** 2026-01-01\n",
                     encoding="utf-8",
                 )
-            with mock.patch.dict(self.tool.os.environ, {"STYIO_SKIP_TEAM_DOC_GATE": "1"}, clear=False):
+            with mock.patch.dict(self.tool.os.environ, {"VITYO_SKIP_TEAM_DOC_GATE": "1"}, clear=False):
                 with mock.patch.object(self.tool, "run_check", return_value=[]):
                     stdout = io.StringIO()
                     with redirect_stdout(stdout):
@@ -390,7 +393,7 @@ class TeamDocsGateToolTest(unittest.TestCase):
         parsed = self.tool.parse_name_status(
             "M\tREADME.md\n"
             "R100\told.md\tdocs/contracts/New.md\n"
-            "C100\told.dart\tfrontend/vityo_app/lib/src/backend_toolchain/adapter.dart\n"
+            "C100\told.dart\tproducts/vityo_app/lib/src/backend_toolchain/adapter.dart\n"
             "\n"
         )
 
@@ -401,7 +404,7 @@ class TeamDocsGateToolTest(unittest.TestCase):
             [
                 "README.md",
                 "docs/contracts/New.md",
-                "frontend/vityo_app/lib/src/backend_toolchain/adapter.dart",
+                "products/vityo_app/lib/src/backend_toolchain/adapter.dart",
             ],
         )
         labels = {rule.label for rule in required}
@@ -567,7 +570,7 @@ class TeamDocsGateToolTest(unittest.TestCase):
 
     def test_run_gate_reports_missing_runbook_and_stats_then_verbose_success(self) -> None:
         changed = [
-            Path("frontend/vityo_app/lib/src/backend_toolchain/adapter.dart"),
+            Path("products/vityo_app/lib/src/backend_toolchain/adapter.dart"),
             Path("docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md"),
         ]
         with mock.patch.object(self.tool, "validate_all_runbook_formats", return_value=[]):
@@ -578,7 +581,7 @@ class TeamDocsGateToolTest(unittest.TestCase):
             with redirect_stdout(stdout):
                 passed = self.tool.run_gate(
                     [
-                        Path("frontend/vityo_app/lib/src/backend_toolchain/adapter.dart"),
+                        Path("products/vityo_app/lib/src/backend_toolchain/adapter.dart"),
                         Path("docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md"),
                         Path("docs/teams/DOC-STATS.md"),
                     ],
@@ -605,7 +608,7 @@ class TeamDocsGateToolTest(unittest.TestCase):
             stderr = io.StringIO()
             with redirect_stderr(stderr):
                 code = self.tool.run_gate(
-                    [Path("frontend/vityo_app/lib/src/backend_toolchain/adapter.dart")],
+                    [Path("products/vityo_app/lib/src/backend_toolchain/adapter.dart")],
                     verbose=False,
                 )
 

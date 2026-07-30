@@ -1,9 +1,9 @@
-# Styio IDE Mainstream Architecture Alignment
+# Vityo Mainstream Architecture Alignment
 
 **Purpose:** Map Vityo's architecture to mainstream IDE/agentic-IDE patterns without cloning any competitor. This document defines where Vityo aligns, where it intentionally diverges, and what governance rules maintain the alignment.
 
 **Owner:** Architecture owner (`CODEOWNERS` → architecture domain)
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-30
 
 ---
 
@@ -18,8 +18,8 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 │  view_ide/      Domain / application /       │  ← NO Flutter presentation imports
 │                 adapter contract / state      │
 ├──────────────┬───────────────────────────────┤
-│  agent/      │  module_host/                 │  ← Agent core + extension host
-│              │  contribution / activation     │
+│  agent_client/│ module_host/                  │  ← Protocol client + extension host
+│               │ contribution / activation     │
 ├──────────────┴───────────────────────────────┤
 │  legacy roots        Compatibility facades    │  ← One-line export only, no new logic
 ├──────────────────────────────────────────────┤
@@ -33,12 +33,12 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 
 | Layer | May Import | Must NOT Import |
 |-------|-----------|-----------------|
-| `view_render/` | `view_ide/`, Flutter Material/Widgets/Cupertino | `agent/` provider core, `module_host/` activation |
+| `view_render/` | `view_ide/`, Flutter Material/Widgets/Cupertino | Agent runtime/provider core, `module_host/` activation |
 | `view_ide/` | Standard Dart, `backend_toolchain/` (shim only) | Flutter Material, Widgets, Cupertino, `dart:ui` |
-| `view_ide/agent/` | `view_ide/` models, adapter contracts | `view_render/`, Flutter |
+| `view_ide/agent_client/` | `view_ide/` models, shared Agent protocol | `view_render/`, Flutter, model/provider SDKs |
 | `view_ide/module_host/` | `view_ide/` contracts | `view_render/`, Flutter |
 | `app/` | All layers | Nothing restricted (composition root) |
-| `prototype/` | Self-contained | `products/styio_ide/` (build artifact boundary) |
+| `prototype/` | Self-contained | `products/vityo_app/` (build artifact boundary) |
 
 ## 2. Industry Alignment Map
 
@@ -90,15 +90,16 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 | Output events | `runtime_output_channels.dart` + `runtime_output_channel_history_store.dart` | Typed output channels, not stdout/stderr only |
 | Capability exchange | Capability negotiation in `debug_workbench_contract.dart` | Schema-versioned, with blocked reasons |
 
-### 2.6 Codex CLI → Vityo Mapping
+### 2.6 Agent Runtime → Vityo Mapping
 
-| Codex Concept | Vityo Equivalent | Intentional Divergence |
+| Agent Runtime Concept | Vityo Equivalent | Intentional Divergence |
 |--------------|-----------------|----------------------|
-| CLI agent | `agent/` package (not CLI; embedded) | IDE-integrated, no standalone CLI agent |
-| Tool approval | `agent_tool_permission.dart` + `agent_tool_permission_policy_store.dart` | Configurable, auditable, testable |
-| Destructive/open-world | Permission levels: `destructive`, `open-world`, `full-access` | Redaction + journal for all tool calls |
-| Provider routing | `agent_provider_registry.dart` + `agent_provider_route_executor.dart` | Multi-provider with health history |
-| Agent context | `agent_context.dart` + `agent_workspace_snapshot.dart` | Workspace snapshot, diagnostic snapshot, runtime snapshot |
+| Independently executable agent | `products/vityo_coding_agent` or another compatible Agent | Vityo remains one IDE product; the runtime is a companion, not a second product identity |
+| Client transport | `packages/vityo_agent_protocol` + `view_ide/agent_client/` | Versioned Agent Client Protocol; no IDE import of Agent implementation |
+| Tool approval | Agent runtime policy plus IDE permission-request presentation | Runtime decides/request scopes; the user decides in Vityo |
+| Change application | Agent proposes revision-bound changes | Only IDE-owned workspace transactions mutate source |
+| Provider routing | Agent-runtime implementation | Vityo does not connect directly to model providers |
+| Agent context | IDE exports a scoped, redacted projection | Source/revision and Styio facts remain IDE-owned |
 
 ## 3. Architecture Governance Rules
 
@@ -107,7 +108,10 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 1. `view_ide/` files MUST NOT import from `package:flutter/material.dart`, `package:flutter/widgets.dart`, or `package:flutter/cupertino.dart`.
 2. `view_render/` files MUST NOT import from `view_ide/agent/`, `view_ide/language/service/`, or `view_ide/module_host/`.
 3. Legacy `backend_toolchain/`, `editor/`, and `language/` files MUST NOT add new business logic; only one-line compatibility exports are allowed.
-4. `view_ide/agent/` files MUST NOT import from `view_render/`.
+4. `view_ide/agent_client/` files MUST NOT import from `view_render/`, model/provider SDKs, or
+   Coding Agent implementation packages.
+5. IDE/Agent messages MUST cross `packages/vityo_agent_protocol`; neither product package may
+   import the other's implementation.
 
 Enforcement:
 
@@ -121,9 +125,11 @@ python3 scripts/check_compat_facades.py
 1. Every public model/contract must have a `schemaVersion` field.
 2. Every adapter payload must support unknown field tolerance.
 3. Every capability declaration must have `blocked` reason when not `implemented`.
-4. Every agent tool must have a permission level, redaction test, and journal test.
+4. Every Agent-runtime tool must have a permission level, redaction test, and journal test; every
+   IDE-applied Agent change must have revision and workspace-transaction tests.
 5. Every sandbox, secret, log redaction, module manifest security, or agent permission change must pass `python3 scripts/check_security_baseline.py`.
-6. Every performance-sensitive editor, language, workspace, runtime, AI context, watcher, or UI virtualization change must keep `python3 scripts/check_performance_budgets.py` passing.
+6. Every performance-sensitive editor, language, workspace, runtime, Agent context, watcher, or UI
+   virtualization change must keep `python3 scripts/check_performance_budgets.py` passing.
 
 ### 3.3 Naming Rules
 
@@ -136,7 +142,7 @@ python3 scripts/check_compat_facades.py
 - [Vityo Product Spec](./Vityo-Product-Spec.md) — product invariants and boundaries
 - [Vityo System Architecture](./Vityo-System-Architecture.md) — original system architecture document
 - [Vityo Extension And Contribution Model](./Vityo-Extension-And-Contribution-Model.md) — extension architecture
-- [Vityo Agent Runtime Architecture](./Vityo-Agent-Runtime-Architecture.md) — agent system design
+- [Vityo Agent-Native IDE Architecture](./Vityo-Agent-Native-IDE-Architecture.md) — IDE/Agent ownership and protocol design
 - [Vityo Protocol And Capability Negotiation](./Vityo-Protocol-And-Capability-Negotiation.md) — protocol design
 - [ADR-0010](../adr/ADR-0010-vityo-view-ide-view-render-boundary.md) — view_ide / view_render boundary decision
 - [CODEOWNERS](../../CODEOWNERS) — architecture domain ownership

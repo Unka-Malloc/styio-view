@@ -31,7 +31,7 @@ class DependencyPolicyGateTest(unittest.TestCase):
         self.gate = load_gate_module()
 
     def _write_policy_tree(self, root: Path, policy_rows: str) -> None:
-        pubspec = root / "frontend/vityo_app/pubspec.yaml"
+        pubspec = root / "products/vityo_app/pubspec.yaml"
         pubspec.parent.mkdir(parents=True, exist_ok=True)
         pubspec.write_text(
             "dependencies:\n"
@@ -61,7 +61,7 @@ class DependencyPolicyGateTest(unittest.TestCase):
         original_pubspec = self.gate.PUBSPEC_PATH
         original_package_json = self.gate.PACKAGE_JSON_PATH
         original_policy = self.gate.POLICY_PATH
-        self.gate.PUBSPEC_PATH = root / "frontend/vityo_app/pubspec.yaml"
+        self.gate.PUBSPEC_PATH = root / "products/vityo_app/pubspec.yaml"
         self.gate.PACKAGE_JSON_PATH = root / "prototype/package.json"
         self.gate.POLICY_PATH = root / "DEPENDENCY-USAGE.md"
         try:

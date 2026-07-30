@@ -75,9 +75,9 @@ class PackageNightlyTest(unittest.TestCase):
         self.assertEqual(
             names,
             {
-                "Styio-IDE-Nightly/install.ps1",
-                "Styio-IDE-Nightly/uninstall.ps1",
-                "Styio-IDE-Nightly/vityo_app.exe",
+                "Vityo-Nightly/install.ps1",
+                "Vityo-Nightly/uninstall.ps1",
+                "Vityo-Nightly/vityo_app.exe",
             },
         )
 
@@ -139,8 +139,8 @@ class PackageNightlyTest(unittest.TestCase):
             packaging = root / "packaging/linux"
             packaging.mkdir(parents=True)
             (packaging / "control").write_text("Version: 0.1.0\n", encoding="utf-8")
-            (packaging / "io.styio.ide.desktop").write_text("desktop", encoding="utf-8")
-            (packaging / "io.styio.ide.metainfo.xml").write_text("meta", encoding="utf-8")
+            (packaging / "io.vityo.desktop").write_text("desktop", encoding="utf-8")
+            (packaging / "io.vityo.metainfo.xml").write_text("meta", encoding="utf-8")
             (packaging / "icon.png").write_bytes(b"png")
             config = {
                 "build_relative_path": "build/linux",

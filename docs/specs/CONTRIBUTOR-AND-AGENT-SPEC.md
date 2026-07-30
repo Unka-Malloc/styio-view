@@ -1,4 +1,4 @@
-# Styio IDE Contributor And Agent Spec
+# Vityo Contributor And Agent Spec
 
 **Purpose:** 定义人类贡献者与代码 agent 在 `Vityo` 仓库中的协作规则、联动更新要求与交付边界。
 
@@ -45,7 +45,8 @@
 1. 交互语义是否与 `styio` 语言本体冲突。
 2. 是否错误假设了 iOS 可直接支持任意本地 JIT。
 3. 是否把桌面交互直接照搬到移动端。
-4. 是否把 AI 面板做成“外挂聊天框”，而不是 IDE 内建能力。
+4. Whether the Agent Workbench preserves plans, permissions, change review, and verification
+   receipts instead of collapsing into a detached chat surface.
 5. 是否错误地在 iOS 上暴露了本地编译模块入口。
 6. Whether new or materially edited documentation follows the English-by-default rule and has an explicit localization reason for any Chinese prose.
 

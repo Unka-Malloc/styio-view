@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate permanent Styio product dependency boundaries."""
+"""Validate permanent Vityo product dependency boundaries."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ import sys
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-IDE = ROOT / "products" / "styio_ide"
-AGENT = ROOT / "products" / "styio_coding_agent"
-PROTOCOL = ROOT / "packages" / "styio_agent_protocol"
+IDE = ROOT / "products" / "vityo_app"
+AGENT = ROOT / "products" / "vityo_coding_agent"
+PROTOCOL = ROOT / "packages" / "vityo_agent_protocol"
 
 
 def dart_sources(root: pathlib.Path) -> list[pathlib.Path]:
@@ -34,10 +34,10 @@ def main() -> int:
             errors += 1
 
     forbidden = (
-        (IDE, re.compile(r"package:styio_coding_agent/"), "IDE imports Coding Agent"),
-        (AGENT, re.compile(r"package:styio_ide/"), "Coding Agent imports IDE"),
+        (IDE, re.compile(r"package:vityo_coding_agent/"), "IDE imports Coding Agent"),
+        (AGENT, re.compile(r"package:vityo_app/"), "Coding Agent imports IDE"),
         (AGENT, re.compile(r"package:flutter/"), "Coding Agent imports Flutter"),
-        (PROTOCOL, re.compile(r"package:(?:flutter|styio_ide|styio_coding_agent)/"),
+        (PROTOCOL, re.compile(r"package:(?:flutter|vityo_app|vityo_coding_agent)/"),
          "protocol imports a product or presentation framework"),
     )
     for root, pattern, label in forbidden:
@@ -47,11 +47,11 @@ def main() -> int:
                 errors += 1
 
     metadata_rules = (
-        (IDE, re.compile(r"(?m)^\s+styio_coding_agent\s*:"), "IDE depends on Coding Agent"),
-        (AGENT, re.compile(r"(?m)^\s+(?:flutter|styio_ide)\s*:"), "Coding Agent has a forbidden dependency"),
+        (IDE, re.compile(r"(?m)^\s+vityo_coding_agent\s*:"), "IDE depends on Coding Agent"),
+        (AGENT, re.compile(r"(?m)^\s+(?:flutter|vityo_app)\s*:"), "Coding Agent has a forbidden dependency"),
         (
             PROTOCOL,
-            re.compile(r"(?m)^\s+(?:flutter|styio_ide|styio_coding_agent)\s*:"),
+            re.compile(r"(?m)^\s+(?:flutter|vityo_app|vityo_coding_agent)\s*:"),
             "protocol has a product or presentation dependency",
         ),
     )
@@ -60,16 +60,16 @@ def main() -> int:
             fail(f"{label}: {root.relative_to(ROOT) / 'pubspec.yaml'}")
             errors += 1
 
-    if "styio_agent_protocol:" not in package_metadata(IDE):
+    if "vityo_agent_protocol:" not in package_metadata(IDE):
         fail("IDE does not consume the shared protocol package")
         errors += 1
-    if "styio_agent_protocol:" not in package_metadata(AGENT):
+    if "vityo_agent_protocol:" not in package_metadata(AGENT):
         fail("Coding Agent does not consume the shared protocol package")
         errors += 1
 
     if errors:
         return 1
-    print("OK: Styio product-line dependency boundaries are valid.")
+    print("OK: Vityo product-line dependency boundaries are valid.")
     return 0
 
 

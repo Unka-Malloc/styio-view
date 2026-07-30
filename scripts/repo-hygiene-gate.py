@@ -74,12 +74,15 @@ ALLOWED_BINARY_GLOBS = (
     "docs/assets/**/*.png",
     "docs/assets/**/*.svg",
     "docs/assets/**/*.webp",
-    "products/styio_ide/android/app/src/main/res/**/*.png",
-    "products/styio_ide/ios/Runner/Assets.xcassets/**/*.png",
-    "products/styio_ide/macos/Runner/Assets.xcassets/**/*.png",
-    "products/styio_ide/web/*.png",
-    "products/styio_ide/web/**/*.png",
-    "products/styio_ide/windows/runner/resources/*.ico",
+    "products/vityo_app/android/app/src/main/res/**/*.png",
+    "products/vityo_app/ios/Runner/Assets.xcassets/**/*.png",
+    "products/vityo_app/macos/Runner/Assets.xcassets/**/*.png",
+    "products/vityo_app/web/*.png",
+    "products/vityo_app/web/**/*.png",
+    "products/vityo_app/windows/runner/resources/*.ico",
+    "prototype/*.png",
+    "reference-images/*.JPG",
+    "reference-images/*.png",
 )
 
 REQUIRED_GITIGNORE_PATTERNS = (
@@ -109,14 +112,14 @@ REQUIRED_GITIGNORE_PATTERNS = (
     "!docs/**/tmp/**",
     "!docs/**/*.tmp",
     "!docs/**/*.log",
-    "!products/styio_ide/test/**/build/",
-    "!products/styio_ide/test/**/build/**",
-    "!products/styio_ide/test/**/build-*/",
-    "!products/styio_ide/test/**/build-*/**",
-    "!products/styio_ide/test/**/tmp/",
-    "!products/styio_ide/test/**/tmp/**",
-    "!products/styio_ide/test/**/*.tmp",
-    "!products/styio_ide/test/**/*.log",
+    "!products/vityo_app/test/**/build/",
+    "!products/vityo_app/test/**/build/**",
+    "!products/vityo_app/test/**/build-*/",
+    "!products/vityo_app/test/**/build-*/**",
+    "!products/vityo_app/test/**/tmp/",
+    "!products/vityo_app/test/**/tmp/**",
+    "!products/vityo_app/test/**/*.tmp",
+    "!products/vityo_app/test/**/*.log",
 )
 
 REQUIRED_DOC_REFERENCES = {
@@ -137,28 +140,47 @@ REQUIRED_DOC_REFERENCES = {
 }
 
 REQUIRED_PROJECT_BRAND_HEADINGS = {
-    Path("README.md"): "# Styio IDE",
-    Path("docs/README.md"): "# Styio IDE Docs",
-    Path("products/styio_ide/README.md"): "# Styio IDE Flutter Shell",
+    Path("README.md"): "# Vityo",
+    Path("docs/README.md"): "# Vityo Docs",
+    Path("products/vityo_app/README.md"): "# Vityo — Styio Agent-Native IDE",
 }
 REQUIRED_PROJECT_BRAND_METADATA = {
-    Path("products/styio_ide/android/app/src/main/AndroidManifest.xml"): 'android:label="Styio IDE"',
-    Path("products/styio_ide/ios/Runner/Info.plist"): (
-        "<key>CFBundleDisplayName</key>\n\t<string>Styio IDE</string>",
-        "<key>CFBundleName</key>\n\t<string>Styio IDE</string>",
+    Path("CODEOWNERS"): "# Vityo CODEOWNERS",
+    Path("docs/specs/VITYO-THEME-CONFIG.md"): "# Vityo Theme Config",
+    Path("packages/vityo_agent_protocol/pubspec.yaml"): (
+        "name: vityo_agent_protocol",
+        "description: Pure, versioned protocol types shared by Vityo",
     ),
-    Path("products/styio_ide/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Styio IDE");',
-    Path("products/styio_ide/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Styio IDE",
-    Path("products/styio_ide/pubspec.yaml"): "description: Styio IDE editor shell",
-    Path("products/styio_ide/windows/runner/Runner.rc"): (
-        'VALUE "FileDescription", "Styio IDE"',
-        'VALUE "InternalName", "Styio IDE"',
-        'VALUE "ProductName", "Styio IDE"',
+    Path("packaging/vityo/desktop-delivery.json"): '"product": "vityo"',
+    Path("products/vityo_coding_agent/pubspec.yaml"): (
+        "name: vityo_coding_agent",
+        "description: Standalone, model-neutral Vityo Coding Agent runtime.",
     ),
+    Path("products/vityo_app/android/app/src/main/AndroidManifest.xml"): 'android:label="Vityo"',
+    Path("products/vityo_app/ios/Runner/Info.plist"): (
+        "<key>CFBundleDisplayName</key>\n\t<string>Vityo</string>",
+        "<key>CFBundleName</key>\n\t<string>Vityo</string>",
+    ),
+    Path("products/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
+    Path("products/vityo_app/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Vityo",
+    Path("products/vityo_app/pubspec.yaml"): (
+        "description: Vityo, the agent-native IDE for Styio"
+    ),
+    Path("products/vityo_app/windows/runner/Runner.rc"): (
+        'VALUE "FileDescription", "Vityo"',
+        'VALUE "InternalName", "Vityo"',
+        'VALUE "ProductName", "Vityo"',
+    ),
+    Path("prototype/dev_server.py"): (
+        'SESSION_COOKIE_NAME = "vityo_dev_server_session"',
+        'SESSION_TOKEN_HEADER = "X-Vityo-Dev-Server-Token"',
+    ),
+    Path("prototype/editor.html"): "<title>Vityo</title>",
+    Path("prototype/index.html"): "<title>Vityo | Design Gallery",
 }
-VIEW_IDE_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
-IDE_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "ide"
-VIEW_RENDER_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_render"
+VIEW_IDE_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "view_ide"
+IDE_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "ide"
+VIEW_RENDER_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "view_render"
 VIEW_IDE_BACKEND_TOOLCHAIN_ROOT = VIEW_IDE_ROOT / "backend_toolchain"
 VIEW_IDE_COMMANDS_ROOT = VIEW_IDE_ROOT / "commands"
 VIEW_IDE_EDITOR_ROOT = IDE_ROOT / "editor"
@@ -176,13 +198,13 @@ VIEW_RENDER_RUNTIME_ROOT = VIEW_RENDER_ROOT / "runtime"
 VIEW_RENDER_THEME_ROOT = VIEW_RENDER_ROOT / "theme"
 VIEW_RENDER_PLATFORM_ROOT = VIEW_RENDER_ROOT / "platform"
 LEGACY_COMMANDS_ROOT = (
-    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "app" / "commands"
+    REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "app" / "commands"
 )
 LEGACY_WORKSPACE_ROOT = (
-    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "app" / "state"
+    REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "app" / "state"
 )
 LEGACY_APP_LAYOUT_ROOT = (
-    REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "app" / "layout"
+    REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "app" / "layout"
 )
 VIEW_IDE_FORBIDDEN_IMPORTS = (
     "package:flutter/cupertino.dart",
@@ -607,53 +629,6 @@ def check_view_ide_editor_layout() -> list[str]:
     return errors
 
 
-def check_legacy_view_ide_facades(
-    *,
-    legacy_root: Path,
-    migrated_root: Path,
-    legacy_name: str,
-    file_names: tuple[str, ...] | None = None,
-    export_prefix: str | None = None,
-) -> list[str]:
-    errors: list[str] = []
-    if not legacy_root.exists():
-        return [
-            f"required legacy {legacy_name} facade directory is missing: {legacy_root.relative_to(REPO_ROOT).as_posix()}"
-        ]
-    if not migrated_root.exists():
-        return errors
-
-    paths = (
-        [legacy_root / file_name for file_name in file_names]
-        if file_names is not None
-        else sorted(legacy_root.glob("*.dart"))
-    )
-    for path in paths:
-        relative_path = path.relative_to(REPO_ROOT).as_posix()
-        if not path.exists():
-            errors.append(f"required legacy {legacy_name} facade is missing: {relative_path}")
-            continue
-        prefix = export_prefix or f"../view_ide/{legacy_name}"
-        expected = f"export '{prefix}/{path.name}';"
-        lines = [
-            line.strip()
-            for line in path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
-        if lines != [expected]:
-            errors.append(
-                f"{relative_path}: legacy {legacy_name} files must stay one-line facades to view_ide/{legacy_name}"
-            )
-            continue
-        target = migrated_root / path.name
-        if not target.exists():
-            errors.append(
-                f"{relative_path}: facade target is missing: {target.relative_to(REPO_ROOT).as_posix()}"
-            )
-
-    return errors
-
-
 def check_worktree_files(files: list[str], max_file_bytes: int) -> list[str]:
     errors: list[str] = []
     for rel_path in files:
@@ -733,7 +708,7 @@ def print_report(header: str, errors: list[str]) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Styio repository hygiene gate")
+    parser = argparse.ArgumentParser(description="Vityo repository hygiene gate")
     parser.add_argument("--mode", choices=("tracked", "staged", "push"), default="staged")
     parser.add_argument("--range", dest="rev_range", help="Explicit revision range for --mode push")
     parser.add_argument("--max-file-bytes", type=int, default=DEFAULT_MAX_FILE_BYTES)

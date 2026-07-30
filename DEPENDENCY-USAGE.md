@@ -2,7 +2,7 @@
 
 **Purpose:** Record dependency authorization boundaries for `Vityo`.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-28
 
 `Vityo` is an Apache-2.0 Flutter/Dart application source project. Its current app, prototype, runner, docs, and test dependency boundary is:
 
@@ -25,6 +25,7 @@
 |---|---|---|---|---|---|
 | `flutter_test` (SDK) | Flutter SDK | BSD-3-Clause | Flutter test framework SDK | Widget tests, unit tests, integration tests | Dev |
 | `flutter_lints` | ^5.0.0 | BSD-3-Clause | `package:flutter_lints` from Flutter ecosystem | Static analysis lint rules for Dart/Flutter code quality | Dev |
+| `test` | ^1.26.0 | BSD-3-Clause | `package:test` from pub.dev | Non-Flutter Dart unit tests for workspace transaction and standalone service contracts | Dev |
 
 ## Prototype Dependencies
 

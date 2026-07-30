@@ -17,37 +17,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      STYIO_PYTHON_VERSION: "3.13.5"
-      STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PYTHON_VERSION: "3.13.5"
+      VITYO_FLUTTER_VERSION: "3.41.7"
 
     steps:
-      - name: Checkout Styio IDE nightly
-        uses: actions/checkout@v5
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
 
       - name: Set up standardized Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+          python-version: ${{ env.VITYO_PYTHON_VERSION }}
 
       - name: Set up standardized Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
-          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+          flutter-version: ${{ env.VITYO_FLUTTER_VERSION }}
 
       - name: Restore coverage dependencies
         run: |
           python3 -m pip install coverage
-          cd products/styio_ide && flutter pub get
+          cd products/vityo_app && flutter pub get
 
       - name: Run project coverage gate
         run: python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85
 
       - name: Upload coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-project-coverage
           path: |
             .coverage
-            products/styio_ide/coverage/lcov.info
+            products/vityo_app/coverage/lcov.info
           if-no-files-found: ignore

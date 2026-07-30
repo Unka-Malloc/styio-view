@@ -11,19 +11,19 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_SECURITY_FILES = (
-    Path("products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart"),
-    Path("products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart"),
-    Path("products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart"),
-    Path("products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart"),
-    Path("products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart"),
+    Path("products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart"),
+    Path("products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart"),
+    Path("products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart"),
+    Path("products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart"),
+    Path("products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart"),
 )
 
 CRITICAL_SOURCE_GLOBS = (
-    "products/styio_ide/lib/src/view_ide/environment/execution/*.dart",
-    "products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart",
-    "products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart",
-    "products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart",
-    "products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart",
+    "products/vityo_app/lib/src/view_ide/environment/execution/*.dart",
+    "products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart",
+    "products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart",
+    "products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart",
+    "products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart",
 )
 
 FORBIDDEN_PATTERNS = (

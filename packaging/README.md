@@ -1,6 +1,6 @@
-# Styio IDE Nightly desktop packages
+# Vityo Nightly desktop packages
 
-`release-versions.json` versions the Styio IDE core and each desktop adapter
+`release-versions.json` versions the Vityo core and each desktop adapter
 independently. `scripts/package-nightly.py --platform <platform>` consumes one
 platform definition and writes only that platform's artifact and receipt under
 `build/nightly/`.

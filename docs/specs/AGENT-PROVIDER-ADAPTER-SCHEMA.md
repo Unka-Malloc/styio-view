@@ -1,24 +1,30 @@
 # Agent Provider Adapter Schema
 
-**Purpose:** 冻结 `AgentProviderAdapter` 的最小合同，使 AI 面板、模块宿主和云/本地 provider 能在不共享实现细节的情况下对接。
+**Purpose:** Preserve the minimum provider-adapter contract for compatible Agent runtimes; this is not an IDE adapter or Vityo product boundary.
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-07-30
 
-**Status:** Draft schema baseline
+**Status:** Agent-runtime schema baseline
+
+**Ownership:** Model/provider adapters belong to Vityo Coding Agent or another compatible Agent.
+Vityo connects to the Agent through `packages/vityo_agent_protocol` and does not consume this
+provider contract directly. Existing IDE implementations of these fields are migration inputs
+tracked in [Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
 
 ## 1. 适用范围
 
 本 schema 覆盖：
 
-1. 云端 OpenAI-compatible provider
-2. 本地外接 agent bridge
-3. 由模块挂载到宿主的 provider adapter
+1. OpenAI-compatible providers used inside an Agent runtime.
+2. Local model/provider bridges used inside an Agent runtime.
+3. Provider adapters mounted into an Agent runtime.
 
 本 schema 不覆盖：
 
 1. 具体模型权重格式
 2. provider 内部计费逻辑
-3. UI 聊天消息排版
+3. Vityo Agent Workbench presentation
+4. IDE/Agent protocol messages
 
 ## 2. 枚举
 
@@ -98,7 +104,7 @@
 
 ## 5. 校验规则
 
-1. `adapterId` 在同一客户端安装集内必须唯一。
+1. `adapterId` must be unique within one Agent runtime installation.
 2. `distributionPolicyRef` 必须引用 [DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md](./DISTRIBUTION-CHANNEL-POLICY-SCHEMA.md) 中存在的 policy。
 3. `kind=cloud_openai_compatible` 时，`routing.endpointBase` 必填，且 `requestFormat` 必须为 `openai_compatible_chat`。
 4. `kind=local_bridge` 时，`routing.localSocketPath` 或 `routing.localBinaryRef` 至少存在一个，且 `requestFormat` 必须为 `local_bridge_rpc`。
@@ -107,9 +113,10 @@
 
 ## 6. 默认行为
 
-1. 当未挂载任何 provider adapter 时，AI 面板进入 `local-only configuration mode`。
-2. 当本地 bridge 不可用时，可按 `fallbackOrder` 切到云 provider。
-3. 未识别的 capability flag 必须忽略，不得导致宿主崩溃。
+1. When no provider adapter is mounted, the Agent runtime reports a structured unavailable or
+   configuration-required state to its client.
+2. When a local bridge is unavailable, the Agent runtime may follow its configured fallback order.
+3. Unknown capability flags must not crash the Agent runtime or its protocol client.
 
 ## 7. 最小响应 envelope
 

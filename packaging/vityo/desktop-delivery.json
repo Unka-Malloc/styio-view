@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "product": "vityo",
+  "platforms": ["linux", "windows", "macos"]
+}

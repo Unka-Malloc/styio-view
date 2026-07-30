@@ -6,7 +6,7 @@ param(
     [string]$FlutterDir,
     [string]$OutDir,
     [string]$WorkDir,
-    [string]$PackageName = "io.styio.ide",
+    [string]$PackageName = "io.vityo.app",
     [string]$TargetPlatform,
     [switch]$BuildOnly,
     [switch]$NoLaunch,
@@ -18,7 +18,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-if (-not $FlutterDir) { $FlutterDir = Join-Path $Root "products\styio_ide" }
+if (-not $FlutterDir) { $FlutterDir = Join-Path $Root "products\vityo_app" }
 if (-not $OutDir) { $OutDir = Join-Path $Root "build\android-device-verification" }
 if (-not $WorkDir) { $WorkDir = Join-Path $Root "build\android-device-workspaces" }
 

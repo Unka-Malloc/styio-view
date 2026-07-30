@@ -15,7 +15,7 @@
     4180
   ],
   "containerEnv": {
-    "STYIO_EDITOR_URL": "http://127.0.0.1:4180/editor.html"
+    "VITYO_EDITOR_URL": "http://127.0.0.1:4180/editor.html"
   },
   "postCreateCommand": "./scripts/bootstrap-workspace.sh --platforms web,linux,android",
   "customizations": {

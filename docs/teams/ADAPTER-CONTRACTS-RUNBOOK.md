@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -12,14 +12,14 @@
 
 Primary paths:
 
-1. `products/styio_ide/lib/src/view_ide/backend_toolchain/`
+1. `products/vityo_app/lib/src/view_ide/backend_toolchain/`
    - `graph_algorithm.dart` — graph DAG, topological sort, Tarjan SCC algorithms
    - `graph_hash.dart` — incremental graph hash computation
    - `toolchain_provenance_guard.dart` — SHA-256 verification, signature policy, endpoint allowlist
    - `workspace_graph_adapter.dart` — workspace graph adapter contract
    - `workspace_graph_builder.dart` — immutable workspace graph builder
    - `workspace_graph_snapshot.dart` — immutable workspace graph snapshot model
-2. `products/styio_ide/lib/src/view_ide/backend_toolchain/`
+2. `products/vityo_app/lib/src/view_ide/backend_toolchain/`
 3. `docs/contracts/`
 4. `docs/external/for-styio/`
 5. `docs/external/for-pafio/`
@@ -40,7 +40,7 @@ Key SSOTs:
 2. 合同变化先改 `docs/contracts/` 或对应 schema，再改消费层和测试目录映射。
 3. 上游缺能力时，把缺口记在 `external/for-styio/` 或 `external/for-pafio/`，不要直接在前端层静默降级产品语义。
 4. 若 contract 与既有计划或实现冲突，先显式指出冲突，再改文档和代码。
-5. `view_ide/backend_toolchain/` 是 IDE 后端工具链边界；跨产品消息只通过 `styio_agent_protocol`，不得新增隐式解析、路由或 hosted 语义。
+5. `view_ide/backend_toolchain/` 是 IDE 后端工具链边界；跨产品消息只通过 `vityo_agent_protocol`，不得新增隐式解析、路由或 hosted 语义。
 6. integration 层的卫生修复如果改变了 workflow selection、runtime event replay、hosted payload 解码、overlay 文件系统枚举覆盖或 Web-only hosted shim，也要同步记录到本 runbook 或对应合同文档，避免代码表面和交接说明漂移。
 7. 对 manifest section、target kind、dependency source kind、toolchain source 这类离散 wire value，优先使用共享映射表或 enum helper，不要在多个 parser/adapter 里复制字符串判断。
 8. 对 blocked-result、missing-binary、cloud-only fallback 这类 adapter 返回值，优先收成共享 helper，避免 execution / toolchain / runtime adapters 各自维护一份近似但会漂移的消息和状态。
@@ -48,6 +48,8 @@ Key SSOTs:
 10. `LanguageServiceAdapter` 的 symbol / reference / definition / rename 字段属于编辑器核心合同；本地 token-derived fallback 可以先实现体验，但 adapter handoff 必须保留 declaration range、usage range、declaration-vs-usage 标记、`unresolved-reference` range 和 rename `TextEdit` 计划，不能退化成纯字符串搜索或前端静默改写。
 11. Adapter contract changes must update the final owner path and keep `python3 scripts/check_product_line_boundaries.py` passing.
 12. `ProjectGraphSnapshot` 字段来源置信度和 `ToolchainCommandResult.schemaVersion` 属于 adapter 合同字段；变更时必须同步 `docs/contracts/`、对应 Dart model、focused adapter tests、agent/UI 消费说明，不能只改文档或只改代码。
+13. Agent integration is protocol-only: Vityo owns source revisions, Styio analyze/test/run facts, change previews, and workspace transactions; Vityo Coding Agent or another compatible Agent owns model/provider access, tool loops, policy, durable sessions, and multi-Agent orchestration.
+14. Any IDE-side provider profile, provider controller, tool dispatcher, or policy-store artifact is migration inventory under `Vityo-Implementation-Gaps.md`, not an accepted adapter contract. Do not extend it while completing the Agent-Native IDE migration.
 
 ## Change Classes
 
@@ -60,7 +62,7 @@ Key SSOTs:
 Minimum:
 
 ```bash
-cd products/styio_ide && flutter analyze && flutter test
+cd products/vityo_app && flutter analyze && flutter test
 python3 scripts/check_product_line_boundaries.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
@@ -83,4 +85,6 @@ Record:
 
 2026-06-25: contracts/README.md 更新 — CacheContract 正式列为第九份已发布合同。Vityo-Implementation-Gaps.md 中此前误标为 Closed 的 Remote/browser/virtual providers 与 Cache Contract 已校正为 Partially implemented。
 
-2026-07-26: Moved the hosted-workspace delivery-plan cross-reference to the `Styio IDE` Better Plan. This documentation-only routing change does not alter the hosted workspace contract schema or runtime behavior.
+2026-07-26: Moved the hosted-workspace delivery-plan cross-reference to the `Vityo` Better Plan. This documentation-only routing change does not alter the hosted workspace contract schema or runtime behavior.
+
+2026-07-30: Aligned CacheContract, HostedWorkspaceCloudRoutes, SettingsProfileThemePersonalization, and UserFacingWorkflows with the Agent-Native IDE boundary. `Agent Context` replaces the old AI label, hosted workspace routes remain separate from the Agent Workbench, and legacy IDE provider/controller artifacts are recorded only as migration inventory. No contract schema or runtime behavior changed.

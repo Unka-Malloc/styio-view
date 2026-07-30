@@ -432,7 +432,7 @@ class LinuxHostReadinessGateTest(unittest.TestCase):
 
     def test_crlf_scripts_clean(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            sh_dir = Path(tmp) / "frontend" / "vityo_app" / "scripts"
+            sh_dir = Path(tmp) / "products" / "vityo_app" / "scripts"
             sh_dir.mkdir(parents=True)
             good = sh_dir / "good.sh"
             good.write_bytes(b"#!/usr/bin/env bash\nset -euo pipefail\n")
@@ -446,7 +446,7 @@ class LinuxHostReadinessGateTest(unittest.TestCase):
 
     def test_crlf_scripts_detected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            sh_dir = Path(tmp) / "frontend" / "vityo_app" / "scripts"
+            sh_dir = Path(tmp) / "products" / "vityo_app" / "scripts"
             sh_dir.mkdir(parents=True)
             bad = sh_dir / "bad.sh"
             bad.write_bytes(b"#!/usr/bin/env bash\r\nset -euo pipefail\r\n")

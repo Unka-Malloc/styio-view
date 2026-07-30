@@ -2,7 +2,7 @@
 
 **Purpose:** Record local validation evidence, host coverage, and release blockers for the current Vityo checkpoint set.
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 ## Evidence Summary
 
@@ -10,7 +10,13 @@ This ledger captures local evidence gathered for the 2026-06-29 Better Plan chec
 separates verified local gates from formal production release evidence that was still missing.
 
 The command rows below preserve the 2026-06-29 validation snapshot. They are historical evidence,
-not instructions for validating the current two-plan Better Plan workspace.
+not instructions for validating the current two-track Better Plan workspace.
+
+Agent provider/controller rows below preserve evidence for the legacy IDE-owned implementation.
+They do not override the current ownership in
+[Vityo Agent-Native IDE Architecture](../design/Vityo-Agent-Native-IDE-Architecture.md) and must not
+be read as proof that the IDE should connect to model providers. The migration remains open in
+[Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
 
 ## Verified Locally
 

@@ -1,9 +1,9 @@
-# Styio IDE API Compatibility Policy
+# Vityo API Compatibility Policy
 
 **Purpose:** Define Vityo's API compatibility rules across public models, adapter contracts, module manifests, and agent tool interfaces. This is the SSOT for what constitutes a breaking change and how compatibility is maintained.
 
 **Owner:** Governance owner (`CODEOWNERS` → governance domain)
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-30
 
 ---
 
@@ -17,8 +17,9 @@ The following are public API surfaces subject to compatibility rules:
 |---------|----------|----------|
 | Adapter contracts | `view_ide/backend_toolchain/`, `view_ide/language/contract/` | External adapters, language services |
 | Module manifest schema | `view_ide/module_host/extension_manifest_contract.dart` | Extension developers |
-| Agent Client interface | `view_ide/agent_client/agent.dart` | IDE workbench and Agent integrations |
-| Agent permission model | `view_ide/agent_client/agent_permission_model.dart` | Agent tools, sandbox routing |
+| Vityo Agent Protocol | `packages/vityo_agent_protocol/` | Vityo Agent Client, Vityo Coding Agent, compatible Agents |
+| Agent Client interface | `view_ide/agent_client/agent.dart` | IDE Workbench and compatible Agent integrations |
+| Agent permission presentation | `view_ide/agent_client/agent_permission_model.dart` | IDE consent UI and protocol projections |
 | Workspace model | `ide/workspace/` | View render surfaces, external tooling |
 | IDE capability registry | `view_ide/workbench/ide_capability_registry.dart` | Product gates, UI surfaces |
 | Configuration schema | `view_ide/environment/configuration/` | Settings UI, bootstrap |
@@ -122,14 +123,13 @@ Adapters SHOULD:
 
 The effective capability set is the intersection of what both sides support. See [Vityo Protocol And Capability Negotiation](../design/Vityo-Protocol-And-Capability-Negotiation.md).
 
-## 4.4 Product-line boundary policy
+## 4.4 Product and delivery-track boundary policy
 
-Legacy Vityo source roots and compatibility exports were removed by the atomic Styio product
-cutover. New code imports its final owner directly:
+Vityo is one product with two delivery tracks. New code imports its final owner directly:
 
-- IDE implementation: `products/styio_ide`;
-- Coding Agent runtime: `products/styio_coding_agent`;
-- neutral protocol DTOs: `packages/styio_agent_protocol`.
+- IDE implementation: `products/vityo_app`;
+- first-party companion Coding Agent runtime: `products/vityo_coding_agent`;
+- Vityo-owned shared protocol DTOs: `packages/vityo_agent_protocol`.
 
 The permanent enforcement command is:
 
@@ -137,8 +137,9 @@ The permanent enforcement command is:
 python3 scripts/check_product_line_boundaries.py
 ```
 
-Do not recreate forwarding exports, dual package identities, IDE-to-Agent implementation imports,
-Agent-to-IDE imports, or Flutter dependencies in the Coding Agent.
+Do not recreate forwarding exports, dual product identities, IDE-to-Agent implementation imports,
+Agent-to-IDE imports, Flutter dependencies in the Coding Agent, or model/provider dependencies in
+the IDE. IDE/Agent communication must use the versioned shared protocol.
 
 ## 5. Module Manifest Compatibility
 
@@ -155,7 +156,10 @@ Agent-to-IDE imports, or Flutter dependencies in the Coding Agent.
 - Existing contribution point types cannot change their required fields.
 - Contribution point removal requires a major version bump.
 
-## 6. Agent Tool Compatibility
+## 6. Agent Protocol And Tool Compatibility
+
+Agent tools are runtime-owned. Vityo governs only the shared protocol representation, permission
+request/decision projection, and IDE application of accepted workspace changes.
 
 ### 6.1 Tool Interface
 
@@ -172,7 +176,9 @@ Agent-to-IDE imports, or Flutter dependencies in the Coding Agent.
 
 ### 6.3 Sandbox And Permission Migration
 
-`agent_permission_model.dart` is a public compatibility surface because module-contributed tools and provider routes depend on it. Changes that increase required permission, change default approval, or move a tool into a stricter sandbox are compatibility-affecting even when the Dart type signature does not change.
+The shared Agent protocol and IDE permission projection are compatibility surfaces. Changes that
+increase requested authority, change default approval presentation, or alter the meaning of a
+permission receipt are compatibility-affecting even when a Dart type signature does not change.
 
 Required migration evidence:
 
@@ -198,7 +204,7 @@ Every public model/contract must have:
 - `scripts/check_security_baseline.py` enforces required sandbox, redaction, secret, manifest-security, and agent-permission files
 - `scripts/check_performance_budgets.py` enforces benchmark coverage markers for performance-sensitive paths
 - `scripts/ide-product-parity-gate.py` checks capability baseline coverage
-- `scripts/styio-ide-product-gate.py` checks product gate compliance
+- `scripts/vityo-product-gate.py` checks product gate compliance
 
 ## 8. Release And PR Checklist
 

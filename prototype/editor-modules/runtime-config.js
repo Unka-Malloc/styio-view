@@ -30,7 +30,7 @@ export const storageKeys = {
   customPaletteConfig: "Vityo:custom-palette-config",
 };
 
-export const customPaletteConfigSchema = "https://styio.dev/schemas/theme-customizations.json";
+export const customPaletteConfigSchema = "https://vityo.dev/schemas/theme-customizations.json";
 
 export function createInitialRuntimeState() {
   return {

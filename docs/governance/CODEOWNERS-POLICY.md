@@ -1,4 +1,4 @@
-# Styio IDE CODEOWNERS Policy
+# Vityo CODEOWNERS Policy
 
 **Purpose:** 定义 Vityo 仓库的 CODEOWNERS 治理策略、nightly 占位 owner 路由和迁移到真实 GitHub owner 的过渡计划。
 
@@ -18,14 +18,14 @@ converted to enforceable owners:
 
 | Path Pattern | Owner | Scope |
 |---|---|---|
-| `products/styio_ide/lib/src/view_ide/agent_client/` | agent-owner | Agent runtime, tools, permissions |
-| `products/styio_ide/lib/src/view_ide/runtime/` | runtime-owner | Debug/runtime contracts, execution |
-| `products/styio_ide/lib/src/ide/workspace/` | workspace-owner | Workspace model, source control |
-| `products/styio_ide/lib/src/view_ide/language/` | language-owner | Language service, diagnostics |
-| `products/styio_ide/lib/src/view_ide/module_host/` | module-owner | Extension/module host |
-| `products/styio_ide/lib/src/view_ide/commands/` | commands-owner | Command registry, permissions |
-| `products/styio_ide/lib/src/view_render/` | shell-owner | View render surface |
-| `products/styio_ide/lib/src/view_ide/backend_toolchain/` | adapter-owner | Adapter contracts |
+| `products/vityo_app/lib/src/view_ide/agent_client/` | agent-owner | Agent runtime, tools, permissions |
+| `products/vityo_app/lib/src/view_ide/runtime/` | runtime-owner | Debug/runtime contracts, execution |
+| `products/vityo_app/lib/src/ide/workspace/` | workspace-owner | Workspace model, source control |
+| `products/vityo_app/lib/src/view_ide/language/` | language-owner | Language service, diagnostics |
+| `products/vityo_app/lib/src/view_ide/module_host/` | module-owner | Extension/module host |
+| `products/vityo_app/lib/src/view_ide/commands/` | commands-owner | Command registry, permissions |
+| `products/vityo_app/lib/src/view_render/` | shell-owner | View render surface |
+| `products/vityo_app/lib/src/view_ide/backend_toolchain/` | adapter-owner | Adapter contracts |
 | `prototype/` | prototype-owner | Prototype editor |
 | `docs/` | docs-owner | Documentation |
 | `scripts/` | docs-owner | Tooling, gates |

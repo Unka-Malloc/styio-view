@@ -27,10 +27,10 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Shell / Editor",
         Path("docs/teams/SHELL-EDITOR-RUNBOOK.md"),
         (
-            "products/styio_ide/lib/src/app/",
-            "products/styio_ide/lib/src/editor/",
-            "products/styio_ide/lib/src/frontend_shell/",
-            "products/styio_ide/lib/src/language/",
+            "products/vityo_app/lib/src/app/",
+            "products/vityo_app/lib/src/editor/",
+            "products/vityo_app/lib/src/frontend_shell/",
+            "products/vityo_app/lib/src/language/",
             "prototype/",
         ),
     ),
@@ -39,8 +39,8 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Runtime / Agent",
         Path("docs/teams/RUNTIME-AGENT-RUNBOOK.md"),
         (
-            "products/styio_ide/lib/src/runtime/",
-            "products/styio_ide/lib/src/view_ide/agent_client/",
+            "products/vityo_app/lib/src/runtime/",
+            "products/vityo_app/lib/src/view_ide/agent_client/",
         ),
     ),
     TeamRule(
@@ -48,11 +48,11 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Module / Platform",
         Path("docs/teams/MODULE-PLATFORM-RUNBOOK.md"),
         (
-            "products/styio_ide/lib/src/module_host/",
-            "products/styio_ide/lib/src/platform/",
-            "products/styio_ide/assets/module_manifests/",
-            "products/styio_ide/assets/capability_matrices/",
-            "products/styio_ide/scripts/bootstrap_flutter_platforms.sh",
+            "products/vityo_app/lib/src/module_host/",
+            "products/vityo_app/lib/src/platform/",
+            "products/vityo_app/assets/module_manifests/",
+            "products/vityo_app/assets/capability_matrices/",
+            "products/vityo_app/scripts/bootstrap_flutter_platforms.sh",
         ),
     ),
     TeamRule(
@@ -60,8 +60,8 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Adapter / Contracts",
         Path("docs/teams/ADAPTER-CONTRACTS-RUNBOOK.md"),
         (
-            "products/styio_ide/lib/src/backend_toolchain/",
-            "products/styio_ide/lib/src/integration/",
+            "products/vityo_app/lib/src/backend_toolchain/",
+            "products/vityo_app/lib/src/integration/",
             "docs/contracts/",
             "docs/external/for-pafio/",
             "docs/external/for-styio/",
@@ -72,7 +72,7 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Theme / UX",
         Path("docs/teams/THEME-UX-RUNBOOK.md"),
         (
-            "products/styio_ide/lib/src/theme/",
+            "products/vityo_app/lib/src/theme/",
             "prototype/editor.css",
             "prototype/styles.css",
             "prototype/theme-config.example.jsonc",
@@ -338,7 +338,7 @@ def run_gate(changed_paths: Sequence[Path], verbose: bool) -> int:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Require team runbook updates when view-owned folders change.")
     parser.add_argument("--mode", choices=["worktree", "staged"], default="worktree")
-    parser.add_argument("--base", default=os.environ.get("STYIO_TEAM_DOC_GATE_BASE"))
+    parser.add_argument("--base", default=os.environ.get("VITYO_TEAM_DOC_GATE_BASE"))
     parser.add_argument("--verbose", action="store_true")
     return parser.parse_args()
 

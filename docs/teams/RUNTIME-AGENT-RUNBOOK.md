@@ -1,30 +1,35 @@
 # Runtime / Agent Runbook
 
-**Purpose:** 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。
+**Purpose:** Define ownership for runtime/debug surfaces and the IDE-side Agent Workbench without assigning Agent-runtime execution to the IDE.
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-07-30
 
 ## Mission
 
-负责运行态 summary、runtime/debug/agent surface、prompt profile 与 local bridge 入口。该团队不拥有 adapter schema 本身，也不定义模块分发策略。
+Own runtime/debug presentation, the Agent Client projection, and the Agent Workbench. This team
+does not own model/provider routing, Agent tool loops, durable Agent sessions, or multi-Agent
+orchestration; those belong to the compatible Agent runtime.
 
 ## Owned Surface
 
 Primary paths:
 
-1. `products/styio_ide/lib/src/view_ide/runtime/`
-2. `products/styio_ide/lib/src/view_ide/agent_client/`
+1. `products/vityo_app/lib/src/view_ide/runtime/`
+2. `products/vityo_app/lib/src/view_ide/agent_client/`
    - `agent_execution_mode.dart` — agent execution mode (plan-only, build-capable)
-   - `agent_provider_access_control.dart` — provider allowlist/denylist
-   - `agent_tool_sandbox_router.dart` — sandboxed tool execution router
-   - `agent_permission_model.dart` — governed permission model for agent tools, provider routes, and approval journals
-3. `products/styio_ide/lib/src/view_render/runtime/`
-4. `products/styio_ide/lib/src/view_render/agent_workbench/`
-5. `products/styio_ide/lib/src/runtime/`
+   - `protocol_agent_client.dart` — versioned protocol connection
+   - `agent_permission_model.dart` — IDE permission-request/decision projection; legacy policy code is migration-only
+   - provider, tool-loop, and durable-session files under this directory are legacy migration anchors and must not receive new ownership
+3. `products/vityo_app/lib/src/view_render/runtime/`
+4. `products/vityo_app/lib/src/view_render/agent_workbench/`
+5. `products/vityo_app/lib/src/runtime/`
    - `runtime_event_log.dart` — append-only runtime event log with ring buffer projection
-6. `products/styio_coding_agent/lib/src/` — Coding Agent 独立运行时，不得导出或依赖 IDE 内部实现
-7. `docs/specs/AGENT-PROVIDER-ADAPTER-SCHEMA.md`
-8. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`
+6. `docs/specs/PROFILE-SYNC-ADAPTER-SCHEMA.md`
+
+Review dependency, not an owned path:
+
+1. `products/vityo_coding_agent/lib/src/`
+2. `packages/vityo_agent_protocol/`
 
 Key SSOTs:
 
@@ -36,28 +41,38 @@ Key SSOTs:
 
 1. 先确认当前变更是 runtime 可视化、agent 协作入口，还是 profile/prompt 持久化。
 2. 若变更依赖新 adapter payload，先转到 Adapter / Contracts owner 文档确认边界。
-3. 变更 agent panel 时，避免把它退化成外挂聊天框；保持 IDE 内建能力定位。
-4. 变更 profile/prompt 流程时，同步检查本地持久化和 sync adapter 语义。
-5. `agent_profile.dart` 只冻结 provider route、默认 endpoint、profile JSON 和 local-bridge eligibility；本轮不新增真实 AI provider 调用、账号策略或云端 secret 管理。
+3. Treat `Agent Workbench` as the formal capability. `Agent Panel` may remain a concrete view name,
+   but it must show task plan, permission, changes, and verification state rather than define the
+   product as chat.
+4. ProfileSync remains optional and local-only when absent. Do not add model/provider credentials
+   or Agent-runtime prompt configuration to IDE-owned profile state.
+5. Do not add provider routes, provider SDKs, model credentials, tool loops, policy stores,
+   durable-session stores, or multi-Agent orchestration to the IDE.
 6. runtime replay、debug lane 和 hosted execution 摘要必须消费 `view_ide/backend_toolchain` adapter payload，不得回读已移除入口或上游 human stderr。
-7. IDE 内 Agent 状态归 `view_ide/agent_client`，Flutter surface 和 Agent panel 呈现归 `view_render/agent_workbench`；Coding Agent 的会话与执行状态归独立产品包。
-8. agent tool execution must route through the sandbox/permission model; UI surfaces may display only redacted context and journal summaries.
-9. Permission, provider route, or sandbox changes must update [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md) when the policy changes.
+7. IDE-side Agent projections belong to `view_ide/agent_client`; Flutter presentation belongs to
+   `view_render/agent_workbench`; durable session and execution state belong to the companion Agent
+   runtime.
+8. UI surfaces may display only redacted protocol context and receipt summaries. Accepted source
+   changes must pass through IDE-owned workspace transactions.
+9. Protocol permission/change semantics or migration of legacy IDE policy/sandbox code must update
+   [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md).
 
 10. `runtime_event_log.dart` changes must keep replay output deterministic on Windows and POSIX hosts; avoid path separator, line-ending, or clock assumptions in runtime event summaries and tests.
 
 ## Change Classes
 
 1. Small: 局部 panel 状态、展示文案或执行态摘要修正。运行 Flutter 最小验证。
-2. Medium: runtime summary、prompt/profile flow、agent provider route、agent panel 行为、hosted execution replay 或 local-only 模式变化。补测试目录映射。
-3. High: 执行态主入口、agent provider 适配路径、profile sync 生命周期或平台执行提示变化。走协调 review。
+2. Medium: runtime summary, ProfileSync flow, Agent Client connection, Agent Workbench behavior,
+   hosted execution replay, or disconnected-Agent state. Update the test catalog.
+3. High: protocol semantics, workspace change application, ProfileSync lifecycle, or the
+   IDE/Agent ownership boundary. Require architecture and security review.
 
 ## Required Gates
 
 Minimum:
 
 ```bash
-cd products/styio_ide && flutter analyze && flutter test
+cd products/vityo_app && flutter analyze && flutter test
 python3 scripts/check_security_baseline.py
 python3 scripts/repo-hygiene-gate.py --mode tracked
 ```
@@ -77,5 +92,3 @@ Record:
 2. 当前依赖的 adapter 能力快照和 fallback 路径。
 3. 已更新的 schema 或测试目录条目。
 4. 下一个阻塞点、回滚点与 history 链接。
-
-<!-- codex merge: agent provider/tool/session runtime assets imported -->

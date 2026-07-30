@@ -77,7 +77,7 @@ class LinuxPackagingGateTest(unittest.TestCase):
                     "Version: 0.1.0",
                     "Section: devel",
                     "Architecture: amd64",
-                    "Description: Vityo IDE shell",
+                    "Description: Vityo shell",
                 ]
             ),
         )

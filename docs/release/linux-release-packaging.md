@@ -72,7 +72,7 @@ appstreamcli validate packaging/linux/io.vityo.metainfo.xml
 The main Flutter release binary lives at:
 
 ```
-frontend/vityo_app/build/linux/x64/release/bundle/vityo
+products/vityo_app/build/linux/x64/release/bundle/vityo
 ```
 
 During packaging:

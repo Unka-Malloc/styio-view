@@ -4,6 +4,6 @@ app_path="$1"
 output_path="$2"
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT
-cp -R "$app_path" "$stage/Styio IDE Nightly.app"
+cp -R "$app_path" "$stage/Vityo Nightly.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "Styio IDE Nightly" -srcfolder "$stage" -ov -format UDZO "$output_path"
+hdiutil create -volname "Vityo Nightly" -srcfolder "$stage" -ov -format UDZO "$output_path"

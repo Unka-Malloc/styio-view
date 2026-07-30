@@ -822,7 +822,7 @@ This section records the settled contract for the Foundation Registry DataStore 
 
 ### 15.1 Owned Artifacts
 
-The following artifacts are owned by Foundation and maintained in `products/styio_ide/lib/src/view_ide/foundation/`:
+The following artifacts are owned by Foundation and maintained in `products/vityo_app/lib/src/view_ide/foundation/`:
 
 | Artifact | Path | Purpose |
 |---|---|---|
@@ -954,7 +954,7 @@ The following rules prevent multiple implementation paths:
 Run the following to verify this contract:
 
 ```bash
-cd products/styio_ide
+cd products/vityo_app
 flutter test test/foundation_test.dart
 flutter test test/workbench_registry_test.dart
 ```

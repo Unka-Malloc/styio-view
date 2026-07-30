@@ -1,0 +1,11 @@
+{
+  "moduleId": "agent.surface.basic",
+  "platforms": {
+    "web": { "supported": true, "visible": true, "installable": true, "mountedByDefault": true, "iosSafe": true, "distributionChannel": "hosted-web", "note": "Agent Workbench can connect to a compatible hosted Agent through the versioned protocol." },
+    "windows": { "supported": true, "visible": true, "installable": true, "mountedByDefault": true, "iosSafe": true, "distributionChannel": "self-hosted", "note": "Agent Workbench can connect to Vityo Coding Agent or another compatible Agent." },
+    "linux": { "supported": true, "visible": true, "installable": true, "mountedByDefault": true, "iosSafe": true, "distributionChannel": "self-hosted", "note": "Agent Workbench can connect to Vityo Coding Agent or another compatible Agent." },
+    "android": { "supported": true, "visible": true, "installable": true, "mountedByDefault": true, "iosSafe": true, "distributionChannel": "self-hosted", "note": "Agent Workbench can connect to a compatible Agent through the versioned protocol." },
+    "macos": { "supported": true, "visible": true, "installable": true, "mountedByDefault": true, "iosSafe": true, "distributionChannel": "self-hosted", "note": "Agent Workbench can connect to Vityo Coding Agent or another compatible Agent." },
+    "ios": { "supported": true, "visible": true, "installable": true, "mountedByDefault": true, "iosSafe": true, "distributionChannel": "app-store", "note": "Agent Workbench can connect to a compatible hosted Agent through the versioned protocol." }
+  }
+}

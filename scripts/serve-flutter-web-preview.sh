@@ -25,7 +25,7 @@ Options:
 Environment:
   VITYO_WEB_PREVIEW_HOST
   VITYO_WEB_PREVIEW_PORT
-  STYIO_DEV_SERVER_ENABLE_MUTATION
+  VITYO_DEV_SERVER_ENABLE_MUTATION
 
 EOF
 }
@@ -120,8 +120,8 @@ select_port() {
 check_host="$HOST"
 
 selected_port="$(select_port)"
-export STYIO_DEV_SERVER_HOST="$HOST"
-export STYIO_DEV_SERVER_PORT="$selected_port"
+export VITYO_DEV_SERVER_HOST="$HOST"
+export VITYO_DEV_SERVER_PORT="$selected_port"
 
 python3 "$ROOT_DIR/prototype/dev_server.py" &
 server_pid="$!"

@@ -129,7 +129,7 @@ locked, routed, or sequenced?", it may be Foundation.
 Initial Foundation modules:
 
 ```text
-products/styio_ide/lib/src/view_ide/foundation/
+products/vityo_app/lib/src/view_ide/foundation/
   datastore/
   registry/
   workspace/
@@ -396,18 +396,18 @@ If any answer is not `Yes`, keep the capability in the owning upper layer.
 Foundation code should live under:
 
 ```text
-products/styio_ide/lib/src/view_ide/foundation/
+products/vityo_app/lib/src/view_ide/foundation/
 ```
 
 Upper-layer owners should live with their owning layer:
 
 ```text
-products/styio_ide/lib/src/view_ide/environment/configuration/
-products/styio_ide/lib/src/view_ide/environment/toolchain/
-products/styio_ide/lib/src/view_ide/environment/extension/
-products/styio_ide/lib/src/view_ide/service/
-products/styio_ide/lib/src/view_ide/interaction/
-products/styio_ide/lib/src/view_render/
+products/vityo_app/lib/src/view_ide/environment/configuration/
+products/vityo_app/lib/src/view_ide/environment/toolchain/
+products/vityo_app/lib/src/view_ide/environment/extension/
+products/vityo_app/lib/src/view_ide/service/
+products/vityo_app/lib/src/view_ide/interaction/
+products/vityo_app/lib/src/view_render/
 ```
 
 Do not add runtime directories named:

@@ -6,7 +6,7 @@
 
 ## Surface Classes
 
-1. `canonical`: the current editor workflow that may carry product behavior. As of 2026-07-26 there is no active canonical entry: the JavaScript prototype is archived and the Flutter app (`frontend/vityo_app`) is the default client.
+1. `canonical`: the current editor workflow that may carry product behavior. As of 2026-07-26 there is no active canonical entry: the JavaScript prototype is archived and the Flutter app (`products/vityo_app`) is the default client.
 2. `style-experiment`: a standalone visual direction sample. It may inform Theme / UX, but it cannot introduce product contracts or workspace mutation semantics.
 3. `draft`: an archived surface that is kept for reference only. It is no longer maintained, must not gain new product behavior, and keeps its last known validation route documented for archaeology. Today this is `editor.html`.
 

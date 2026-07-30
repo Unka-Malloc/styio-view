@@ -8,7 +8,7 @@ Usage: scripts/checkpoint-health.sh [options]
 Run the repository-wide checkpoint health gate for Vityo.
 
 Options:
-  --flutter-dir <dir>    Flutter shell directory (default: products/styio_ide)
+  --flutter-dir <dir>    Flutter shell directory (default: products/vityo_app)
   --prototype-dir <dir>  Handwritten prototype directory (default: prototype)
   --editor-url <url>     Focused editor URL for prototype selftest (default: http://127.0.0.1:4180/editor)
   --styio-bin <path>     Explicit Styio executable for language fixture gate
@@ -25,7 +25,7 @@ log() {
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-FLUTTER_DIR="products/styio_ide"
+FLUTTER_DIR="products/vityo_app"
 PROTOTYPE_DIR="prototype"
 EDITOR_URL="http://127.0.0.1:4180/editor"
 STYIO_BIN="${STYIO:-}"
@@ -93,6 +93,6 @@ log "prototype governance"
 (cd "$PROTOTYPE_DIR" && npm run governance)
 
 log "prototype selftest"
-(cd "$PROTOTYPE_DIR" && PYTHON_BIN="$PYTHON_BIN" STYIO_EDITOR_URL="$EDITOR_URL" npm run selftest:editor)
+(cd "$PROTOTYPE_DIR" && PYTHON_BIN="$PYTHON_BIN" VITYO_EDITOR_URL="$EDITOR_URL" npm run selftest:editor)
 
 log "all checks passed"

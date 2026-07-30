@@ -69,7 +69,7 @@ class DevServerPathUtilityTest(unittest.TestCase):
         self.assertFalse(dev_server.is_allowed_local_netloc("example.test:4180", expected_port=4180))
         self.assertFalse(dev_server.is_allowed_local_netloc(None, expected_port=4180))
 
-        cookies = dev_server.parse_cookie_header("a=1; missing; b = two ; styio_dev_server_session=token")
+        cookies = dev_server.parse_cookie_header("a=1; missing; b = two ; vityo_dev_server_session=token")
         self.assertEqual(cookies["a"], "1")
         self.assertEqual(cookies["b"], "two")
         self.assertEqual(cookies[dev_server.SESSION_COOKIE_NAME], "token")

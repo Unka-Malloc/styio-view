@@ -105,18 +105,15 @@ class TestCompetitorBrandCheck(unittest.TestCase):
     def test_competitor_names_detected_in_source(self) -> None:
         competitor_terms = {"VSCode", "JetBrains", "IntelliJ", "Eclipse", "Theia", "Codex"}
         # These should NOT appear in UI-visible strings
-        ui_string = "Vityo IDE — built for Styio"
+        ui_string = "Vityo — built for the Styio language"
         for term in competitor_terms:
             self.assertNotIn(term, ui_string,
                 f"Competitor name '{term}' should not appear in UI strings")
 
-    def test_vityo_and_styio_are_not_competitors(self) -> None:
-        # Vityo and Styio are our own brand names
-        own_brands = {"Vityo", "Styio", "styio", "vityo"}
-        ui_string = "Vityo IDE powered by Styio"
-        for brand in own_brands:
-            # These should be found (they're ours)
-            pass  # Self-brand references are allowed
+    def test_vityo_product_and_styio_language_are_not_competitors(self) -> None:
+        ui_string = "Vityo — built for the Styio language"
+        self.assertIn("Vityo", ui_string)
+        self.assertIn("Styio language", ui_string)
 
     def test_competitor_names_ok_in_docs_not_ui(self) -> None:
         # Architecture docs can reference competitors for context
@@ -135,9 +132,9 @@ class TestTestAnchorDetection(unittest.TestCase):
 
     def test_test_anchor_pattern_matches_valid_paths(self) -> None:
         valid_test_paths = [
-            "products/styio_ide/test/agent_context_test.dart",
-            "products/styio_ide/test/ide_capability_registry_test.dart",
-            "products/styio_ide/test/debug_workbench_contract_test.dart",
+            "products/vityo_app/test/agent_context_test.dart",
+            "products/vityo_app/test/ide_capability_registry_test.dart",
+            "products/vityo_app/test/debug_workbench_contract_test.dart",
             "tests/test_repo_hygiene_gate.py",
             "tests/test_ecosystem_cli_doc_gate.py",
         ]
@@ -149,13 +146,13 @@ class TestTestAnchorDetection(unittest.TestCase):
 
     def test_test_anchor_for_contract_files(self) -> None:
         contract_files = [
-            ("products/styio_ide/lib/src/view_ide/runtime/debug_workbench_contract.dart",
+            ("products/vityo_app/lib/src/view_ide/runtime/debug_workbench_contract.dart",
              "debug_workbench_contract_test.dart"),
-            ("products/styio_ide/lib/src/ide/workspace/source_control_adapter.dart",
+            ("products/vityo_app/lib/src/ide/workspace/source_control_adapter.dart",
              "source_control_adapter_test.dart"),
-            ("products/styio_ide/lib/src/view_ide/agent_client/agent_context.dart",
+            ("products/vityo_app/lib/src/view_ide/agent_client/agent_context.dart",
              "agent_context_test.dart"),
-            ("products/styio_ide/lib/src/view_ide/workbench/ide_capability_registry.dart",
+            ("products/vityo_app/lib/src/view_ide/workbench/ide_capability_registry.dart",
              "ide_capability_registry_test.dart"),
         ]
         for contract, expected_test in contract_files:
@@ -179,7 +176,7 @@ class TestViewIdeFlutterImportCheck(unittest.TestCase):
             "dart:ui",
         ]
 
-        view_ide_root = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
+        view_ide_root = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "view_ide"
         if not view_ide_root.is_dir():
             self.skipTest("view_ide directory not found")
 

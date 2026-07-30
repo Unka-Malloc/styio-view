@@ -1,4 +1,4 @@
-# Styio IDE Governance
+# Vityo Governance
 
 **Purpose:** Define the repository-owned rules for compatibility, security, release readiness, code ownership, and migration discipline.
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -61,15 +62,30 @@ void main() {
       final facts = await const LocalPtyProber().probe();
       final manager = LocalPtyManager(facts: facts);
       final session = await manager.start(_ttyProbeRequest());
-      final outputFuture = session.output.join();
+      final output = <String>[];
+      final ready = Completer<void>();
+      final done = Completer<void>();
+      final subscription = session.output.listen((chunk) {
+        output.add(chunk);
+        if (Platform.isWindows && !ready.isCompleted) {
+          ready.complete();
+        }
+      }, onDone: done.complete);
+      if (!Platform.isWindows) {
+        ready.complete();
+      }
+      await ready.future.timeout(const Duration(seconds: 10));
+      await session.write(_ttyProbeCommand());
+      await done.future.timeout(const Duration(seconds: 10));
       final exitCode = await session.exitCode.timeout(
         const Duration(seconds: 10),
       );
-      final output = await outputFuture.timeout(const Duration(seconds: 10));
+      await subscription.cancel();
+      final fullOutput = output.join();
 
       expect(exitCode, 0);
-      expect(output, contains('tty-ok'));
-      expect(output, isNot(contains('no-tty')));
+      expect(fullOutput, contains('tty-ok'));
+      expect(fullOutput, isNot(contains('no-tty')));
       expect(session.state, PtySessionState.exited);
     },
     skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
@@ -143,18 +159,17 @@ PtySessionRequest _ttyProbeRequest() {
   if (Platform.isWindows) {
     return const PtySessionRequest(
       executablePath: 'powershell.exe',
-      arguments: <String>[
-        '-NoLogo',
-        '-NoProfile',
-        '-Command',
-        "if ([Console]::IsOutputRedirected) { 'no-tty' } else { 'tty-ok' }",
-      ],
+      arguments: <String>['-NoLogo', '-NoProfile'],
     );
   }
-  return const PtySessionRequest(
-    executablePath: '/bin/sh',
-    arguments: <String>['-c', 'test -t 1 && printf tty-ok || printf no-tty'],
-  );
+  return const PtySessionRequest(executablePath: '/bin/sh');
+}
+
+String _ttyProbeCommand() {
+  if (Platform.isWindows) {
+    return "if ([Console]::IsOutputRedirected) { 'no-tty' } else { 'tty-ok' }; exit 0\r\n";
+  }
+  return 'test -t 1 && printf tty-ok || printf no-tty; exit 0\r';
 }
 
 PtySessionRequest _resizeProbeRequest() {

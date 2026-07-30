@@ -2651,6 +2651,121 @@
     }
   },
   {
+    "id": "4948f541-f2fc-4bd9-a715-bf0fcf746956",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "63016713-c527-4428-a87d-2613f8c43ac9"
+    ],
+    "platform": "any",
+    "difficulty": "low",
+    "goal": "Repair MCP host acceptance fixture so extension tools use the styio. namespace required by McpExtensionContribution.",
+    "description": "Closure: scenario - REQ-IDE-006 mcp-host final-validation repair. Context: ide/full failed because mcp_host_security_acceptance_test registered a vityo.extension.inspect tool while McpExtensionContribution requires non-empty styio.-prefixed tool names. Target: update the acceptance fixture to styio.extension.inspect and prove mcp_host passes without restoring IDE provider ownership. Design Considerations: keep production namespace invariant; change only the fixture oracle. Design Value: final validation can re-run on a new clean fingerprint. Constraints & Risks: do not weaken styio. enforcement; do not run ide/full inside this repair.",
+    "requirements": [
+      "REQ-IDE-006"
+    ],
+    "design": {
+      "artifact": "docs/plan/vityo/Validation.md",
+      "owned_paths": [
+        "tests/acceptance/vityo_app/mcp_host_security_acceptance_test.dart",
+        "products/vityo_app/lib/src/ide/extensions/mcp_extension_registry.dart"
+      ],
+      "scaffold_paths": [
+        "products/vityo_app/lib/src/ide/extensions/mcp_extension_registry.dart"
+      ],
+      "acceptance_paths": [
+        "docs/plan/vityo/Validation.md",
+        "docs/plan/EXECUTION-RUNBOOK.md"
+      ],
+      "symbols": [
+        {
+          "path": "tests/acceptance/vityo_app/mcp_host_security_acceptance_test.dart",
+          "kind": "module",
+          "name": "MCP host security acceptance fixture",
+          "operation": "modify",
+          "signature": "extension tools use styio. namespace"
+        }
+      ],
+      "interfaces": [],
+      "dependencies": [],
+      "decisions": {
+        "composition": "align acceptance fixture tool names with McpExtensionContribution styio. namespace invariant",
+        "algorithms": "rename fixture tool descriptor to styio.extension.inspect and update string oracles",
+        "data_structures": "no production type changes",
+        "state": "fixture-only repair; production registry invariant unchanged",
+        "isolation": "no IDE provider/coding-loop restoration",
+        "concurrency": "single-threaded acceptance fixture update"
+      },
+      "test_seams": [
+        "mcp_host quality runner",
+        "mcp_host_security_acceptance_test"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "mcp_host_security_acceptance_test registers only styio.-namespaced extension tools and the ide mcp-host quality runner exits 0.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "400c614dfeedc2478c3a1c65214f90cae63ae947ff9177754b9297550223a572",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:30:30Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "No IDE provider/coding-loop surfaces are reintroduced.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "400c614dfeedc2478c3a1c65214f90cae63ae947ff9177754b9297550223a572",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T17:30:30Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "test(mcp): align extension fixture with styio namespace",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python3 -c \"import scripts.vityo_quality as q; raise SystemExit(q.mcp_host())\""
+      ],
+      "criteria": [
+        0,
+        1
+      ],
+      "paths": [
+        "tests/acceptance/vityo_app/mcp_host_security_acceptance_test.dart",
+        "products/vityo_app/lib/src/ide/extensions/mcp_extension_registry.dart"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-30T17:30:30Z",
+        "contract_digest": "120ded2d66cc1d70364cc825d1a112932d0011dab17dbf9c80a590dc8cc935f6",
+        "content_fingerprint": "646d80f65e9695ce4cb2ec1dc76794e1a6102456e994a24220a581a852d842ac"
+      }
+    },
+    "next": [],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 1,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-30T17:30:37Z",
+        "contract_digest": "120ded2d66cc1d70364cc825d1a112932d0011dab17dbf9c80a590dc8cc935f6",
+        "content_fingerprint": "646d80f65e9695ce4cb2ec1dc76794e1a6102456e994a24220a581a852d842ac"
+      },
+      "design_digest": "778691a436f2f44e8de2cde76a0e46ea72e44ed5ea70ff4854eaa116809b7c87",
+      "acceptance_fingerprint": "a33ddb814a2914ad8791ce7ae200e3d1cb51c5efada6d75de63e53de39c77893"
+    }
+  },
+  {
     "id": "c5bfe53f-4094-4771-b323-12a99750c95b",
     "status": "pending",
     "role": "final_validation",
@@ -2662,7 +2777,8 @@
       "2a37d539-ce52-49e0-8ba6-4643bfbbb0d3",
       "05f2306e-4431-426b-8933-3f64caecce75",
       "0a18cc12-6328-4d4e-8c44-af3b273529d5",
-      "63016713-c527-4428-a87d-2613f8c43ac9"
+      "63016713-c527-4428-a87d-2613f8c43ac9",
+      "4948f541-f2fc-4bd9-a715-bf0fcf746956"
     ],
     "platform": "any",
     "difficulty": "high",
@@ -2750,7 +2866,7 @@
     "regression": {
       "scope": "full",
       "commands": [
-        "python scripts/vityo_quality.py --product ide --suite full --receipt artifacts/validation/vityo-full.json"
+        "python3 scripts/vityo_quality.py --product ide --suite full --receipt artifacts/validation/vityo-full.json"
       ],
       "criteria": [
         0,
@@ -2759,19 +2875,14 @@
         3
       ],
       "paths": [
-        "products/vityo_app/android",
         "products/vityo_app/assets",
         "products/vityo_app/benchmark",
         "products/vityo_app/integration_test",
-        "products/vityo_app/ios",
         "products/vityo_app/lib",
-        "products/vityo_app/linux",
-        "products/vityo_app/macos",
         "products/vityo_app/scripts",
         "products/vityo_app/test",
         "products/vityo_app/tool",
         "products/vityo_app/web",
-        "products/vityo_app/windows",
         "products/vityo_app/analysis_options.yaml",
         "products/vityo_app/package.json",
         "products/vityo_app/pubspec.lock",
@@ -2796,12 +2907,9 @@
     },
     "next": [],
     "acceptance": {
-      "phase": "awaiting_regression",
+      "phase": "acceptance_revision_required",
       "attempt": 0,
-      "outcome": "none",
-      "design_digest": "2a83cb6f2fddf8dc05f330370cd2da90a25df9bcb3ab842093b7cdd8e0005377",
-      "scaffold_fingerprint": "91e1ebfcd1c61cd313ced9c1dad148abb49eca52254be18ccf125f5b1ccde622",
-      "acceptance_fingerprint": "77723c735fc61dc1d08199e3d58c29da35dc0ae41a2b899f48f66b0250a7829e"
+      "outcome": "none"
     }
   }
 ]

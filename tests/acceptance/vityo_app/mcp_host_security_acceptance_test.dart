@@ -225,7 +225,7 @@ Future<void> _rootsCapabilitiesAndExtensionsRevokeImmediately() async {
   );
   final extensionAdapter = _RecordingAdapter(
     descriptor: _descriptor(
-      name: 'vityo.extension.inspect',
+      name: 'styio.extension.inspect',
       capability: 'extension.inspect',
       risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
     ),
@@ -282,7 +282,7 @@ Future<void> _rootsCapabilitiesAndExtensionsRevokeImmediately() async {
       'tools/list',
     );
     _expect(
-      jsonEncode(listedAfterAdd).contains('vityo.extension.inspect'),
+      jsonEncode(listedAfterAdd).contains('styio.extension.inspect'),
       'registered extension tool must be discoverable',
     );
 
@@ -292,7 +292,7 @@ Future<void> _rootsCapabilitiesAndExtensionsRevokeImmediately() async {
     final removedCall = await _callTool(
       server,
       'session-live',
-      'vityo.extension.inspect',
+      'styio.extension.inspect',
       const <String, Object?>{},
     );
     _expect(

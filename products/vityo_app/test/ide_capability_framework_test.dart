@@ -513,7 +513,7 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.todo,
-      contains('concrete installer UX'),
+      contains('generic installer UX'),
     );
     expect(entriesById['toolchain.manager']?.runtimeMaturityBlocking, isFalse);
     expect(

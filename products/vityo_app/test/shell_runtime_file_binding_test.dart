@@ -2363,7 +2363,7 @@ value = 1
         'sync requires a resolved pafio manifest path.',
       );
       for (final fragment in const <String>[
-        'Fetch blocked: sync requires a resolved pafio manifest path',
+        'Sync blocked: sync requires a resolved pafio manifest path',
         'Module host refresh requested',
         'Native bridge local.runtime.desktop',
         'Settings route is reserved',
@@ -2602,7 +2602,7 @@ value = 1
     }
 
     expect(
-      shell.debugLog.any((entry) => entry.contains('Fetch blocked')),
+      shell.debugLog.any((entry) => entry.contains('Sync blocked')),
       isTrue,
     );
     for (var index = 0; index < 60; index += 1) {
@@ -2674,7 +2674,7 @@ value = 1
   );
 
   test(
-    'shell runtime handles toolchain recovery actions without manager',
+    'shell runtime handles generic toolchain recovery actions without manager',
     () async {
       const initialDocument = DocumentState(
         documentId: 'src/main.styio',
@@ -2721,16 +2721,6 @@ value = 1
           description: 'Create the expected directory',
         ),
         ToolchainRecoveryAction(
-          id: 'retry-tool-use',
-          label: 'Retry use',
-          description: 'Retry tool use',
-        ),
-        ToolchainRecoveryAction(
-          id: 'retry-tool-pin',
-          label: 'Retry pin',
-          description: 'Retry tool pin',
-        ),
-        ToolchainRecoveryAction(
           id: 'unknown-recovery',
           label: 'Unknown',
           description: 'Unknown action',
@@ -2745,7 +2735,6 @@ value = 1
         'Toolchain install planning unavailable',
         'Toolchain degraded mode requested',
         'Toolchain precondition recovery',
-        'Toolchain retry blocked',
         'Toolchain recovery action is not wired',
       ]) {
         expect(

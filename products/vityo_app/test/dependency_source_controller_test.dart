@@ -71,7 +71,7 @@ final class _RecordingDependencySourceAdapter
   bool? lastOffline;
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,

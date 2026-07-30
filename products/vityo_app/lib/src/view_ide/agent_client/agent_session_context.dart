@@ -3359,11 +3359,12 @@ class AgentToolchainContext {
       activeCompiler?.metadata['defaultForNativeCode'] == true;
   List<String> get suggestedCommandIds {
     final commandIds = <String>[];
-    if (bootstrap?.executionPlan().canExecute ?? false) {
-      commandIds.add('bootstrapStyioToolchain');
+    if (bootstrap != null && !bootstrap!.ready) {
+      commandIds.add('openSettings');
     }
     if (lastBootstrapActionDispatch?.status ==
-        ToolchainBootstrapActionDispatchStatus.missingHandler) {
+            ToolchainBootstrapActionDispatchStatus.missingHandler &&
+        !commandIds.contains('openSettings')) {
       commandIds.add('openSettings');
     }
     return List<String>.unmodifiable(commandIds);

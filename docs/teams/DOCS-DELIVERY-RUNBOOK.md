@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -63,6 +63,11 @@ Key SSOTs:
 7. `活跃缺口登记 -> ../design/Vityo-Implementation-Gaps.md`
 8. `IDE 标杆能力矩阵 -> ../design/Vityo-IDE-Benchmark-Matrix.md`
 9. `IDE 能力成熟度模型 -> ../design/Vityo-IDE-Capability-Maturity.md`
+
+The ecosystem owner split is documented once across `for-pafio/`,
+`for-styio/`, and `for-platform/`; active rollups and release checklists must
+not revive removed compiler-management or repository-hosted control-plane
+claims.
 10. `IDE 交互质量基线 -> ../design/Vityo-IDE-Interaction-Quality-Bar.md`
 11. `IDE 能力基线 JSON -> ../../toolchain/vityo-ide-capability-baseline.json`
 12. `IDE 产品对标门禁 -> ../../scripts/ide-product-parity-gate.py`
@@ -168,5 +173,13 @@ Vityo product; Vityo Coding Agent is the first-party companion runtime, not a se
 identity. The obsolete line-anchored plan, its permanent verifier, and the outdated repository-local
 Better Plan validator/test copy were removed; generated documentation indexes and lifecycle records
 were refreshed.
+
+2026-07-30: Completed the owner-adapter documentation migration. System Styio
+discovery and machine-contract consumption replaced the former managed Styio
+toolchain claims; generic IDE-owned tool provenance remains separate. Refreshed
+implementation gaps, foundation ownership, post-commit checks, lifecycle
+records, generated indexes, and team document statistics. Removed the obsolete
+ecosystem sample-workflow gate after the Pafio metadata and Platform hosted
+contracts became the authoritative validation surfaces.
 
 <!-- codex merge: docs/build/scripts assets imported -->

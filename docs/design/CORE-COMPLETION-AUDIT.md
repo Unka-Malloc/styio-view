@@ -27,7 +27,7 @@ For this audit, "complete" means:
 | Platform Adapter | Converts platform facts into compatibility decisions without direct product behavior. |
 | Platform Manager | Exposes system-specific managers that functional layers can call without talking to raw OS APIs directly. |
 | Configuration | Persists IDE settings, shell/environment overlays, credentials, and Toolchain catalog state through Foundation/DataStore. |
-| Toolchain | Resolves, configures, verifies, installs, runs, and reports toolchains, including signed managed-download provenance. |
+| Toolchain | Resolves, configures, verifies, runs, and reports generic IDE-owned tools; system Styio is consumed through its machine contract. |
 | Language Service | Connects to real Styio language truth, caches project-context results, exposes diagnostics/completion/hover/semantic/reference/rename facts, and keeps UI fallback clearly separated from compiler truth. |
 
 ## 2. Prompt-To-Artifact Checklist
@@ -48,7 +48,6 @@ For this audit, "complete" means:
 | Toolchain managed downloads verify bytes | `toolchain_install_executor.dart` | Checksum, size, staging, binary preservation, and mismatch tests pass. | Covered. |
 | Toolchain managed downloads verify signed provenance | `toolchain_provenance_verifier.dart`, `toolchain_install_policy.dart`, `toolchain_install_executor.dart` | `test/toolchain_provenance_verifier_test.dart` passes. | Covered for Ed25519 verifier boundary and executor integration. |
 | Toolchain catalog/config can carry signed download metadata | `toolchain_managed_download_config.dart` | `test/toolchain_managed_download_config_test.dart` passes. | Covered for metadata persistence and plan generation. |
-| Real Styio release provenance assets are present | Release catalog entries, real public keys, real signature URLs, signed artifacts | No real release key/signature asset was provided in this repo. | Not complete. Requires Styio release process inputs. |
 | App bootstrap seeds Styio language-service toolchain catalog | `app_bootstrap.dart` | `test/app_bootstrap_toolchain_test.dart` passes in full Flutter suite. | Covered for local bootstrap behavior. |
 | Language Service connects to Styio CLI diagnostics | `styio_service_connector.dart`, `styio_service_runtime.dart` | Connector, runtime, fixture gate, and language status tests pass. | Covered for current CLI diagnostics path. |
 | Language Service can consume published Styio facts envelopes and explicit capability states | `styio_service_connector.dart`, `styio_service_capability_detector.dart`, `STYIO-SERVICE-PROTOCOL-CONTRACT.md`, `test/fixtures/styio_service/facts_envelope.jsonl` | Connector/capability filtered test -> `+8 All tests passed`; language status surface test -> `+6 All tests passed`. | Covered for Vityo-side future facts ingestion and capability declaration contract. |
@@ -148,7 +147,6 @@ flutter test \
 
 | Gap | Why it prevents completion | Next concrete action |
 |---|---|---|
-| Real Styio release provenance assets are absent. | Vityo can verify signed managed downloads, but cannot ship a complete managed install path without real release keys, signature URLs, and signed artifacts. | Add real release metadata when the Styio release process provides public keys and signature assets. |
 | Real StyioService semantic facts are absent from current CLI output. | Vityo can route/cache/display facts, but completion/hover/semantic/reference/rename cannot be called functionally complete until facts come from Styio language truth. | Integrate the embedded/API/LSP contract once `styio-nightly` exposes semantic facts. |
 | Clipboard, Notification, and Local Service managers have only bundle-level/product-agnostic evidence. | The Platform Manager set is complete and audited, but these managers do not yet have concrete upper-layer product workflows. | Add product-path tests when clipboard, notification, or local-service consumers are implemented. |
 | Full repo delivery gates have not been run. | Flutter tests do not cover docs gates, repo hygiene, or any external delivery checks. | Run repo-level delivery gates when the implementation scope is ready for closure. |

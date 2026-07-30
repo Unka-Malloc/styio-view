@@ -2,13 +2,14 @@
 
 **Purpose:** 集中维护 `Vityo` 与外部上游仓库之间的 handoff 文档入口。
 
-**Last updated:** 2026-04-23
+**Last updated:** 2026-07-30
 
 ## Scope
 
 1. `for-styio/` 放置上游 `styio` 对接合同。
 2. `for-pafio/` 放置上游 `pafio` 对接合同。
-3. 本目录只写跨仓责任边界和 machine handoff，不替代 `docs/contracts/` 的前端适配合同。
+3. `for-platform/` 放置 Styio Platform hosted workspace 对接合同。
+4. 本目录只写跨仓责任边界和 machine handoff，不替代 `docs/contracts/` 的前端适配合同。
 
 ## Naming Rules
 

@@ -226,33 +226,8 @@ def _body_int(body: dict, key: str) -> int | None:
 
 def _command_response_for(key: str) -> dict | None:
     command_routes = {
-        f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/tool/install": (
-            "installed preview managed compiler",
-            {
-                "compiler_version": "0.0.1-preview",
-                "channel": "preview",
-                "install_root": "/workspace/demo/.pafio/tools/styio/0.0.1-preview",
-                "install_binary_path": "/workspace/demo/.pafio/tools/styio/0.0.1-preview/bin/styio",
-            },
-        ),
-        f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/tool/use": (
-            "activated preview managed compiler",
-            {"compiler_version": "0.0.1-preview", "channel": "preview"},
-        ),
-        f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/tool/pin": (
-            "pinned preview managed compiler",
-            {
-                "compiler_version": "0.0.1-preview",
-                "channel": "preview",
-                "pin_path": "/workspace/demo/pafio-toolchain.toml",
-            },
-        ),
-        f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/tool/clear-pin": (
-            "cleared preview managed compiler pin",
-            {"pin_cleared": True},
-        ),
-        f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/dependencies/fetch": (
-            "preview dependency fetch completed",
+        f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/dependencies/sync": (
+            "preview dependency sync completed",
             {"packages": 3, "registry_packages": 1, "path_packages": 0},
         ),
         f"POST /api/styio-hosted/v1/workspaces/{WORKSPACE_ID}/dependencies/vendor": (
@@ -361,10 +336,7 @@ def _project_graph_payload() -> dict:
         "workspace_members": [],
         "manifest_path": "/workspace/demo/pafio.toml",
         "lockfile_path": "/workspace/demo/pafio.lock",
-        "toolchain_pin_path": "/workspace/demo/pafio-toolchain.toml",
-        "styio_config_path": "/workspace/demo/styio.toml",
         "vendor_root": "/workspace/demo/.pafio/vendor",
-        "build_root": "/workspace/demo/.pafio/build",
         "packages": [
             {
                 "package_name": "demo/app",
@@ -385,20 +357,19 @@ def _project_graph_payload() -> dict:
             "/workspace/demo/tests/render_test.styio",
         ],
         "toolchain": {
-            "source": "managed-current",
-            "detail": "Local preview server exposes a mock hosted route; compiler execution is not real.",
-            "pin_path": "/workspace/demo/pafio-toolchain.toml",
-            "channel": "preview",
+            "source": "environment",
+            "detail": "Local preview server exposes a mock system Styio contract; compiler execution is not real.",
+            "channel": "system",
             "version": "0.0.1-preview",
         },
         "lock_state": "fresh",
         "vendor_state": "present",
         "active_compiler": {
-            "binary_path": "/workspace/demo/.pafio/tools/styio/current/bin/styio",
+            "binary_path": "styio",
             "tool": "styio",
             "compiler_version": "0.0.1-preview",
-            "channel": "preview",
-            "variant": "preview",
+            "channel": "system",
+            "variant": "system",
             "capabilities": ["machine_info_json", "compile_plan"],
             "supported_contract_versions": {
                 "compile_plan": [1],
@@ -407,20 +378,6 @@ def _project_graph_payload() -> dict:
             "integration_phase": "local-preview",
             "supported_adapter_modes": ["cloud"],
             "feature_flags": {"runtime_events": True},
-        },
-        "managed_toolchains": {
-            "pafio_home": "/workspace/demo/.pafio",
-            "current_binary": "/workspace/demo/.pafio/tools/styio/current/bin/styio",
-            "current_metadata_path": "/workspace/demo/.pafio/tools/styio/current/metadata.json",
-            "installed": [
-                {
-                    "channel": "preview",
-                    "compiler_version": "0.0.1-preview",
-                    "install_root": "/workspace/demo/.pafio/tools/styio/0.0.1-preview",
-                    "install_binary_path": "/workspace/demo/.pafio/tools/styio/0.0.1-preview/bin/styio",
-                    "install_metadata_path": "/workspace/demo/.pafio/tools/styio/0.0.1-preview/metadata.json",
-                }
-            ],
         },
         "package_distribution": {
             "schema_version": 1,
@@ -449,34 +406,6 @@ def _project_graph_payload() -> dict:
             ],
             "publishable_packages": 1,
             "blocked_packages": 0,
-        },
-        "source_state": {
-            "schema_version": 1,
-            "pafio_home": "/workspace/demo/.pafio",
-            "declared_git_dependencies": 0,
-            "declared_registry_dependencies": 1,
-            "git_cache": {
-                "repos_root": "/workspace/demo/.pafio/git/repos",
-                "checkouts_root": "/workspace/demo/.pafio/git/checkouts",
-                "repos_present": True,
-                "checkouts_present": True,
-            },
-            "registry_cache": {
-                "cache_root": "/workspace/demo/.pafio/registry",
-                "index_root": "/workspace/demo/.pafio/registry/index",
-                "blob_root": "/workspace/demo/.pafio/registry/blobs",
-                "checkout_root": "/workspace/demo/.pafio/registry/checkouts",
-                "index_present": True,
-                "blobs_present": True,
-                "checkouts_present": True,
-            },
-            "vendor": {
-                "vendor_root": "/workspace/demo/.pafio/vendor",
-                "metadata_path": "/workspace/demo/.pafio/vendor/vendor.json",
-                "vendor_present": True,
-                "metadata_present": True,
-                "git_snapshots": 0,
-            },
         },
         "notes": [
             "Local preview route is intentionally mocked so the Flutter shell can boot without the hosted control plane.",

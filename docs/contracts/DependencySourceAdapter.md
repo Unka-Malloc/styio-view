@@ -1,6 +1,6 @@
 # DependencySourceAdapter
 
-**Purpose:** 冻结依赖源物化接口，让 `Vityo` 可以在不关心 `pafio` 内部缓存布局的前提下完成 fetch/vendor 工作流。
+**Purpose:** 冻结依赖源物化接口，让 `Vityo` 可以在不关心 `pafio` 内部缓存布局的前提下完成 sync/vendor 工作流。
 
 **Last updated:** 2026-04-21
 
@@ -18,14 +18,14 @@
 
 ## 2. Operations
 
-1. `fetchDependencies(projectGraph, locked, offline)`
+1. `syncDependencies(projectGraph, locked, offline)`
 2. `vendorDependencies(projectGraph, outputPath, locked, offline)`
 
 ## 3. Hosted Route Mapping
 
 当 adapter 走 cloud/hosted route 时，固定对接：
 
-1. `POST /api/styio-hosted/v1/workspaces/{workspace_id}/dependencies/fetch`
+1. `POST /api/styio-hosted/v1/workspaces/{workspace_id}/dependencies/sync`
 2. `POST /api/styio-hosted/v1/workspaces/{workspace_id}/dependencies/vendor`
 
 ## 4. Required Behaviors

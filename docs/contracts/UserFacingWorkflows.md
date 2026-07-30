@@ -315,7 +315,7 @@ artifacts listed below are current migration inventory only; they are not accept
 | `WorkbenchShellSurfaces` contract | `ShellModel`, `ShellScope`, `BottomSurfaceTab`, `AppCommandId` |
 | `ProblemsTestingSourceControlSurfaces` contract | `WorkspaceDiagnosticsSnapshot`, `Diagnostic`, `WorkspaceEditPlan` |
 | `ExecutionAdapter` contract | `ExecutionAdapter`, `ExecutionSession`, `RuntimeTaskDefinition` |
-| `ToolchainManagementAdapter` contract | `ToolchainStatusSurface`, `ToolchainRecoveryAction` |
+| generic `ToolchainManager` contract | `ToolchainStatusSurface`, `ToolchainRecoveryAction` |
 | `LanguageServiceAdapter` contract | `StyioLanguageService`, `Diagnostic`, `StyioServiceRuntimeSessionEvent` |
 
 ---

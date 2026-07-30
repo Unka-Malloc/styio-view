@@ -1,8 +1,0 @@
-[module]
-name = "demo/core"
-version = "1.0.0"
-platforms = ["linux", "web"]
-
-[lib]
-path = "src/lib.styio"
-

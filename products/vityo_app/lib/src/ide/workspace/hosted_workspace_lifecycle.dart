@@ -160,8 +160,6 @@ class HostedWorkspaceLifecycle {
     }
 
     add(project.manifestPath);
-    add(project.styioConfigPath);
-    add(project.toolchainPinPath);
     add(project.lockfilePath);
     for (final file in project.editorFiles) {
       add(file);
@@ -398,8 +396,7 @@ class HostedBackendRetryEndpointPlan {
           kind: kind,
           workspaceId: workspaceId,
           method: 'GET',
-          route:
-              '/hosted/workspaces/$encodedWorkspaceId/project-graph',
+          route: '/hosted/workspaces/$encodedWorkspaceId/project-graph',
           published: true,
         ),
       HostedBackendRetryActionKind.refreshWorkspace =>
@@ -408,8 +405,7 @@ class HostedBackendRetryEndpointPlan {
           kind: kind,
           workspaceId: workspaceId,
           method: 'GET',
-          route:
-              '/hosted/workspaces/$encodedWorkspaceId/project-graph',
+          route: '/hosted/workspaces/$encodedWorkspaceId/project-graph',
           published: true,
         ),
       HostedBackendRetryActionKind.reopenWorkspace =>
@@ -427,8 +423,7 @@ class HostedBackendRetryEndpointPlan {
           kind: kind,
           workspaceId: workspaceId,
           method: 'POST',
-          route:
-              '/hosted/workspaces/$encodedWorkspaceId/core-files/export',
+          route: '/hosted/workspaces/$encodedWorkspaceId/core-files/export',
           published: false,
         ),
       HostedBackendRetryActionKind.openSettings =>

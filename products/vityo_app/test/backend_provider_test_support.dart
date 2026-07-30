@@ -6,7 +6,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart'
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 
 BackendProvider backendProviderFor(PlatformTarget platformTarget) {
@@ -44,10 +43,4 @@ Future<DeploymentAdapter> createDeploymentAdapter({
   required PlatformTarget platformTarget,
 }) {
   return backendProviderFor(platformTarget).createDeploymentAdapter();
-}
-
-Future<ToolchainManagementAdapter> createToolchainManagementAdapter({
-  required PlatformTarget platformTarget,
-}) {
-  return backendProviderFor(platformTarget).createToolchainManagementAdapter();
 }

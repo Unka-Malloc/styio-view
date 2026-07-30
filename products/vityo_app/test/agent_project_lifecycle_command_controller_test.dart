@@ -11,7 +11,7 @@ void main() {
 
     expect(
       await fixture.commands.apply(
-        const AgentIdeCommandSuggestion(commandId: 'fetchDependencies'),
+        const AgentIdeCommandSuggestion(commandId: 'syncDependencies'),
       ),
       isFalse,
     );
@@ -59,7 +59,7 @@ _Fixture _fixture({bool blockDirty = false, bool deploymentSucceeds = true}) {
   fixture.commands = AgentProjectLifecycleCommandController(
     agentController: agent,
     blockWhenDirty: (_) => blockDirty,
-    fetchDependencies: () => fixture.dependency('fetch'),
+    syncDependencies: () => fixture.dependency('sync'),
     vendorDependencies: () => fixture.dependency('vendor'),
     packProject: () => fixture.deployment('pack', deploymentSucceeds),
     preparePublish: () => fixture.deployment('publish', deploymentSucceeds),

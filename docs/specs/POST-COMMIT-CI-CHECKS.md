@@ -32,7 +32,6 @@ Cross-repository contract or product changes must also run the matching ecosyste
 cd <styio-workspace>
 python3 scripts/ecosystem-cli-doc-gate.py --workspace-root <workspace-root>
 python3 scripts/ecosystem-product-gate.py --workspace-root <workspace-root>
-python3 scripts/ecosystem-sample-workflow-gate.py --workspace-root <workspace-root>
 ```
 
 The commit message body should record the checks that were actually run.

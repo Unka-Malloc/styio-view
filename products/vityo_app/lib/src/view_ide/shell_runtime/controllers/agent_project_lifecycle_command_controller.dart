@@ -6,7 +6,7 @@ import 'agent_controller.dart';
 final class AgentProjectLifecycleCommandController {
   const AgentProjectLifecycleCommandController({
     required this.agentController,
-    required this.fetchDependencies,
+    required this.syncDependencies,
     required this.vendorDependencies,
     required this.packProject,
     required this.preparePublish,
@@ -14,7 +14,7 @@ final class AgentProjectLifecycleCommandController {
   });
 
   final AgentController agentController;
-  final Future<DependencySourceCommandResult> Function() fetchDependencies;
+  final Future<DependencySourceCommandResult> Function() syncDependencies;
   final Future<DependencySourceCommandResult> Function() vendorDependencies;
   final Future<DeploymentCommandResult> Function() packProject;
   final Future<DeploymentCommandResult> Function() preparePublish;
@@ -25,7 +25,7 @@ final class AgentProjectLifecycleCommandController {
       return false;
     }
     return switch (suggestion.commandId) {
-      'fetchDependencies' => _dependency(suggestion, fetchDependencies),
+      'syncDependencies' => _dependency(suggestion, syncDependencies),
       'vendorDependencies' => _dependency(suggestion, vendorDependencies),
       'packProject' => _deployment(suggestion, packProject),
       'preparePublish' => _deployment(suggestion, preparePublish),

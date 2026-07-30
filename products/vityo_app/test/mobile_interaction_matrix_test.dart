@@ -6,7 +6,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/execution_route_summary
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_render/platform/viewport_profile.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/ide/editor/transactions/transactions.dart';
 import 'package:vityo_app/src/view_ide/interaction/toolchain_status_surface.dart';
@@ -272,7 +271,7 @@ void main() {
       expect(primaryIds, contains(AppCommandId.quickOpen));
       expect(primaryIds, contains(AppCommandId.searchWorkspace));
       expect(primaryIds, contains(AppCommandId.showWorkspaceProblems));
-      expect(primaryIds, contains(AppCommandId.fetchDependencies));
+      expect(primaryIds, contains(AppCommandId.syncDependencies));
     });
 
     test('mobile-friendly workflow commands exclude debug-only commands', () {
@@ -471,12 +470,12 @@ void main() {
     );
 
     test(
-      'ToolchainStatusSurface for project-pin is ready and not actionable',
+      'ToolchainStatusSurface for system compiler is ready and not actionable',
       () {
         final status = ToolchainStatusSurface.fromProjectToolchain(
           const ToolchainStatusSnapshot(
-            source: ToolchainResolutionSource.projectPin,
-            detail: 'Toolchain resolved by project pin.',
+            source: ToolchainResolutionSource.environment,
+            detail: 'System compiler contract resolved.',
           ),
         );
 
@@ -487,27 +486,21 @@ void main() {
     );
 
     test(
-      'ToolchainStatusSurface from failed lastCommand surfaces recovery actions',
+      'ToolchainStatusSurface exposes unavailable compiler recovery actions',
       () {
         final status = ToolchainStatusSurface.fromProjectToolchain(
           const ToolchainStatusSnapshot(
-            source: ToolchainResolutionSource.managedCurrent,
-            detail: 'Managed toolchain resolved.',
-          ),
-          lastCommand: const ToolchainCommandResult(
-            command: 'styio build',
-            status: ToolchainCommandStatus.failed,
-            statusMessage: 'Build failed: compiler not found',
-            stdout: '',
-            stderr: 'compiler not found',
+            source: ToolchainResolutionSource.unavailable,
+            detail: 'System Styio is unavailable.',
           ),
         );
 
-        expect(status.severity, ToolchainStatusSeverity.failed);
+        expect(status.severity, ToolchainStatusSeverity.unavailable);
         expect(status.actionable, isTrue);
-        expect(status.lastCommand, 'styio build');
-        expect(status.lastCommandStatus, 'failed');
-        expect(status.lastCommandMessage, 'Build failed: compiler not found');
+        expect(
+          status.recoveryActions.map((action) => action.id),
+          contains('select-existing-toolchain'),
+        );
       },
     );
 
@@ -605,18 +598,18 @@ void main() {
       'ToolchainRecoveryAction toJson and construction round-trips correctly',
       () {
         const action = ToolchainRecoveryAction(
-          id: 'install-styio',
-          label: 'Install Styio Toolchain',
-          description: 'Downloads and installs the styio compiler.',
+          id: 'select-existing-toolchain',
+          label: 'Select Toolchain',
+          description: 'Selects an existing compatible toolchain.',
         );
 
         final json = action.toJson();
 
-        expect(json['id'], 'install-styio');
-        expect(json['label'], 'Install Styio Toolchain');
+        expect(json['id'], 'select-existing-toolchain');
+        expect(json['label'], 'Select Toolchain');
         expect(
           json['description'],
-          'Downloads and installs the styio compiler.',
+          'Selects an existing compatible toolchain.',
         );
       },
     );
@@ -657,7 +650,7 @@ ProjectGraphSnapshot _hostedProject() {
     targets: const <ProjectTargetDescriptor>[],
     editorFiles: const <String>['/workspace/mobile-hosted/src/main.styio'],
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'hosted pin',
     ),
     lockState: ProjectLockState.fresh,

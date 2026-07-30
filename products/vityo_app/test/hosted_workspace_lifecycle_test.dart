@@ -22,8 +22,6 @@ void main() {
     expect(plan.exportReady, isTrue);
     expect(plan.coreFilePaths, <String>[
       '/workspace/demo/pafio.toml',
-      '/workspace/demo/styio.toml',
-      '/workspace/demo/pafio-toolchain.toml',
       '/workspace/demo/pafio.lock',
       '/workspace/demo/src/main.styio',
       '/workspace/demo/src/lib.styio',
@@ -203,8 +201,6 @@ ProjectGraphSnapshot _project({
     workspaceMembers: const <String>[],
     manifestPath: '/workspace/demo/pafio.toml',
     lockfilePath: '/workspace/demo/pafio.lock',
-    toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
-    styioConfigPath: '/workspace/demo/styio.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: const <ProjectTargetDescriptor>[],

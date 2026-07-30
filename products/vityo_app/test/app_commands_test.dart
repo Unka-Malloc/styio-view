@@ -28,7 +28,7 @@ void main() {
         AppCommandId.searchWorkspace,
         AppCommandId.showWorkspaceProblems,
         AppCommandId.showWorkspaceCodeActions,
-        AppCommandId.fetchDependencies,
+        AppCommandId.syncDependencies,
         AppCommandId.vendorDependencies,
         AppCommandId.refreshModules,
       ],
@@ -101,8 +101,8 @@ void main() {
       final callHierarchy = VityoCommandRegistry.descriptorFor(
         AppCommandId.showWorkspaceCallHierarchy,
       );
-      final fetch = VityoCommandRegistry.descriptorFor(
-        AppCommandId.fetchDependencies,
+      final sync = VityoCommandRegistry.descriptorFor(
+        AppCommandId.syncDependencies,
       );
       final vendor = VityoCommandRegistry.descriptorFor(
         AppCommandId.vendorDependencies,
@@ -213,10 +213,10 @@ void main() {
       expect(callHierarchy.primary, isTrue);
       expect(callHierarchy.shortcuts, hasLength(1));
 
-      expect(fetch.label, 'Fetch');
-      expect(fetch.shortcutHint, 'Route');
-      expect(fetch.primary, isTrue);
-      expect(fetch.shortcuts, isEmpty);
+      expect(sync.label, 'Sync');
+      expect(sync.shortcutHint, 'Route');
+      expect(sync.primary, isTrue);
+      expect(sync.shortcuts, isEmpty);
 
       expect(vendor.label, 'Vendor');
       expect(vendor.shortcutHint, 'Cmd/Ctrl+Shift+V');
@@ -264,17 +264,13 @@ void main() {
     expect(
       VityoCommandRegistry.dependencyCommands.map((command) => command.id),
       <AppCommandId>[
-        AppCommandId.fetchDependencies,
+        AppCommandId.syncDependencies,
         AppCommandId.vendorDependencies,
       ],
     );
     expect(
       VityoCommandRegistry.toolchainCommands.map((command) => command.id),
       <AppCommandId>[
-        AppCommandId.useActiveCompiler,
-        AppCommandId.pinActiveCompiler,
-        AppCommandId.clearPinnedCompiler,
-        AppCommandId.bootstrapStyioToolchain,
         AppCommandId.executeToolchainInstallPlan,
         AppCommandId.selectClangCppVersion,
       ],
@@ -308,12 +304,8 @@ void main() {
         AppCommandId.searchWorkspace,
         AppCommandId.showWorkspaceProblems,
         AppCommandId.showWorkspaceCodeActions,
-        AppCommandId.fetchDependencies,
+        AppCommandId.syncDependencies,
         AppCommandId.vendorDependencies,
-        AppCommandId.useActiveCompiler,
-        AppCommandId.pinActiveCompiler,
-        AppCommandId.clearPinnedCompiler,
-        AppCommandId.bootstrapStyioToolchain,
         AppCommandId.executeToolchainInstallPlan,
         AppCommandId.selectClangCppVersion,
         AppCommandId.packProject,
@@ -322,8 +314,10 @@ void main() {
     );
 
     expect(
-      VityoCommandRegistry.descriptorFor(AppCommandId.useActiveCompiler).label,
-      'Use Compiler',
+      VityoCommandRegistry.descriptorFor(
+        AppCommandId.selectClangCppVersion,
+      ).label,
+      'Select Clang/C++',
     );
     expect(
       VityoCommandRegistry.descriptorFor(AppCommandId.preparePublish).label,

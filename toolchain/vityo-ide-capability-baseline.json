@@ -81,9 +81,9 @@
       "nextMilestone": "L3 — consume real StyioService diagnostics; wire code action preview/apply through workspace edit transaction"
     },
     "project_model": {
-      "target": "Styio project graph as first-class product model: workspace members, packages, dependencies, targets, toolchain, lock/vendor/build state, with canonical-file vs machine-payload source marking and Agent-context serialization.",
+      "target": "Owner-contract project model: Pafio metadata for local package/workspace facts, Styio machine-info for compiler truth, and Platform hosted-workspace v1 for remote state.",
       "benchmarkPeers": ["vscode", "intellij-community"],
-      "currentStatus": "L2-L3 — Contract-backed project graph snapshot, canonical file inference, four-layer workspace display; Agent-context serialization newly added",
+      "currentStatus": "L3 — Contract-backed owner adapters, four-layer workspace display, and Agent-context serialization",
       "implementationAnchors": [
         "products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_contract.dart",
         "products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph_adapter.dart",
@@ -96,11 +96,10 @@
         "products/vityo_app/test/agent_context_test.dart"
       ],
       "knownGaps": [
-        "Canonical-file vs hosted-payload source marking not per-field",
-        "Machine payload consumption waiting on pafio formal contract",
+        "Owner-source marking is not rendered on every field",
         "Package target ambiguity shows generic blocked reason"
       ],
-      "nextMilestone": "L3 — per-field source marking; consume pafio published project graph payload"
+      "nextMilestone": "L3 — render per-field owner provenance without reading private upstream state"
     },
     "run_debug_runtime": {
       "target": "Runtime surface as first-class product: run target selector, minimal compilable unit run, workflow lane summaries, stdout/stderr/diagnostic event stream, runtime graph, event replay, route trace. Breakpoint/run-configuration model as preview-only until Styio backend supports them.",

@@ -1,8 +1,0 @@
-[workspace]
-members = ["modules/core", "modules/ui", "modules/app"]
-
-[toolchain]
-channel = "nightly"
-version = "2026.6.25"
-platforms = ["linux", "web"]
-

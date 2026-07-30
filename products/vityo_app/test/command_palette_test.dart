@@ -204,7 +204,7 @@ void main() {
 
   test('command palette surfaces blocked commands and can exclude them', () {
     String? blockedReason(AppCommandId commandId) {
-      return commandId == AppCommandId.fetchDependencies
+      return commandId == AppCommandId.syncDependencies
           ? 'Dependencies are unavailable.'
           : null;
     }
@@ -212,10 +212,10 @@ void main() {
     final included = const CommandPaletteService().findCommands(
       commands: VityoCommandRegistry.commands,
       blockedReasonForCommand: blockedReason,
-      query: const CommandPaletteQuery(pattern: 'fetch'),
+      query: const CommandPaletteQuery(pattern: 'sync'),
     );
 
-    expect(included.items.single.commandId, AppCommandId.fetchDependencies);
+    expect(included.items.single.commandId, AppCommandId.syncDependencies);
     expect(included.items.single.enabled, isFalse);
     expect(included.blockedCount, 1);
 
@@ -223,7 +223,7 @@ void main() {
       commands: VityoCommandRegistry.commands,
       blockedReasonForCommand: blockedReason,
       query: const CommandPaletteQuery(
-        pattern: 'fetch',
+        pattern: 'sync',
         includeBlocked: false,
       ),
     );

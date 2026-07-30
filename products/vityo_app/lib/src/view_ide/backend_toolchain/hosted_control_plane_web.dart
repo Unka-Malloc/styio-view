@@ -102,55 +102,13 @@ class _WebHostedControlPlaneClient implements HostedControlPlaneClient {
   }
 
   @override
-  Future<Map<String, dynamic>> toolInstall({
-    required String workspaceId,
-    required String styioBinaryPath,
-  }) {
-    return _post('/workspaces/$workspaceId/tool/install', <String, Object?>{
-      'styio_binary_path': styioBinaryPath,
-    });
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolUse({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  }) {
-    return _post('/workspaces/$workspaceId/tool/use', <String, Object?>{
-      'compiler_version': compilerVersion,
-      if (channel != null && channel.isNotEmpty) 'channel': channel,
-    });
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolPin({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  }) {
-    return _post('/workspaces/$workspaceId/tool/pin', <String, Object?>{
-      'compiler_version': compilerVersion,
-      if (channel != null && channel.isNotEmpty) 'channel': channel,
-    });
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolClearPin({required String workspaceId}) {
-    return _post(
-      '/workspaces/$workspaceId/tool/clear-pin',
-      const <String, Object?>{},
-    );
-  }
-
-  @override
-  Future<Map<String, dynamic>> fetchDependencies({
+  Future<Map<String, dynamic>> syncDependencies({
     required String workspaceId,
     bool locked = false,
     bool offline = false,
   }) {
     return _post(
-      '/workspaces/$workspaceId/dependencies/fetch',
+      '/workspaces/$workspaceId/dependencies/sync',
       <String, Object?>{'locked': locked, 'offline': offline},
     );
   }
@@ -295,16 +253,18 @@ class _WebHostedControlPlaneClient implements HostedControlPlaneClient {
     String path, {
     Map<String, Object?>? body,
   }) async {
-    final response = await web.window.fetch(
-      '${config.baseUrl}$path'.toJS,
-      body == null
-          ? web.RequestInit(method: method)
-          : web.RequestInit(
-              method: method,
-              headers: _jsonHeaders(),
-              body: jsonEncode(body).toJS,
-            ),
-    ).toDart;
+    final response = await web.window
+        .fetch(
+          '${config.baseUrl}$path'.toJS,
+          body == null
+              ? web.RequestInit(method: method)
+              : web.RequestInit(
+                  method: method,
+                  headers: _jsonHeaders(),
+                  body: jsonEncode(body).toJS,
+                ),
+        )
+        .toDart;
     final responseText = (await response.text().toDart).toDart;
     if (!response.ok) {
       throw StateError(

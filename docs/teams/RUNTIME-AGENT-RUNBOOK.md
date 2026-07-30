@@ -58,6 +58,9 @@ Key SSOTs:
    [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md).
 
 10. `runtime_event_log.dart` changes must keep replay output deterministic on Windows and POSIX hosts; avoid path separator, line-ending, or clock assumptions in runtime event summaries and tests.
+11. Agent context may compose Pafio metadata, Styio machine facts, and Platform
+    hosted facts only through their formal adapters; it must not expose Pafio
+    private storage or suggest removed compiler-management commands.
 
 ## Change Classes
 

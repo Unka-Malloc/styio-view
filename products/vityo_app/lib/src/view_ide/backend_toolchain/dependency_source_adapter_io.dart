@@ -22,7 +22,7 @@ class _HostedDependencySourceAdapter implements DependencySourceAdapter {
   final HostedControlPlaneClient hostedClient;
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
@@ -30,29 +30,29 @@ class _HostedDependencySourceAdapter implements DependencySourceAdapter {
     final workspaceId = projectGraph.hostedWorkspace?.workspaceId;
     if (workspaceId == null || workspaceId.isEmpty) {
       return const DependencySourceCommandResult(
-        command: 'fetch',
+        command: 'sync',
         status: DependencySourceCommandStatus.blocked,
         statusMessage:
-            'Hosted workspace identity is unavailable for dependency fetch.',
+            'Hosted workspace identity is unavailable for dependency sync.',
         stdout: '',
         stderr: '',
       );
     }
     try {
-      final response = await hostedClient.fetchDependencies(
+      final response = await hostedClient.syncDependencies(
         workspaceId: workspaceId,
         locked: locked,
         offline: offline,
       );
       return _dependencyResultFromHostedResponse(
-        command: 'fetch',
+        command: 'sync',
         response: response,
       );
     } catch (error) {
       return DependencySourceCommandResult(
-        command: 'fetch',
+        command: 'sync',
         status: DependencySourceCommandStatus.failed,
-        statusMessage: 'Hosted fetch failed: $error',
+        statusMessage: 'Hosted sync failed: $error',
         stdout: '',
         stderr: '',
       );
@@ -106,17 +106,17 @@ class _LocalCliDependencySourceAdapter implements DependencySourceAdapter {
   final PlatformTarget platformTarget;
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) {
     return _runCommand(
       projectGraph: projectGraph,
-      command: 'fetch',
+      command: 'sync',
       args: <String>[
         '--json',
-        'fetch',
+        'sync',
         ..._manifestArgs(projectGraph),
         if (locked) '--locked',
         if (offline) '--offline',

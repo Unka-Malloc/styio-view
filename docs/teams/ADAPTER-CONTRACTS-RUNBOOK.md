@@ -47,9 +47,13 @@ Key SSOTs:
 9. hosted execution、hosted workspace、project graph、dependency source、deployment 和 toolchain state 都必须通过 published payload / adapter contract 进入前端，不允许读 `pafio` 私有目录或解析 human stderr。
 10. `LanguageServiceAdapter` 的 symbol / reference / definition / rename 字段属于编辑器核心合同；本地 token-derived fallback 可以先实现体验，但 adapter handoff 必须保留 declaration range、usage range、declaration-vs-usage 标记、`unresolved-reference` range 和 rename `TextEdit` 计划，不能退化成纯字符串搜索或前端静默改写。
 11. Adapter contract changes must update the final owner path and keep `python3 scripts/check_product_line_boundaries.py` passing.
-12. `ProjectGraphSnapshot` 字段来源置信度和 `ToolchainCommandResult.schemaVersion` 属于 adapter 合同字段；变更时必须同步 `docs/contracts/`、对应 Dart model、focused adapter tests、agent/UI 消费说明，不能只改文档或只改代码。
-13. Agent integration is protocol-only: Vityo owns source revisions, Styio analyze/test/run facts, change previews, and workspace transactions; Vityo Coding Agent or another compatible Agent owns model/provider access, tool loops, policy, durable sessions, and multi-Agent orchestration.
-14. Any IDE-side provider profile, provider controller, tool dispatcher, or policy-store artifact is migration inventory under `Vityo-Implementation-Gaps.md`, not an accepted adapter contract. Do not extend it while completing the Agent-Native IDE migration.
+12. `ProjectGraphSnapshot` 字段来源置信度与 owner-adapter schema 属于 adapter 合同字段；变更时必须同步 `docs/contracts/`、对应 Dart model、focused adapter tests、agent/UI 消费说明，不能只改文档或只改代码。
+13. Local ownership is fixed: Pafio metadata and workflow JSON provide project
+    facts, Styio machine contracts provide compiler and language facts, and
+    Platform hosted APIs provide hosted state. No adapter may reconstruct one
+    owner's facts from another owner's private files or legacy routes.
+14. Agent integration is protocol-only: Vityo owns source revisions, Styio analyze/test/run facts, change previews, and workspace transactions; Vityo Coding Agent or another compatible Agent owns model/provider access, tool loops, policy, durable sessions, and multi-Agent orchestration.
+15. Any IDE-side provider profile, provider controller, tool dispatcher, or policy-store artifact is migration inventory under `Vityo-Implementation-Gaps.md`, not an accepted adapter contract. Do not extend it while completing the Agent-Native IDE migration.
 
 ## Change Classes
 

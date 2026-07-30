@@ -10,8 +10,6 @@ import '../project_graph_adapter.dart';
 import '../project_graph_adapter_web.dart';
 import '../project_graph_contract.dart';
 import '../runtime_event_adapter.dart';
-import '../toolchain_management_adapter.dart';
-import '../toolchain_management_adapter_web.dart';
 
 final class WebBackendProvider implements BackendProvider {
   const WebBackendProvider();
@@ -61,12 +59,5 @@ final class WebBackendProvider implements BackendProvider {
   @override
   Future<DeploymentAdapter> createDeploymentAdapter() {
     return createPlatformDeploymentAdapter(platformTarget: PlatformTarget.web);
-  }
-
-  @override
-  Future<ToolchainManagementAdapter> createToolchainManagementAdapter() {
-    return createPlatformToolchainManagementAdapter(
-      platformTarget: PlatformTarget.web,
-    );
   }
 }

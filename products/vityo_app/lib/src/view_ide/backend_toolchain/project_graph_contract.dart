@@ -94,21 +94,11 @@ extension ProjectVendorStateX on ProjectVendorState {
   }
 }
 
-enum ToolchainResolutionSource {
-  projectPin,
-  managedCurrent,
-  environment,
-  unavailable,
-  unknown,
-}
+enum ToolchainResolutionSource { environment, unavailable, unknown }
 
 extension ToolchainResolutionSourceX on ToolchainResolutionSource {
   String get label {
     switch (this) {
-      case ToolchainResolutionSource.projectPin:
-        return 'project-pin';
-      case ToolchainResolutionSource.managedCurrent:
-        return 'managed-current';
       case ToolchainResolutionSource.environment:
         return 'environment';
       case ToolchainResolutionSource.unavailable:
@@ -286,14 +276,12 @@ class ToolchainStatusSnapshot {
   const ToolchainStatusSnapshot({
     required this.source,
     required this.detail,
-    this.pinPath,
     this.channel,
     this.version,
   });
 
   final ToolchainResolutionSource source;
   final String detail;
-  final String? pinPath;
   final String? channel;
   final String? version;
 }
@@ -346,80 +334,6 @@ class CompilerHandshakeSnapshot {
     }
     return capabilities.join(' · ');
   }
-}
-
-class ManagedToolchainInstallSnapshot {
-  const ManagedToolchainInstallSnapshot({
-    required this.channel,
-    required this.compilerVersion,
-    required this.installRoot,
-    required this.installBinaryPath,
-    this.installMetadataPath,
-  });
-
-  final String channel;
-  final String compilerVersion;
-  final String installRoot;
-  final String installBinaryPath;
-  final String? installMetadataPath;
-}
-
-class ManagedToolchainStateSnapshot {
-  const ManagedToolchainStateSnapshot({
-    this.pafioHome,
-    this.currentBinaryPath,
-    this.currentMetadataPath,
-    this.installed = const <ManagedToolchainInstallSnapshot>[],
-  });
-
-  final String? pafioHome;
-  final String? currentBinaryPath;
-  final String? currentMetadataPath;
-  final List<ManagedToolchainInstallSnapshot> installed;
-}
-
-class ProjectToolchainPinSnapshot {
-  const ProjectToolchainPinSnapshot({
-    required this.path,
-    this.channel,
-    this.version,
-    this.installRoot,
-    this.installBinaryPath,
-    required this.installPresent,
-  });
-
-  final String path;
-  final String? channel;
-  final String? version;
-  final String? installRoot;
-  final String? installBinaryPath;
-  final bool installPresent;
-}
-
-class ToolchainEnvironmentSnapshot {
-  const ToolchainEnvironmentSnapshot({
-    required this.schemaVersion,
-    required this.toolchain,
-    required this.managedToolchains,
-    this.candidateBinaryPath,
-    this.projectPin,
-    this.activeCompiler,
-    this.activeCompilerError,
-    this.currentCompiler,
-    this.currentCompilerError,
-    this.notes = const <String>[],
-  });
-
-  final int schemaVersion;
-  final ToolchainStatusSnapshot toolchain;
-  final String? candidateBinaryPath;
-  final ProjectToolchainPinSnapshot? projectPin;
-  final CompilerHandshakeSnapshot? activeCompiler;
-  final String? activeCompilerError;
-  final CompilerHandshakeSnapshot? currentCompiler;
-  final String? currentCompilerError;
-  final ManagedToolchainStateSnapshot managedToolchains;
-  final List<String> notes;
 }
 
 class RegistrySourceSnapshot {
@@ -480,76 +394,6 @@ class PackageDistributionSnapshot {
   final int blockedPackages;
 }
 
-class GitCacheStateSnapshot {
-  const GitCacheStateSnapshot({
-    this.reposRoot,
-    this.checkoutsRoot,
-    this.reposPresent = false,
-    this.checkoutsPresent = false,
-  });
-
-  final String? reposRoot;
-  final String? checkoutsRoot;
-  final bool reposPresent;
-  final bool checkoutsPresent;
-}
-
-class RegistryCacheStateSnapshot {
-  const RegistryCacheStateSnapshot({
-    this.cacheRoot,
-    this.indexRoot,
-    this.blobRoot,
-    this.checkoutRoot,
-    this.indexPresent = false,
-    this.blobsPresent = false,
-    this.checkoutsPresent = false,
-  });
-
-  final String? cacheRoot;
-  final String? indexRoot;
-  final String? blobRoot;
-  final String? checkoutRoot;
-  final bool indexPresent;
-  final bool blobsPresent;
-  final bool checkoutsPresent;
-}
-
-class VendorSourceStateSnapshot {
-  const VendorSourceStateSnapshot({
-    this.vendorRoot,
-    this.metadataPath,
-    this.vendorPresent = false,
-    this.metadataPresent = false,
-    this.gitSnapshots = 0,
-  });
-
-  final String? vendorRoot;
-  final String? metadataPath;
-  final bool vendorPresent;
-  final bool metadataPresent;
-  final int gitSnapshots;
-}
-
-class ProjectSourceStateSnapshot {
-  const ProjectSourceStateSnapshot({
-    required this.schemaVersion,
-    this.pafioHome,
-    this.declaredGitDependencies = 0,
-    this.declaredRegistryDependencies = 0,
-    this.gitCache = const GitCacheStateSnapshot(),
-    this.registryCache = const RegistryCacheStateSnapshot(),
-    this.vendor = const VendorSourceStateSnapshot(),
-  });
-
-  final int schemaVersion;
-  final String? pafioHome;
-  final int declaredGitDependencies;
-  final int declaredRegistryDependencies;
-  final GitCacheStateSnapshot gitCache;
-  final RegistryCacheStateSnapshot registryCache;
-  final VendorSourceStateSnapshot vendor;
-}
-
 class PublishedPayloadFailure {
   const PublishedPayloadFailure({required this.command, required this.detail});
 
@@ -566,10 +410,7 @@ class ProjectGraphSnapshot {
     'workspaceMembers',
     'manifestPath',
     'lockfilePath',
-    'toolchainPinPath',
-    'styioConfigPath',
     'vendorRoot',
-    'buildRoot',
     'packages',
     'dependencies',
     'targets',
@@ -578,9 +419,7 @@ class ProjectGraphSnapshot {
     'lockState',
     'vendorState',
     'activeCompiler',
-    'toolchainEnvironment',
     'packageDistribution',
-    'sourceState',
     'hostedWorkspace',
     'notes',
   ];
@@ -601,16 +440,10 @@ class ProjectGraphSnapshot {
     required this.notes,
     this.manifestPath,
     this.lockfilePath,
-    this.toolchainPinPath,
-    this.styioConfigPath,
     this.vendorRoot,
-    this.buildRoot,
     this.activeCompiler,
-    this.toolchainEnvironment,
     this.packageDistribution,
-    this.sourceState,
     this.projectGraphPayloadFailure,
-    this.toolchainStatePayloadFailure,
     this.hostedWorkspace,
     this.sourceConfidenceByField =
         const <String, ProjectGraphFieldSourceConfidence>{},
@@ -623,10 +456,7 @@ class ProjectGraphSnapshot {
   final List<String> workspaceMembers;
   final String? manifestPath;
   final String? lockfilePath;
-  final String? toolchainPinPath;
-  final String? styioConfigPath;
   final String? vendorRoot;
-  final String? buildRoot;
   final List<ProjectPackageSnapshot> packages;
   final List<ProjectDependencySnapshot> dependencies;
   final List<ProjectTargetDescriptor> targets;
@@ -635,11 +465,8 @@ class ProjectGraphSnapshot {
   final ProjectLockState lockState;
   final ProjectVendorState vendorState;
   final CompilerHandshakeSnapshot? activeCompiler;
-  final ToolchainEnvironmentSnapshot? toolchainEnvironment;
   final PackageDistributionSnapshot? packageDistribution;
-  final ProjectSourceStateSnapshot? sourceState;
   final PublishedPayloadFailure? projectGraphPayloadFailure;
-  final PublishedPayloadFailure? toolchainStatePayloadFailure;
   final HostedWorkspaceRecordSnapshot? hostedWorkspace;
   final Map<String, ProjectGraphFieldSourceConfidence> sourceConfidenceByField;
   final List<String> notes;
@@ -648,16 +475,9 @@ class ProjectGraphSnapshot {
 
   bool get hasActiveCompiler => activeCompiler != null;
 
-  bool get hasToolchainEnvironment => toolchainEnvironment != null;
-
   bool get hasPackageDistribution => packageDistribution != null;
 
-  bool get hasSourceState => sourceState != null;
-
   bool get hasProjectGraphPayloadFailure => projectGraphPayloadFailure != null;
-
-  bool get hasToolchainStatePayloadFailure =>
-      toolchainStatePayloadFailure != null;
 
   bool get isScratch => kind == ProjectKind.scratch;
 
@@ -729,22 +549,12 @@ class ProjectGraphSnapshot {
     );
   }
 
-  static Map<String, ProjectGraphFieldSourceConfidence>
-  canonicalFileSourceConfidence() {
-    return Map<String, ProjectGraphFieldSourceConfidence>.unmodifiable(
-      _canonicalFileSourceConfidenceByField,
-    );
-  }
-
   ProjectGraphSnapshot copyWith({
     List<String>? editorFiles,
     ToolchainStatusSnapshot? toolchain,
     CompilerHandshakeSnapshot? activeCompiler,
-    ToolchainEnvironmentSnapshot? toolchainEnvironment,
     PackageDistributionSnapshot? packageDistribution,
-    ProjectSourceStateSnapshot? sourceState,
     PublishedPayloadFailure? projectGraphPayloadFailure,
-    PublishedPayloadFailure? toolchainStatePayloadFailure,
     HostedWorkspaceRecordSnapshot? hostedWorkspace,
     Map<String, ProjectGraphFieldSourceConfidence>? sourceConfidenceByField,
     List<String>? notes,
@@ -757,10 +567,7 @@ class ProjectGraphSnapshot {
       workspaceMembers: workspaceMembers,
       manifestPath: manifestPath,
       lockfilePath: lockfilePath,
-      toolchainPinPath: toolchainPinPath,
-      styioConfigPath: styioConfigPath,
       vendorRoot: vendorRoot,
-      buildRoot: buildRoot,
       packages: packages,
       dependencies: dependencies,
       targets: targets,
@@ -769,13 +576,9 @@ class ProjectGraphSnapshot {
       lockState: lockState,
       vendorState: vendorState,
       activeCompiler: activeCompiler ?? this.activeCompiler,
-      toolchainEnvironment: toolchainEnvironment ?? this.toolchainEnvironment,
       packageDistribution: packageDistribution ?? this.packageDistribution,
-      sourceState: sourceState ?? this.sourceState,
       projectGraphPayloadFailure:
           projectGraphPayloadFailure ?? this.projectGraphPayloadFailure,
-      toolchainStatePayloadFailure:
-          toolchainStatePayloadFailure ?? this.toolchainStatePayloadFailure,
       hostedWorkspace: hostedWorkspace ?? this.hostedWorkspace,
       sourceConfidenceByField:
           sourceConfidenceByField ?? this.sourceConfidenceByField,
@@ -790,11 +593,8 @@ class ProjectGraphSnapshot {
     required List<String> notes,
     ToolchainStatusSnapshot? toolchain,
     CompilerHandshakeSnapshot? activeCompiler,
-    ToolchainEnvironmentSnapshot? toolchainEnvironment,
     PackageDistributionSnapshot? packageDistribution,
-    ProjectSourceStateSnapshot? sourceState,
     PublishedPayloadFailure? projectGraphPayloadFailure,
-    PublishedPayloadFailure? toolchainStatePayloadFailure,
     HostedWorkspaceRecordSnapshot? hostedWorkspace,
     Map<String, ProjectGraphFieldSourceConfidence>? sourceConfidenceByField,
   }) {
@@ -806,10 +606,7 @@ class ProjectGraphSnapshot {
       workspaceMembers: const <String>[],
       manifestPath: null,
       lockfilePath: '$workspaceRoot/pafio.lock',
-      toolchainPinPath: null,
-      styioConfigPath: null,
       vendorRoot: '$workspaceRoot/.pafio/vendor',
-      buildRoot: '$workspaceRoot/.pafio/build',
       packages: const <ProjectPackageSnapshot>[],
       dependencies: const <ProjectDependencySnapshot>[],
       targets: const <ProjectTargetDescriptor>[],
@@ -818,16 +615,13 @@ class ProjectGraphSnapshot {
           toolchain ??
           const ToolchainStatusSnapshot(
             source: ToolchainResolutionSource.unavailable,
-            detail: 'No project toolchain pin is active in scratch mode.',
+            detail: 'No system compiler is active in scratch mode.',
           ),
       lockState: ProjectLockState.missing,
       vendorState: ProjectVendorState.missing,
       activeCompiler: activeCompiler,
-      toolchainEnvironment: toolchainEnvironment,
       packageDistribution: packageDistribution,
-      sourceState: sourceState,
       projectGraphPayloadFailure: projectGraphPayloadFailure,
-      toolchainStatePayloadFailure: toolchainStatePayloadFailure,
       hostedWorkspace: hostedWorkspace,
       sourceConfidenceByField:
           sourceConfidenceByField ?? _scratchSourceConfidenceByField,
@@ -840,9 +634,6 @@ class ProjectGraphSnapshot {
     if (isScratch) {
       return _scratchSourceConfidenceByField;
     }
-    if (hasProjectGraphPayloadFailure || hasToolchainStatePayloadFailure) {
-      return _canonicalFileSourceConfidenceByField;
-    }
     return _unspecifiedSourceConfidenceByField;
   }
 }
@@ -852,20 +643,6 @@ _machinePayloadSourceConfidenceByField =
     <String, ProjectGraphFieldSourceConfidence>{
       for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
         fieldName: ProjectGraphFieldSourceConfidence.machinePayload,
-    };
-
-final Map<String, ProjectGraphFieldSourceConfidence>
-_canonicalFileSourceConfidenceByField =
-    <String, ProjectGraphFieldSourceConfidence>{
-      for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
-        fieldName: ProjectGraphFieldSourceConfidence.canonicalFile,
-      'toolchain': ProjectGraphFieldSourceConfidence.inferred,
-      'activeCompiler': ProjectGraphFieldSourceConfidence.capabilityGap,
-      'toolchainEnvironment': ProjectGraphFieldSourceConfidence.capabilityGap,
-      'packageDistribution': ProjectGraphFieldSourceConfidence.capabilityGap,
-      'sourceState': ProjectGraphFieldSourceConfidence.capabilityGap,
-      'hostedWorkspace': ProjectGraphFieldSourceConfidence.capabilityGap,
-      'notes': ProjectGraphFieldSourceConfidence.inferred,
     };
 
 final Map<String, ProjectGraphFieldSourceConfidence>
@@ -880,10 +657,7 @@ _scratchSourceConfidenceByField = <String, ProjectGraphFieldSourceConfidence>{
   for (final fieldName in ProjectGraphSnapshot.sourceConfidenceFieldNames)
     fieldName: ProjectGraphFieldSourceConfidence.inferred,
   'manifestPath': ProjectGraphFieldSourceConfidence.capabilityGap,
-  'toolchainPinPath': ProjectGraphFieldSourceConfidence.capabilityGap,
   'activeCompiler': ProjectGraphFieldSourceConfidence.capabilityGap,
-  'toolchainEnvironment': ProjectGraphFieldSourceConfidence.capabilityGap,
   'packageDistribution': ProjectGraphFieldSourceConfidence.capabilityGap,
-  'sourceState': ProjectGraphFieldSourceConfidence.capabilityGap,
   'hostedWorkspace': ProjectGraphFieldSourceConfidence.capabilityGap,
 };

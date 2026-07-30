@@ -132,7 +132,7 @@ optional local profile and ProfileSync contract.
 ### What Adjacent Contracts Own
 
 - **LanguageServiceAdapter.md**: Language service configuration.
-- **ToolchainManagementAdapter.md**: Toolchain install/update lifecycle.
+- **ProjectGraphAdapter.md**: Pafio metadata, Styio compiler, and Platform hosted source split.
 - **RuntimeEventAdapter.md**: Runtime and debug console settings.
 - **ProblemsTestingSourceControlSurfaces.md**: Test run execution and coverage.
 - **WorkbenchShellSurfaces.md**: Shell rendering and shell integration.

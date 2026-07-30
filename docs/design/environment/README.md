@@ -61,7 +61,7 @@ Only boundary or complex environment modules get their own README. Ordinary inte
 | `system-compatibility-manager/platform-context/` | Facts-only platform context, including all system compatibility fact sections. | Yes |
 | `system-compatibility-manager/platform-adapter/` | Global Platform Adapter facade that converts `PlatformContextSnapshot` into manager-ready compatibility inputs. | Yes |
 | `system-compatibility-manager/file-system-manager/` | File-system provider routing, URI/path handling, read/write/watch, file content codec, and structured errors. | Yes |
-| `toolchain-manager/styio-toolchain-management/` | Styio toolchain discovery, installation, selection, version binding, process context, and capability handshake support. | Yes |
+| `toolchain-manager/` | Generic non-Styio tool discovery, selection, process context, and health support; system Styio is consumed through its machine contract. | No |
 | `shell-runtime/` | Toolchain-bound shell execution profile coordination through Shell Facts, Shell Adapter, and Shell Manager. | Yes |
 | `extension-manager` | Extension lifecycle, manifests, activation, contribution, and extension-local permission decisions. | No |
 | `fallback-registry` | Global fallback registration only; behavior remains local to feature owners. | No |

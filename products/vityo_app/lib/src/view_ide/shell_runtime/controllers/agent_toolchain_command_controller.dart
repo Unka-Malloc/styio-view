@@ -1,5 +1,4 @@
 import '../../agent_client/agent.dart';
-import '../../backend_toolchain/backend_toolchain.dart';
 import '../../commands/commands.dart';
 import '../../toolchain/toolchain.dart';
 import 'agent_controller.dart';
@@ -10,51 +9,25 @@ final class AgentToolchainCommandController {
   const AgentToolchainCommandController({
     required this.agentController,
     required this.toolchainController,
-    required this.blockedReasonForCommand,
-    required this.executeCommand,
     required this.selectClangCppVersion,
-    required this.handleBootstrapAction,
     required this.executeLastInstallPlan,
-    required this.blockWhenDirty,
-    required this.log,
     required this.notify,
   });
 
   final AgentController agentController;
   final ToolchainController toolchainController;
-  final String? Function(AppCommandId commandId) blockedReasonForCommand;
-  final Future<void> Function(AppCommandId commandId) executeCommand;
   final Future<ToolchainSelectionResult?> Function(
     String versionId, {
     String? cppStandard,
   })
   selectClangCppVersion;
-  final Future<ToolchainBootstrapActionDispatchResult?> Function(
-    String actionId,
-  )
-  handleBootstrapAction;
   final Future<ToolchainInstallExecutionResult?> Function()
   executeLastInstallPlan;
-  final bool Function(AgentIdeCommandSuggestion suggestion) blockWhenDirty;
-  final void Function(String message) log;
   final void Function() notify;
 
   Future<bool> apply(AgentIdeCommandSuggestion suggestion) async {
     return switch (suggestion.commandId) {
       'selectClangCppVersion' => _selectVersion(suggestion),
-      'useActiveCompiler' => _compilerCommand(
-        suggestion,
-        AppCommandId.useActiveCompiler,
-      ),
-      'pinActiveCompiler' => _compilerCommand(
-        suggestion,
-        AppCommandId.pinActiveCompiler,
-      ),
-      'clearPinnedCompiler' => _compilerCommand(
-        suggestion,
-        AppCommandId.clearPinnedCompiler,
-      ),
-      'bootstrapStyioToolchain' => _bootstrap(suggestion),
       'executeToolchainInstallPlan' => _executeInstall(suggestion),
       _ => throw ArgumentError.value(
         suggestion.commandId,
@@ -100,63 +73,6 @@ final class AgentToolchainCommandController {
     return applied;
   }
 
-  Future<bool> _compilerCommand(
-    AgentIdeCommandSuggestion suggestion,
-    AppCommandId commandId,
-  ) async {
-    if (blockWhenDirty(suggestion)) {
-      return false;
-    }
-    final blockedReason = blockedReasonForCommand(commandId);
-    if (blockedReason != null) {
-      final message =
-          'Agent command ${suggestion.commandId} blocked: $blockedReason';
-      _record(
-        suggestion,
-        applied: false,
-        message: message,
-        metadata: <String, Object?>{
-          'blockedReason': blockedReason,
-          'requiredCommand': 'openSettings',
-        },
-      );
-      log(message);
-      return false;
-    }
-    await executeCommand(commandId);
-    final result = toolchainController.lastCommand;
-    final applied = result?.succeeded ?? false;
-    _record(
-      suggestion,
-      applied: applied,
-      message: result == null
-          ? 'Agent command ${suggestion.commandId} skipped: no toolchain command result was produced.'
-          : 'Agent command ${suggestion.commandId} ${result.status.name}: ${result.statusMessage}',
-      metadata: <String, Object?>{
-        if (result != null) 'toolchainCommand': _commandMetadata(result),
-      },
-    );
-    return applied;
-  }
-
-  Future<bool> _bootstrap(AgentIdeCommandSuggestion suggestion) async {
-    final result = await handleBootstrapAction('bootstrap-styio-toolchain');
-    final applied = result?.dispatched ?? false;
-    _record(
-      suggestion,
-      applied: applied,
-      message: result == null
-          ? 'Agent command bootstrapStyioToolchain skipped: no bootstrap result was produced.'
-          : 'Agent command bootstrapStyioToolchain ${result.status.wireValue}: ${result.message}',
-      metadata: <String, Object?>{
-        if (result != null) 'toolchainBootstrapActionDispatch': result.toJson(),
-        if (toolchainController.bootstrapSummary != null)
-          'toolchainBootstrap': toolchainController.bootstrapSummary!.toJson(),
-      },
-    );
-    return applied;
-  }
-
   Future<bool> _executeInstall(AgentIdeCommandSuggestion suggestion) async {
     final result = await executeLastInstallPlan();
     final applied =
@@ -177,16 +93,6 @@ final class AgentToolchainCommandController {
     );
     return applied;
   }
-
-  Map<String, Object?> _commandMetadata(ToolchainCommandResult result) =>
-      <String, Object?>{
-        'command': result.command,
-        'status': result.status.name,
-        'statusMessage': result.statusMessage,
-        'succeeded': result.succeeded,
-        if (result.payload != null) 'payload': result.payload,
-        if (result.errorPayload != null) 'errorPayload': result.errorPayload,
-      };
 
   void _recordMissingInput(
     AgentIdeCommandSuggestion suggestion,

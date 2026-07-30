@@ -10,5 +10,5 @@
 
 | Path | Entry | Summary |
 |------|-------|---------|
-| `CURRENT-STATE.md` | [Current State](./CURRENT-STATE.md) | Provide a compact current-state entry point for Vityo governance, product direction, and active implementation gaps. |
+| `CURRENT-STATE.md` | [Current State](./CURRENT-STATE.md) | Provide the compact entry point for Vityo's product identity, |
 | `downstream-implementation-session-report.md` | [Vityo Downstream Implementation Session Report](./downstream-implementation-session-report.md) | Summarize the recent downstream Vityo implementation session, separate real product progress from preview-only support, and state how far the project remains from a genuinely usable IDE. |

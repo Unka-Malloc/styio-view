@@ -79,10 +79,10 @@ mixin ShellRuntimeProjectRuntimeFacade on ShellRuntimeFacadeHost {
     outputPath: outputPath,
   );
 
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     bool locked = false,
     bool offline = false,
-  }) => _dependencySourceController.fetchDependencies(
+  }) => _dependencySourceController.syncDependencies(
     locked: locked,
     offline: offline,
   );

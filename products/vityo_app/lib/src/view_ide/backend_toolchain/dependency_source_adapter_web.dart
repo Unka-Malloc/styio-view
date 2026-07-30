@@ -23,7 +23,7 @@ class _HostedDependencySourceAdapter implements DependencySourceAdapter {
   final HostedControlPlaneClient hostedClient;
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
@@ -31,21 +31,21 @@ class _HostedDependencySourceAdapter implements DependencySourceAdapter {
     final workspaceId = projectGraph.hostedWorkspace?.workspaceId;
     if (workspaceId == null || workspaceId.isEmpty) {
       return const DependencySourceCommandResult(
-        command: 'fetch',
+        command: 'sync',
         status: DependencySourceCommandStatus.blocked,
         statusMessage:
-            'Hosted workspace identity is unavailable for dependency fetch.',
+            'Hosted workspace identity is unavailable for dependency sync.',
         stdout: '',
         stderr: '',
       );
     }
-    final response = await hostedClient.fetchDependencies(
+    final response = await hostedClient.syncDependencies(
       workspaceId: workspaceId,
       locked: locked,
       offline: offline,
     );
     return _dependencyResultFromHostedResponse(
-      command: 'fetch',
+      command: 'sync',
       response: response,
     );
   }

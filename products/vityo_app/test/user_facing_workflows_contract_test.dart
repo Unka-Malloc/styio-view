@@ -405,12 +405,12 @@ void main() {
         ownerLayer: 'language-service',
         requiredInjection: true,
         capabilityGapCode: 'STYIO_LS_UNAVAILABLE',
-        recoveryAction: 'bootstrapStyioToolchain',
+        recoveryAction: 'openSettings',
       );
 
       expect(descriptor.hasAbsentStateContract, isTrue);
       expect(descriptor.capabilityGapCode, 'STYIO_LS_UNAVAILABLE');
-      expect(descriptor.recoveryAction, 'bootstrapStyioToolchain');
+      expect(descriptor.recoveryAction, 'openSettings');
     });
 
     test('recovery: absent gap provides actionable recovery hint', () {

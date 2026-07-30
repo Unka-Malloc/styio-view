@@ -1,7 +1,6 @@
 import 'app_commands.dart';
 
-typedef CommandBlockedReasonResolver =
-    String? Function(AppCommandId commandId);
+typedef CommandBlockedReasonResolver = String? Function(AppCommandId commandId);
 
 enum CommandPaletteStatus { completed, noCommands, hitLimit }
 
@@ -413,13 +412,9 @@ class CommandPaletteService {
       AppCommandId.openSettings => 'Navigation',
       AppCommandId.renameWorkspaceSymbol ||
       AppCommandId.showWorkspaceCodeActions => 'Refactor',
-      AppCommandId.fetchDependencies ||
+      AppCommandId.syncDependencies ||
       AppCommandId.vendorDependencies => 'Dependencies',
-      AppCommandId.useActiveCompiler ||
-      AppCommandId.pinActiveCompiler ||
-      AppCommandId.clearPinnedCompiler => 'Toolchain',
-      AppCommandId.packProject ||
-      AppCommandId.preparePublish => 'Deployment',
+      AppCommandId.packProject || AppCommandId.preparePublish => 'Deployment',
       AppCommandId.refreshModules => 'Modules',
       AppCommandId.save ||
       AppCommandId.saveAll ||

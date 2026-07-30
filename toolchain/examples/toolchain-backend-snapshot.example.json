@@ -11,12 +11,16 @@
     "hosted_control_plane": false
   },
   "upstream_sources": {
-    "styio_nightly": {
-      "authority": "compiler and managed toolchain SSOT",
-      "channel": "nightly"
+    "styio": {
+      "authority": "system compiler and machine-contract SSOT",
+      "command": "styio --machine-info=json"
     },
-    "styio_pafio": {
-      "authority": "project graph, toolchain state, hosted control plane",
+    "pafio": {
+      "authority": "local project metadata and workflow SSOT",
+      "command": "pafio metadata --json"
+    },
+    "styio_platform": {
+      "authority": "Platform hosted-workspace v1",
       "workspace_id": null
     }
   },
@@ -34,20 +38,18 @@
     "status": "partial",
     "compiler_version": "0.0.0-nightly.20260421",
     "channel": "nightly",
-    "install_root": "/workspace/.cache/styio/toolchains/nightly",
-    "install_binary_path": "/workspace/.cache/styio/toolchains/nightly/bin/styio"
+    "source": "system-styio"
   },
   "capabilities": {
-    "install": true,
-    "use": true,
-    "pin": true,
-    "clear_pin": true,
+    "metadata": true,
+    "workflow_json": true,
+    "styio_machine_info": true,
     "hosted_workspace": false
   },
   "blocked_reasons": [
     {
       "code": "hosted-workspace-unavailable",
-      "message": "Hosted workspace identity is missing, so hosted toolchain routes remain blocked."
+      "message": "Hosted workspace identity is missing, so Platform hosted routes remain blocked."
     }
   ]
 }

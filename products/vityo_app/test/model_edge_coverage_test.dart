@@ -251,14 +251,9 @@ void main() {
     );
     final enriched = scratch.copyWith(
       packageDistribution: const PackageDistributionSnapshot(schemaVersion: 1),
-      sourceState: const ProjectSourceStateSnapshot(schemaVersion: 1),
       projectGraphPayloadFailure: const PublishedPayloadFailure(
-        command: 'pafio project-graph',
+        command: 'pafio metadata --json',
         detail: 'schema mismatch',
-      ),
-      toolchainStatePayloadFailure: const PublishedPayloadFailure(
-        command: 'pafio toolchain-state',
-        detail: 'missing contract',
       ),
       hostedWorkspace: HostedWorkspaceRecordSnapshot(
         workspaceId: 'hosted-workspace',
@@ -278,9 +273,7 @@ void main() {
     expect(scratch.hasManifest, isFalse);
     expect(scratch.editorFileCount, 1);
     expect(enriched.hasPackageDistribution, isTrue);
-    expect(enriched.hasSourceState, isTrue);
     expect(enriched.hasProjectGraphPayloadFailure, isTrue);
-    expect(enriched.hasToolchainStatePayloadFailure, isTrue);
     expect(enriched.hasHostedWorkspace, isTrue);
     expect(enriched.notes, <String>['enriched']);
   });

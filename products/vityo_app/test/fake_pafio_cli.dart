@@ -5,8 +5,7 @@ Future<File> writeFakePafioCli({
   required String pythonSource,
 }) async {
   final binDirectory = Directory(
-    '${workspaceRoot.path}${Platform.pathSeparator}.pafio'
-    '${Platform.pathSeparator}bin',
+    '${workspaceRoot.path}${Platform.pathSeparator}test-bin',
   );
   return writeFakePythonCli(
     directory: binDirectory,

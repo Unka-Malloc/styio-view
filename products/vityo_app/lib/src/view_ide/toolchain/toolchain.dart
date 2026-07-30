@@ -5,7 +5,6 @@ export 'clang_cpp_version_configuration.dart';
 export 'clang_cpp_version_manager.dart';
 export 'clang_cpp_version_parser.dart';
 export 'styio_toolchain_discovery.dart';
-export 'styio_toolchain_lifecycle.dart';
 export 'native_compiler_toolchain_discovery.dart';
 export 'terminal_runtime.dart';
 export 'toolchain_catalog.dart';

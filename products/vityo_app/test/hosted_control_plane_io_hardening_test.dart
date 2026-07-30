@@ -220,7 +220,7 @@ void main() {
     );
 
     await expectLater(
-      client!.toolClearPin(workspaceId: 'demo-workspace'),
+      client!.syncDependencies(workspaceId: 'demo-workspace'),
       throwsA(
         isA<StateError>().having(
           (error) => error.toString(),

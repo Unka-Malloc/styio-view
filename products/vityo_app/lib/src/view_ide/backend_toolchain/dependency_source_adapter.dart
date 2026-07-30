@@ -51,7 +51,7 @@ String? blockedDependencySourceCommandReason({
 }
 
 abstract class DependencySourceAdapter {
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,

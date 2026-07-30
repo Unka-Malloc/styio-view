@@ -12,7 +12,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart'
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/ide/editor/session/editor_session_data_store.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
@@ -23,7 +22,6 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_executor.dart
     show ToolchainInstallExecutionStatus;
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_install_policy.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
-import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
 import 'package:vityo_app/src/view_ide/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
@@ -143,7 +141,6 @@ void main() {
       ),
       dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
       deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
       editorSessionDataStore: editorSessionDataStore,
       editorSessionWorkspaceId: 'demo',
     );
@@ -263,8 +260,6 @@ void main() {
         ),
         dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
         editorSessionDataStore: editorSessionDataStore,
         editorSessionWorkspaceId: 'demo',
       );
@@ -286,113 +281,6 @@ void main() {
     },
   );
 
-  test(
-    'successful toolchain switch refreshes project graph and execution route',
-    () async {
-      final initialGraph = _projectGraph(
-        compilerVersion: '0.0.1',
-        compilePlanReady: false,
-      );
-      final refreshedGraph = _projectGraph(
-        compilerVersion: '0.0.5',
-        compilePlanReady: true,
-      );
-      const requirement = ToolchainRequirement(kind: ToolchainKind.runner);
-      final toolchainReport = ValueNotifier<ToolchainManagerStatusReport>(
-        const ToolchainManagerStatusReport(
-          status: ToolchainManagerStatus.ready,
-          snapshot: ToolchainStateSnapshot(
-            targetId: 'shell-model',
-            workspaceId: 'demo',
-            entries: <ToolchainStateEntry>[
-              ToolchainStateEntry(
-                id: 'styio-runner',
-                kind: ToolchainKind.runner,
-                displayName: 'Styio Runner',
-                executablePath: '/opt/styio/bin/styio',
-                active: true,
-                version: '0.0.8',
-                channel: 'nightly',
-              ),
-            ],
-          ),
-          requirement: requirement,
-          resolution: ToolchainResolution(
-            status: ToolchainResolutionStatus.resolved,
-            requirement: requirement,
-            descriptor: ToolchainDescriptor(
-              id: 'styio-runner',
-              kind: ToolchainKind.runner,
-              displayName: 'Styio Runner',
-              executablePath: '/opt/styio/bin/styio',
-              version: '0.0.8',
-              channel: 'nightly',
-            ),
-          ),
-        ),
-      );
-      final shell = ShellModel(
-        platformTarget: PlatformTarget.macos,
-        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-        projectGraphAdapter: _SequenceProjectGraphAdapter(
-          snapshots: <ProjectGraphSnapshot>[refreshedGraph],
-        ),
-        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
-        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-        moduleRegistry: ModuleRegistry(
-          platformTarget: PlatformTarget.macos,
-          definitions: const [],
-        ),
-        nativeModuleLoader: const NoopNativeModuleLoader(
-          platformTarget: PlatformTarget.macos,
-        ),
-        editorController: EditorSessionController(
-          initialDocument: EditorSessionController.seedDocumentForPath(
-            initialGraph.editorFiles.first,
-          ),
-          languageService: const SimpleStyioLanguageService(),
-        ),
-        executionAdapter: _RefreshAwareExecutionAdapter(
-          projectGraph: initialGraph,
-        ),
-        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-            _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
-        runtimeEventAdapter: createRuntimeEventAdapter(
-          platformTarget: PlatformTarget.macos,
-        ),
-        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
-        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
-        toolchainStatusReport: toolchainReport,
-      );
-      addTearDown(toolchainReport.dispose);
-      addTearDown(shell.dispose);
-
-      final result = await shell.useManagedCompiler(
-        compilerVersion: '0.0.5',
-        channel: 'stable',
-      );
-
-      expect(result.succeeded, isTrue);
-      expect(
-        shell.workspaceController.activeProject.activeCompiler?.compilerVersion,
-        '0.0.5',
-      );
-      final cliCapability = shell.adapterCapabilities.firstWhere(
-        (snapshot) => snapshot.adapterKind == AdapterKind.cli,
-      );
-      expect(cliCapability.execution.level, AdapterCapabilityLevel.available);
-      expect(
-        shell.debugLog.any(
-          (entry) => entry.contains('Project graph refreshed'),
-        ),
-        isTrue,
-      );
-      expect(shell.toolchainStatusSurface.source, 'manager-report');
-      expect(shell.toolchainStatusSurface.version, '0.0.8');
-    },
-  );
 
   test('successful publish preflight is stored as deployment state', () async {
     final initialGraph = _projectGraph(
@@ -430,7 +318,6 @@ void main() {
       ),
       dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
       deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-      toolchainManagementAdapter: const _SuccessfulToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -448,86 +335,6 @@ void main() {
     );
   });
 
-  test(
-    'toolchain and deployment commands dispatch through shell command flow',
-    () async {
-      final initialGraph = _projectGraph(
-        compilerVersion: '0.0.5',
-        compilePlanReady: true,
-      );
-      final refreshedGraph = _projectGraph(
-        compilerVersion: '0.0.5',
-        compilePlanReady: true,
-      );
-      final shell = ShellModel(
-        platformTarget: PlatformTarget.macos,
-        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
-        projectGraphAdapter: _SequenceProjectGraphAdapter(
-          snapshots: <ProjectGraphSnapshot>[refreshedGraph],
-        ),
-        workspaceController: WorkspaceController(projectSnapshot: initialGraph),
-        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
-        moduleRegistry: ModuleRegistry(
-          platformTarget: PlatformTarget.macos,
-          definitions: const [],
-        ),
-        nativeModuleLoader: const NoopNativeModuleLoader(
-          platformTarget: PlatformTarget.macos,
-        ),
-        editorController: EditorSessionController(
-          initialDocument: EditorSessionController.seedDocumentForPath(
-            initialGraph.editorFiles.first,
-          ),
-          languageService: const SimpleStyioLanguageService(),
-        ),
-        executionAdapter: _RefreshAwareExecutionAdapter(
-          projectGraph: initialGraph,
-        ),
-        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
-            _RefreshAwareExecutionAdapter(projectGraph: projectGraph),
-        runtimeEventAdapter: createRuntimeEventAdapter(
-          platformTarget: PlatformTarget.macos,
-        ),
-        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
-        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
-      );
-      addTearDown(shell.dispose);
-
-      await shell.executeCommand(AppCommandId.useActiveCompiler);
-      await shell.executeCommand(AppCommandId.preparePublish);
-
-      expect(shell.lastToolchainCommand?.command, 'tool use');
-      expect(shell.lastToolchainCommand?.succeeded, isTrue);
-      expect(shell.lastDeploymentCommand?.command, 'publish');
-      expect(shell.lastDeploymentCommand?.succeeded, isTrue);
-      expect(
-        shell.debugLog.any((entry) => entry.contains('tool use succeeded')),
-        isTrue,
-      );
-      expect(
-        shell.debugLog.any((entry) => entry.contains('publish succeeded')),
-        isTrue,
-      );
-
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'show-toolchain-logs',
-          label: 'Show logs',
-          description: 'Open the latest toolchain command logs.',
-        ),
-      );
-
-      expect(shell.activeBottomTab, BottomSurfaceTab.debug);
-      expect(
-        shell.debugLog.any(
-          (entry) => entry.contains('Toolchain log view requested'),
-        ),
-        isTrue,
-      );
-    },
-  );
 
   test(
     'command palette, quick open, locations, links, highlights, declarations, '
@@ -570,8 +377,6 @@ void main() {
         ),
         dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -815,8 +620,6 @@ void main() {
         ),
         dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -897,8 +700,6 @@ void main() {
         ),
         dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
         toolchainManager: manager,
         toolchainStatusReport: toolchainReport,
       );
@@ -1001,28 +802,16 @@ void main() {
   );
 
   test(
-    'vendor command dispatch refreshes project graph and stores source state',
+    'vendor command dispatch refreshes project graph vendor state',
     () async {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
         compilePlanReady: true,
       );
-      final refreshedGraph =
-          _projectGraph(
-            compilerVersion: '0.0.5',
-            compilePlanReady: true,
-          ).copyWith(
-            sourceState: const ProjectSourceStateSnapshot(
-              schemaVersion: 1,
-              vendor: VendorSourceStateSnapshot(
-                vendorRoot: '/workspace/demo/.pafio/vendor',
-                metadataPath: '/workspace/demo/.pafio/vendor/pafio-vendor.json',
-                vendorPresent: true,
-                metadataPresent: true,
-                gitSnapshots: 1,
-              ),
-            ),
-          );
+      final refreshedGraph = _projectGraph(
+        compilerVersion: '0.0.5',
+        compilePlanReady: true,
+      );
       final shell = ShellModel(
         platformTarget: PlatformTarget.macos,
         supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
@@ -1054,8 +843,6 @@ void main() {
         ),
         dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -1064,13 +851,8 @@ void main() {
       expect(shell.lastDependencySourceCommand?.succeeded, isTrue);
       expect(shell.lastDependencySourceCommand?.command, 'vendor');
       expect(
-        shell
-            .workspaceController
-            .activeProject
-            .sourceState
-            ?.vendor
-            .gitSnapshots,
-        1,
+        shell.workspaceController.activeProject.vendorState,
+        ProjectVendorState.present,
       );
       expect(
         shell.debugLog.any((entry) => entry.contains('vendor metadata:')),
@@ -1144,8 +926,6 @@ void main() {
         ),
         dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
         deploymentAdapter: const _SuccessfulDeploymentAdapter(),
-        toolchainManagementAdapter:
-            const _SuccessfulToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -1171,99 +951,6 @@ void main() {
     },
   );
 
-  test(
-    'toolchain command variants and recovery actions dispatch through shell flow',
-    () async {
-      final initialGraph = _projectGraph(
-        compilerVersion: '0.0.5',
-        compilePlanReady: true,
-      );
-      final refreshedGraph = _projectGraph(
-        compilerVersion: '0.0.6',
-        compilePlanReady: true,
-      );
-      final shell = _createShell(
-        initialGraph: initialGraph,
-        projectGraphAdapter: _SequenceProjectGraphAdapter(
-          snapshots: List<ProjectGraphSnapshot>.filled(6, refreshedGraph),
-        ),
-      );
-      addTearDown(shell.dispose);
-
-      await shell.executeCommand(AppCommandId.pinActiveCompiler);
-      await shell.executeCommand(AppCommandId.clearPinnedCompiler);
-      await shell.executeCommand(AppCommandId.packProject);
-      await shell.executeCommand(AppCommandId.refreshModules);
-      await shell.installManagedCompiler(
-        styioBinaryPath: '/opt/styio/bin/styio',
-      );
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'select-existing-toolchain',
-          label: 'Select toolchain',
-          description: 'Open toolchain selection.',
-        ),
-      );
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'use-degraded-mode',
-          label: 'Use degraded mode',
-          description: 'Continue without a managed toolchain.',
-        ),
-      );
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'fix-toolchain-precondition',
-          label: 'Fix precondition',
-          description: 'Resolve missing manifest state.',
-        ),
-      );
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'retry-tool-use',
-          label: 'Retry use',
-          description: 'Retry tool use command.',
-        ),
-      );
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'retry-tool-pin',
-          label: 'Retry pin',
-          description: 'Retry tool pin command.',
-        ),
-      );
-      await shell.handleToolchainRecoveryAction(
-        const ToolchainRecoveryAction(
-          id: 'unknown-recovery-action',
-          label: 'Unknown',
-          description: 'Exercise unknown recovery branch.',
-        ),
-      );
-
-      expect(shell.lastToolchainCommand?.succeeded, isTrue);
-      expect(shell.lastDeploymentCommand?.command, 'pack');
-      expect(
-        shell.debugLog.any((entry) => entry.contains('tool install succeeded')),
-        isTrue,
-      );
-      expect(
-        shell.debugLog.any((entry) => entry.contains('Native bridge')),
-        isTrue,
-      );
-      expect(
-        shell.debugLog.any(
-          (entry) => entry.contains('Toolchain selection route requested'),
-        ),
-        isTrue,
-      );
-      expect(
-        shell.debugLog.any(
-          (entry) => entry.contains('Toolchain recovery action is not wired'),
-        ),
-        isTrue,
-      );
-    },
-  );
 
   test(
     'shell session and file binding edge states log unavailable paths',
@@ -1321,7 +1008,7 @@ void main() {
   });
 
   test(
-    'deployment and toolchain command blockers report platform and package state',
+    'deployment command blockers report platform and package state',
     () {
       final initialGraph = _projectGraph(
         compilerVersion: '0.0.5',
@@ -1333,10 +1020,6 @@ void main() {
       );
       addTearDown(iosShell.dispose);
 
-      expect(
-        iosShell.blockedReasonForCommand(AppCommandId.useActiveCompiler),
-        contains('does not expose local pafio toolchain management'),
-      );
       expect(
         iosShell.blockedReasonForCommand(AppCommandId.preparePublish),
         contains('does not expose local pafio deployment commands'),
@@ -1565,8 +1248,6 @@ ShellModel _createShell({
   ProjectGraphAdapter? projectGraphAdapter,
   WorkspaceDocumentStore? workspaceDocumentStore,
   WorkspaceController? workspaceController,
-  ToolchainManagementAdapter toolchainManagementAdapter =
-      const _SuccessfulToolchainManagementAdapter(),
   DependencySourceAdapter dependencySourceAdapter =
       const _SuccessfulDependencySourceAdapter(),
   DeploymentAdapter deploymentAdapter = const _SuccessfulDeploymentAdapter(),
@@ -1615,7 +1296,6 @@ ShellModel _createShell({
     ),
     dependencySourceAdapter: dependencySourceAdapter,
     deploymentAdapter: deploymentAdapter,
-    toolchainManagementAdapter: toolchainManagementAdapter,
     toolchainManager: toolchainManager,
     languageServiceStatus: languageServiceStatus,
     toolchainStatusReport: toolchainStatusReport,
@@ -1639,7 +1319,6 @@ ProjectGraphSnapshot _projectGraph({
     workspaceRoot: '/workspace/demo',
     workspaceMembers: const <String>[],
     manifestPath: '/workspace/demo/pafio.toml',
-    toolchainPinPath: '/workspace/demo/pafio-toolchain.toml',
     packages: const <ProjectPackageSnapshot>[],
     dependencies: const <ProjectDependencySnapshot>[],
     targets: <ProjectTargetDescriptor>[
@@ -1653,10 +1332,9 @@ ProjectGraphSnapshot _projectGraph({
     ],
     editorFiles: List<String>.unmodifiable(editorFiles),
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
-      detail: 'Project toolchain pin discovered for shell-model testing.',
-      pinPath: '/workspace/demo/pafio-toolchain.toml',
-      channel: 'stable',
+      source: ToolchainResolutionSource.environment,
+      detail: 'System Styio discovered for shell-model testing.',
+      channel: 'system',
     ),
     lockState: ProjectLockState.unknown,
     vendorState: ProjectVendorState.present,
@@ -1841,64 +1519,17 @@ class _SuccessfulExecutionAdapter implements ExecutionAdapter {
   }
 }
 
-class _SuccessfulToolchainManagementAdapter
-    implements ToolchainManagementAdapter {
-  const _SuccessfulToolchainManagementAdapter();
-
-  @override
-  Future<ToolchainCommandResult> clearPinnedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-  }) async {
-    return _success('tool pin');
-  }
-
-  @override
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String styioBinaryPath,
-  }) async {
-    return _success('tool install');
-  }
-
-  @override
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _success('tool pin');
-  }
-
-  @override
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _success('tool use');
-  }
-
-  ToolchainCommandResult _success(String command) {
-    return ToolchainCommandResult(
-      command: command,
-      status: ToolchainCommandStatus.succeeded,
-      statusMessage: 'toolchain command succeeded in the shell-model fixture.',
-      stdout: '',
-      stderr: '',
-    );
-  }
-}
 
 class _SuccessfulDependencySourceAdapter implements DependencySourceAdapter {
   const _SuccessfulDependencySourceAdapter();
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) async {
-    return _success('fetch');
+    return _success('sync');
   }
 
   @override

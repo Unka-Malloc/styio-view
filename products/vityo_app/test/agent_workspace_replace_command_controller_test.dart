@@ -76,7 +76,7 @@ _Fixture _fixture() {
       targets: <ProjectTargetDescriptor>[],
       editorFiles: <String>['src/main.styio'],
       toolchain: ToolchainStatusSnapshot(
-        source: ToolchainResolutionSource.projectPin,
+        source: ToolchainResolutionSource.environment,
         detail: 'fixture',
       ),
       lockState: ProjectLockState.unknown,

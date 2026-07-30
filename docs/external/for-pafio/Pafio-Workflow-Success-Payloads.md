@@ -50,14 +50,11 @@ pafio --json test --manifest-path <path> ...
 除 `workflow_success_payloads` 外，`Vityo` 当前还依赖这些 canonical CLI forms 的成功 JSON：
 
 ```text
-pafio --json fetch --manifest-path <path> ...
+pafio --json sync --manifest-path <path> ...
 pafio --json vendor --manifest-path <path> ...
 pafio --json pack --manifest-path <path> ...
 pafio --json publish --manifest-path <path> --dry-run
 pafio --json publish --manifest-path <path> --registry <path-or-url>
-pafio --json tool install --styio-bin <path>
-pafio --json tool use --version <compiler-version> [--channel <channel>]
-pafio --json tool pin (--version <compiler-version> [--channel <channel>] | --clear) [--manifest-path <path>]
 ```
 
 这些 supporting commands 当前可以不是共享 published family，但成功时仍必须：
@@ -65,11 +62,11 @@ pafio --json tool pin (--version <compiler-version> [--channel <channel>] | --cl
 1. 向 stdout 写一个稳定 JSON object
 2. 至少包含 `command`
 3. 至少包含 `message`
-4. 按命令补充路径或状态字段，例如 `archive_path`、`package`、managed compiler path 或 pin path
+4. 按命令补充路径或状态字段，例如 `archive_path`、`package` 或 registry 状态
 
 ## 3. Rules
 
 1. 不能只有 failure JSON；成功也必须有稳定机器输出。
 2. `build/run/test` 使用 `workflow_success_payloads`，并作为 IDE 项目执行主线。
-3. supporting commands 的成功 JSON 也必须稳定，因为 `Vityo` 已通过这些命令驱动 fetch/vendor、pack/publish 和 toolchain lifecycle。
+3. supporting commands 的成功 JSON 也必须稳定，因为 `Vityo` 已通过这些命令驱动 sync/vendor 与 pack/publish。
 4. `Vityo` 不解析 prose stderr 来判断 workflow 是否成功。

@@ -32,12 +32,8 @@ enum AppCommandId {
   searchWorkspace,
   showWorkspaceProblems,
   showWorkspaceCodeActions,
-  fetchDependencies,
+  syncDependencies,
   vendorDependencies,
-  useActiveCompiler,
-  pinActiveCompiler,
-  clearPinnedCompiler,
-  bootstrapStyioToolchain,
   executeToolchainInstallPlan,
   toggleVisualSubstitution,
 
@@ -239,12 +235,8 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.run ||
       AppCommandId.runSelectedTarget ||
       AppCommandId.runMinimalCompilableUnit => AppCommandCategory.execution,
-      AppCommandId.fetchDependencies ||
+      AppCommandId.syncDependencies ||
       AppCommandId.vendorDependencies => AppCommandCategory.dependency,
-      AppCommandId.useActiveCompiler ||
-      AppCommandId.pinActiveCompiler ||
-      AppCommandId.clearPinnedCompiler ||
-      AppCommandId.bootstrapStyioToolchain ||
       AppCommandId.executeToolchainInstallPlan ||
       AppCommandId.selectClangCppVersion => AppCommandCategory.toolchain,
       AppCommandId.packProject ||
@@ -807,10 +799,11 @@ class VityoCommandRegistry {
       ],
     ),
     AppCommandDescriptor(
-      id: AppCommandId.fetchDependencies,
-      label: 'Fetch',
+      id: AppCommandId.syncDependencies,
+      label: 'Sync',
       shortcutHint: 'Route',
-      description: 'Materialize dependency sources into the local pafio cache.',
+      description:
+          'Resolve and materialize dependencies through the Pafio sync transaction.',
       primary: true,
       permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
     ),
@@ -825,36 +818,6 @@ class VityoCommandRegistry {
         AppCommandShortcutSpec('keyV', control: true, shift: true),
         AppCommandShortcutSpec('keyV', meta: true, shift: true),
       ],
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.useActiveCompiler,
-      label: 'Use Compiler',
-      shortcutHint: 'Route',
-      description:
-          'Use the currently resolved compiler version as the managed pafio compiler.',
-      permissionRequirement: AppCommandPermissionRequirement.toolchainManaged,
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.pinActiveCompiler,
-      label: 'Pin Compiler',
-      shortcutHint: 'Route',
-      description:
-          'Pin the currently resolved compiler version into pafio-toolchain.toml.',
-      permissionRequirement: AppCommandPermissionRequirement.workspaceWrite,
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.clearPinnedCompiler,
-      label: 'Clear Pin',
-      shortcutHint: 'Route',
-      description: 'Clear the current project toolchain pin.',
-      permissionRequirement: AppCommandPermissionRequirement.workspaceWrite,
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.bootstrapStyioToolchain,
-      label: 'Bootstrap Styio',
-      shortcutHint: 'Route',
-      description:
-          'Refresh and route the Styio toolchain bootstrap plan for this workspace.',
     ),
     AppCommandDescriptor(
       id: AppCommandId.executeToolchainInstallPlan,
@@ -1480,12 +1443,8 @@ class VityoCommandRegistry {
       AppCommandId.searchWorkspace ||
       AppCommandId.showWorkspaceProblems ||
       AppCommandId.showWorkspaceCodeActions ||
-      AppCommandId.fetchDependencies ||
+      AppCommandId.syncDependencies ||
       AppCommandId.vendorDependencies ||
-      AppCommandId.useActiveCompiler ||
-      AppCommandId.pinActiveCompiler ||
-      AppCommandId.clearPinnedCompiler ||
-      AppCommandId.bootstrapStyioToolchain ||
       AppCommandId.executeToolchainInstallPlan ||
       AppCommandId.selectClangCppVersion ||
       AppCommandId.packProject ||

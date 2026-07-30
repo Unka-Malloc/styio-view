@@ -205,7 +205,7 @@ ProjectGraphSnapshot _graph({
         .map((target) => target.filePath)
         .toList(growable: false),
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'project pin',
     ),
     lockState: ProjectLockState.missing,

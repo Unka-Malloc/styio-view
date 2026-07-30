@@ -284,40 +284,32 @@ External(Web)| [ Toolchain Download Endpoint ]
 | Toolchain Encoder/Decoder handles editor project-file content. | Toolchain codecs are for process/protocol IO; file content codec belongs to File System Manager. |
 | Registry drives every editor flow step. | Registry registers boundaries only; editor internals stay local to horizontal owners. |
 
-## 14. StyioService Toolchain Placement
+## 14. StyioService Placement
 
-`StyioService` is not part of `OS/External` in the editor vertical flow.
-
-It is launched from a selected Styio toolchain managed by the Environment layer.
+`StyioService` is a compiler-owned machine contract consumed by Vityo. Styio is
+installed by the system; Vityo neither installs nor pins compiler versions.
 
 ```text
-Appearance    | [ Toolchain Selection UI ]  [ Install / Select / Recovery UI ]
+Appearance    | [ Language Capability Status ]  [ Recovery Guidance ]
             |   v
-Interaction   | [ Toolchain Command Flow ]  [ Retry / Switch / Pin Flow ]
+Interaction   | [ Refresh / Retry Flow ]
             |   v
 Service       | [ Styio Language Service ]
             |   |  [ Styio Service Connector ]  [ Capability Detector ]
             |   v
-Environment   | [ Toolchain Manager ]
-            |   |  [ Styio Toolchain Discovery ]  [ Managed Installer ]  [ Version Selector ]
+Environment   | [ System Styio Discovery ]
+            |   |  [ VITYO_STYIO_BIN ]  [ PATH ]
             |   v
-Environment   | [ Selected Styio Toolchain ]
-            |   |  [ styio ]  [ styio_lspd ]  [ syntax CLI ]  [ future embedded endpoint ]
-            |   v
-Environment   | [ Execution Manager ]  [ Toolchain Environment Builder ]  [ Toolchain Encoder / Decoder ]
+Environment   | [ styio --machine-info=json ]  [ published service contract ]
             |   v
 OS            | [ OS Process API ]  [ OS File System ]
-External(Web)| [ Toolchain Download Endpoint ]
 ```
 
-Editor recovery should offer product choices when the selected toolchain is unavailable:
+Editor recovery exposes the owner boundary:
 
 | Failure | Recovery choices |
 |---|---|
-| No Styio toolchain selected | Select existing toolchain, install managed toolchain, use degraded mode. |
-| Selected toolchain missing | Locate again, install replacement, clear selection, use degraded mode. |
-| Version incompatible | Switch version, upgrade/downgrade managed version, show required contract. |
-| StyioService failed to start | Retry, show logs, switch transport, use CLI fallback, use degraded mode. |
-| Capability missing | Disable unsupported feature, show capability gap, request upstream contract. |
-
-Detailed toolchain design: [../../../environment/toolchain-manager/styio-toolchain-management/README.md](../../../environment/toolchain-manager/styio-toolchain-management/README.md)
+| Styio unavailable | Show the missing system prerequisite and discovery order. |
+| Contract incompatible | Show the required Styio contract version. |
+| StyioService failed to start | Retry, show redacted logs, or use an explicitly supported degraded mode. |
+| Capability missing | Disable the unsupported feature and identify Styio as the contract owner. |

@@ -1,8 +1,0 @@
-[module]
-name = "platform/web"
-version = "1.0.0"
-platforms = ["web"]
-
-[dependencies]
-native = { path = "../native", package = "platform/native", version = "^1.0.0" }
-

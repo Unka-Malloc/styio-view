@@ -1524,7 +1524,7 @@ void main() {
       dependencyCommands.map(
         (command) => (command! as Map<String, Object?>)['id'],
       ),
-      <String>['fetchDependencies', 'vendorDependencies'],
+      <String>['syncDependencies', 'vendorDependencies'],
     );
     expect(
       (toolchainCommands.last! as Map<String, Object?>)['id'],

@@ -210,7 +210,7 @@ ProjectGraphSnapshot _projectGraph({
     targets: targets,
     editorFiles: editorFiles,
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'fixture',
     ),
     lockState: ProjectLockState.unknown,

@@ -54,7 +54,7 @@ jobs:
         with:
           repository: Unka-Malloc/pafio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
-          path: styio-pafio
+          path: pafio-nightly
 
       - name: Set up standardized Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6

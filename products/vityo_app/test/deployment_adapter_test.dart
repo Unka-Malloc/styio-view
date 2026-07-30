@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/deployment_adapter.dart';
+import 'package:vityo_app/src/view_ide/backend_toolchain/pafio_cli_discovery.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 
@@ -172,12 +173,15 @@ Future<Directory> _createWorkspaceFixture() async {
     ..createSync(recursive: true)
     ..writeAsStringSync('[package]\nname = "demo/app"\nversion = "0.1.0"\n');
 
-  await writeFakePafioCli(
+  final pafio = await writeFakePafioCli(
     workspaceRoot: tempRoot,
     pythonSource: '''#!/usr/bin/env python3
 import json, sys
 
 args = sys.argv[1:]
+if args == ['--version']:
+    print('pafio test')
+    raise SystemExit(0)
 
 if args[:2] == ['--json', 'pack'] and '--manifest-path' in args and '--package' in args:
     print(json.dumps({
@@ -216,6 +220,11 @@ print(json.dumps({
 raise SystemExit(64)
 ''',
   );
+  debugOverridePafioDiscoveryEnvironment(<String, String>{
+    ...Platform.environment,
+    'VITYO_PAFIO_BIN': pafio.path,
+  });
+  addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
   return tempRoot;
 }
 

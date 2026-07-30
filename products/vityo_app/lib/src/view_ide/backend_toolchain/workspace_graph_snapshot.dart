@@ -8,8 +8,8 @@ enum GraphCompleteness { full, partial }
 
 /// Holds a hash for a canonical workspace file.
 ///
-/// Each canonical file (pafio.toml, pafio.lock, pafio-toolchain.toml,
-/// .pafio/vendor/, .pafio/build/, styio.toml, .styio.toml) is hashed
+/// Each canonical file (pafio.toml, pafio.lock, .pafio/vendor/,
+/// styio.toml, .styio.toml) is hashed
 /// so the builder can detect changes for incremental updates.
 class CanonicalFileEntry {
   const CanonicalFileEntry({
@@ -237,12 +237,10 @@ class WorkspaceGraphSnapshot {
   int get canonicalFileCount => canonicalFiles.length;
 
   /// Convenience: whether there are any error-level diagnostics.
-  bool get hasErrors =>
-      diagnostics.any((d) => d.severity == 'error');
+  bool get hasErrors => diagnostics.any((d) => d.severity == 'error');
 
   /// Convenience: whether there are any cycle diagnostics.
-  bool get hasCycles =>
-      diagnostics.any((d) => d.code == 'cycle_detected');
+  bool get hasCycles => diagnostics.any((d) => d.code == 'cycle_detected');
 
   /// Convenience: returns the list of packages that have no incoming edges
   /// (i.e. top-level packages in the dependency DAG).
@@ -293,7 +291,8 @@ class WorkspaceGraphSnapshot {
       createdAt: createdAt ?? this.createdAt,
       graphCompleteness: graphCompleteness ?? this.graphCompleteness,
       partialReason: partialReason ?? this.partialReason,
-      upstreamPayloadMissing: upstreamPayloadMissing ?? this.upstreamPayloadMissing,
+      upstreamPayloadMissing:
+          upstreamPayloadMissing ?? this.upstreamPayloadMissing,
       workspaceMembers: workspaceMembers ?? this.workspaceMembers,
     );
   }

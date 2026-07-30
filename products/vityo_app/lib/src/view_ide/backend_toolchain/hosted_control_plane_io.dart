@@ -118,64 +118,13 @@ class _IoHostedControlPlaneClient implements HostedControlPlaneClient {
   }
 
   @override
-  Future<Map<String, dynamic>> toolInstall({
-    required String workspaceId,
-    required String styioBinaryPath,
-  }) {
-    return _post(
-      <String>['workspaces', workspaceId, 'tool', 'install'],
-      <String, Object?>{'styio_binary_path': styioBinaryPath},
-    );
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolUse({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  }) {
-    return _post(
-      <String>['workspaces', workspaceId, 'tool', 'use'],
-      <String, Object?>{
-        'compiler_version': compilerVersion,
-        if (channel != null && channel.isNotEmpty) 'channel': channel,
-      },
-    );
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolPin({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  }) {
-    return _post(
-      <String>['workspaces', workspaceId, 'tool', 'pin'],
-      <String, Object?>{
-        'compiler_version': compilerVersion,
-        if (channel != null && channel.isNotEmpty) 'channel': channel,
-      },
-    );
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolClearPin({required String workspaceId}) {
-    return _post(<String>[
-      'workspaces',
-      workspaceId,
-      'tool',
-      'clear-pin',
-    ], const <String, Object?>{});
-  }
-
-  @override
-  Future<Map<String, dynamic>> fetchDependencies({
+  Future<Map<String, dynamic>> syncDependencies({
     required String workspaceId,
     bool locked = false,
     bool offline = false,
   }) {
     return _post(
-      <String>['workspaces', workspaceId, 'dependencies', 'fetch'],
+      <String>['workspaces', workspaceId, 'dependencies', 'sync'],
       <String, Object?>{'locked': locked, 'offline': offline},
     );
   }

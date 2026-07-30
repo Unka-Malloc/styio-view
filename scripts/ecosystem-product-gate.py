@@ -15,8 +15,8 @@ from types import ModuleType
 ROOT = Path(__file__).resolve().parents[1]
 PRODUCT_TEST = ROOT / "products" / "vityo_app" / "test" / "local_product_workflow_test.dart"
 REPORT_MARKER = "VITYO_PRODUCT_REPORT "
-GATE_ID = "vityo-desktop-product-gate"
-CAPABILITY = "trusted-desktop-ide-loop"
+GATE_ID = "vityo-ecosystem-owner-gate"
+CAPABILITY = "pafio-styio-owner-composition"
 
 
 def enabled(value: str | None) -> bool:
@@ -53,14 +53,7 @@ def load_pafio_workspace_factory(pafio_root: Path) -> ModuleType:
         raise ValueError("Pafio product workspace factory cannot be loaded")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    required = (
-        "write_hosted_workspace",
-        "write_hosted_workspace_project",
-        "write_hosted_failing_dependency_workspace",
-        "write_registry_publish_package",
-        "write_registry_consumer_project",
-        "write_registry_missing_consumer_project",
-    )
+    required = ("write_hosted_workspace",)
     if any(not callable(getattr(module, name, None)) for name in required):
         raise ValueError("Pafio product workspace factory contract is incomplete")
     return module
@@ -74,45 +67,16 @@ def build_product_environment(
     pafio_bin: Path,
 ) -> dict[str, str]:
     single_root = temp_root / "desktop-single"
-    multi_root = temp_root / "desktop-workspace"
-    failure_root = temp_root / "desktop-failing-dependency"
-    registry_publish_root = temp_root / "desktop-registry-publish"
-    registry_consume_root = temp_root / "desktop-registry-consume"
-    registry_missing_root = temp_root / "desktop-registry-missing"
-    registry_root = temp_root / "registry"
-    registry_root.mkdir(parents=True)
-
     single_manifest = factory.write_hosted_workspace(single_root)
-    multi_manifest = factory.write_hosted_workspace_project(multi_root)
-    failure_manifest = factory.write_hosted_failing_dependency_workspace(failure_root)
-    publish_manifest = factory.write_registry_publish_package(registry_publish_root)
-    consume_manifest = factory.write_registry_consumer_project(
-        registry_consume_root, registry_root.resolve().as_uri()
-    )
-    missing_manifest = factory.write_registry_missing_consumer_project(
-        registry_missing_root, registry_root.resolve().as_uri()
-    )
 
     environment = os.environ.copy()
     environment.update(
         {
             "VITYO_PRODUCT_GATE": "1",
             "VITYO_PAFIO_BIN": str(pafio_bin),
-            "VITYO_PRODUCT_STYIO_BIN": str(styio_bin),
+            "VITYO_STYIO_BIN": str(styio_bin),
             "VITYO_PRODUCT_WORKSPACE_ROOT": str(single_root),
             "VITYO_PRODUCT_MANIFEST_PATH": str(single_manifest),
-            "VITYO_PRODUCT_WORKSPACE2_ROOT": str(multi_root),
-            "VITYO_PRODUCT_MANIFEST2_PATH": str(multi_manifest),
-            "VITYO_PRODUCT_WORKSPACE3_ROOT": str(failure_root),
-            "VITYO_PRODUCT_MANIFEST3_PATH": str(failure_manifest),
-            "VITYO_PRODUCT_WORKSPACE4_ROOT": str(registry_publish_root),
-            "VITYO_PRODUCT_MANIFEST4_PATH": str(publish_manifest),
-            "VITYO_PRODUCT_WORKSPACE5_ROOT": str(registry_consume_root),
-            "VITYO_PRODUCT_MANIFEST5_PATH": str(consume_manifest),
-            "VITYO_PRODUCT_WORKSPACE6_ROOT": str(registry_missing_root),
-            "VITYO_PRODUCT_MANIFEST6_PATH": str(missing_manifest),
-            "VITYO_PRODUCT_REGISTRY_ROOT": str(registry_root),
-            "PAFIO_HOME": str(temp_root / "pafio-home"),
         }
     )
     return environment
@@ -128,12 +92,12 @@ def result_payload(
         "ok": ok,
         "steps": [
             {
-                "name": "vityo-local-real-binary-product-workflow",
+                "name": "pafio-metadata-and-system-styio",
                 "ok": returncode == 0,
                 "returncode": returncode,
             },
             {
-                "name": "structured-product-scenarios",
+                "name": "structured-owner-adapter-scenarios",
                 "ok": bool(reports),
                 "scenario_count": len(reports),
             },
@@ -168,7 +132,7 @@ def main(argv: list[str] | None = None) -> int:
 
     required = args.require_real_matrix or running_in_ci()
     platform = args.platform or os.environ.get("VITYO_PRODUCT_PLATFORM", "unknown")
-    styio_bin = args.styio_bin or _env_path("VITYO_PRODUCT_STYIO_BIN")
+    styio_bin = args.styio_bin or _env_path("VITYO_STYIO_BIN")
     pafio_bin = args.pafio_bin or _env_path("VITYO_PAFIO_BIN")
     pafio_root = args.pafio_root or _env_path("VITYO_PAFIO_ROOT")
     output_path = args.output or _env_path("VITYO_PRODUCT_GATE_OUTPUT")

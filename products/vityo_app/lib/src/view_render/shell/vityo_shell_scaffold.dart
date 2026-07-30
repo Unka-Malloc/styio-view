@@ -11,11 +11,11 @@ import '../../view_ide/backend_toolchain/execution_adapter.dart';
 import '../../view_ide/backend_toolchain/execution_route_summary.dart';
 import '../../view_ide/backend_toolchain/project_graph_contract.dart';
 import '../../view_ide/backend_toolchain/required_handoff_summary.dart';
-import '../../view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_definition.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_manifest.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
-import '../../view_ide/agent_client/agent.dart' show AgentWorkspaceSnapshotService;
+import '../../view_ide/agent_client/agent.dart'
+    show AgentWorkspaceSnapshotService;
 import '../platform/platform.dart';
 import '../problems/problems.dart';
 import '../runtime/runtime.dart';
@@ -609,8 +609,7 @@ class _DesktopShellBody extends StatelessWidget {
                             },
                             onSwitchToCloseRequestFile:
                                 shell.switchToCloseRequestFile,
-                            onCancelCloseRequest:
-                                shell.clearCloseRequestResult,
+                            onCancelCloseRequest: shell.clearCloseRequestResult,
                             openDocumentIds:
                                 shell.workspaceController.openFilePaths,
                             dirtyDocumentIds: shell.dirtyDocumentPaths,
@@ -882,8 +881,7 @@ class _ExplorerSidebarState extends State<_ExplorerSidebar> {
                       null) ...[
                     const SizedBox(height: 12),
                     _WorkspaceFileCommandConfirmationCard(
-                      pending:
-                          shell.pendingWorkspaceFileCommandConfirmation!,
+                      pending: shell.pendingWorkspaceFileCommandConfirmation!,
                       onConfirm: () {
                         shell.confirmPendingWorkspaceFileCommand();
                       },
@@ -1175,20 +1173,6 @@ class _ProjectSummaryCard extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
             ],
-            if (project.toolchainPinPath != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'toolchain ${project.toolchainPinPath}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            if (project.styioConfigPath != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'styio ${project.styioConfigPath}',
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
             if (project.notes.isNotEmpty) ...[
               const SizedBox(height: 10),
               Text(project.notes.first, style: theme.textTheme.bodySmall),
@@ -1475,17 +1459,6 @@ class _ProjectOperationsCard extends StatelessWidget {
     };
   }
 
-  String _toolchainStatusLabel(ToolchainCommandResult? result) {
-    if (result == null) {
-      return 'resolved';
-    }
-    return switch (result.status) {
-      ToolchainCommandStatus.succeeded => 'succeeded',
-      ToolchainCommandStatus.failed => 'failed',
-      ToolchainCommandStatus.blocked => 'blocked',
-    };
-  }
-
   String _deploymentStatusLabel(DeploymentCommandResult? result) {
     if (result == null) {
       return 'ready';
@@ -1531,13 +1504,14 @@ class _ProjectOperationsCard extends StatelessWidget {
     final publishablePackages = distribution?.publishablePackages ?? 0;
     final blockedPackages = distribution?.blockedPackages ?? 0;
     final blockedWorkflowPreview = _blockedWorkflowPreview();
-    final lastToolchain = shell.lastToolchainCommand;
     final lastDeployment = shell.lastDeploymentCommand;
     final lastExecution = shell.lastExecutionSession;
     final lastDependency = shell.lastDependencySourceCommand;
     final executionStatus = _executionStatusLabel(lastExecution);
     final dependencyStatus = _dependencyStatusLabel(lastDependency);
-    final toolchainStatus = _toolchainStatusLabel(lastToolchain);
+    final toolchainStatus = project.activeCompiler == null
+        ? 'unavailable'
+        : 'resolved';
     final deploymentStatus = _deploymentStatusLabel(lastDeployment);
     final deploymentPackage = _stringPayload(
       lastDeployment?.payload,
@@ -1553,8 +1527,18 @@ class _ProjectOperationsCard extends StatelessWidget {
     );
     final vendorRoot = _stringPayload(lastDependency?.payload, 'vendor_root');
     final dependencyPackages = lastDependency?.payload?['packages'];
-    final managedInstalls =
-        project.toolchainEnvironment?.managedToolchains.installed.length ?? 0;
+    final gitDependencies = project.dependencies
+        .where(
+          (dependency) =>
+              dependency.sourceKind == ProjectDependencySourceKind.git,
+        )
+        .length;
+    final registryDependencies = project.dependencies
+        .where(
+          (dependency) =>
+              dependency.sourceKind == ProjectDependencySourceKind.registry,
+        )
+        .length;
 
     return DecoratedBox(
       key: const ValueKey('project-operations-card'),
@@ -1601,13 +1585,6 @@ class _ProjectOperationsCard extends StatelessWidget {
                         : 'compiler ${activeCompiler.compilerVersion}',
                   ),
                 ),
-                Chip(
-                  label: Text(
-                    project.toolchainPinPath == null
-                        ? 'pin unresolved'
-                        : 'pin active',
-                  ),
-                ),
                 Chip(label: Text('publishable $publishablePackages')),
                 Chip(label: Text('blocked $blockedPackages')),
                 Chip(
@@ -1652,11 +1629,11 @@ class _ProjectOperationsCard extends StatelessWidget {
               statusLabel: dependencyStatus,
               statusColor: _laneColor(context, dependencyStatus),
               detail: lastDependency == null
-                  ? 'Fetch/vendor has not been materialized in this shell session yet.'
+                  ? 'Sync/vendor has not been materialized in this shell session yet.'
                   : '${lastDependency.command} ${lastDependency.status.name}: ${lastDependency.statusMessage}',
               metaLabels: [
-                'git ${project.sourceState?.declaredGitDependencies ?? 0}',
-                'registry ${project.sourceState?.declaredRegistryDependencies ?? 0}',
+                'git $gitDependencies',
+                'registry $registryDependencies',
                 'vendor ${project.vendorState.label}',
                 if (dependencyPackages is num)
                   'packages ${dependencyPackages.toInt()}',
@@ -1672,14 +1649,10 @@ class _ProjectOperationsCard extends StatelessWidget {
               title: 'Environment',
               statusLabel: toolchainStatus,
               statusColor: _laneColor(context, toolchainStatus),
-              detail: lastToolchain == null
-                  ? project.toolchain.detail
-                  : '${lastToolchain.command} ${lastToolchain.status.name}: ${lastToolchain.statusMessage}',
+              detail: project.toolchain.detail,
               metaLabels: [
                 'source ${project.toolchain.source.label}',
-                'managed $managedInstalls',
                 if (activeCompiler != null) 'channel ${activeCompiler.channel}',
-                if (project.toolchainPinPath != null) 'pin present',
               ],
               actions: VityoCommandRegistry.toolchainCommands
                   .map((command) => _buildCommandChip(context, theme, command))
@@ -2372,18 +2345,10 @@ IconData _commandIcon(AppCommandId commandId) {
   switch (commandId) {
     case AppCommandId.run:
       return Icons.play_arrow_rounded;
-    case AppCommandId.fetchDependencies:
+    case AppCommandId.syncDependencies:
       return Icons.cloud_download_rounded;
     case AppCommandId.vendorDependencies:
       return Icons.inventory_2_rounded;
-    case AppCommandId.useActiveCompiler:
-      return Icons.sync_alt_rounded;
-    case AppCommandId.pinActiveCompiler:
-      return Icons.push_pin_outlined;
-    case AppCommandId.clearPinnedCompiler:
-      return Icons.push_pin_rounded;
-    case AppCommandId.bootstrapStyioToolchain:
-      return Icons.build_circle_outlined;
     case AppCommandId.executeToolchainInstallPlan:
       return Icons.download_for_offline_outlined;
     case AppCommandId.selectClangCppVersion:

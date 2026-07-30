@@ -112,7 +112,7 @@ abstract class ShellRuntimeFacadeHost extends ChangeNotifier {
     String? packageName,
     String? outputPath,
   });
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     bool locked = false,
     bool offline = false,
   });
@@ -121,15 +121,6 @@ abstract class ShellRuntimeFacadeHost extends ChangeNotifier {
     bool locked = false,
     bool offline = false,
   });
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required String compilerVersion,
-    String? channel,
-  });
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required String compilerVersion,
-    String? channel,
-  });
-  Future<ToolchainCommandResult> clearPinnedCompiler();
   DebugCommandResult toggleBreakpointAtSelection();
   Future<DebugCommandResult> startDebugging();
   Future<DebugCommandResult> stopDebugging();

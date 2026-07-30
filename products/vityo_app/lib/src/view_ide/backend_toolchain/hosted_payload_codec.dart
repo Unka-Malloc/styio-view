@@ -78,37 +78,12 @@ ProjectGraphSnapshot hostedProjectGraphSnapshotFromEnvelope(
   final notes = (payload['notes'] as List? ?? const <Object>[])
       .whereType<String>()
       .toList(growable: false);
-  final managedToolchains =
-      payload['managed_toolchains'] is Map<String, dynamic>
-      ? managedToolchainStateFromPayload(
-          payload['managed_toolchains'] as Map<String, dynamic>,
-        )
-      : const ManagedToolchainStateSnapshot();
-  final projectPin = payload['toolchain_pin_path'] is String
-      ? ProjectToolchainPinSnapshot(
-          path: payload['toolchain_pin_path'] as String,
-          channel: payload['toolchain'] is Map<String, dynamic>
-              ? (payload['toolchain'] as Map<String, dynamic>)['channel']
-                    as String?
-              : null,
-          version: payload['toolchain'] is Map<String, dynamic>
-              ? (payload['toolchain'] as Map<String, dynamic>)['version']
-                    as String?
-              : null,
-          installPresent: false,
-        )
-      : null;
   final packageDistribution =
       payload['package_distribution'] is Map<String, dynamic>
       ? packageDistributionFromPayload(
           payload['package_distribution'] as Map<String, dynamic>,
         )
       : derivePackageDistributionFromPackages(packages);
-  final sourceState = payload['source_state'] is Map<String, dynamic>
-      ? projectSourceStateFromPayload(
-          payload['source_state'] as Map<String, dynamic>,
-        )
-      : null;
   final hostedWorkspace = envelope['workspace'] is Map<String, dynamic>
       ? hostedWorkspaceRecordFromPayload(
           envelope['workspace'] as Map<String, dynamic>,
@@ -126,10 +101,7 @@ ProjectGraphSnapshot hostedProjectGraphSnapshotFromEnvelope(
             .toList(growable: false),
     manifestPath: payload['manifest_path'] as String?,
     lockfilePath: payload['lockfile_path'] as String?,
-    toolchainPinPath: payload['toolchain_pin_path'] as String?,
-    styioConfigPath: payload['styio_config_path'] as String?,
     vendorRoot: payload['vendor_root'] as String?,
-    buildRoot: payload['build_root'] as String?,
     packages: packages,
     dependencies: dependencies,
     targets: targets,
@@ -140,16 +112,7 @@ ProjectGraphSnapshot hostedProjectGraphSnapshotFromEnvelope(
     lockState: lockStateFromString(payload['lock_state'] as String?),
     vendorState: vendorStateFromString(payload['vendor_state'] as String?),
     activeCompiler: activeCompiler,
-    toolchainEnvironment: ToolchainEnvironmentSnapshot(
-      schemaVersion: 1,
-      toolchain: toolchain,
-      projectPin: projectPin,
-      activeCompiler: activeCompiler,
-      managedToolchains: managedToolchains,
-      notes: notes,
-    ),
     packageDistribution: packageDistribution,
-    sourceState: sourceState,
     hostedWorkspace: hostedWorkspace,
     sourceConfidenceByField:
         ProjectGraphSnapshot.machinePayloadSourceConfidence(),
@@ -241,10 +204,6 @@ ProjectVendorState vendorStateFromString(String? raw) {
 
 ToolchainResolutionSource toolchainSourceFromString(String? raw) {
   switch (raw) {
-    case 'project-pin':
-      return ToolchainResolutionSource.projectPin;
-    case 'managed-current':
-      return ToolchainResolutionSource.managedCurrent;
     case 'environment':
       return ToolchainResolutionSource.environment;
     case 'unknown':
@@ -527,101 +486,14 @@ PackageDistributionSnapshot packageDistributionFromPayload(
   );
 }
 
-GitCacheStateSnapshot gitCacheStateFromPayload(Map<String, dynamic> payload) {
-  return GitCacheStateSnapshot(
-    reposRoot: payload['repos_root'] as String?,
-    checkoutsRoot: payload['checkouts_root'] as String?,
-    reposPresent: payload['repos_present'] as bool? ?? false,
-    checkoutsPresent: payload['checkouts_present'] as bool? ?? false,
-  );
-}
-
-RegistryCacheStateSnapshot registryCacheStateFromPayload(
-  Map<String, dynamic> payload,
-) {
-  return RegistryCacheStateSnapshot(
-    cacheRoot: payload['cache_root'] as String?,
-    indexRoot: payload['index_root'] as String?,
-    blobRoot: payload['blob_root'] as String?,
-    checkoutRoot: payload['checkout_root'] as String?,
-    indexPresent: payload['index_present'] as bool? ?? false,
-    blobsPresent: payload['blobs_present'] as bool? ?? false,
-    checkoutsPresent: payload['checkouts_present'] as bool? ?? false,
-  );
-}
-
-VendorSourceStateSnapshot vendorSourceStateFromPayload(
-  Map<String, dynamic> payload,
-) {
-  return VendorSourceStateSnapshot(
-    vendorRoot: payload['vendor_root'] as String?,
-    metadataPath: payload['metadata_path'] as String?,
-    vendorPresent: payload['vendor_present'] as bool? ?? false,
-    metadataPresent: payload['metadata_present'] as bool? ?? false,
-    gitSnapshots: payload['git_snapshots'] as int? ?? 0,
-  );
-}
-
-ProjectSourceStateSnapshot projectSourceStateFromPayload(
-  Map<String, dynamic> payload,
-) {
-  return ProjectSourceStateSnapshot(
-    schemaVersion: payload['schema_version'] as int? ?? 1,
-    pafioHome: payload['pafio_home'] as String?,
-    declaredGitDependencies: payload['declared_git_dependencies'] as int? ?? 0,
-    declaredRegistryDependencies:
-        payload['declared_registry_dependencies'] as int? ?? 0,
-    gitCache: payload['git_cache'] is Map<String, dynamic>
-        ? gitCacheStateFromPayload(payload['git_cache'] as Map<String, dynamic>)
-        : const GitCacheStateSnapshot(),
-    registryCache: payload['registry_cache'] is Map<String, dynamic>
-        ? registryCacheStateFromPayload(
-            payload['registry_cache'] as Map<String, dynamic>,
-          )
-        : const RegistryCacheStateSnapshot(),
-    vendor: payload['vendor'] is Map<String, dynamic>
-        ? vendorSourceStateFromPayload(
-            payload['vendor'] as Map<String, dynamic>,
-          )
-        : const VendorSourceStateSnapshot(),
-  );
-}
-
 ToolchainStatusSnapshot toolchainStatusFromPayload(
   Map<String, dynamic> payload,
 ) {
   return ToolchainStatusSnapshot(
     source: toolchainSourceFromString(payload['source'] as String?),
     detail: payload['detail'] as String? ?? 'No toolchain detail published.',
-    pinPath: payload['pin_path'] as String?,
     channel: payload['channel'] as String?,
     version: payload['version'] as String?,
-  );
-}
-
-ManagedToolchainInstallSnapshot managedToolchainInstallFromPayload(
-  Map<String, dynamic> payload,
-) {
-  return ManagedToolchainInstallSnapshot(
-    channel: payload['channel'] as String? ?? 'unknown',
-    compilerVersion: payload['compiler_version'] as String? ?? 'unknown',
-    installRoot: payload['install_root'] as String? ?? '',
-    installBinaryPath: payload['install_binary_path'] as String? ?? '',
-    installMetadataPath: payload['install_metadata_path'] as String?,
-  );
-}
-
-ManagedToolchainStateSnapshot managedToolchainStateFromPayload(
-  Map<String, dynamic> payload,
-) {
-  return ManagedToolchainStateSnapshot(
-    pafioHome: payload['pafio_home'] as String?,
-    currentBinaryPath: payload['current_binary'] as String?,
-    currentMetadataPath: payload['current_metadata_path'] as String?,
-    installed: (payload['installed'] as List? ?? const <Object>[])
-        .whereType<Map<String, dynamic>>()
-        .map(managedToolchainInstallFromPayload)
-        .toList(growable: false),
   );
 }
 

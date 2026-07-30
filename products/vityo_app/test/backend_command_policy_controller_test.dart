@@ -5,41 +5,15 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/controllers/backend_command_policy_controller.dart';
 
 void main() {
-  test('mobile and web local backend mutations fail closed', () {
+  test('mobile and web local deployment mutations fail closed', () {
     final graph = _graph(manifestPath: '/workspace/pafio.toml');
     const policy = BackendCommandPolicyController(
       platformTarget: PlatformTarget.ios,
     );
 
     expect(
-      policy.blockedToolchainReason(projectGraph: graph),
-      contains('local pafio'),
-    );
-    expect(
       policy.blockedDeploymentReason(projectGraph: graph),
       contains('local pafio'),
-    );
-  });
-
-  test('desktop toolchain policy requires declared facts', () {
-    const policy = BackendCommandPolicyController(
-      platformTarget: PlatformTarget.windows,
-    );
-    final graph = _graph();
-
-    expect(
-      policy.blockedToolchainReason(
-        projectGraph: graph,
-        requiresResolvedCompiler: true,
-      ),
-      contains('compiler handshake'),
-    );
-    expect(
-      policy.blockedToolchainReason(
-        projectGraph: graph,
-        requiresManifest: true,
-      ),
-      contains('manifest'),
     );
   });
 
@@ -85,10 +59,10 @@ void main() {
 
     expect(
       policy.blockedReason(
-        commandId: AppCommandId.pinActiveCompiler,
+        commandId: AppCommandId.packProject,
         projectGraph: graph,
       ),
-      contains('compiler handshake'),
+      contains('manifest'),
     );
     expect(
       policy.blockedReason(

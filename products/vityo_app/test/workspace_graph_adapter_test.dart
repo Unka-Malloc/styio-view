@@ -5,21 +5,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.
 import 'package:vityo_app/src/view_ide/backend_toolchain/workspace_graph_adapter.dart';
 
 void main() {
-  test('canonical-file project facts keep workspace graph partial', () async {
-    final adapter = WorkspaceGraphAdapter(
-      projectGraphAdapter: _StaticProjectGraphAdapter(
-        _projectGraph(ProjectGraphSnapshot.canonicalFileSourceConfidence()),
-      ),
-      workspaceRootUri: Uri.parse('file:///workspace'),
-    );
-
-    final event = await adapter.loadWorkspaceGraph();
-
-    expect(event.snapshot.isPartial, isTrue);
-    expect(event.snapshot.upstreamPayloadMissing, isFalse);
-    expect(event.snapshot.partialReason, contains('canonical-file'));
-  });
-
   test('machine-payload project facts allow full workspace graph', () async {
     final adapter = WorkspaceGraphAdapter(
       projectGraphAdapter: _StaticProjectGraphAdapter(

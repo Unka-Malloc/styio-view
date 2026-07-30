@@ -290,8 +290,6 @@ class _ToolchainStatusSection extends StatelessWidget {
                 Chip(label: Text('version ${status.version}')),
               if (status.channel != null)
                 Chip(label: Text('channel ${status.channel}')),
-              if (status.lastCommand != null)
-                Chip(label: Text('command ${status.lastCommand}')),
             ],
           ),
           if (status.recoveryActions.isNotEmpty) ...[

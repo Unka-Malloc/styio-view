@@ -7,9 +7,7 @@ import '../../toolchain/toolchain.dart' hide ToolchainRecoveryAction;
 /// Owns active toolchain and Clang/C++ version selection state.
 final class ToolchainController extends ChangeNotifier {
   ToolchainController({
-    required this.managementAdapter,
     required this.projectGraph,
-    required this.refreshProjectGraph,
     required this.manager,
     required this.statusReport,
     required this.log,
@@ -19,9 +17,7 @@ final class ToolchainController extends ChangeNotifier {
   }
 
   final ToolchainManager? manager;
-  final ToolchainManagementAdapter managementAdapter;
   final ProjectGraphSnapshot Function() projectGraph;
-  final Future<void> Function({String? reason}) refreshProjectGraph;
   final ValueListenable<ToolchainManagerStatusReport>? statusReport;
   final void Function(String message) log;
 
@@ -31,7 +27,6 @@ final class ToolchainController extends ChangeNotifier {
   ToolchainInstallExecutionResult? _lastInstallExecutionResult;
   ToolchainManagerBootstrapSummary? _bootstrapSummary;
   ToolchainBootstrapActionDispatchResult? _lastBootstrapActionDispatch;
-  ToolchainCommandResult? _lastCommand;
   bool _disposed = false;
 
   ClangCppVersionPreference? get clangCppVersionPreference =>
@@ -43,7 +38,6 @@ final class ToolchainController extends ChangeNotifier {
   ToolchainManagerBootstrapSummary? get bootstrapSummary => _bootstrapSummary;
   ToolchainBootstrapActionDispatchResult? get lastBootstrapActionDispatch =>
       _lastBootstrapActionDispatch;
-  ToolchainCommandResult? get lastCommand => _lastCommand;
   ToolchainInstallPlanSurface? get installPlanSurface {
     final plan = _lastInstallPlan;
     return plan == null ? null : ToolchainInstallPlanSurface.fromPlan(plan);
@@ -59,14 +53,10 @@ final class ToolchainController extends ChangeNotifier {
   ToolchainStatusSurface get statusSurface {
     final report = statusReport?.value;
     if (report != null) {
-      return ToolchainStatusSurface.fromManagerStatusReport(
-        report,
-        lastCommand: _lastCommand,
-      );
+      return ToolchainStatusSurface.fromManagerStatusReport(report);
     }
     return ToolchainStatusSurface.fromProjectToolchain(
       projectGraph().toolchain,
-      lastCommand: _lastCommand,
     );
   }
 
@@ -75,52 +65,10 @@ final class ToolchainController extends ChangeNotifier {
     if (report != null) {
       return ToolchainSettingsSurface.fromManagerStatusReport(
         report,
-        lastCommand: _lastCommand,
         clangCppVersionPreference: _clangCppVersionPreference,
       );
     }
     return ToolchainSettingsSurface.fromStatus(statusSurface);
-  }
-
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required String styioBinaryPath,
-  }) async {
-    final result = await managementAdapter.installManagedCompiler(
-      projectGraph: projectGraph(),
-      styioBinaryPath: styioBinaryPath,
-    );
-    return _completeCommand(result, refreshReason: 'tool install completed');
-  }
-
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    final result = await managementAdapter.useManagedCompiler(
-      projectGraph: projectGraph(),
-      compilerVersion: compilerVersion,
-      channel: channel,
-    );
-    return _completeCommand(result, refreshReason: 'tool use completed');
-  }
-
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    final result = await managementAdapter.pinManagedCompiler(
-      projectGraph: projectGraph(),
-      compilerVersion: compilerVersion,
-      channel: channel,
-    );
-    return _completeCommand(result, refreshReason: 'tool pin completed');
-  }
-
-  Future<ToolchainCommandResult> clearPinnedCompiler() async {
-    final result = await managementAdapter.clearPinnedCompiler(
-      projectGraph: projectGraph(),
-    );
-    return _completeCommand(result, refreshReason: 'tool pin clear completed');
   }
 
   Future<ToolchainSelectionResult?> selectCandidate(String id) async {
@@ -342,19 +290,14 @@ final class ToolchainController extends ChangeNotifier {
       notifyListeners();
       return result;
     }
-    final fallbackInstallKind =
-        _firstMissingStyioToolchainKind(summary) ??
-        ToolchainKind.languageService;
+    final fallbackInstallKind = summary.managerReport.requirement.kind;
     final router = ToolchainBootstrapActionRouter(
       onSettingsAction: _dispatchBootstrapSettingsAction,
       onInstallerAction: (step) => _dispatchBootstrapInstallerAction(
         step,
         fallbackInstallKind: fallbackInstallKind,
       ),
-      onProjectAction: (step) => _dispatchBootstrapProjectAction(
-        step,
-        fallbackInstallKind: fallbackInstallKind,
-      ),
+      onProjectAction: _dispatchBootstrapProjectAction,
     );
     final result = await router.dispatch(summary.executionPlan(), actionId);
     _lastBootstrapActionDispatch = result;
@@ -368,29 +311,25 @@ final class ToolchainController extends ChangeNotifier {
 
   Future<ToolchainBootstrapActionDispatchResult>
   _dispatchBootstrapSettingsAction(ToolchainBootstrapActionStep step) async {
-    if (step.actionId.startsWith('select-styio-')) {
+    if (step.actionId == 'select-existing-toolchain') {
       log('Toolchain bootstrap selection route requested: ${step.actionId}.');
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,
         message: 'Selection route requested.',
       );
     }
-    if (step.actionId.startsWith('install-styio-')) {
-      final kind =
-          _toolchainKindForStyioBootstrapAction(step.actionId) ??
-          ToolchainKind.languageService;
-      final plan = planManagedInstallation(kind: kind);
+    if (step.actionId == 'install-managed-toolchain') {
+      final plan = planManagedInstallation();
       if (plan == null) {
         return ToolchainBootstrapActionDispatchResult.blocked(
           step,
           message: 'No managed install plan could be prepared.',
-          todo:
-              'TODO: bind Styio role install actions to the production installer flow.',
+          todo: 'TODO: bind the generic install action to the installer flow.',
         );
       }
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,
-        message: 'Managed install plan prepared for ${kind.wireValue}.',
+        message: 'Managed install plan prepared.',
       );
     }
     if (step.actionId == 'open-toolchain-settings') {
@@ -411,14 +350,13 @@ final class ToolchainController extends ChangeNotifier {
     ToolchainBootstrapActionStep step, {
     required ToolchainKind fallbackInstallKind,
   }) async {
-    if (step.actionId == 'install-managed-styio-toolchain') {
+    if (step.actionId == 'plan-managed-toolchain-installation') {
       final plan = planManagedInstallation(kind: fallbackInstallKind);
       if (plan == null) {
         return ToolchainBootstrapActionDispatchResult.blocked(
           step,
           message: 'No managed install plan could be prepared.',
-          todo:
-              'TODO: bind managed Styio installer to production installer UX.',
+          todo: 'TODO: bind the managed installer to production installer UX.',
         );
       }
       return ToolchainBootstrapActionDispatchResult.dispatched(
@@ -427,11 +365,11 @@ final class ToolchainController extends ChangeNotifier {
             'Managed install plan prepared for ${fallbackInstallKind.wireValue}.',
       );
     }
-    if (step.actionId == 'verify-styio-toolchain') {
+    if (step.actionId == 'verify-toolchain') {
       await refreshBootstrapSummary(reason: 'verify action');
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,
-        message: 'Styio toolchain verification refreshed.',
+        message: 'Toolchain verification refreshed.',
       );
     }
     return ToolchainBootstrapActionDispatchResult.blocked(
@@ -442,37 +380,11 @@ final class ToolchainController extends ChangeNotifier {
   }
 
   Future<ToolchainBootstrapActionDispatchResult>
-  _dispatchBootstrapProjectAction(
-    ToolchainBootstrapActionStep step, {
-    required ToolchainKind fallbackInstallKind,
-  }) async {
+  _dispatchBootstrapProjectAction(ToolchainBootstrapActionStep step) async {
     if (step.actionId == 'open-toolchain-settings') {
       return ToolchainBootstrapActionDispatchResult.dispatched(
         step,
         message: 'Toolchain settings panel should stay focused.',
-      );
-    }
-    if (step.actionId == 'bootstrap-styio-toolchain') {
-      final summary = await refreshBootstrapSummary(reason: step.actionId);
-      if (summary?.ready ?? false) {
-        return ToolchainBootstrapActionDispatchResult.dispatched(
-          step,
-          message: 'Project Styio toolchain bootstrap is already ready.',
-        );
-      }
-      final plan = planManagedInstallation(kind: fallbackInstallKind);
-      if (plan == null) {
-        return ToolchainBootstrapActionDispatchResult.blocked(
-          step,
-          message: 'No project bootstrap install plan could be prepared.',
-          todo:
-              'TODO: bind project bootstrap to the production Styio installer runner.',
-        );
-      }
-      return ToolchainBootstrapActionDispatchResult.dispatched(
-        step,
-        message:
-            'Project bootstrap prepared managed install plan for ${fallbackInstallKind.wireValue}.',
       );
     }
     if (step.actionId == 'validate-project-toolchain') {
@@ -488,24 +400,6 @@ final class ToolchainController extends ChangeNotifier {
       todo:
           'TODO: bind ${step.actionId} to the concrete project bootstrap runner.',
     );
-  }
-
-  ToolchainKind? _toolchainKindForStyioBootstrapAction(String actionId) {
-    for (final role in StyioToolchainRole.values) {
-      if (actionId.endsWith(role.wireValue)) {
-        return role.toolchainKind;
-      }
-    }
-    return null;
-  }
-
-  ToolchainKind? _firstMissingStyioToolchainKind(
-    ToolchainManagerBootstrapSummary summary,
-  ) {
-    for (final role in summary.styioLifecycle.missingRequiredRoles) {
-      return role.role.toolchainKind;
-    }
-    return null;
   }
 
   Future<void> handleRecoveryAction(ToolchainRecoveryAction action) async {
@@ -548,48 +442,8 @@ final class ToolchainController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    if (action.id == 'retry-tool-use') {
-      final compiler = projectGraph().activeCompiler;
-      if (compiler == null) {
-        log('Toolchain retry blocked: no active compiler is resolved.');
-        notifyListeners();
-        return;
-      }
-      await useManagedCompiler(
-        compilerVersion: compiler.compilerVersion,
-        channel: compiler.channel,
-      );
-      return;
-    }
-    if (action.id == 'retry-tool-pin') {
-      final compiler = projectGraph().activeCompiler;
-      if (compiler == null) {
-        log('Toolchain retry blocked: no active compiler is resolved.');
-        notifyListeners();
-        return;
-      }
-      await pinManagedCompiler(
-        compilerVersion: compiler.compilerVersion,
-        channel: compiler.channel,
-      );
-      return;
-    }
     log('Toolchain recovery action is not wired: ${action.id}.');
     notifyListeners();
-  }
-
-  Future<ToolchainCommandResult> _completeCommand(
-    ToolchainCommandResult result, {
-    required String refreshReason,
-  }) async {
-    _lastCommand = result;
-    log('${result.command} ${result.status.name}: ${result.statusMessage}');
-    if (result.succeeded) {
-      await refreshProjectGraph(reason: refreshReason);
-    } else {
-      notifyListeners();
-    }
-    return result;
   }
 
   Future<void> _refreshStatusAfterSelection(

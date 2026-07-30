@@ -1,6 +1,6 @@
 # Vityo CODEOWNERS
 # Architecture domain owners with owned paths and required gates.
-# Last updated: 2026-06-24
+# Last updated: 2026-07-30
 
 # ── Architecture Domains ─────────────────────────────────────────────
 
@@ -17,7 +17,7 @@
 /packages/vityo_agent_protocol/                                            @agent-owner
 /products/vityo_app/lib/src/view_ide/agent_client/                         @agent-owner
 /products/vityo_app/lib/src/view_render/agent_workbench/                   @agent-owner
-/docs/design/Vityo-Agent-Runtime-Architecture.md                           @agent-owner
+/docs/design/Vityo-Agent-Native-IDE-Architecture.md                        @agent-owner
 /docs/teams/AGENT-RUNTIME-RUNBOOK.md                                       @agent-owner
 
 # Module host / extension domain: extension manifest, activation, isolation

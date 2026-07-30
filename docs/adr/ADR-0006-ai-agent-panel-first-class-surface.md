@@ -1,10 +1,10 @@
 # ADR-0006: AI Agent Panel Is A First-Class IDE Surface
 
-**Purpose:** 记录 `Vityo` 如何定位 AI 协作层，以及为什么它不能只是一个外挂聊天窗口。
+**Purpose:** Preserve the superseded panel-first Agent decision for provenance; current product positioning is defined by [ADR-0019](./ADR-0019-vityo-is-the-styio-agent-native-ide.md).
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-07-30
 
-**Status:** Accepted
+**Status:** Superseded by ADR-0019
 
 **Date:** 2026-04-12
 
@@ -25,3 +25,9 @@ AI agent 作为 IDE 内建一等交互面板，直接接入文件、选区、诊
 
 1. 需要统一 `AgentSession`、provider 和上下文注入协议。
 2. 需要主题、布局和工作区状态与 agent 面板联动。
+
+## Supersession
+
+ADR-0019 replaces the panel-first framing with an Agent Workbench and an open, protocol-only Agent
+Client boundary. This record is historical and must not be used as the current product or
+architecture owner.

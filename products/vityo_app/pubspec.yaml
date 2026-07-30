@@ -1,5 +1,5 @@
 name: vityo_app
-description: Vityo editor shell for web, desktop, and mobile targets.
+description: Vityo, the agent-native IDE for Styio across desktop, web, and mobile.
 publish_to: "none"
 version: 0.1.0+1
 

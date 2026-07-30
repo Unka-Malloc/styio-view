@@ -1,10 +1,27 @@
 # Current State
 
-**Purpose:** 提供 `Vityo` 当前治理和产品主线的压缩入口；优先给出当前文件治理状态、主线推进状态和下一个治理 checkpoint。
+**Purpose:** Provide a compact current-state entry point for Vityo governance, product direction, and active implementation gaps.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-30
 
 ## Summary
+
+1. **Vityo is the agent-native IDE for Styio.** It is the sole user-facing product; Vityo Coding
+   Agent is its independently executable first-party companion runtime, and compatible Agents
+   connect through the versioned Vityo Agent Protocol.
+2. The IDE owns source and workspace revisions, Styio analysis/build/test/run facts, runtime
+   observation, permission presentation, change preview, and workspace transactions. Agent runtimes
+   own model/provider access, context selection, tool loops, Agent policy, durable sessions, and
+   multi-Agent orchestration.
+3. Editing, language service, build, test, run, and observation remain fully available without an
+   Agent. The launch acceptance target combines `edit -> analyze -> test -> run -> observe` with a
+   reviewable Agent task loop.
+4. The current IDE code still contains direct provider/controller implementation from the
+   superseded architecture. That code is explicitly tracked as a future atomic migration in
+   [Vityo-Implementation-Gaps.md](../design/Vityo-Implementation-Gaps.md); this documentation change
+   does not claim runtime convergence.
+
+## Implementation And Governance Snapshot
 
 1. `Vityo` 已补齐 `archive/rollups`、docs index/audit/lifecycle，并把它们接进了现有 hygiene gate。
 2. 根 `.gitignore` 与 `scripts/repo-hygiene-gate.py` 现在已经对齐 shared file-governance baseline，`docs/**` 与 `products/vityo_app/test/**` 的 temp/build 风格 tracked fixture 也有显式 negate 规则。
@@ -23,10 +40,10 @@
 
 ## Read Order
 
-1. `NEXT-STAGE-GAP-LEDGER.md`
-2. `../specs/DOCUMENTATION-POLICY.md`
-3. `../design/Vityo-Implementation-Gaps.md`
-4. `../contracts/RuntimeEventAdapter.md`
+1. `../design/Vityo-Product-Spec.md`
+2. `../design/Vityo-Agent-Native-IDE-Architecture.md`
+3. `../design/Vityo-System-Architecture.md`
+4. `../design/Vityo-Implementation-Gaps.md`
 5. `../specs/DOCUMENTATION-POLICY.md`
 6. `../teams/DOCS-DELIVERY-RUNBOOK.md`
 

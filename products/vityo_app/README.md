@@ -1,14 +1,18 @@
-# Vityo Flutter Shell
+# Vityo — Styio Agent-Native IDE
 
-这是 `Vityo` 的 Flutter 主实现入口，负责承载：
+这是 Vityo IDE 的 Flutter 主实现入口。Vityo 是面向 Styio 的 Agent-Native IDE；即使没有
+安装或连接 Agent，也必须保持完整的编辑、语言服务、构建、测试、运行和观察能力。
+
+本目录负责承载：
 
 当前 Flutter package 与主实现目录已统一为 `products/vityo_app` / `vityo_app`，平台 runner 与 bundle id 也使用 Vityo 命名。
 
 1. `web / windows / linux / android / macos / ios` 六端共享 GUI 壳
-2. `app / editor / runtime / agent / theme / module_host / platform` 模块边界
+2. `app / editor / runtime / agent_client / agent_workbench / theme / module_host / platform` 模块边界
 3. 模块 manifest、platform capability matrix 与启动时装载骨架
 4. `ProjectGraphAdapter / ExecutionAdapter / RuntimeEventAdapter` 的产品级消费面
 5. `CLI / FFI / Cloud` 三类 adapter route 的统一能力快照
+6. Agent Client、Agent Workbench 与版本化协议的 IDE 侧能力
 
 仓库级 bootstrap、共享工具链和常用构建命令见 [../../docs/BUILD-AND-DEV-ENV.md](../../docs/BUILD-AND-DEV-ENV.md)；本页只负责 Flutter 主壳自身的实现和平台 runner 细节。
 
@@ -28,7 +32,7 @@ python3 scripts/release-readiness-gate.py
 1. 检查 `products/vityo_app/pubspec.yaml` 的 Vityo editor 元数据。
 2. 检查关键 IDE 能力是否都有测试入口，包括 editor binding、language service、runtime/toolchain、environment/data persistence。
 3. 检查本 README 是否记录正式发布命令。
-4. 检查 `toolchain/maintenance-tools.json` 中的维护工具和技能均为 current，且每条业务线至少有一个可用维护工具。
+4. 检查 `toolchain/maintenance-tools.json` 中的维护工具和技能均为 current，且每条交付轨道至少有一个可用维护工具。
 5. 执行 `flutter build web --release`，确认 Web release artifact 可生成。
 
 如果只需要快速检查发布元数据和测试入口，可以执行：
@@ -45,10 +49,10 @@ python3 scripts/release-readiness-gate.py --skip-build
 2. `lib/src/view_render/shell/` 作为用户壳层、底部面板和 scaffold 的外观边界
 3. `lib/src/view_render/editor/` 作为编辑器 Flutter surface、源码预览、language inspector 和交互展示边界
 4. `lib/src/view_render/runtime/` 作为 runtime/debug surface 的外观边界
-5. `lib/src/view_render/agent_workbench/` 作为 agent provider/module surface 的外观边界
+5. `lib/src/view_render/agent_workbench/` 作为 Agent 任务、权限、变更和回执投影的外观边界
 6. `lib/src/view_render/theme/` 与 `lib/src/view_render/platform/` 作为主题和 viewport 响应式外观边界
 7. 桌面、移动端与 Web 的壳层和页面编排
-8. 面向人的工作区、运行视图、agent 面板和主题体验
+8. 面向人的工作区、运行视图、Agent Workbench 和主题体验
 
 后端拥有：
 
@@ -63,11 +67,13 @@ python3 scripts/release-readiness-gate.py --skip-build
 
 产品边界：
 
-1. IDE 实现只落在 `products/vityo_app`，Coding Agent 实现只落在 `products/vityo_coding_agent`
-2. IDE 通过 `lib/src/view_ide/agent_client/` 消费版本化协议，不导入 Coding Agent 实现
-3. Agent Workbench 呈现只落在 `lib/src/view_render/agent_workbench/`
-4. 跨产品 DTO、能力协商与会话信封只落在 `packages/vityo_agent_protocol`
-5. 已移除的旧产品根、旧包身份和旧 Agent 根目录不得重新创建
+1. Vityo 是唯一对外产品；Coding Agent 是第一方配套运行时，不是第二个产品身份。
+2. IDE 实现只落在 `products/vityo_app`，Coding Agent 实现只落在 `products/vityo_coding_agent`。
+3. IDE 通过 `lib/src/view_ide/agent_client/` 消费版本化协议，不导入 Coding Agent 实现。
+4. Agent Workbench 呈现只落在 `lib/src/view_render/agent_workbench/`。
+5. IDE 不直接连接模型 provider；provider、工具循环、策略、持久会话和 multi-Agent 编排归 Agent 运行时。
+6. 跨边界 DTO、能力协商与会话信封只落在 `packages/vityo_agent_protocol`。
+7. 已移除的旧产品根、旧包身份和旧 Agent 根目录不得重新创建。
 
 规则：
 
@@ -135,7 +141,7 @@ flutter run -d macos
 
 ```text
 lib/src/view_render
-lib/src/view_render/agent
+lib/src/view_render/agent_workbench
 lib/src/view_render/editor
 lib/src/view_render/platform
 lib/src/view_render/runtime

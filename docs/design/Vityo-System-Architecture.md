@@ -2,18 +2,21 @@
 
 **Purpose:** 定义 `Vityo` 的系统层次、adapter 边界、平台执行后端与主线实现策略；具体产品语义以 [Vityo-Product-Spec.md](./Vityo-Product-Spec.md) 为准。
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-30
 
-**Status:** Draft SSOT
+**Status:** Current system architecture
 
 ## 1. 总体架构
 
-`Vityo` 采用 `Flutter UI + Custom Editor Engine + Module Host Runtime + Product-Owned Adapter Layer + 分平台执行后端` 的体系。
+Vityo is the agent-native IDE for Styio. Its core is a complete IDE that operates without an Agent;
+its Agent Workbench connects to the first-party Vityo Coding Agent or another compatible Agent only
+through the versioned Vityo Agent Protocol.
 
 ```mermaid
 flowchart TB
   UI["Flutter UI Runtime"] --> Editor["Custom Editor Engine"]
-  UI --> Panels["Runtime / AI / Theme Panels"]
+  UI --> Surfaces["Language / Runtime / Theme Surfaces"]
+  UI --> Workbench["Agent Workbench"]
   UI --> Host["Module Host Runtime"]
   Host --> Registry["Module Registry + Capability Matrix"]
   Editor --> Lang["Language Workspace Service"]
@@ -26,18 +29,26 @@ flowchart TB
   Graph --> Upstream
   Exec --> Upstream
   Events --> Upstream
-  Events --> Panels
-  Panels --> Profile["Profile / Prompt / Theme Store"]
-  Panels --> Agent["Local or Cloud Agent Layer"]
+  Events --> Surfaces
+  Workbench --> Client["Vityo Agent Client"]
+  Client --> Protocol["Versioned Vityo Agent Protocol"]
+  Protocol --> FirstParty["Vityo Coding Agent"]
+  Protocol --> Compatible["Compatible Agent"]
+  FirstParty --> Models["Model / Provider + Tool Loop"]
+  Compatible --> Models
 ```
+
+The IDE owns source buffers, document and workspace revisions, Styio compiler/runtime facts, and
+workspace transactions. Agent runtimes own model/provider access, context selection, the tool loop,
+Agent policy, durable sessions, and multi-Agent orchestration.
 
 ## 1.1 前端 / 后端切面
 
 这里的“前端 / 后端”不是按单一仓库目录硬切，而是按产品责任切：
 
-- 前端是面向用户的 `Flutter UI Runtime + Custom Editor Engine + Panels + Module Host`，负责编辑、浏览、交互和状态呈现。
+- 前端是面向用户的 `Flutter UI Runtime + Custom Editor Engine + IDE Surfaces + Agent Workbench + Module Host`，负责编辑、浏览、交互和状态呈现。
 - 后端是 `Vityo` 背后的整条工具链面，包含 adapter layer、local CLI / FFI、hosted control plane，以及上游 `pafio` / `styio` 提供的 machine contract。
-- `prototype/` 与 `products/vityo_app/lib/src/app|editor|runtime|agent|theme|module_host|platform` 属于前端主面；`products/vityo_app/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
+- `prototype/` 与 `products/vityo_app/lib/src/app|editor|runtime|agent_client|theme|module_host|platform` 属于前端主面；`products/vityo_app/lib/src/frontend_shell/` 是这组壳层模块对外聚合的显式入口边界。
 - `products/vityo_app/lib/src/view_ide/backend_toolchain/` 是后端工具链接入的实现根目录，承载 adapter、hosted control plane codec 和产品运维 lane。
 - `products/vityo_app/lib/src/view_ide/backend_toolchain/` 只保留 legacy compatibility exports；它继续服务旧 import 路径，但不再承载新的后端实现。
 
@@ -52,7 +63,7 @@ flowchart TB
 
 当前 Flutter 主线分为三个可审计层：
 
-1. `products/vityo_app/lib/src/view_ide/`：domain/application/contracts/state 层，承载 editor document、workspace、language service、agent permission、module host、environment sandbox、commands、registry 和 backend toolchain 合同。该层不得 import Flutter presentation APIs。
+1. `products/vityo_app/lib/src/view_ide/`：domain/application/contracts/state 层，承载 editor document、workspace、language service、Agent Client、IDE-side permission presentation、module host、environment sandbox、commands、registry 和 backend toolchain 合同。该层不得 import Flutter presentation APIs。
 2. `products/vityo_app/lib/src/view_render/`：Flutter presentation 层，承载 shell、editor/runtime/agent/debug surfaces、theme 和 viewport profile。该层只能依赖已登记的 `view_ide/` contract/model surface。
 3. `products/vityo_app/lib/src/app/`：composition root，负责把 `view_ide` 对象接到 `view_render` widgets。
 
@@ -79,7 +90,7 @@ python3 scripts/check_compat_facades.py
 
 1. 窗口、页面、动画、手势和多平台壳
 2. 编辑器渲染层
-3. 底部运行视图、AI 面板、主题编辑器
+3. 底部运行视图、Agent Workbench、主题编辑器
 
 不负责：
 
@@ -220,17 +231,29 @@ python3 scripts/check_compat_facades.py
 1. [../contracts/RuntimeEventAdapter.md](../contracts/RuntimeEventAdapter.md)
 2. [../contracts/AdapterCapabilitySnapshot.md](../contracts/AdapterCapabilitySnapshot.md)
 
-### 2.9 Agent And Security Baseline
+### 2.9 Agent Client, Workbench, And Security Boundary
 
-Agent、sandbox、secret 和 manifest trust 属于 `view_ide` domain/application policy，不属于 Flutter surface：
+Vityo is an open Agent Client, not a model host:
 
-1. Agent permission model：`products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart`
-2. Execution sandbox：`products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
-3. Secret store：`products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
-4. Log redactor：`products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
-5. Module manifest security：`products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+1. `view_ide/agent_client/` owns protocol connectivity, capability projection, IDE-side consent
+   presentation, revision checks, and the conversion of accepted proposals into workspace
+   transactions.
+2. `view_render/agent_workbench/` owns task, plan, permission, change-preview, and verification
+   receipt presentation. `Agent Panel` may remain the name of one view inside this workbench.
+3. `products/vityo_coding_agent/` or another compatible Agent owns provider credentials,
+   model/provider routing, context selection, tool execution loops, Agent policy, durable sessions,
+   and multi-Agent orchestration.
+4. The IDE never grants an Agent direct ownership of files. Proposed edits are revision-bound and
+   are applied only through IDE-owned workspace transactions.
+5. Vityo's edit, analyze, test, run, and observe paths remain available when no Agent is connected.
 
-本组安全文件由 `python3 scripts/check_security_baseline.py` 保护。UI 和 agent context 只能消费 redacted projection，不得显示或序列化 raw credential。
+Execution sandboxing, IDE secret storage, log redaction, and module trust remain IDE concerns for
+IDE-owned operations. Agent-runtime secrets and tool policy remain Agent-runtime concerns. Protocol
+messages and all UI projections must be redacted and must never contain raw credentials.
+
+The current IDE tree still contains direct provider/controller implementation from the superseded
+architecture. It is a migration gap, not the target ownership model; see
+[Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md).
 
 ## 3. 平台执行矩阵
 

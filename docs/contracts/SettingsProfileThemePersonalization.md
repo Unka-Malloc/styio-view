@@ -9,7 +9,8 @@
 
 This owner contract supplies current facts to [Vityo requirements](../plan/vityo/Requirements.md)
 `REQ-IDE-006` through `REQ-IDE-008` and [Vityo Coding Agent requirements](../plan/vityo-coding-agent/Requirements.md)
-`REQ-AGENT-003` through `REQ-AGENT-005`; workflow state stays in those two product plans.
+`REQ-AGENT-003` through `REQ-AGENT-005`; workflow state stays in two delivery tracks for the one
+Vityo product.
 
 ---
 
@@ -61,7 +62,12 @@ This owner contract supplies current facts to [Vityo requirements](../plan/vityo
 | `CommandKeybindingProfile` | `.../commands/command_keybinding_profile.dart` | Per-workspace keybinding overrides. |
 | `CommandKeybindingProfileStore` | same file | DataStore owner `interaction.command-palette.keybindings`. |
 
-### 5. Agent Profile and Provider Endpoint
+### 5. Legacy IDE Agent Profile And Provider Endpoint
+
+The artifacts below describe current code inherited from the superseded IDE-owned-provider
+architecture. They are migration inputs, not the target product contract. Model/provider
+configuration belongs to Vityo Coding Agent or another compatible Agent; Vityo retains only its
+optional local profile and ProfileSync contract.
 
 | Artifact | File | Description |
 |----------|------|-------------|
@@ -114,7 +120,9 @@ This owner contract supplies current facts to [Vityo requirements](../plan/vityo
 
 - User-configurable settings: toolchain selection, shell profile, command palette display, keybinding overrides, theme colors.
 - Theme presets and per-workspace color overrides.
-- Agent provider profiles and endpoints.
+- Optional Vityo profile state and ProfileSync.
+- Legacy IDE provider profiles/endpoints only as migration inventory; no new model/provider
+  ownership may be added to the IDE.
 - Credential and secret storage (via `FoundationCredentialDataStore` and `SecretStore`).
 - Log redaction of secrets, tokens, and PII.
 - Viewport-driven adaptive layout of settings surfaces.

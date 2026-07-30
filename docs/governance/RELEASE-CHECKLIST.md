@@ -1,18 +1,25 @@
 # Vityo Release Checklist
 
-**Purpose:** Provide the release and checkpoint checklist for Vityo, including IDE architecture gates, product-line boundary validation, sandbox/security baseline checks, and performance budget evidence.
+**Purpose:** Provide the release and checkpoint checklist for the Vityo agent-native IDE, including package-boundary, no-Agent, Agent Workbench, security, and performance evidence.
 
 **Owner:** Governance owner (`CODEOWNERS` -> governance domain)
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-30
 
 ## Release Rule
 
 A release or checkpoint candidate must prove four things before it is cut:
 
-1. The IDE architecture boundary still holds: `view_ide/` owns domain/application contracts and `view_render/` owns Flutter presentation.
-2. Product code lives only at its final owner path; removed package identities and forwarding roots are not recreated.
-3. Sandbox, agent permission, module manifest security, redaction, and secret handling have explicit tests or gate coverage.
-4. Performance-sensitive editor, language, workspace, runtime, AI context, watcher, and UI virtualization paths have benchmark files and a regression gate path.
+1. Vityo remains the sole product identity and is described as the agent-native IDE for Styio.
+2. The IDE architecture boundary holds: `view_ide/` owns domain/application contracts and
+   `view_render/` owns Flutter presentation.
+3. IDE, companion Agent runtime, and shared protocol code live only at their final owner paths;
+   removed package identities and forwarding roots are not recreated.
+4. Sandbox, Agent permission, module manifest security, redaction, and secret handling have explicit
+   tests or gate coverage.
+5. Performance-sensitive editor, language, workspace, runtime, Agent context, watcher, and UI
+   virtualization paths have benchmark files and a regression gate path.
+6. The IDE can complete `edit -> analyze -> test -> run -> observe` without an Agent, and an
+   attached Agent task exposes plan, permission, change preview, and verification receipt.
 
 A formal product release candidate must additionally prove that the launch artifact is the production deliverable, not a debug, prototype, lab, or experimental build. Release closure requires platform release builds, packaging/signing or distribution evidence, release notes, install/update/uninstall behavior, rollback or recovery evidence, and no skipped build evidence for the claimed launch platform.
 
@@ -135,11 +142,11 @@ The gate rejects:
 1. `view_ide/` importing or exporting `view_render/`.
 2. `view_ide/` importing Flutter presentation APIs.
 3. `view_render/` importing unregistered `view_ide/` implementation files.
-4. Product-line dependency direction is enforced separately by `scripts/check_product_line_boundaries.py`.
+4. IDE/Agent package dependency direction is enforced separately by `scripts/check_product_line_boundaries.py`.
 
 New `view_render -> view_ide` dependencies require a narrow registration in `VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS` in `scripts/check_architecture_boundaries.py` plus architecture review.
 
-## Product-Line Boundary Gate
+## IDE/Agent Package Boundary Gate
 
 Product package, shared protocol, or dependency-direction changes must pass:
 
@@ -147,7 +154,11 @@ Product package, shared protocol, or dependency-direction changes must pass:
 python3 scripts/check_product_line_boundaries.py
 ```
 
-The gate requires `products/vityo_app`, `products/vityo_coding_agent`, and `packages/vityo_agent_protocol` to keep distinct package identities. It rejects IDE-to-Agent implementation imports, Agent-to-IDE imports, Flutter dependencies in the Agent or protocol package, and recreation of removed product roots.
+The gate requires `products/vityo_app`, `products/vityo_coding_agent`, and
+`packages/vityo_agent_protocol` to keep distinct package identities within one Vityo product. It
+rejects IDE-to-Agent implementation imports, Agent-to-IDE imports, Flutter dependencies in the
+Agent or protocol package, and recreation of removed implementation roots. Architecture review must
+also reject new model/provider dependencies in the IDE.
 
 ## Sandbox And Security Gate
 
@@ -202,6 +213,7 @@ Breaking changes must not be hidden inside a release checklist. They require:
 
 If a release candidate ships with known gaps, record them in:
 
-1. [../rollups/NEXT-STAGE-GAP-LEDGER.md](../rollups/NEXT-STAGE-GAP-LEDGER.md) for active product/architecture gaps.
+1. [../design/Vityo-Implementation-Gaps.md](../design/Vityo-Implementation-Gaps.md) for active
+   product and architecture gaps.
 2. [../review/Logic-Conflicts.md](../review/Logic-Conflicts.md) for unresolved conflicts.
 3. [../history/](../history/) for recovery notes after an interrupted checkpoint.

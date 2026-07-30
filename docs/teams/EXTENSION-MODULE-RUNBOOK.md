@@ -49,7 +49,9 @@ cd products/vityo_app && flutter analyze
 ## Cross-Team Dependencies
 
 1. Architecture team must review extension model changes.
-2. Agent team must review agent provider/tool contribution changes.
+2. Agent Runtime and Runtime / Agent Client teams must review compatible-Agent connection or Agent
+   Workbench view contributions. Model-provider and Agent-tool contributions must remain
+   Agent-runtime-owned.
 3. Language team must review language contribution changes.
 4. Theme/UX team must review theme contribution changes.
 5. Security/governance team must review extension isolation and permission changes.

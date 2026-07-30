@@ -1511,7 +1511,7 @@
       }
     },
     "next": [
-      "c5bfe53f-4094-4771-b323-12a99750c95b"
+      "853f4ec9-1c3d-44b8-b97b-123004d7da01"
     ],
     "acceptance": {
       "phase": "accepted",
@@ -1527,6 +1527,802 @@
     }
   },
   {
+    "id": "853f4ec9-1c3d-44b8-b97b-123004d7da01",
+    "status": "completed",
+    "role": "implementation",
+    "prerequisites": [
+      "256b6d4a-2acf-412c-b392-57a09962fdea"
+    ],
+    "platform": "any",
+    "difficulty": "medium",
+    "goal": "Converge Vityo product documentation and metadata on the Styio agent-native IDE positioning.",
+    "description": "Scope: Closure: capability - atomically align the active product SSOT, Agent architecture, Better Plan summaries, governance, rollups, and non-behavioral metadata on one Styio agent-native IDE identity. Context: current active documents mix panel-first, embedded-provider, and two-product narratives after the IDE, companion Coding Agent, and shared protocol were separated. Target: Vityo is the sole user-facing product, the IDE remains complete without an Agent, Vityo Coding Agent is the first-party independently executable companion, and compatible Agents connect only through the versioned protocol. Design Considerations: retain sealed Coding Agent evidence, move superseded reports out of the active tree, record remaining IDE direct-provider code as an implementation gap, and update exact metadata checks without changing runtime behavior. Design Value: one authoritative positioning gives product, architecture, delivery, and release evidence the same decision boundary. Constraints & Risks: documentation and non-behavioral metadata only; no Dart API, protocol schema, runtime behavior, completed Coding Agent fingerprint, or one-time full regression change.",
+    "requirements": [
+      "REQ-IDE-001",
+      "REQ-IDE-003",
+      "REQ-IDE-004",
+      "REQ-IDE-005"
+    ],
+    "design": {
+      "artifact": "docs/design/Vityo-Product-Spec.md",
+      "owned_paths": [
+        "README.md",
+        "README_zh.md",
+        "docs/design/Vityo-Product-Spec.md",
+        "docs/design/Vityo-Agent-Runtime-Architecture.md",
+        "docs/design/Vityo-Agent-Native-IDE-Architecture.md",
+        "docs/adr/ADR-0019-vityo-is-the-styio-agent-native-ide.md",
+        "docs/adr",
+        "docs/plan",
+        "docs/governance",
+        "docs/specs",
+        "docs/teams",
+        "docs/rollups",
+        "docs/archive",
+        "docs/history",
+        "docs/assets",
+        "products/vityo_app/README.md",
+        "products/vityo_app/pubspec.yaml",
+        "products/vityo_app/assets/capability_matrices/agent.surface.basic.json",
+        "toolchain/vityo-ide-capability-baseline.json",
+        "scripts/release-readiness-gate.py",
+        "scripts/repo-hygiene-gate.py",
+        "scripts/ide_product_parity_gate_test.py",
+        "tests/test_release_readiness_gate.py",
+        "tests/test_repo_hygiene_gate.py"
+      ],
+      "scaffold_paths": [
+        "docs/adr/ADR-0019-vityo-is-the-styio-agent-native-ide.md",
+        "docs/design/Vityo-Agent-Native-IDE-Architecture.md"
+      ],
+      "acceptance_paths": [
+        "tests/acceptance/product_lines/cutover_acceptance_test.py",
+        "tests/acceptance/vityo_app/developer_loop_acceptance_test.dart",
+        "tests/acceptance/vityo_app/agent_workbench_acceptance_test.dart",
+        "tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "docs/design/Vityo-Product-Spec.md",
+          "kind": "module",
+          "name": "Vityo product positioning SSOT",
+          "operation": "modify",
+          "signature": "one product, open Agent Client, first-party companion runtime"
+        },
+        {
+          "path": "docs/design/Vityo-Agent-Runtime-Architecture.md",
+          "kind": "module",
+          "name": "embedded Agent architecture",
+          "operation": "remove",
+          "signature": "superseded active design document"
+        },
+        {
+          "path": "docs/design/Vityo-Agent-Native-IDE-Architecture.md",
+          "kind": "module",
+          "name": "Agent-native IDE architecture",
+          "operation": "add",
+          "signature": "protocol-only IDE-to-Agent ownership boundary"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "Vityo product positioning contract",
+          "producer": "docs/design/Vityo-Product-Spec.md",
+          "consumers": [
+            "README.md",
+            "docs/plan",
+            "docs/governance",
+            "product metadata"
+          ],
+          "inputs": "accepted owner decisions and current repository boundaries",
+          "outputs": "canonical category, hierarchy, invariants, launch promise, and non-goals",
+          "errors": [
+            "active two-product narrative",
+            "IDE-owned model/provider orchestration claim",
+            "Agent-required standalone IDE claim"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "docs/design/Vityo-Product-Spec.md",
+          "to": "README.md and active owner summaries",
+          "reason": "all outward positioning is a bounded summary of the product SSOT"
+        },
+        {
+          "from": "docs/design/Vityo-Agent-Native-IDE-Architecture.md",
+          "to": "docs/plan/vityo/Architecture.md and the shared protocol boundary",
+          "reason": "stable design and delivery architecture use the same ownership split"
+        }
+      ],
+      "decisions": {
+        "composition": "one Vityo product with an open Agent Client and one first-party independently executable companion runtime",
+        "algorithms": "no runtime algorithm changes; deterministic text and reference migration only",
+        "data_structures": "existing Markdown, JSON metadata, and Better Plan node structures remain authoritative",
+        "state": "Product Spec owns positioning; System Architecture owns stable boundaries; Better Plan owns delivery state",
+        "isolation": "no Dart source, protocol schema, runtime behavior, or completed Coding Agent evidence changes",
+        "concurrency": "one serialized documentation migration before the pending final IDE regression"
+      },
+      "test_seams": [
+        "active-text stale-positioning scan",
+        "docs lifecycle and index audit",
+        "Better Plan validation and label cross-check",
+        "metadata gate unit tests",
+        "product-line boundary and IDE parity gates"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "The active Product Spec, entry documentation, plan summaries, and product metadata state the canonical Styio agent-native IDE positioning, one-product hierarchy, optional-Agent invariant, and dual-loop launch promise.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fec06646bde69be5a4ba78f66e9c114d1a7a20f643b9d2d2373fa3447a6fed7b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d1ffd0fa0de422ca76bcf1e6d36a3bdadd55ce833c5160e93723dfe5ac291adc",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "01b3e086825749c53eeaf4cb4495f40e062439a962ca1211ca5b4f12d53a521c",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Active architecture and governance assign model/provider, tool-loop, policy, durable-session, and multi-agent orchestration to Agent runtimes; IDE direct-provider implementation is recorded only as a migration gap.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fec06646bde69be5a4ba78f66e9c114d1a7a20f643b9d2d2373fa3447a6fed7b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d1ffd0fa0de422ca76bcf1e6d36a3bdadd55ce833c5160e93723dfe5ac291adc",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "01b3e086825749c53eeaf4cb4495f40e062439a962ca1211ca5b4f12d53a521c",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "Superseded Agent documents and reports are removed from the active tree, all references and generated lifecycle/index artifacts are current, and focused documentation/metadata/plan gates pass.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fec06646bde69be5a4ba78f66e9c114d1a7a20f643b9d2d2373fa3447a6fed7b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d1ffd0fa0de422ca76bcf1e6d36a3bdadd55ce833c5160e93723dfe5ac291adc",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "01b3e086825749c53eeaf4cb4495f40e062439a962ca1211ca5b4f12d53a521c",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          }
+        ]
+      },
+      {
+        "checked": true,
+        "text": "No Dart public API, protocol schema, runtime behavior, completed Coding Agent source document or fingerprint is changed, and the pending one-time Vityo full regression is not executed.",
+        "evidence_refs": [
+          {
+            "type": "command",
+            "command_sha256": "fec06646bde69be5a4ba78f66e9c114d1a7a20f643b9d2d2373fa3447a6fed7b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "fd70a99fc805884346d4641625af1502290c66744fe7bac9dcff81491fa0713b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "60025a6f65d39125252331743a1c1bb98bd4cfba8689f446cdb89c99b31b240d",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "d1ffd0fa0de422ca76bcf1e6d36a3bdadd55ce833c5160e93723dfe5ac291adc",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "01b3e086825749c53eeaf4cb4495f40e062439a962ca1211ca5b4f12d53a521c",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          },
+          {
+            "type": "command",
+            "command_sha256": "4583acab8f8a110240a3e3172036060447f5e186a7cbe4adcafa9392bdf9121b",
+            "exit_code": 0,
+            "recorded_at": "2026-07-30T13:35:21Z"
+          }
+        ]
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "docs: position Vityo as the Styio agent-native IDE",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "bash scripts/docs-gate.sh --mode worktree",
+        "python3 scripts/check_product_line_boundaries.py",
+        "python3 scripts/ide-product-parity-gate.py",
+        "python3 -m unittest tests.test_release_readiness_gate tests.test_repo_hygiene_gate",
+        "python3 scripts/release-readiness-gate.py --skip-build",
+        "python3 scripts/repo-hygiene-gate.py --mode tracked"
+      ],
+      "criteria": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "paths": [
+        "README.md",
+        "README_zh.md",
+        "CODEOWNERS",
+        "CONTEXT.md",
+        "docs/README.md",
+        "docs/INDEX.md",
+        "docs/BUILD-AND-DEV-ENV.md",
+        "docs/adr",
+        "docs/archive",
+        "docs/assets",
+        "docs/audit",
+        "docs/contracts",
+        "docs/design",
+        "docs/governance",
+        "docs/history",
+        "docs/release",
+        "docs/review",
+        "docs/rollups",
+        "docs/specs",
+        "docs/teams",
+        "docs/plan/README.md",
+        "docs/plan/INDEX.md",
+        "docs/plan/vityo/Requirements.md",
+        "docs/plan/vityo/Architecture.md",
+        "docs/plan/vityo/Validation.md",
+        "products/vityo_app/README.md",
+        "products/vityo_app/pubspec.yaml",
+        "products/vityo_app/assets/capability_matrices/agent.surface.basic.json",
+        "toolchain/vityo-ide-capability-baseline.json",
+        "scripts/docs-lifecycle.py",
+        "scripts/release-readiness-gate.py",
+        "scripts/repo-hygiene-gate.py",
+        "tests/test_docs_tooling_coverage.py",
+        "tests/test_release_readiness_gate.py",
+        "tests/test_repo_hygiene_gate.py"
+      ],
+      "last_pass": {
+        "recorded_at": "2026-07-30T13:35:21Z",
+        "contract_digest": "32e03195a63c6fa046a1a2e9aaf7134842e5c5d7700f6ddf9970a81a5a5d0211",
+        "content_fingerprint": "81b9ff25f6938e8feffc63cff35fa3409b8a58b6ae4b65d3bce050dbd99db387"
+      }
+    },
+    "next": [
+      "014e7fb0-3f51-4033-be71-eca130a4a2ea"
+    ],
+    "acceptance": {
+      "phase": "accepted",
+      "attempt": 5,
+      "outcome": "accepted",
+      "audit": {
+        "recorded_at": "2026-07-30T13:35:49Z",
+        "contract_digest": "32e03195a63c6fa046a1a2e9aaf7134842e5c5d7700f6ddf9970a81a5a5d0211",
+        "content_fingerprint": "81b9ff25f6938e8feffc63cff35fa3409b8a58b6ae4b65d3bce050dbd99db387"
+      },
+      "design_digest": "043145e04fdf440e9d9500af5c4b7de18fe45a9e872bd08adb03640996707ff7",
+      "acceptance_fingerprint": "6b591caeec5337fd82f5d0f8a867ccff1fdd1d2d4008e81be325be6d2f62db52"
+    }
+  },
+  {
+    "id": "014e7fb0-3f51-4033-be71-eca130a4a2ea",
+    "status": "pending",
+    "role": "implementation",
+    "prerequisites": [
+      "853f4ec9-1c3d-44b8-b97b-123004d7da01"
+    ],
+    "platform": "any",
+    "difficulty": "high",
+    "goal": "Remove IDE-owned model/provider and coding-loop runtime surfaces so Vityo collaborates exclusively through the versioned Agent Client boundary.",
+    "description": "Closure: capability - protocol-only Agent collaboration in the Vityo IDE. Context: the canonical IDE Agent Client, collaboration store, and Workbench exist, but app composition and view_ide still construct provider transports, provider profiles, coding loops, tool-loop policy, durable histories, and a monolithic AgentCodingSessionController; final validation would otherwise certify a known ownership violation. Target: Vityo constructs only supervised Agent process/protocol clients, bounded context export, immutable Workbench projections, permission presentation, revision-bound change review, and IDE workspace transactions; model/provider, coding-loop, policy, durable-session, and multi-Agent ownership remains exclusively in compatible Agent runtimes. Execution Method: first classify every legacy agent_client file as keep/migrate/remove; then converge kept IDE behavior onto lib/src/ide/agent_client and lib/src/ide/workbench; update app and shell composition; update Workbench projections; delete provider/coding-loop implementation, exports, UI, metadata, and compatibility tests atomically; finally close the registered gap and run only focused regression. Design Considerations: preserve protocol messages and IDE transaction authority; reuse existing AgentClientRegistry, reducers, context/MCP host, and CollaborationStore; no parallel facade, fallback controller, or direct file mutation. Design Value: product code matches the accepted Agent-Native IDE architecture instead of documenting a future boundary. Constraints & Risks: do not edit the completed Coding Agent plan, do not import Coding Agent implementation, do not run ide/full, and stop as a design blocker if the versioned protocol cannot carry a required plan, permission, proposal, artifact, or receipt.",
+    "requirements": [
+      "REQ-IDE-004",
+      "REQ-IDE-005",
+      "REQ-IDE-007"
+    ],
+    "design": {
+      "artifact": "docs/plan/vityo/Architecture.md",
+      "owned_paths": [
+        "products/vityo_app/lib/src/app/app_bootstrap.dart",
+        "products/vityo_app/lib/src/ide/agent_client",
+        "products/vityo_app/lib/src/ide/agent_client/agent_client.dart",
+        "products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart",
+        "products/vityo_app/lib/src/ide/workbench/agent_collaboration",
+        "products/vityo_app/lib/src/ide/workbench/agent_collaboration/collaboration_store.dart",
+        "products/vityo_app/lib/src/presentation/agent_workbench",
+        "products/vityo_app/lib/src/presentation/agent_workbench/task_center.dart",
+        "products/vityo_app/lib/src/view_ide/agent_client",
+        "products/vityo_app/lib/src/view_ide/agent_client/agent_coding_session_controller.dart",
+        "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_network_transport.dart",
+        "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_credential_resolver.dart",
+        "products/vityo_app/lib/src/view_ide/agent_client/agent_coding_tool_loop_runtime.dart",
+        "products/vityo_app/lib/src/view_ide/shell_runtime",
+        "products/vityo_app/lib/src/view_render/agent_workbench",
+        "products/vityo_app/assets/module_manifests/agent.surface.basic.json",
+        "products/vityo_app/assets/capability_matrices/agent.surface.basic.json",
+        "docs/design/Vityo-Implementation-Gaps.md",
+        "toolchain/vityo-ide-capability-baseline.json"
+      ],
+      "scaffold_paths": [
+        "products/vityo_app/lib/src/ide/agent_client/agent_client.dart",
+        "products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart",
+        "products/vityo_app/lib/src/ide/workbench/agent_collaboration/collaboration_store.dart",
+        "products/vityo_app/lib/src/presentation/agent_workbench/task_center.dart"
+      ],
+      "acceptance_paths": [
+        "docs/plan/EXECUTION-RUNBOOK.md",
+        "docs/plan/vityo/Validation.md",
+        "products/vityo_app/test/agent_client/agent_client_contract_test.dart",
+        "products/vityo_app/test/agent_workbench/agent_workbench_contract_test.dart",
+        "tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart",
+        "tests/acceptance/vityo_app/agent_workbench_acceptance_test.dart",
+        "tests/acceptance/vityo_app/workspace_transactions_acceptance_test.dart"
+      ],
+      "symbols": [
+        {
+          "path": "products/vityo_app/lib/src/app/app_bootstrap.dart",
+          "kind": "module",
+          "name": "AppBootstrap Agent composition",
+          "operation": "modify",
+          "signature": "construct protocol client and IDE-owned projections only"
+        },
+        {
+          "path": "products/vityo_app/lib/src/view_ide/agent_client/agent_coding_session_controller.dart",
+          "kind": "class",
+          "name": "AgentCodingSessionController",
+          "operation": "remove",
+          "signature": "legacy IDE-owned coding runtime"
+        },
+        {
+          "path": "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_network_transport.dart",
+          "kind": "class",
+          "name": "NetworkAgentProviderTransport",
+          "operation": "remove",
+          "signature": "legacy IDE-to-model transport"
+        },
+        {
+          "path": "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_credential_resolver.dart",
+          "kind": "class",
+          "name": "ConfiguredAgentProviderAdapterFactory",
+          "operation": "remove",
+          "signature": "legacy IDE provider and credential routing"
+        },
+        {
+          "path": "products/vityo_app/lib/src/view_ide/agent_client/agent_coding_tool_loop_runtime.dart",
+          "kind": "class",
+          "name": "AgentCodingToolLoopRuntime",
+          "operation": "remove",
+          "signature": "legacy IDE Agent tool loop"
+        },
+        {
+          "path": "products/vityo_app/lib/src/ide/agent_client/agent_client.dart",
+          "kind": "interface",
+          "name": "AgentClient",
+          "operation": "modify",
+          "signature": "versioned process/session boundary consumed by Vityo"
+        },
+        {
+          "path": "products/vityo_app/lib/src/ide/workbench/agent_collaboration/collaboration_store.dart",
+          "kind": "class",
+          "name": "CollaborationStore",
+          "operation": "modify",
+          "signature": "immutable bounded protocol-event projection"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "Agent session projection boundary",
+          "producer": "products/vityo_app/lib/src/ide/agent_client",
+          "consumers": [
+            "products/vityo_app/lib/src/ide/workbench/agent_collaboration",
+            "products/vityo_app/lib/src/presentation/agent_workbench"
+          ],
+          "inputs": "versioned negotiated Agent protocol events",
+          "outputs": "bounded immutable task, plan, permission, artifact, change, and receipt projections",
+          "errors": [
+            "unsupported protocol",
+            "stale correlation",
+            "oversized payload",
+            "disconnected Agent"
+          ]
+        },
+        {
+          "name": "IDE workspace effect boundary",
+          "producer": "products/vityo_app/lib/src/ide/agent_client",
+          "consumers": [
+            "products/vityo_app/lib/src/ide/workbench/agent_collaboration",
+            "products/vityo_app/lib/src/presentation/agent_workbench"
+          ],
+          "inputs": "scoped tool request or revision-bound change proposal",
+          "outputs": "permission decision, transaction result, and verification receipt",
+          "errors": [
+            "denied permission",
+            "stale revision",
+            "conflict",
+            "unsupported capability"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "products/vityo_app/lib/src/app/app_bootstrap.dart",
+          "to": "products/vityo_app/lib/src/ide/agent_client",
+          "reason": "composition owns only client/process lifecycle"
+        },
+        {
+          "from": "products/vityo_app/lib/src/presentation/agent_workbench",
+          "to": "products/vityo_app/lib/src/ide/workbench/agent_collaboration",
+          "reason": "widgets render immutable collaboration projections"
+        },
+        {
+          "from": "products/vityo_app/lib/src/ide/agent_client",
+          "to": "packages/vityo_agent_protocol",
+          "reason": "all IDE-to-Agent interaction is versioned"
+        }
+      ],
+      "decisions": {
+        "composition": "replace legacy provider/controller composition completely; do not wrap it behind the new client",
+        "algorithms": "reuse correlated protocol reducers and serialized workspace transactions; no model/tool-loop scheduling in the IDE",
+        "data_structures": "ID-keyed immutable session maps and bounded per-session event windows",
+        "state": "IDE owns source revisions, client lifecycle, Workbench projections, permissions, and transactions; Agent runtime owns durable Agent truth",
+        "isolation": "no provider credentials, model endpoints, prompt profiles, Coding Agent imports, or direct Agent file writes in Vityo",
+        "concurrency": "each session reduces serially; sessions run independently; workspace mutation remains one serialized lane"
+      },
+      "test_seams": [
+        "fake stdio Agent protocol",
+        "two-session collaboration projection",
+        "permission correlation",
+        "stale proposal rejection",
+        "no-Agent application smoke",
+        "one-time removed-symbol scan"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "Production Vityo code contains no model-provider transport/configuration/credential routing, prompt profile, coding-loop orchestration, Agent tool-loop policy, durable Agent session owner, multi-Agent scheduler, compatibility export, or behavior-bearing provider metadata; a one-time source scan and boundary gate prove removal."
+      },
+      {
+        "checked": false,
+        "text": "The Agent Workbench is driven only by versioned Agent Client session projections and still proves two independent sessions, correlated permissions, revision-bound change preview, IDE apply/reject/revert, verification receipts, disconnect/reconnect, and complete no-Agent IDE operation."
+      },
+      {
+        "checked": false,
+        "text": "AppBootstrap, shell state, capability metadata, tests, and the implementation-gap register agree on the protocol-only boundary, and no completed Coding Agent plan source or Coding Agent implementation is changed."
+      },
+      {
+        "checked": false,
+        "text": "Focused Flutter analysis, Agent Client/Workbench/transaction acceptance, product-line boundaries, IDE parity, and repository hygiene pass without running ide/full."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "refactor(ide): make Agent collaboration protocol-only",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python3 scripts/check_product_line_boundaries.py",
+        "cd products/vityo_app && flutter analyze",
+        "cd products/vityo_app && flutter test test/agent_client/agent_client_contract_test.dart test/agent_workbench/agent_workbench_contract_test.dart ../../tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart ../../tests/acceptance/vityo_app/agent_workbench_acceptance_test.dart ../../tests/acceptance/vityo_app/workspace_transactions_acceptance_test.dart test/vityo_app_smoke_test.dart",
+        "python3 scripts/ide-product-parity-gate.py",
+        "python3 scripts/repo-hygiene-gate.py --mode tracked"
+      ],
+      "criteria": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "paths": [
+        "products/vityo_app/lib/src/app/app_bootstrap.dart",
+        "products/vityo_app/lib/src/ide/agent_client",
+        "products/vityo_app/lib/src/ide/workbench/agent_collaboration",
+        "products/vityo_app/lib/src/presentation/agent_workbench",
+        "products/vityo_app/lib/src/view_ide/agent_client",
+        "products/vityo_app/lib/src/view_ide/shell_runtime",
+        "products/vityo_app/lib/src/view_render/agent_workbench",
+        "products/vityo_app/assets/module_manifests/agent.surface.basic.json",
+        "products/vityo_app/assets/capability_matrices/agent.surface.basic.json",
+        "products/vityo_app/test",
+        "tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart",
+        "tests/acceptance/vityo_app/agent_workbench_acceptance_test.dart",
+        "tests/acceptance/vityo_app/workspace_transactions_acceptance_test.dart",
+        "docs/design/Vityo-Implementation-Gaps.md",
+        "docs/plan/EXECUTION-RUNBOOK.md",
+        "docs/plan/vityo/Architecture.md",
+        "docs/plan/vityo/Validation.md",
+        "toolchain/vityo-ide-capability-baseline.json",
+        "scripts/check_product_line_boundaries.py",
+        "scripts/ide-product-parity-gate.py",
+        "scripts/repo-hygiene-gate.py"
+      ]
+    },
+    "next": [
+      "63016713-c527-4428-a87d-2613f8c43ac9"
+    ]
+  },
+  {
+    "id": "63016713-c527-4428-a87d-2613f8c43ac9",
+    "status": "pending",
+    "role": "implementation",
+    "prerequisites": [
+      "014e7fb0-3f51-4033-be71-eca130a4a2ea"
+    ],
+    "platform": "any",
+    "difficulty": "medium",
+    "goal": "Make the IDE final-validation harness preflightable, portable, and receipt-complete without consuming the one-time full regression.",
+    "description": "Closure: capability - deterministic readiness and diagnostics for Vityo final validation. Enabling work: this validation-only repair supports the final REQ-IDE evidence Node without claiming a product requirement. Context: ide/full and a bounded receipt exist, but the runner assumes Better Plan is in an unavailable sibling checkout, lacks a side-effect-free preflight, omits acceptance fixtures from its own evidence digest, and can fail before writing a receipt. Target: plan-only and preflight prove the complete eight-requirement graph and all external prerequisites without running suites; every formal full invocation emits one bounded receipt on success or failure; Better Plan validation stays owned by the lifecycle rather than a hard-coded machine path. Execution Method: define preflight inputs and stable failure codes; remove sibling-path lookup; wrap the entire IDE full harness in one fail-closed receipt boundary; include protocol schema and acceptance fixtures in digests; update unit and synthetic acceptance tests; run plan-only and preflight only. Design Considerations: fixed-order requirement descriptors, atomic receipt replacement, injectable runners, explicit side-effect-free modes, and no raw exception serialization. Design Value: a simple final executor can detect blockers before consuming the full-run authority and can diagnose a failed run without blind retries. Constraints & Risks: never execute ide/full in this Node, never depend on a personal path or external checkout layout, never record machine identity/secrets/raw logs, and do not modify product runtime behavior.",
+    "design": {
+      "artifact": "docs/plan/vityo/Validation.md",
+      "owned_paths": [
+        "scripts/vityo_quality.py",
+        "scripts/vityo_validation_receipt.py",
+        "tests/test_vityo_quality.py",
+        "tests/test_vityo_validation_receipt.py"
+      ],
+      "scaffold_paths": [
+        "scripts/vityo_quality.py",
+        "scripts/vityo_validation_receipt.py"
+      ],
+      "acceptance_paths": [
+        "docs/plan/EXECUTION-RUNBOOK.md",
+        "docs/plan/vityo/Validation.md",
+        "tests/acceptance/vityo_app/full_runner_acceptance_test.py"
+      ],
+      "symbols": [
+        {
+          "path": "scripts/vityo_quality.py",
+          "kind": "function",
+          "name": "ide_full",
+          "operation": "modify",
+          "signature": "plan-only, preflight, or one receipt-complete formal full run"
+        },
+        {
+          "path": "scripts/vityo_quality.py",
+          "kind": "function",
+          "name": "_run_plan_validation",
+          "operation": "remove",
+          "signature": "hard-coded sibling Better Plan lookup"
+        },
+        {
+          "path": "scripts/vityo_quality.py",
+          "kind": "function",
+          "name": "_source_fingerprint",
+          "operation": "modify",
+          "signature": "bind product, protocol, scripts, and IDE acceptance fixtures"
+        },
+        {
+          "path": "scripts/vityo_validation_receipt.py",
+          "kind": "function",
+          "name": "build_ide_receipt",
+          "operation": "modify",
+          "signature": "bounded terminal receipt with requirement, protocol, and fixture evidence"
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "IDE full preflight",
+          "producer": "scripts/vityo_quality.py",
+          "consumers": [
+            "final-validation lifecycle",
+            "release audit"
+          ],
+          "inputs": "fixed suite plan, required tools and paths, host class, commit and receipt destination",
+          "outputs": "side-effect-free bounded readiness report",
+          "errors": [
+            "missing tool",
+            "missing path",
+            "invalid requirement mapping",
+            "unsupported host",
+            "dirty or unbound candidate"
+          ]
+        },
+        {
+          "name": "IDE final validation receipt",
+          "producer": "scripts/vityo_validation_receipt.py",
+          "consumers": [
+            "final-validation lifecycle",
+            "release audit"
+          ],
+          "inputs": "fixed per-requirement outcomes and immutable evidence digests",
+          "outputs": "one atomic bounded JSON success or failure receipt",
+          "errors": [
+            "harness failure",
+            "suite failure",
+            "source drift",
+            "invalid evidence digest",
+            "receipt destination failure"
+          ]
+        }
+      ],
+      "dependencies": [
+        {
+          "from": "scripts/vityo_quality.py",
+          "to": "scripts/vityo_validation_receipt.py",
+          "reason": "all formal full exits use one receipt boundary"
+        },
+        {
+          "from": "scripts/vityo_quality.py",
+          "to": "tests/acceptance/vityo_app",
+          "reason": "the executed acceptance fixtures are bound into final evidence"
+        },
+        {
+          "from": "final-validation lifecycle",
+          "to": "Better Plan manifest tool",
+          "reason": "workspace state and label validation remain external lifecycle responsibilities"
+        }
+      ],
+      "decisions": {
+        "composition": "one preflight path and one fail-closed formal-run wrapper around the fixed suite plan",
+        "algorithms": "linear fixed-order validation of eight unique requirement entries and streaming deterministic file digests",
+        "data_structures": "immutable suite descriptors, canonical requirement outcome map, and bounded receipt object",
+        "state": "plan-only and preflight write no persistent state; formal full atomically replaces one requested receipt",
+        "isolation": "no external Better Plan checkout assumption, native artifact input, raw exception, secret, or machine identity",
+        "concurrency": "suite execution remains serialized; source fingerprints before and after detect concurrent mutation"
+      },
+      "test_seams": [
+        "plan-only output",
+        "preflight with injected missing/present tools",
+        "injected suite runners",
+        "early harness failure",
+        "source drift",
+        "temporary atomic receipt destination"
+      ]
+    },
+    "acceptance_criteria": [
+      {
+        "checked": false,
+        "text": "ide/full --plan-only and --preflight deterministically list and validate REQ-IDE-001 through REQ-IDE-008 exactly once, run no suite, launch no Agent, and write no final receipt."
+      },
+      {
+        "checked": false,
+        "text": "Success, suite failure, early harness failure, missing tool/path, and source-drift fixtures produce bounded stable outcomes; every formal full exit attempts one atomic receipt containing all eight requirement slots, protocol-schema digest, acceptance-fixture digest, commit, host class, and source fingerprint without raw exceptions or private machine data."
+      },
+      {
+        "checked": false,
+        "text": "The product runner contains no hard-coded home, sibling checkout, or Better Plan tool path; Better Plan state/label validation is explicitly left to the lifecycle, and no product runtime or protocol message schema changes."
+      },
+      {
+        "checked": false,
+        "text": "Focused Python unit tests, synthetic full-runner acceptance, plan-only, and preflight pass without invoking the real ide/full suite."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "test(ide): harden final validation readiness",
+      "target": "current working branch"
+    },
+    "regression": {
+      "scope": "focused",
+      "commands": [
+        "python3 -m unittest tests.test_vityo_quality tests.test_vityo_validation_receipt",
+        "python3 tests/acceptance/vityo_app/full_runner_acceptance_test.py",
+        "python3 scripts/vityo_quality.py --product ide --suite full --plan-only",
+        "python3 scripts/vityo_quality.py --product ide --suite full --preflight"
+      ],
+      "criteria": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "paths": [
+        "scripts/vityo_quality.py",
+        "scripts/vityo_validation_receipt.py",
+        "tests/test_vityo_quality.py",
+        "tests/test_vityo_validation_receipt.py",
+        "tests/acceptance/vityo_app",
+        "packages/vityo_agent_protocol/schema",
+        "docs/plan/EXECUTION-RUNBOOK.md",
+        "docs/plan/vityo/Requirements.md",
+        "docs/plan/vityo/Architecture.md",
+        "docs/plan/vityo/Validation.md"
+      ]
+    },
+    "next": [
+      "c5bfe53f-4094-4771-b323-12a99750c95b"
+    ]
+  },
+  {
     "id": "c5bfe53f-4094-4771-b323-12a99750c95b",
     "status": "pending",
     "role": "final_validation",
@@ -1538,12 +2334,12 @@
       "2a37d539-ce52-49e0-8ba6-4643bfbbb0d3",
       "05f2306e-4431-426b-8933-3f64caecce75",
       "0a18cc12-6328-4d4e-8c44-af3b273529d5",
-      "256b6d4a-2acf-412c-b392-57a09962fdea"
+      "63016713-c527-4428-a87d-2613f8c43ac9"
     ],
     "platform": "any",
     "difficulty": "high",
     "goal": "Run the Vityo full regression exactly once and record independent evidence for REQ-IDE-001 through REQ-IDE-008.",
-    "description": "Scope: platform-independent validation and evidence recording only; source defects are routed back to their owning implementation lifecycle. Context: focused suites prove local closures but cannot prove the standalone IDE, concurrent collaboration, MCP boundary, recovery, and performance together. Target: execute Validation.md's ide/full suite once, record commit/platform/schema/fixture versions and an outcome per requirement, then sync and validate Better Plan state. Design Considerations: run the fixed suite without lowering targets, consuming native package artifacts, or rerunning Coding Agent's full suite; real IDE/Agent integration evidence may be consumed from the Agent line only when its content/version digest matches. Design Value: one auditable platform-neutral product result replaces accumulated partial claims while native releases remain independent. Constraints & Risks: a missing platform-independent fixture, required tool, or compatible Agent is a blocked/failing outcome; native host or signing availability is outside this gate.",
+    "description": "Scope: final platform-independent validation and evidence recording only; this Node never implements or repairs product code. Preconditions: protocol-only Agent convergence Node 014e7fb0-3f51-4033-be71-eca130a4a2ea and harness-readiness Node 63016713-c527-4428-a87d-2613f8c43ac9 are completed; every other implementation prerequisite is completed; the candidate is committed and source-bearing paths are clean; plan-only and preflight pass; no receipt already covers the same commit/fingerprint; and the current user explicitly authorizes the full run. Target: execute the fixed eight-suite IDE graph for one immutable candidate, write artifacts/validation/vityo-full.json with one canonical outcome per REQ-IDE-001 through REQ-IDE-008 plus commit/platform/source/protocol/fixture digests, then complete the lifecycle only after read-only audit. Execution Method: use next-action; freeze final acceptance; invoke regression-requested once through manifest_tool; never launch the full command manually or in parallel; inspect the receipt; run Better Plan validation and label checking; dispatch the single auditor only after a passing receipt. Failure Routing: preserve a failed receipt, never rerun the unchanged commit/fingerprint, map failed requirement seams to one bounded implementation repair, use focused tests there, and re-freeze this Node before one run of a changed candidate. Design Considerations: no native package evidence, no Coding Agent full rerun, no target lowering, no skipped blocker reported as pass, and no source mutation during validation. Design Value: a simple executor follows one deterministic path and cannot certify known ownership or harness gaps. Constraints & Risks: missing tools/fixtures/compatible Agent are blocked or failed; native host/signing availability is outside this platform-independent gate; raw logs, secrets, personal paths, and machine identity never enter the receipt.",
     "requirements": [
       "REQ-IDE-001",
       "REQ-IDE-002",
@@ -1603,11 +2399,19 @@
     "acceptance_criteria": [
       {
         "checked": false,
-        "text": "The one platform-independent ide/full suite passes on one head commit and records a traceable outcome for every REQ-IDE-* label, including standalone use, concurrent collaboration, MCP/security, and recovery, without consuming native package evidence."
+        "text": "Before regression-requested, all implementation prerequisites are completed, the candidate is committed and clean, plan-only and preflight pass without suite execution, explicit final-run authority exists, and no receipt already covers the same commit/source fingerprint."
       },
       {
         "checked": false,
-        "text": "The canonical Better Plan status sync, workspace validation, and requirement-label checker pass with final evidence attached and no implementation work left in the IDE plan."
+        "text": "The single formal ide/full invocation writes artifacts/validation/vityo-full.json with overall passed status and exactly one passed outcome for every REQ-IDE-001 through REQ-IDE-008, including standalone IDE use, Agent Workbench collaboration, protocol, MCP/security, recovery, performance, and packaging contracts."
+      },
+      {
+        "checked": false,
+        "text": "The receipt binds commit, supported host class, stable source fingerprint, protocol-schema digest, and acceptance-fixture digest; start/end sources do not drift; no native package artifact or Coding Agent full-suite result is consumed."
+      },
+      {
+        "checked": false,
+        "text": "After evidence is recorded, Better Plan workspace validation and requirement-label checking pass, no Vityo implementation Node remains incomplete, and the read-only audit confirms scope without rerunning the full suite."
       }
     ],
     "commit": {
@@ -1618,11 +2422,13 @@
     "regression": {
       "scope": "full",
       "commands": [
-        "python scripts/vityo_quality.py --product ide --suite full"
+        "python scripts/vityo_quality.py --product ide --suite full --receipt artifacts/validation/vityo-full.json"
       ],
       "criteria": [
         0,
-        1
+        1,
+        2,
+        3
       ],
       "paths": [
         "products/vityo_app/android",
@@ -1653,7 +2459,9 @@
         "packaging/vityo/desktop-delivery.json",
         ".github/workflows",
         "tests/acceptance/vityo_app",
+        "docs/plan/EXECUTION-RUNBOOK.md",
         "docs/plan/vityo/Requirements.md",
+        "docs/plan/vityo/Evidence.md",
         "docs/plan/vityo/Architecture.md",
         "docs/plan/vityo/Validation.md"
       ]

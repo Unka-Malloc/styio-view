@@ -1,9 +1,17 @@
 # Nightly Subbranch Merge Report
 
 **Date:** 2026-06-24
-**Purpose:** Record the consolidation of all non-nightly subbranches into `nightly`.
+**Purpose:** Preserve the 2026-06-24 subbranch consolidation report as historical provenance; it is not a current product or architecture owner.
 
 **Last updated:** 2026-06-24
+
+**Archived:** 2026-07-30
+
+**Status:** Historical provenance. References below to IDE-owned Agent provider/tool/session code
+describe the merge at that time. Current ownership is defined by
+[Vityo Agent-Native IDE Architecture](../../design/Vityo-Agent-Native-IDE-Architecture.md), and the
+remaining IDE migration is tracked in
+[Vityo Implementation Gaps](../../design/Vityo-Implementation-Gaps.md).
 
 ## Remote Branches at Start
 

@@ -101,9 +101,9 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             app_readme.parent.mkdir(parents=True)
             root_readme.write_text("# Vityo\n", encoding="utf-8")
             docs_readme.write_text("# Vityo Docs\n", encoding="utf-8")
-            app_readme.write_text("# Vityo Flutter Shell\n", encoding="utf-8")
+            app_readme.write_text("# Vityo — Styio Agent-Native IDE\n", encoding="utf-8")
             pubspec.write_text(
-                "description: Vityo editor shell for web, desktop, and mobile targets.\n",
+                "description: Vityo, the agent-native IDE for Styio across desktop, web, and mobile.\n",
                 encoding="utf-8",
             )
 
@@ -114,10 +114,12 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             self.gate.REQUIRED_PROJECT_BRAND_HEADINGS = {
                 Path("README.md"): "# Vityo",
                 Path("docs/README.md"): "# Vityo Docs",
-                Path("products/vityo_app/README.md"): "# Vityo Flutter Shell",
+                Path("products/vityo_app/README.md"): "# Vityo — Styio Agent-Native IDE",
             }
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("products/vityo_app/pubspec.yaml"): "description: Vityo editor shell",
+                Path("products/vityo_app/pubspec.yaml"): (
+                    "description: Vityo, the agent-native IDE for Styio"
+                ),
             }
             try:
                 errors = self.gate.check_project_branding()
@@ -142,9 +144,9 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             app_readme.parent.mkdir(parents=True)
             root_readme.write_text("# " + "Styio" + " View\n", encoding="utf-8")
             docs_readme.write_text("# Vityo Docs\n", encoding="utf-8")
-            app_readme.write_text("# Vityo Flutter Shell\n", encoding="utf-8")
+            app_readme.write_text("# Vityo — Styio Agent-Native IDE\n", encoding="utf-8")
             pubspec.write_text(
-                "description: Vityo editor shell for web, desktop, and mobile targets.\n",
+                "description: Vityo, the agent-native IDE for Styio across desktop, web, and mobile.\n",
                 encoding="utf-8",
             )
 
@@ -155,10 +157,12 @@ class ViewBoundaryImportPolicyTest(unittest.TestCase):
             self.gate.REQUIRED_PROJECT_BRAND_HEADINGS = {
                 Path("README.md"): "# Vityo",
                 Path("docs/README.md"): "# Vityo Docs",
-                Path("products/vityo_app/README.md"): "# Vityo Flutter Shell",
+                Path("products/vityo_app/README.md"): "# Vityo — Styio Agent-Native IDE",
             }
             self.gate.REQUIRED_PROJECT_BRAND_METADATA = {
-                Path("products/vityo_app/pubspec.yaml"): "description: Vityo editor shell",
+                Path("products/vityo_app/pubspec.yaml"): (
+                    "description: Vityo, the agent-native IDE for Styio"
+                ),
             }
             try:
                 errors = self.gate.check_project_branding()

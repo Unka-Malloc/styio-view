@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -48,6 +48,8 @@ Key SSOTs:
 10. `LanguageServiceAdapter` 的 symbol / reference / definition / rename 字段属于编辑器核心合同；本地 token-derived fallback 可以先实现体验，但 adapter handoff 必须保留 declaration range、usage range、declaration-vs-usage 标记、`unresolved-reference` range 和 rename `TextEdit` 计划，不能退化成纯字符串搜索或前端静默改写。
 11. Adapter contract changes must update the final owner path and keep `python3 scripts/check_product_line_boundaries.py` passing.
 12. `ProjectGraphSnapshot` 字段来源置信度和 `ToolchainCommandResult.schemaVersion` 属于 adapter 合同字段；变更时必须同步 `docs/contracts/`、对应 Dart model、focused adapter tests、agent/UI 消费说明，不能只改文档或只改代码。
+13. Agent integration is protocol-only: Vityo owns source revisions, Styio analyze/test/run facts, change previews, and workspace transactions; Vityo Coding Agent or another compatible Agent owns model/provider access, tool loops, policy, durable sessions, and multi-Agent orchestration.
+14. Any IDE-side provider profile, provider controller, tool dispatcher, or policy-store artifact is migration inventory under `Vityo-Implementation-Gaps.md`, not an accepted adapter contract. Do not extend it while completing the Agent-Native IDE migration.
 
 ## Change Classes
 
@@ -84,3 +86,5 @@ Record:
 2026-06-25: contracts/README.md 更新 — CacheContract 正式列为第九份已发布合同。Vityo-Implementation-Gaps.md 中此前误标为 Closed 的 Remote/browser/virtual providers 与 Cache Contract 已校正为 Partially implemented。
 
 2026-07-26: Moved the hosted-workspace delivery-plan cross-reference to the `Vityo` Better Plan. This documentation-only routing change does not alter the hosted workspace contract schema or runtime behavior.
+
+2026-07-30: Aligned CacheContract, HostedWorkspaceCloudRoutes, SettingsProfileThemePersonalization, and UserFacingWorkflows with the Agent-Native IDE boundary. `Agent Context` replaces the old AI label, hosted workspace routes remain separate from the Agent Workbench, and legacy IDE provider/controller artifacts are recorded only as migration inventory. No contract schema or runtime behavior changed.

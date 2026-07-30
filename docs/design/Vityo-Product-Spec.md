@@ -1,246 +1,260 @@
 # Vityo Product Spec
 
-**Purpose:** 作为 `Vityo` 的产品级单一事实来源，定义产品定位、术语、不变量、功能域、平台策略与验收边界。
+**Purpose:** Serve as the product-level source of truth for Vityo's positioning, hierarchy, users, invariants, capability domains, platform strategy, and acceptance boundary.
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-30
 
-**Status:** Draft SSOT
+**Status:** Current
 
-## 1. 产品定位
+## 1. Product Positioning
 
-`Vityo` 是 Styio 的专属原生 IDE 与运行视窗，不以复用传统 IDE 控件或传统编辑器壳为前提，而是以 Styio 语言特性和现代交互系统为中心，重写：
+**Vityo is the agent-native IDE for Styio.**
 
-1. 编辑器文本显示与交互
-2. 编译与运行反馈面板
-3. 运行逻辑与状态图视图
-4. AI 协作编程入口
-5. 桌面与移动端各自原生的交互模型
-6. 按设备挂载、卸载与更新的模块系统
+Vityo is a desktop-first developer environment for people building streaming, stateful, and
+resource-topology software with Styio. It brings source editing, authoritative language and compiler
+facts, build/test/run workflows, runtime observation, and reviewable Agent collaboration into one
+trustworthy workbench.
 
-## 2. 主要用户
+Generic editors can display Styio source, terminals can invoke its tools, and detached chat clients
+can suggest code. Those separate tools do not share one revisioned view of the source, compiler
+truth, runtime state, permissions, proposed changes, and validation receipts. Vityo's differentiator
+is that these facts and controls are first-class parts of the same product:
 
-1. Styio 语言设计者与核心贡献者
-2. 使用 Styio 编写流式、状态化和资源拓扑程序的开发者
-3. 希望在桌面或支持本地运行的设备上直接运行 Styio 程序，并在其它设备上接入云执行的用户
-4. 需要用 AI 辅助编写、解释和改写 Styio 程序的用户
+1. Styio source and semantic structures remain authoritative and inspectable.
+2. Compiler, test, execution, and runtime results are typed facts rather than inferred success.
+3. Agent plans, tool activity, permissions, change sets, and validation receipts are visible and
+   controllable inside the workbench.
+4. Agent-originated edits enter only through the IDE-owned, revision-bound workspace transaction
+   path.
+5. Missing capabilities remain explicit degraded or blocked states; Vityo never invents compiler,
+   runtime, or Agent success.
 
-## 3. 非目标
+## 2. Product Hierarchy
 
-1. 不把 `Vityo` 做成 VS Code 皮肤或传统 IDE 主题包。
-2. 不以兼容任意第三方插件生态作为首发目标。
-3. 不在产品级语义上承诺 iOS 支持任意 unrestricted 本地 JIT。
-4. 不要求桌面与移动端拥有完全一致的操作方式。
+| Name | Role | Product status |
+|---|---|---|
+| **Vityo** | The user-facing Styio agent-native IDE and sole product identity owned by this repository. | Product |
+| **Vityo Coding Agent** | The first-party, independently executable companion Agent runtime. Vityo and other compatible clients may launch it through the versioned Agent protocol. | Companion runtime |
+| **Vityo Agent Protocol** | The pure, versioned wire contract shared by the IDE and compatible Agents. | Shared contract, not a product |
+| **Styio** | The external language, compiler, language service, and toolchain ecosystem consumed by Vityo. | External dependency |
 
-## 4. 术语表
+The IDE and companion runtime have separate engineering delivery tracks because they are
+independently testable and releasable. That engineering separation does not create a second Vityo
+product identity.
 
-| 术语 | 定义 |
-|------|------|
-| Source Buffer | 用户真实编辑和保存的 Styio 源文本。 |
-| Visual Substitution | 仅在显示层把某些 token 渲染成图标或特殊形态，不改变 Source Buffer。 |
-| Semantic Block Surface | 由 parser / typecheck 结果驱动的块级视觉容器，例如函数体灰底圆角块。 |
-| Minimal Compilable Unit | 当前光标或编辑上下文中可独立触发编译或运行的最小合法单元。 |
-| Runtime Surface | 展示程序执行状态、图模型、线程轨和日志的底部区域。 |
-| Runtime Surface Feature Entry | 一条可视化能力声明，说明某个模块能把哪些运行事件映射成何种视图。 |
-| Runtime Event Protocol | 执行层发给 UI 的有序事件契约，用于驱动线程轨、状态图、日志与退化提示。 |
-| Token Span | 词法层返回给编辑器的基础 token 范围，用于快速基础高亮。 |
-| Semantic Span | 语义层返回给编辑器的范围结果，用于类型、函数、pipeline、state 等语义高亮。 |
-| Formatting Edit | 格式化层返回的文本补丁结果，采用 `range + newText` 风格，而不是静默重写 Source Buffer。 |
-| Pipeline Selector | 对类型检查已通过的 pipeline 候选进行替换或滚动选择的 UI。 |
-| Agent Panel | IDE 内建的 AI 交互区，支持 prompt profile、自定义上下文与本地/云端执行。 |
-| Agent Provider Adapter | 把本地 agent、云 provider 或外接组件统一成同一调用接口的适配层。 |
-| Profile Sync Adapter | 可选挂载的 profile / prompt 同步组件；未挂载时应用仍以本地模式工作。 |
-| Local Runtime | 设备本地的 Styio 编译、运行或解释环境。 |
-| Cloud Runtime | 云端容器中的 Styio 编译、运行或 agent 能力。 |
-| Hosted Workspace | 由云环境托管的工作区实例，Web 端以此作为主运行形态。 |
-| Workspace Retention Window | Hosted Workspace 关闭后到最终删除之间的保留时间窗口。 |
-| Core Module | 构成应用主壳的不可卸载模块，例如基础窗口、编辑器宿主与设置中心。 |
-| Optional Module | 可按设备安装、卸载或禁用的功能模块，例如本地编译、运行视图增强、特定 agent provider。 |
-| Mounted Module | 当前客户端已装载并参与运行的模块实例。 |
-| Staged Module Update | 已下载但尚未激活的 module package；当前已挂载模块继续运行，客户端重启后再切换到 staged package。 |
-| Capability Matrix | 某个模块在不同平台、设备或订阅状态下可否挂载的声明矩阵。 |
+## 3. Users and Jobs
 
-## 5. 核心不变量
+### 3.1 Primary users
 
-1. 用户文件的 canonical representation 永远是原始 Styio 源文本。
-2. `->`、`|>` 等符号的图形化呈现属于显示层行为，不得静默改写文件。
-3. `{ ... }` 灰底圆角块等结构化呈现必须由语言服务或结构分析驱动，不能只靠脆弱的正则推断。
-4. 保存、完成最小可编译单元、或显式运行命令可以触发编译；触发规则必须可配置。
-5. `Ctrl + Enter` 或平台等效手势表示“运行当前最小合法单元或当前运行目标”。
-6. 运行可视化是产品一等能力，不是附属 debug 面板。
-7. AI agent 也是产品一等能力，不是外链聊天框。
-8. 主题系统必须支持预设主题和细粒度自定义。
-9. 桌面、Android、iOS 可以有不同的执行策略和交互模型。
-10. 除核心壳能力外，长期功能应优先设计为可挂载模块。
-11. 用户可以按设备安装、卸载或禁用可选模块。
-12. 模块更新必须采用 staged update 语义：运行中的当前已挂载模块持续到重启前，重启后挂载 staged package。
-13. 平台不支持的模块不得暴露入口，例如 iOS 客户端不得暴露本地编译模块入口。
-14. 模块能力必须受 capability matrix 约束，而不是由 UI 临时硬编码。
-15. 桌面端与移动端共享核心框架、文档模型、语言服务与模块系统。
-16. 桌面端与移动端允许在展示层、渲染调优层和交互层做分端优化。
-17. visual substitution 必须可由用户显式开关。
-18. 运行可视化只允许消费已声明支持的 `Runtime Surface Feature Entry`，不得伪造未声明语义。
-19. 运行可视化必须由有序 `Runtime Event Protocol` 驱动，而不是由 UI 从源码静态猜图。
-20. AI 与 profile 集成必须通过可替换 adapter 或组件接入，不得把单一 provider 硬编码进主壳。
-21. 本地 agent 首发只预留外接组件接口，不把模型 runtime 内建到主壳。
-22. 云端 agent provider 至少支持 OpenAI-compatible endpoint adapter。
-23. 若未挂载 `ProfileSyncAdapter`，prompt / profile 必须完整工作在 local-only 模式。
-24. 登录不是使用 Vityo 的前置条件；用户账户、profile sync 和远端身份能力必须作为可选服务模块挂载。
-25. iOS 是唯一受 App Store 审核与分发限制的平台，并作为共享架构的合规下限；iOS 客户端最后上线。
-26. Web 端只作为 hosted workspace 客户端；关闭云环境前必须提示清空后果并提供核心文件导出入口。
-27. Hosted workspace 默认保留 7 天后删除。
-28. 移动端模块卸载默认全量回收；桌面端模块卸载必须给用户保留或清除数据的选择。
-29. 基础高亮必须先由 token / semantic 层驱动，`linter` 只负责 diagnostics、fix 和 hint，不负责基础高亮。
-30. 格式化结果必须以 `TextEdit` 风格补丁返回，而不是绕过编辑器直接改写 Source Buffer。
-31. 任何 UI 容器内的子组件都不得溢出父容器；若空间不足，必须通过重排、内部滚动、局部折叠或尺寸约束处理，而不是允许内容越界。
+Styio developers building programs whose streaming, state, concurrency, and resource-topology
+behavior benefits from language-aware editing and observable execution.
 
-## 6. 功能域
+Their primary job is:
 
-### 6.1 编辑器引擎
+> Change a Styio program, understand the language and compiler facts, prove it through tests and
+> execution, observe what happened at runtime, and collaborate with an Agent without losing control
+> of the workspace.
 
-必须支持：
+### 3.2 Secondary users
 
-1. 自研文档模型、光标、选择、撤销/重做
-2. 视觉替换：例如 `->` 显示为箭头图标，`|>` 显示为右向三角图标
-3. 结构装饰：函数体、块级体、资源/状态结构的语义化表面
-4. 结构感知输入：基于 token、block、pipeline 的交互反馈
-5. 桌面与移动端不同输入系统
-6. visual substitution 的用户开关与即时重绘
-7. 在 substitution 开启时，复制、搜索、diff、诊断定位仍必须以原始 `Source Buffer` 为准
+1. Styio language designers and core contributors validating new language and toolchain behavior.
+2. Teams that need durable, reviewable Agent-assisted work against controlled Styio workspaces.
+3. Users who move between local desktop execution and capability-declared hosted execution.
 
-### 6.2 语言服务
+Needing generic AI chat, a general-purpose text editor, or a model-hosting frontend alone does not
+make someone a primary Vityo user.
 
-必须支持：
+## 4. Launch Promise
 
-1. 词法 token 范围输出，用于基础高亮
-2. 语义范围输出，用于类型、函数、pipeline、state 等语义高亮
-3. diagnostics / quick fix 与高亮分离
-4. 结构范围、token 范围、块边界暴露给 UI
-5. 最小可编译单元识别
-6. pipeline 候选筛选与类型安全替换
-7. `TextEdit` 风格格式化返回
-8. `CompletionItem` 与 `HoverPayload` 一类辅助协议
-9. 内部数据合同借鉴 LSP 结构，但实现可完全自研
+The first independently acceptable product is the desktop Vityo IDE on Windows, macOS, and Linux.
+It must prove both of these loops on one source revision:
 
-### 6.3 执行与运行时
+### 4.1 Trustworthy Styio developer loop
 
-必须支持：
+```text
+edit -> analyze -> test -> run -> observe
+```
 
-1. 保存后自动编译
-2. 完成最小可编译单元后可配置自动编译
-3. 显式运行快捷键
-4. 桌面本地运行为首发主路径
-5. iOS 允许以云执行作为主产品方案
-6. 执行能力应作为可挂载模块存在，允许用户按设备安装或移除
+The user can complete the loop without an Agent. Every transition produces source-bound facts,
+structured receipts, or an explicit unavailable/blocked state.
 
-### 6.4 运行可视化
+### 4.2 Reviewable Agent loop
 
-必须支持：
+```text
+goal -> plan -> approved tools -> proposed changes -> review -> validation receipt
+```
 
-1. 底部运行视图区
-2. 用状态机、简化有向图或线程轨道表达程序运行逻辑
-3. 允许仅覆盖明确声明为可视化的代码子集
-4. 运行时数据可实时刷新到视图
-5. 启动时从已安装模块加载 `Runtime Surface Feature Entry` 列表
-6. 新增可视化支持可通过模块 staged update 下发，并在重启后激活
+At least one compatible Agent can run as a supervised workbench task. The user can inspect its plan
+and activity, answer permission requests, steer or cancel it, review its changes, and inspect
+validation results. The Agent cannot mutate IDE-owned files directly or authorize its own effects.
 
-### 6.5 AI 协作层
+Mobile interaction, hosted workspaces, full module distribution, visual theme authoring, and
+additional runtime visualizations remain valid product directions, but they do not dilute or replace
+this launch promise.
 
-必须支持：
+## 5. Non-goals
 
-1. 底部或侧边一等对话区
-2. 用户可编辑的预输入 prompt
-3. 后续可接云端 profile
-4. 移动端内建输入预测 agent
-5. 用户可选择本地或云端 agent 路径
-6. `Agent Provider Adapter` 抽象，本地/云端 provider 可替换
-7. 本地 agent 以外接组件形式挂载，首发不内建模型 runtime
-8. 云端 provider 至少支持 OpenAI-compatible endpoint adapter
-9. 若未挂载 profile sync 组件，AI 面板仍可在 local-only 模式下工作
+1. Vityo is not a VS Code skin, a theme pack, or a clone of a generic IDE shell.
+2. Vityo is not a general-purpose, every-language IDE at launch.
+3. Vityo is not a standalone chat client, and the Agent Workbench is not an embedded chat tab.
+4. The IDE does not own model-provider integration, model inference, prompt orchestration, tool
+   loops, durable Agent sessions, or multi-Agent scheduling.
+5. The IDE does not connect directly to OpenAI-compatible or other model endpoints. Those concerns
+   belong to an Agent runtime.
+6. An Agent is not required to launch Vityo or complete the trustworthy Styio developer loop.
+7. Vityo does not reimplement Styio language, compiler, package, registry, or deployment truth.
+8. Compatibility with arbitrary third-party plugin ecosystems is not a launch goal.
+9. iOS does not promise unrestricted local JIT or unsupported executable module behavior.
+10. Desktop, mobile, and Web do not need identical interaction or execution strategies.
 
-### 6.6 主题与个性化
+## 6. Core Terms
 
-必须支持：
+| Term | Definition |
+|---|---|
+| **Source Buffer** | The canonical Styio source text edited and saved by the user. |
+| **Visual Substitution** | Display-only rendering of source tokens such as `->` or `|>`; it never changes the Source Buffer. |
+| **Semantic Block Surface** | A parser/typecheck-driven visual container for language structures such as functions, states, or resource blocks. |
+| **Minimal Compilable Unit** | The smallest legal unit in the current context that can be compiled or run. |
+| **Runtime Surface** | The workbench area that renders ordered execution facts, state graphs, thread lanes, diagnostics, and logs. |
+| **Runtime Event Protocol** | The ordered machine contract that drives runtime visualization. |
+| **Agent Workbench** | The IDE capability that presents Agent tasks, sessions, plans, activity, permissions, changes, artifacts, and validation receipts. |
+| **Agent Panel** | A concrete UI surface that may display part of the Agent Workbench; it is not the Agent runtime or the product definition. |
+| **Agent Client** | The IDE-owned process/protocol client that discovers, launches, supervises, reconnects to, and communicates with compatible Agents. |
+| **Compatible Agent** | An Agent implementation that negotiates and follows the supported versioned session boundary. |
+| **Vityo Coding Agent** | Vityo's first-party companion runtime for model/provider routing, context selection, tools, policy, coding loops, durable sessions, and multi-Agent execution. |
+| **Workspace Transaction** | The IDE-owned preview/commit/rollback boundary for revisioned changes, including Agent proposals. |
+| **Local Runtime** | A device-local Styio compiler and execution environment. |
+| **Hosted Workspace** | A remotely hosted workspace used by clients that cannot or should not own the local execution path. |
+| **Core Module** | An inseparable part of the Vityo shell, editor, or trusted workbench. |
+| **Optional Module** | A capability-declared module that may be installed, disabled, updated, or removed per platform. |
+| **Capability Matrix** | The declared availability and visibility of a capability for a platform or product route. |
 
-1. 常见 IDE 主题预设
-2. token 级颜色定制
-3. 语义块表面、面板、运行图区和 AI 面板的独立主题层
-4. 后续与用户 profile 同步
-5. `ProfileSyncAdapter` 未挂载时仍能完整使用本地 profile
-6. 内建默认主题以 `Graphite` 表面基线为主，并以 `#F4C76A` 作为默认强调色与 symbol 高亮色
+## 7. Product Invariants
 
-### 6.7 模块系统与交付
+### 7.1 Source and language truth
 
-必须支持：
+1. The canonical representation of every user file is the original Styio source text.
+2. Visual substitutions and semantic surfaces never silently rewrite source.
+3. Copy, search, diff, diagnostics, and workspace edits remain bound to Source Buffer positions.
+4. Structural rendering is driven by language or structural facts, not fragile regex guesses.
+5. Token and semantic facts drive highlighting; linters provide diagnostics, fixes, and hints.
+6. Formatting and completion enter the editor as explicit edits or candidates.
+7. Styio remains the source of language, compiler, toolchain, and runtime truth.
 
-1. 基于 manifest 的模块注册
-2. core module 与 optional module 区分
-3. 按设备安装、卸载和禁用模块
-4. 平台 capability matrix
-5. staged module update
-6. 重启前后 module package 激活状态切换
-7. 平台不支持模块时自动隐藏入口
-8. 模块级能力开关可进入用户配置
-9. 运行可视化特性也作为模块入口声明的一部分
-10. 模块必须声明分发渠道与平台兼容边界
-11. 卸载必须按平台 reclaim policy 回收菜单、配置与数据
+### 7.2 Truthful execution and observation
 
-## 7. 平台策略
+1. Save, completion of a minimal compilable unit, or an explicit command may trigger compilation
+   according to user-configurable policy.
+2. The platform-equivalent of `Ctrl+Enter` runs the current legal unit or selected target.
+3. Runtime visualization is a first-class capability, not an ornamental debug panel.
+4. Runtime views consume only declared, ordered runtime events.
+5. Unsupported semantics remain unavailable or degraded; the UI never guesses a runtime graph.
+6. Desktop local execution is the launch path. Hosted execution remains capability-declared.
 
-| Platform | UI | Compile / Run | Agent | Distribution | Notes |
-|----------|----|---------------|-------|--------------|-------|
-| Desktop | Flutter 本地 UI | 本地为主，可挂载云执行模块 | 外接本地组件或云端 | 自分发 / 自更新 | 默认挂载本地编译/运行模块；卸载模块时由用户选择保留或清除数据。 |
-| Android | Flutter 本地 UI | 本地优先，可卸载本地编译模块 | 外接本地组件或云端 | 自分发 / 自更新 | 用户可移除本地编译模块；当前接受的本地运行模块体积预算目标为 `<= 50 MB`；卸载默认全量回收。 |
-| iOS | Flutter 本地 UI | 云执行主路径 | 云端优先，本地仅限非编译类辅助能力 | App Store / 最后上线 | 唯一受商店审核约束；不暴露本地编译模块入口；只挂载 iOS-safe 模块。 |
-| Web | Flutter Web | Hosted Workspace 主路径 | 云端 | 托管访问 | 关闭云环境前提示清空并提供核心文件导出；默认保留 7 天后删除。 |
+### 7.3 Agent-native ownership
 
-### 7.1 核心与平台适配独立发布
+1. Vityo remains independently useful when no Agent is installed or connected.
+2. Agent sessions are first-class, long-running workbench tasks rather than detached chat turns.
+3. Vityo may connect to Vityo Coding Agent or another compatible Agent through the versioned
+   process/protocol boundary.
+4. The IDE owns Source Buffers, document/workspace revisions, language and execution facts,
+   permission presentation, change review, and workspace transaction commits.
+5. Agent runtimes own model/provider integration, context selection, tool execution, effect policy,
+   coding-loop orchestration, durable session state, and multi-Agent coordination.
+6. The IDE never imports Agent runtime implementation and the Agent runtime never imports Vityo or
+   Flutter implementation.
+7. The Agent cannot write IDE-owned files directly. It proposes revision-bound change sets.
+8. Permission requests, changes, and validation results remain visible until explicitly resolved.
+9. Model output and tool output are untrusted inputs; they cannot widen roots, permissions,
+   credentials, network access, or execution capabilities.
+10. Unknown protocol versions or capabilities fail closed with a useful diagnostic.
 
-1. 共享 IDE 核心、平台适配层和平台安装包是三个不同的版本轴：共享核心声明
-   `coreVersion`，每个平台适配层声明自己的 `adapterVersion`，安装包使用平台原生版本格式。
-2. 平台发布固定一个兼容的核心版本，并只由该平台的构建、适配、安装、签名/公证、更新
-   和回归门禁决定。一个平台失败不得阻断其他已经满足自身门禁的平台。
-3. 不同平台不要求共享版本号或发布日期。某个平台可以继续发布或维护旧核心兼容线，其他
-   平台可以先采用新核心；发布清单必须同时记录核心版本、平台适配版本和安装包版本。
-4. 共享核心候选的通用合同、安全或跨平台不变量门禁失败时，只阻断采用该核心候选的平台；
-   已固定在上一兼容核心版本的平台不被回溯阻断。
-5. Nightly 允许发布明确标注为未签名/未公证的平台产物，但没有签名发布清单时不得启用自动
-   更新。公开稳定版必须满足对应平台的签名、公证、完整性和正式更新通道要求。
-6. 产品发布状态以“核心版本 × 平台适配版本”的矩阵表达，不使用单一全局发布状态掩盖平台差异。
+### 7.4 Platform and extension behavior
 
-## 8. 首发范围
+1. Desktop, Android, iOS, and Web share the document model, language contracts, and capability
+   vocabulary while allowing platform-specific presentation and execution.
+2. Unsupported capabilities do not expose misleading UI entry points.
+3. Optional modules are governed by manifests, capability matrices, and staged activation.
+4. Module updates do not replace a mounted module until the declared activation boundary.
+5. Login, profile sync, and remote identity are optional services, not prerequisites.
+6. Without `ProfileSyncAdapter`, local profiles remain fully usable.
+7. Child components must preserve container integrity through layout, scrolling, folding, or bounds.
 
-首发优先覆盖：
+## 8. Capability Domains
 
-1. 桌面版
-2. 基础自研编辑器引擎
-3. 视觉替换与语义块表面
-4. 诊断与编译反馈
-5. 桌面本地运行入口
-6. 基础运行视图区
-7. AI 面板骨架
-8. 模块挂载、卸载与 staged update 骨架
+### 8.1 Editor and language services
 
-## 9. 质量要求
+Vityo owns the document model, cursor and selection semantics, undo/redo, source-fidelity rendering,
+visual substitution, semantic block surfaces, desktop/mobile input adaptation, workspace navigation,
+and application of revisioned language edits.
 
-1. 编辑输入必须保持低延迟，视觉替换不能破坏光标语义，也不能破坏源码级复制、搜索与定位语义。
-2. 编译反馈必须可理解、可追踪到当前源代码位置。
-3. 运行视图允许覆盖不完整，但不能伪造运行语义。
-4. 移动端必须是原生本地支持，不是桌面 UI 强行缩放。
-5. 模块安装、卸载和更新状态必须对用户可见且可恢复。
-6. Android 本地运行模块当前以 `<= 50 MB` 作为可接受体积预算目标。
-7. substitution 开与关都必须具备可接受性能，且应有对比基线。
-8. 无本地 agent、无云 provider、无 sync 组件时，基础壳仍必须能正常启动和配置。
-9. Hosted workspace 的关闭提示、导出入口、保留期限与删除时点必须对用户清晰可见。
-10. iOS-safe 与 non-iOS-only 模块必须能由 capability matrix 和发布流程明确区分。
-11. diagnostics 失效或延迟时，基础 token 高亮不得消失。
-12. 格式化和补全必须通过显式补丁或候选结果进入编辑器，不得绕开文档模型。
-13. 侧边栏、弹窗、设置面板和窄视口下的任意子组件都必须保持容器完整性，不能出现内部组件超出外部边界的情况。
+Styio-owned services provide lexical, semantic, diagnostic, completion, hover, formatting,
+reference, refactor, compile, and runtime facts through explicit adapters. Unavailable facts produce
+capability gaps, not local guesses presented as authoritative results.
 
-## 10. 首批验收问题
+### 8.2 Developer loop
 
-1. 用户能否在不离开编辑界面的前提下完成编写、编译、运行、观察和提问？
-2. 视觉替换是否提升了 Styio 的读写体验，而不是制造源码与显示的错觉？
-3. 运行视图是否真实反映了当前实现支持的语义子集？
-4. 新安装或更新的运行可视化特性，是否只在其声明支持的事件和语义范围内生效？
-5. AI 面板是否真正接入 IDE 当前上下文，而不是独立聊天窗口？
-6. 卸载模块或关闭 hosted workspace 时，用户是否得到清晰、可恢复或可导出的退出路径？
+The workbench exposes project graph, dependency, toolchain, build, test, run, debug, terminal,
+deployment, and runtime-event lanes through typed adapters and receipts. The same revision-bound
+facts are available to the user and to authorized Agent sessions.
+
+### 8.3 Runtime observation
+
+The Runtime Surface renders only registered event families and declared feature entries. It may show
+state graphs, directed execution summaries, thread lanes, diagnostics, stdout/stderr, and logs. An
+incomplete visualization is acceptable when its supported subset is explicit; fabricated semantics
+are not.
+
+### 8.4 Agent Workbench
+
+The Agent Workbench provides:
+
+1. multiple task/session views with explicit lifecycle state;
+2. streamed turns, plans, steps, tool activity, artifacts, and usage;
+3. persistent permission and elicitation requests;
+4. steer, cancel, retry, reconnect, and Agent-switch controls;
+5. revision-bound diff preview, conflict reporting, apply/reject/revert, and receipts;
+6. bounded context export with provenance, sensitivity, revision, and truncation metadata;
+7. protocol capability negotiation and explicit degraded states.
+
+Model selection, provider credentials, model request shapes, tool-loop execution, and multi-Agent
+scheduling belong to the connected Agent runtime, not the IDE.
+
+### 8.5 Personalization, modules, and hosted routes
+
+Themes, local profiles, optional profile sync, module lifecycle, staged updates, mobile-specific
+interaction, hosted workspaces, cloud execution, and export/retention UX remain supported capability
+domains. They are secondary to the desktop launch promise and must preserve the same truthfulness,
+security, and capability-declaration invariants.
+
+## 9. Platform Strategy
+
+| Platform | Product route | Styio compile/run | Agent route | Release priority |
+|---|---|---|---|---|
+| Windows / macOS / Linux | Native Flutter desktop IDE | Local-first; hosted route optional | Supervised local or remote compatible Agent through the versioned protocol | Launch |
+| Android | Native mobile interaction | Local-first when supported; hosted fallback | Compatible Agent connection subject to platform capability policy | Post-launch |
+| iOS | Native mobile interaction | Hosted execution; no unrestricted local compiler module | Remote compatible Agent through an iOS-safe transport | Last mobile release |
+| Web | Hosted-workspace client | Hosted workspace and execution | Remote compatible Agent | Post-launch |
+
+Each desktop platform has its own package, signing, install, smoke, update, and release receipt.
+Failure on one platform does not invalidate another platform's independently proven artifact.
+
+## 10. Quality and Acceptance
+
+1. Editing remains responsive and visual substitution preserves source-position semantics.
+2. Language, compiler, test, run, and runtime facts are attributable to a source revision.
+3. Missing or heuristic capabilities are visible and never reported as successful.
+4. The IDE starts and completes the developer loop with no Agent available.
+5. Agent plans, permissions, tool activity, changes, and validation receipts remain reviewable.
+6. Stale Agent changes fail without partial mutation.
+7. Agent and IDE failures are isolated; one failed session cannot take down the editor or a sibling
+   session.
+8. Secrets are resolved only at the intended execution boundary and are redacted from UI, logs,
+   protocol payloads, context, and receipts.
+9. Mobile interaction is designed for mobile rather than scaled from desktop.
+10. Hosted-workspace export, retention, closure, and deletion behavior is explicit and recoverable.
+
+The launch positioning is accepted only when a representative Styio workspace completes both the
+trustworthy developer loop and the reviewable Agent loop described in Section 4. Documentation,
+mock-only success, or a green default CI run without the required product evidence does not prove
+that launch promise.

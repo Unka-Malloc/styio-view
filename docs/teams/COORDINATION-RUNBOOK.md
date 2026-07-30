@@ -42,7 +42,7 @@ flowchart TB
 | Team | Primary runbook | Main surface | Required review trigger |
 |------|-----------------|--------------|-------------------------|
 | Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | app shell, editor core, language UI 外壳, 手写 Web Editor 主线 | 编辑语义、源码保真、focused editor workflow、editor layout change |
-| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | runtime/debug/agent surfaces, prompt/profile UX, execution-state UI | runtime 面板语义、agent panel 行为、execution summary、profile flow change |
+| Runtime / Agent Client | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | runtime/debug surfaces, Agent Client/Workbench, ProfileSync UX, execution-state UI | runtime semantics, Agent Workbench behavior, permission/change projection, execution summary, ProfileSync change |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | module host, capability matrix, platform runners, distribution path | manifest/lifecycle、platform gating、runner config、distribution route change |
 | Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | integration layer, adapter contracts, `external/for-styio/`, `external/for-pafio/` handoff | contract/schema、handoff payload、upstream responsibility boundary change |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | theme system, visual tokens, style layers, UX guardrails | palette/font/theme preset、layout system、overflow rule、visual hierarchy change |
@@ -51,7 +51,9 @@ flowchart TB
 ## Review Matrix
 
 1. 编辑器主线或源码保真相关变更需要 Shell / Editor review；若消费了新 payload 或 schema，Adapter / Contracts 也必须 review。
-2. runtime、debug、agent panel 行为变更需要 Runtime / Agent review；若 capability gating 或执行路由受影响，Module / Platform 和 Adapter / Contracts 需要追加 review。
+2. Runtime, debug, or Agent Workbench behavior changes require Runtime / Agent Client review. Agent
+   protocol/runtime changes also require Agent Runtime and Adapter / Contracts review; capability
+   gating or execution-route changes require Module / Platform review.
 3. module manifest、capability matrix、平台 runner 或分发策略变更需要 Module / Platform review，并由 Adapter / Contracts 审核对上游 handoff 的影响。
 4. contract、schema、`external/for-styio/`、`external/for-pafio/` 变更需要 Adapter / Contracts review；任何消费这些合同的团队都要同步确认。
 5. theme、字体、palette、布局系统或容器约束变更需要 Theme / UX review，并由对应消费团队确认不会破坏交互。

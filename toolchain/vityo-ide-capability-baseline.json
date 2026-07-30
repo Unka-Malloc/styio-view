@@ -133,14 +133,15 @@
       "nextMilestone": "L4 — breakpoint/run-config model; structured blocked reasons; live streaming when upstream supports it"
     },
     "agent_workflow": {
-      "target": "IDE-native agent panel: context pack (workspace/document/selection/diagnostics/project/runtime/commands/capabilities), permission model (readOnly/proposePatch/proposeCommand/executeWithApproval), patch preview/apply/rollback, audit trail, local-only mode, provider-missing state, OpenAI-compatible endpoint as optional adapter route.",
+      "target": "Agent Workbench and open Agent Client: versioned protocol connection to Vityo Coding Agent or another compatible Agent; scoped context export; plan and permission review; revision-bound patch preview/apply/rollback through IDE workspace transactions; verification receipts; explicit disconnected state while edit/analyze/test/run/observe remain available. Model/provider routing is Agent-runtime-owned.",
       "benchmarkPeers": ["codex", "opencode"],
-      "currentStatus": "L2 — Contract-backed (AgentContextSnapshot, AgentContextScope, AgentRedactionPolicy, AgentActionPlan, AgentWorkspaceEditApplication, AgentSettings with local-only/provider-missing modes; no real provider call)",
+      "currentStatus": "L2 — Contract-backed Agent Client and Workbench surfaces exist, alongside legacy IDE-owned provider/controller code that must migrate to the Agent runtime before the target boundary is complete",
       "implementationAnchors": [
         "products/vityo_app/lib/src/view_ide/agent_client/agent_context.dart",
         "products/vityo_app/lib/src/view_ide/agent_client/agent_settings.dart",
         "products/vityo_app/lib/src/view_ide/agent_client/agent_session.dart",
-        "products/vityo_app/lib/src/view_ide/agent_client/agent_profile.dart"
+        "products/vityo_app/lib/src/view_render/agent_workbench/",
+        "packages/vityo_agent_protocol/lib/vityo_agent_protocol.dart"
       ],
       "tests": [
         "products/vityo_app/test/agent_context_test.dart",
@@ -149,12 +150,12 @@
         "products/vityo_app/test/agent_session_test.dart"
       ],
       "knownGaps": [
-        "Real AI provider HTTP call not implemented",
-        "AgentContextPack (richer task model) not yet formalized",
-        "AgentTask/AgentTaskState lifecycle not yet defined",
-        "Provider secret injection not implemented"
+        "Legacy IDE-owned model/provider and session-controller implementation must be removed atomically after protocol-client migration",
+        "Agent task plan and verification receipts are not yet complete in the Workbench",
+        "Protocol-backed stale-revision rejection and transaction receipts need product-level closure",
+        "Disconnected no-Agent edit/analyze/test/run/observe acceptance needs product evidence"
       ],
-      "nextMilestone": "L3 — AgentTask lifecycle; provider HTTP call with structured errors; richer context pack"
+      "nextMilestone": "L3 — complete the protocol-backed task/review loop and atomically move provider, tool-loop, policy, and durable-session ownership out of the IDE"
     },
     "module_system": {
       "target": "Core/optional module lifecycle with manifest, capability matrix, staged update, install/uninstall/disable, platform-aware entry hiding, and data reclamation policy.",

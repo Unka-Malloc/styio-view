@@ -1,8 +1,8 @@
 # Vityo — Architecture
 
 **Plan:** `vityo`
-**Purpose:** Define the target IDE product boundary, Agent Client architecture, and one-time cutover.
-**Last updated:** 2026-07-26
+**Purpose:** Define the target Styio Agent-Native IDE boundary, open Agent Client architecture, and one-time package cutover.
+**Last updated:** 2026-07-30
 
 ## 1. Repository topology
 
@@ -34,7 +34,7 @@ products/
     integration_test/
     benchmark/
 
-  vityo_coding_agent/           # separately owned product; never imported
+  vityo_coding_agent/           # first-party companion runtime; never imported
 
 packages/
   vityo_agent_protocol/
@@ -47,13 +47,12 @@ packages/
 Presentation may consume narrow IDE models/interfaces. IDE domain may depend on the protocol package
 but not presentation. No path imports Coding Agent implementation.
 
-## 2. Atomic cutover barrier
+## 2. Completed atomic cutover barrier
 
-The first IDE lifecycle performs one repository-wide structural cutover because splitting the current
-single Dart package across multiple independently green nodes would require a forbidden compatibility
-layer.
+The first IDE lifecycle completed the repository-wide structural cutover. This section is historical
+architecture evidence and must not be executed again.
 
-The cutover:
+The completed cutover:
 
 1. creates the three final roots;
 2. moves IDE domain/presentation and Agent runtime to their final owners;
@@ -67,7 +66,11 @@ This is a single migration lifecycle and commit boundary. There is no long-lived
 dual-write, deprecated export, or “phase 2 cleanup” path. Git history is the migration record.
 
 After the cutover, ordinary IDE nodes own only `products/vityo_app`, IDE-specific gates/docs, and
-protocol changes for which the IDE is the producer. Coding Agent nodes own only their product root.
+protocol changes for which the IDE is the producer. Coding Agent nodes own only their companion
+runtime root.
+
+The remaining legacy provider/controller files inside `products/vityo_app` are not a reason to
+repeat package cutover. They are removed by the dedicated protocol-only Agent-boundary Node.
 
 ## 3. Runtime dependency model
 
@@ -140,8 +143,8 @@ hot windows backed by durable storage.
 
 ## 7. Security and failure isolation
 
-1. Agent processes receive only intended environment variables; credentials are resolved for the
-   target provider/server and never relayed by default.
+1. Agent processes receive only intended environment variables. Model/provider credentials are
+   resolved inside the Agent runtime and are never owned or relayed by the IDE.
 2. Tool declarations and read-only hints are inputs to policy, not authority.
 3. Permission decisions include session, tool, root/resource, risk class, expiry, and policy source.
 4. Revocation invalidates cached grants before the next effect.
@@ -153,20 +156,38 @@ hot windows backed by durable storage.
 
 | Lifecycle | Primary ownership |
 |---|---|
-| Atomic product-line cutover | final source roots, package metadata, import rewrite, repository gates, deletion of old roots |
+| Atomic package-boundary cutover | final source roots, package metadata, import rewrite, repository gates, deletion of old roots |
 | Authoritative workspace transactions | `ide/editor`, `ide/workspace`, transaction and stale-edit tests |
 | Truthful developer loop | language/execution/debug/SCM/terminal/toolchain facts and receipts |
 | Agent Client protocol | `ide/agent_client`, Vityo-owned protocol schema/DTOs, process supervisor |
 | Collaboration workbench | presentation/task/thread/timeline/review state and surfaces |
 | MCP/context/extension export | IDE tool adapters, MCP host, root registry, capability discovery |
 | Quality and desktop delivery | performance, accessibility, crash isolation, Windows/macOS/Linux packaging |
+| Protocol-only Agent convergence | remove IDE model/provider, coding-loop, Agent policy, and durable-session ownership; retain Agent Client, context export, Workbench projections, permissions, and workspace transactions |
+| Final-harness readiness | side-effect-free full-suite preflight, portable lifecycle boundary, complete bounded failure receipts; no real full run |
+| Final validation | one immutable-candidate IDE full run and one per-requirement receipt |
 
-## 9. Deliberate exclusions
+## 9. Remaining execution sequence
 
-- No service locator across product lines.
+```text
+protocol-only Agent convergence
+  -> final-harness readiness
+  -> final platform-independent IDE validation
+```
+
+The exact UUIDs, phase-by-phase methods, failure routing, and stop rules are defined in
+[the execution runbook](../EXECUTION-RUNBOOK.md). This sequence is serialized so a simple executor
+cannot validate the product before removing the known ownership violation or repair the harness
+during the final run.
+
+## 10. Deliberate exclusions
+
+- No service locator across the IDE/Agent package boundary.
 - No global event bus shared with Agent runtime.
 - No direct filesystem mutation for Agent edits.
-- No giant “AI context object”; context is requested through narrow lazy providers.
+- No direct model/provider connection, tool loop, durable Agent session, or multi-Agent scheduler in
+  the IDE.
+- No giant Agent-context object; context is requested through narrow lazy providers.
 - No compatibility export roots after cutover.
 - No new framework migration for editor buffers or state management unless a measured requirement
   cannot be met with current primitives.

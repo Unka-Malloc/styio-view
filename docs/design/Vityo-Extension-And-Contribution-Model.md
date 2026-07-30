@@ -3,7 +3,7 @@
 **Purpose:** Define Vityo's Styio-native extension and contribution model — how modules declare capabilities, how contributions are routed, and how the extension host isolates and activates extensions. This is NOT a VS Code extension API clone.
 
 **Owner:** Extension/module architecture owner (`CODEOWNERS` → module_host domain)
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-30
 
 ---
 
@@ -53,13 +53,18 @@ Vityo defines typed contribution points, each owned by a domain:
 |-------------------|-------------|-----------|---------|
 | `commands` | `commands/` | `ExtensionCommandContribution` | Register a command in palette |
 | `languages` | `language/` | `ExtensionLanguageContribution` | Register a language service |
-| `agent_providers` | `agent/` | `ExtensionAgentProviderContribution` | Register an AI provider |
-| `agent_tools` | `agent/` | `ExtensionAgentToolContribution` | Register an agent tool |
+| `agent_clients` | `agent_client/` | Agent connection contribution | Register a compatible Agent connection/launcher |
+| `agent_workbench_views` | `view_render/agent_workbench/` | Agent Workbench view contribution | Register a view over protocol-projected Agent state |
 | `debug_adapters` | `debugger/` | `ExtensionDebugContribution` | Register a debug adapter |
 | `toolchains` | `toolchain/` | `ExtensionToolchainContribution` | Register a toolchain |
 | `themes` | `theme/` | `ExtensionThemeContribution` | Register a theme |
 | `views` | `view_render/extensions/` | `ExtensionViewContribution` | Register a UI view |
 | `runtime_tasks` | `runtime/` | `ExtensionRuntimeTaskContribution` | Register a runtime task |
+
+Model providers and Agent tools are not IDE contribution points. They belong to the connected Agent
+runtime. Existing IDE-side `agent_providers` or `agent_tools` implementation is part of the atomic
+migration recorded in [Vityo Implementation Gaps](./Vityo-Implementation-Gaps.md), not a target
+extension contract.
 
 ### 3.2 Contribution Router
 
@@ -169,6 +174,7 @@ Every new contribution point must have:
 
 - [Vityo Mainstream Architecture Alignment](./Vityo-Mainstream-Architecture-Alignment.md)
 - [Vityo Protocol And Capability Negotiation](./Vityo-Protocol-And-Capability-Negotiation.md)
+- [Vityo Agent-Native IDE Architecture](./Vityo-Agent-Native-IDE-Architecture.md)
 - [ADR-0009 Module Runtime and Staged Updates](../adr/ADR-0009-module-runtime-and-staged-updates.md)
 - [Module Platform Runbook](../teams/MODULE-PLATFORM-RUNBOOK.md)
 - [Extension Module Runbook](../teams/EXTENSION-MODULE-RUNBOOK.md)

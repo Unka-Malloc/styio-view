@@ -2,7 +2,7 @@
 
 **Purpose:** Define the Coding Agent runtime owner's responsibilities, owned paths, review checklist, and required gates. Enforce credential safety, permission audit, patch workflow, and journal/audit compliance.
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -17,13 +17,16 @@ Primary paths:
 1. `products/vityo_coding_agent/lib/src/`
 2. `products/vityo_coding_agent/bin/`
 3. `packages/vityo_agent_protocol/`
-4. `products/vityo_app/lib/src/view_ide/agent_client/` (client-side protocol only)
-5. `products/vityo_app/lib/src/view_render/agent_workbench/` (IDE presentation only)
-6. `docs/design/Vityo-Agent-Runtime-Architecture.md`
-7. `docs/teams/AGENT-RUNTIME-RUNBOOK.md`
+4. `docs/design/Vityo-Agent-Native-IDE-Architecture.md`
+5. `docs/teams/AGENT-RUNTIME-RUNBOOK.md`
+
+IDE Agent Client and Workbench paths are review dependencies, not Agent-runtime-owned surfaces:
+
+1. `products/vityo_app/lib/src/view_ide/agent_client/`
+2. `products/vityo_app/lib/src/view_render/agent_workbench/`
 
 Key SSOTs:
-1. `Agent 架构 -> ../design/Vityo-Agent-Runtime-Architecture.md`
+1. `Agent architecture -> ../design/Vityo-Agent-Native-IDE-Architecture.md`
 2. `安全与供应链 -> ../governance/SECURITY-AND-SUPPLY-CHAIN.md`
 3. `API 兼容性 -> ../governance/API-COMPATIBILITY.md`
 
@@ -40,16 +43,16 @@ Key SSOTs:
 
 ## Change Classes
 
-1. Small: New agent tool, minor context model update. Run flutter test on agent tests.
-2. Medium: New provider kind, permission model change, provider routing change. Run full agent test suite plus flutter analyze.
-3. High: Credential model change, context scope redefinition, agent architecture change. Requires security review and ADR.
+1. Small: New Agent-runtime tool or minor context-selection update. Run focused Coding Agent tests.
+2. Medium: New provider kind, runtime policy change, or provider-routing change. Run the focused Coding Agent suite and protocol tests.
+3. High: Credential model, context-export contract, or Agent architecture change. Requires security review and an ADR or owning-SSOT update.
 
 ## Required Gates
 
-Minimum:
+Minimum (select the focused subset appropriate to the change):
 ```bash
-cd products/vityo_app && flutter test test/agent_context_test.dart test/agent_settings_test.dart test/agent_permission_policy_test.dart test/agent_patch_transaction_test.dart
-cd products/vityo_app && flutter analyze
+cd products/vityo_coding_agent && dart analyze && dart test
+cd packages/vityo_agent_protocol && dart analyze && dart test
 python3 scripts/check_security_baseline.py
 ```
 
@@ -57,8 +60,8 @@ python3 scripts/check_security_baseline.py
 
 1. Architecture team must review agent architecture changes.
 2. Security/governance team must review credential safety and permission model changes.
-3. Editor/shell team must review agent surface rendering changes.
-4. Module team must review agent provider/tool extension contributions.
+3. Editor/shell team must review Agent Client, permission presentation, change application, or Workbench rendering changes.
+4. Architecture team must reject any new model/provider, tool-loop, durable-session, or multi-Agent ownership in the IDE.
 
 ## Handoff / Recovery
 

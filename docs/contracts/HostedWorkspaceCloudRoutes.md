@@ -95,7 +95,7 @@ Source: `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dar
 1. Local filesystem traversal or workspace file tree browsing (prototype dev server owns this).
 2. Real-time event streaming for runtime surface / debug console (consumes execution envelope `runtime_events[]` but does not provide an independent event stream route).
 3. Local execution or FFI compilation (FFI Adapter owns this).
-4. Profile sync, theme config, or AI agent panel (separate subsystems).
+4. ProfileSync, theme configuration, or the Agent Workbench/Client (separate subsystems).
 5. Build artifact caching or incremental compilation state.
 
 ### 2.3 Invariant: Adapter parity

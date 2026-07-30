@@ -2,7 +2,7 @@
 
 **Purpose:** Define the minimum interaction quality baseline that Vityo must maintain to be a credible modern IDE. These are not aspirational targets — they are gated requirements.
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-30
 
 **Status:** Active quality baseline
 
@@ -57,10 +57,10 @@
 - Arrow keys navigate within a lane's event list or graph.
 - Filter tokens can be typed without first clicking a filter field.
 
-### 2.5 Agent Panel
+### 2.5 Agent Workbench
 
-- `Shift+2` focuses agent panel.
-- Tab order: context summary → input → send button → turn list → permission requests.
+- `Shift+2` focuses the Agent Workbench (`Agent Panel` may remain the concrete view label).
+- Tab order: task plan → context summary → input → permission requests → change preview → verification receipts.
 - Escape returns focus to editor.
 - Permission decisions navigable by keyboard (Tab to button, Enter to decide).
 
@@ -120,7 +120,7 @@ Every surface must respond to theme changes:
 - Visual substitution glyphs (arrow, pipe, block markers)
 - Diagnostics (error/warning/hint squiggle colors, inline feedback)
 - Runtime surface (lane backgrounds, event cards, graph nodes)
-- Agent panel (turn bubbles, permission cards, context summary)
+- Agent Workbench (task/turn state, permission cards, change previews, verification receipts, context summary)
 - Focus/selection/caret (selection highlight, caret color, find-match highlight)
 
 ### 5.2 Narrow Viewport

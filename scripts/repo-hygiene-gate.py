@@ -142,7 +142,7 @@ REQUIRED_DOC_REFERENCES = {
 REQUIRED_PROJECT_BRAND_HEADINGS = {
     Path("README.md"): "# Vityo",
     Path("docs/README.md"): "# Vityo Docs",
-    Path("products/vityo_app/README.md"): "# Vityo Flutter Shell",
+    Path("products/vityo_app/README.md"): "# Vityo — Styio Agent-Native IDE",
 }
 REQUIRED_PROJECT_BRAND_METADATA = {
     Path("CODEOWNERS"): "# Vityo CODEOWNERS",
@@ -163,7 +163,9 @@ REQUIRED_PROJECT_BRAND_METADATA = {
     ),
     Path("products/vityo_app/linux/runner/my_application.cc"): 'gtk_window_set_title(window, "Vityo");',
     Path("products/vityo_app/macos/Runner/Configs/AppInfo.xcconfig"): "PRODUCT_NAME = Vityo",
-    Path("products/vityo_app/pubspec.yaml"): "description: Vityo editor shell",
+    Path("products/vityo_app/pubspec.yaml"): (
+        "description: Vityo, the agent-native IDE for Styio"
+    ),
     Path("products/vityo_app/windows/runner/Runner.rc"): (
         'VALUE "FileDescription", "Vityo"',
         'VALUE "InternalName", "Vityo"',

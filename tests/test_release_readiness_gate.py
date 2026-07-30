@@ -106,7 +106,7 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         pubspec_path = root / "products/vityo_app/pubspec.yaml"
         pubspec_path.write_text(
             "name: vityo_app\n"
-            "description: Vityo editor shell for web, desktop, and mobile targets.\n"
+            "description: Vityo, the agent-native IDE for Styio across desktop, web, and mobile.\n"
             "publish_to: \"none\"\n"
             "version: 0.1.0+1\n",
             encoding="utf-8",
@@ -390,12 +390,14 @@ class ReleaseReadinessGateTest(unittest.TestCase):
         parsed = self.gate.parse_pubspec_fields(
             "# comment\n"
             "name: 'vityo_app'\n"
-            "description: \"Vityo editor shell\"\n"
+            "description: \"Vityo, the agent-native IDE for Styio\"\n"
             " nested: ignored\n"
             "bad line\n"
         )
         self.assertEqual(parsed["name"], "vityo_app")
-        self.assertEqual(parsed["description"], "Vityo editor shell")
+        self.assertEqual(
+            parsed["description"], "Vityo, the agent-native IDE for Styio"
+        )
         self.assertNotIn("nested", parsed)
 
         self.assertIsNone(self.gate.parse_policy_date(None))

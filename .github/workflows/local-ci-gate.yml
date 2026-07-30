@@ -197,9 +197,8 @@ jobs:
           VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: linux
-          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
-          VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-linux.json
         run: >
           bash scripts/delivery-gate.sh
@@ -504,9 +503,8 @@ jobs:
           VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: windows
-          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
-          VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-windows.json
         run: >
           bash scripts/delivery-gate.sh
@@ -764,9 +762,8 @@ jobs:
           VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: macos
-          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
-          VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-macos.json
         run: >
           bash scripts/delivery-gate.sh

@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from types import ModuleType
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,30 +42,40 @@ def parse_product_reports(text: str) -> list[dict[str, object]]:
     return reports
 
 
-def load_pafio_workspace_factory(pafio_root: Path) -> ModuleType:
-    script = pafio_root / "scripts" / "ecosystem-product-gate.py"
-    if not script.is_file():
-        raise ValueError("Pafio product workspace factory is unavailable")
-    spec = importlib.util.spec_from_file_location("pafio_product_workspace_factory", script)
-    if spec is None or spec.loader is None:
-        raise ValueError("Pafio product workspace factory cannot be loaded")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    required = ("write_hosted_workspace",)
-    if any(not callable(getattr(module, name, None)) for name in required):
-        raise ValueError("Pafio product workspace factory contract is incomplete")
-    return module
+def create_product_workspace(
+    *, temp_root: Path, pafio_bin: Path
+) -> tuple[Path, Path]:
+    workspace_root = temp_root / "desktop-single"
+    result = subprocess.run(
+        [
+            str(pafio_bin),
+            "new",
+            "vityo/product-gate",
+            str(workspace_root),
+            "--bin",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError("pafio new failed while creating the product workspace")
+    manifest_path = workspace_root / "pafio.toml"
+    if not manifest_path.is_file():
+        raise ValueError("pafio new did not create pafio.toml")
+    return workspace_root, manifest_path
 
 
 def build_product_environment(
     *,
-    factory: ModuleType,
     temp_root: Path,
     styio_bin: Path,
     pafio_bin: Path,
 ) -> dict[str, str]:
-    single_root = temp_root / "desktop-single"
-    single_manifest = factory.write_hosted_workspace(single_root)
+    single_root, single_manifest = create_product_workspace(
+        temp_root=temp_root,
+        pafio_bin=pafio_bin,
+    )
 
     environment = os.environ.copy()
     environment.update(
@@ -124,7 +132,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--platform", choices=("linux", "windows", "macos"))
     parser.add_argument("--styio-bin", type=Path)
     parser.add_argument("--pafio-bin", type=Path)
-    parser.add_argument("--pafio-root", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--require-real-matrix", action="store_true")
     parser.add_argument("--json", action="store_true")
@@ -134,7 +141,6 @@ def main(argv: list[str] | None = None) -> int:
     platform = args.platform or os.environ.get("VITYO_PRODUCT_PLATFORM", "unknown")
     styio_bin = args.styio_bin or _env_path("VITYO_STYIO_BIN")
     pafio_bin = args.pafio_bin or _env_path("VITYO_PAFIO_BIN")
-    pafio_root = args.pafio_root or _env_path("VITYO_PAFIO_ROOT")
     output_path = args.output or _env_path("VITYO_PRODUCT_GATE_OUTPUT")
     missing = [
         name
@@ -142,7 +148,6 @@ def main(argv: list[str] | None = None) -> int:
             ("platform", platform if platform in {"linux", "windows", "macos"} else None),
             ("Styio binary", styio_bin if styio_bin and styio_bin.is_file() else None),
             ("Pafio binary", pafio_bin if pafio_bin and pafio_bin.is_file() else None),
-            ("Pafio repository", pafio_root if pafio_root and pafio_root.is_dir() else None),
         )
         if value is None
     ]
@@ -156,12 +161,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(payload, sort_keys=True) if args.json else payload["reason"])
         return 1 if required else 0
 
-    assert styio_bin is not None and pafio_bin is not None and pafio_root is not None
+    assert styio_bin is not None and pafio_bin is not None
     try:
-        factory = load_pafio_workspace_factory(pafio_root)
         with tempfile.TemporaryDirectory(prefix="vityo_product_gate_") as temp_name:
             environment = build_product_environment(
-                factory=factory,
                 temp_root=Path(temp_name),
                 styio_bin=styio_bin.resolve(),
                 pafio_bin=pafio_bin.resolve(),

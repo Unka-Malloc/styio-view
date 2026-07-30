@@ -51,6 +51,7 @@ Primary paths:
 37. `SECURITY.md`
 38. `.github/pull_request_template.md`
 39. `docs/governance/`
+40. `scripts/ecosystem-product-gate.py`
 
 Key SSOTs:
 
@@ -111,6 +112,7 @@ claims.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
+30. The ecosystem product gate must create its fixture through public `pafio new` and consume only fixed Pafio and Styio executables. It must not import sibling-repository scripts, read `PAFIO_HOME`, or depend on a Pafio source checkout.
 
 ## Change Classes
 
@@ -181,5 +183,11 @@ implementation gaps, foundation ownership, post-commit checks, lifecycle
 records, generated indexes, and team document statistics. Removed the obsolete
 ecosystem sample-workflow gate after the Pafio metadata and Platform hosted
 contracts became the authoritative validation surfaces.
+
+2026-07-30: Closed the remaining product-gate source coupling. The gate now
+creates its test project through public `pafio new`, consumes fixed Pafio and
+Styio executables, and no longer imports a private fixture factory from a sibling
+checkout. CI variables and release/development documentation use the same public
+boundary.
 
 <!-- codex merge: docs/build/scripts assets imported -->

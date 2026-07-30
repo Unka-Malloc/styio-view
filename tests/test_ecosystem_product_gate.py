@@ -81,34 +81,47 @@ class EcosystemProductGateTest(unittest.TestCase):
         self.assertFalse(no_reports["ok"])
         self.assertFalse(no_reports["steps"][1]["ok"])
 
-    def test_workspace_factory_contract_fails_closed(self) -> None:
+    def test_workspace_creation_fails_closed_when_pafio_new_fails(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
-            script = root / "scripts" / "ecosystem-product-gate.py"
-            script.parent.mkdir()
-            script.write_text("VALUE = 1\n", encoding="utf-8")
+            with (
+                mock.patch.object(
+                    self.gate.subprocess,
+                    "run",
+                    return_value=SimpleNamespace(returncode=2),
+                ),
+                self.assertRaisesRegex(ValueError, "pafio new failed"),
+            ):
+                self.gate.create_product_workspace(
+                    temp_root=root,
+                    pafio_bin=root / "pafio",
+                )
 
-            with self.assertRaisesRegex(ValueError, "contract is incomplete"):
-                self.gate.load_pafio_workspace_factory(root)
-
-    def test_workspace_factory_and_environment_use_real_inputs(self) -> None:
+    def test_public_pafio_new_and_environment_use_real_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
-            script = root / "pafio/scripts/ecosystem-product-gate.py"
-            script.parent.mkdir(parents=True)
-            script.write_text(
-                "def write_hosted_workspace(*args): return args[0] / 'pafio.toml'\n",
-                encoding="utf-8",
-            )
-            factory = self.gate.load_pafio_workspace_factory(root / "pafio")
-            environment = self.gate.build_product_environment(
-                factory=factory,
-                temp_root=root / "work",
-                styio_bin=root / "styio",
-                pafio_bin=root / "pafio-bin",
-            )
+            def run_pafio(argv, **kwargs):
+                workspace = Path(argv[3])
+                workspace.mkdir(parents=True)
+                (workspace / "pafio.toml").write_text(
+                    "[pafio]\nmanifest-version = 1\n",
+                    encoding="utf-8",
+                )
+                return SimpleNamespace(returncode=0)
+
+            with mock.patch.object(
+                self.gate.subprocess,
+                "run",
+                side_effect=run_pafio,
+            ) as run:
+                environment = self.gate.build_product_environment(
+                    temp_root=root / "work",
+                    styio_bin=root / "styio",
+                    pafio_bin=root / "pafio-bin",
+                )
 
         self.assertEqual(environment["VITYO_PRODUCT_GATE"], "1")
+        self.assertEqual(run.call_args.args[0][1:3], ["new", "vityo/product-gate"])
         self.assertTrue(
             environment["VITYO_PRODUCT_MANIFEST_PATH"].endswith("pafio.toml")
         )
@@ -131,17 +144,14 @@ class EcosystemProductGateTest(unittest.TestCase):
             root = Path(temp_name)
             styio = root / "styio"
             pafio = root / "pafio"
-            pafio_root = root / "pafio-root"
             output_path = root / "reports/result.json"
             styio.write_text("binary", encoding="utf-8")
             pafio.write_text("binary", encoding="utf-8")
-            pafio_root.mkdir()
             process = SimpleNamespace(
                 returncode=0,
                 stdout='VITYO_PRODUCT_REPORT {"scenario":"edit-save-run"}\n',
             )
             with (
-                mock.patch.object(self.gate, "load_pafio_workspace_factory", return_value=object()),
                 mock.patch.object(self.gate, "build_product_environment", return_value={"VITYO_PRODUCT_GATE": "1"}),
                 mock.patch.object(self.gate.subprocess, "run", return_value=process) as run,
                 redirect_stdout(io.StringIO()),
@@ -151,7 +161,6 @@ class EcosystemProductGateTest(unittest.TestCase):
                         "--platform", "linux",
                         "--styio-bin", str(styio),
                         "--pafio-bin", str(pafio),
-                        "--pafio-root", str(pafio_root),
                         "--output", str(output_path),
                         "--json",
                     ]
@@ -163,21 +172,19 @@ class EcosystemProductGateTest(unittest.TestCase):
         self.assertEqual(payload["report"]["scenario_count"], 1)
         self.assertEqual(run.call_args.kwargs["env"]["VITYO_PRODUCT_GATE"], "1")
 
-    def test_real_matrix_factory_error_is_a_non_skipped_failure(self) -> None:
+    def test_real_matrix_workspace_error_is_a_non_skipped_failure(self) -> None:
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             styio = root / "styio"
             pafio = root / "pafio"
-            pafio_root = root / "pafio-root"
             styio.touch()
             pafio.touch()
-            pafio_root.mkdir()
             output = io.StringIO()
             with (
                 mock.patch.object(
                     self.gate,
-                    "load_pafio_workspace_factory",
-                    side_effect=ValueError("bad factory"),
+                    "build_product_environment",
+                    side_effect=ValueError("pafio new failed"),
                 ),
                 redirect_stdout(output),
             ):
@@ -186,7 +193,6 @@ class EcosystemProductGateTest(unittest.TestCase):
                         "--platform", "macos",
                         "--styio-bin", str(styio),
                         "--pafio-bin", str(pafio),
-                        "--pafio-root", str(pafio_root),
                         "--json",
                     ]
                 )

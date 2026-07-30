@@ -49,7 +49,6 @@ class ShellModel extends ShellRuntimeModel {
     required super.runtimeEventAdapter,
     required super.dependencySourceAdapter,
     required super.deploymentAdapter,
-    required super.toolchainManagementAdapter,
     super.agentCodingController,
     super.agentExtensionToolExecutionRegistry,
     super.runtimeOutputBuffer,
@@ -264,12 +263,8 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.renameSymbol:
       case AppCommandId.safeDelete:
       case AppCommandId.inlineVariable:
-      case AppCommandId.fetchDependencies:
+      case AppCommandId.syncDependencies:
       case AppCommandId.vendorDependencies:
-      case AppCommandId.useActiveCompiler:
-      case AppCommandId.pinActiveCompiler:
-      case AppCommandId.clearPinnedCompiler:
-      case AppCommandId.bootstrapStyioToolchain:
       case AppCommandId.executeToolchainInstallPlan:
       case AppCommandId.selectClangCppVersion:
       case AppCommandId.packProject:

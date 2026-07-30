@@ -14,7 +14,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/deployment_adapter.dart
 import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/ide/editor/selection_state.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/hosted_control_plane.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
@@ -37,11 +36,10 @@ void main() {
   test('app bootstrap resolves language service project context', () {
     final context = AppBootstrap.resolveLanguageServiceProjectContext(
       workspaceRoot: '/workspace/demo',
-      styioConfigPath: '/workspace/demo/styio.toml',
     );
 
     expect(context.workingDirectory, '/workspace/demo');
-    expect(context.configPath, '/workspace/demo/styio.toml');
+    expect(context.configPath, isNull);
   });
 
   test('app bootstrap allows missing Styio config path', () {
@@ -269,7 +267,7 @@ AppBootstrap _createMinimalBootstrap() {
     targets: <ProjectTargetDescriptor>[],
     editorFiles: <String>['/workspace/bootstrap/src/main.styio'],
     toolchain: ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'bootstrap fixture toolchain',
     ),
     lockState: ProjectLockState.fresh,
@@ -320,7 +318,6 @@ AppBootstrap _createMinimalBootstrap() {
     ),
     dependencySourceAdapter: _NoopDependencySourceAdapter(),
     deploymentAdapter: _NoopDeploymentAdapter(),
-    toolchainManagementAdapter: _NoopToolchainManagementAdapter(),
     agentCodingController: agentController,
     agentProviderConfigurator: AgentProviderConfigurator(
       workspaceId: 'bootstrap-fixture',
@@ -375,11 +372,6 @@ class _NoopDependencySourceAdapter implements DependencySourceAdapter {
 }
 
 class _NoopDeploymentAdapter implements DeploymentAdapter {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _NoopToolchainManagementAdapter implements ToolchainManagementAdapter {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -506,7 +498,7 @@ ProjectGraphSnapshot _hostedProjectGraph() {
     targets: const <ProjectTargetDescriptor>[],
     editorFiles: const <String>['/workspace/demo/src/main.styio'],
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.managedCurrent,
+      source: ToolchainResolutionSource.environment,
       detail: 'hosted toolchain',
       channel: 'stable',
       version: '0.0.2',

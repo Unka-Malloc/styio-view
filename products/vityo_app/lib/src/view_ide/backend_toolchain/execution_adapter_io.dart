@@ -37,7 +37,7 @@ _iosLocalCliExecutionCapabilitySnapshot = AdapterCapabilitySnapshot(
 );
 
 const String _missingLocalStyioBinaryMessage =
-    'No local styio binary was resolved. Set VITYO_STYIO_BIN or install styio through pafio.';
+    'No local styio binary was resolved. Set VITYO_STYIO_BIN or install styio on PATH.';
 
 const int _executionOverlaySnapshotMaxEntries = 20000;
 const int _executionOverlaySnapshotMaxBytes = 256 * 1024 * 1024;
@@ -367,7 +367,7 @@ AdapterCapabilitySnapshot _localCliExecutionCapabilitySnapshot({
     languageService: const AdapterEndpointCapability(
       level: AdapterCapabilityLevel.partial,
       detail:
-          'Published CLI contract currently provides machine-info and jsonl diagnostics only.',
+          'System Styio provides machine-info and jsonl diagnostics directly.',
     ),
     projectGraph: const AdapterEndpointCapability(
       level: AdapterCapabilityLevel.unavailable,
@@ -539,19 +539,13 @@ Future<ExecutionSession> _runProjectWorkflow({
     );
   }
 
-  final pafioBinary = await resolvePafioBinary(
-    workspaceRoot: projectGraph.workspaceRoot,
-  );
+  final pafioBinary = await resolvePafioBinary();
   if (pafioBinary == null) {
     return _blockedRunExecutionSession(
       sessionId: 'missing-pafio-binary',
       message: missingLocalPafioBinaryMessage,
     );
   }
-  final useWorkflowPayloads = await _supportsPafioWorkflowSuccessPayloads(
-    pafioBinary,
-  );
-
   final workflow = _selectProjectWorkflow(
     projectGraph: projectGraph,
     activeFilePath: activeFilePath,
@@ -574,7 +568,7 @@ Future<ExecutionSession> _runProjectWorkflow({
 
   try {
     final result = await Process.run(pafioBinary, <String>[
-      if (useWorkflowPayloads) '--json',
+      '--json',
       workflow.command,
       '--manifest-path',
       preparedInput.manifestPath,
@@ -585,7 +579,7 @@ Future<ExecutionSession> _runProjectWorkflow({
 
     final stdout = '${result.stdout}';
     final stderr = '${result.stderr}';
-    if (useWorkflowPayloads && result.exitCode == 0) {
+    if (result.exitCode == 0) {
       final session = await _sessionFromWorkflowSuccessPayload(
         stdout: stdout,
         stderr: stderr,
@@ -674,43 +668,6 @@ Future<ExecutionSession> _runProjectWorkflow({
   } finally {
     await _cleanupPreparedProjectWorkflowInput(preparedInput);
   }
-}
-
-Future<bool> _supportsPafioWorkflowSuccessPayloads(String pafioBinary) async {
-  try {
-    final result = await Process.run(pafioBinary, const <String>[
-      'machine-info',
-      '--json',
-    ]);
-    if (result.exitCode != 0) {
-      return false;
-    }
-
-    final decoded = jsonDecode('${result.stdout}');
-    if (decoded is! Map<String, dynamic>) {
-      return false;
-    }
-
-    final featureFlags = decoded['feature_flags'];
-    if (featureFlags is Map<String, dynamic> &&
-        featureFlags['workflow_success_payloads'] == true) {
-      return true;
-    }
-
-    final contracts = decoded['supported_contract_versions'];
-    if (contracts is Map<String, dynamic>) {
-      final versions = contracts['workflow_success_payloads'];
-      if (versions is List && versions.contains(1)) {
-        return true;
-      }
-    }
-  } on ProcessException {
-    return false;
-  } on FormatException {
-    return false;
-  }
-
-  return false;
 }
 
 Future<ExecutionSession?> _sessionFromWorkflowSuccessPayload({

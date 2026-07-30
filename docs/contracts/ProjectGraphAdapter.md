@@ -1,92 +1,39 @@
 # ProjectGraphAdapter
 
-**Purpose:** 冻结 `Vityo` 需要的项目图与包管理状态；前端围绕 canonical project files 和 machine payload 工作，而不是读私有缓存目录。
+**Purpose:** Define how Vityo assembles its project view without taking
+ownership from Pafio, Styio, or Styio Platform.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-30
 
-## 1. Snapshot Contract
+## Source split
 
-### 1.1 `ProjectGraphSnapshot`
+| Vityo concern | Authoritative source |
+|---|---|
+| local package, workspace, dependency, target, lock, resolution, vendor facts | `pafio metadata --json` (`metadata v1`) |
+| compiler identity and supported contracts | `styio --machine-info=json` |
+| hosted workspace lifecycle and cloud execution | `Platform hosted-workspace v1` |
 
-1. `id`
-2. `title`
-3. `kind`
-4. `workspaceRoot`
-5. `workspaceMembers[]`
-6. `manifestPath`
-7. `lockfilePath`
-8. `toolchainPinPath`
-9. `styioConfigPath`
-10. `vendorRoot`
-11. `buildRoot`
-12. `packages[]`
-13. `dependencies[]`
-14. `targets[]`
-15. `editorFiles[]`
-16. `toolchain`
-17. `lockState`
-18. `vendorState`
-19. `activeCompiler`
-20. `notes[]`
-21. `sourceConfidenceByField`
+The adapter converts these owner contracts into Vityo view models. It does not
+publish a competing graph protocol.
 
-Every standard project graph field must be represented in `sourceConfidenceByField`, using one of these wire values:
+## Local behavior
 
-1. `machine-payload`
-2. `canonical-file`
-3. `inferred`
-4. `capability-gap`
+1. `VITYO_PAFIO_BIN`, when non-empty, selects the Pafio executable; otherwise
+   Vityo uses `pafio` from `PATH`.
+2. A local `pafio.toml` identifies project mode but is not parsed for package
+   facts.
+3. Invalid or unavailable `metadata v1` produces a stable blocked snapshot.
+4. Scratch mode remains available only when no project manifest exists.
+5. The adapter never reads Pafio's private home or cache layout.
 
-### 1.2 Required Nested Types
+## Compiler behavior
 
-1. `ProjectPackageSnapshot`
-2. `ProjectDependencySnapshot`
-3. `ProjectTargetDescriptor`
-4. `ToolchainStatusSnapshot`
-5. `CompilerHandshakeSnapshot`
-6. `HostedWorkspaceRecordSnapshot`
+1. `VITYO_STYIO_BIN`, when non-empty, selects Styio; otherwise Vityo uses
+   `styio` from `PATH`.
+2. Vityo invokes `styio --machine-info=json` directly.
+3. Vityo does not ask Pafio to install, select, pin, cache, or describe Styio.
 
-### 1.3 Hosted Workspace Surface
+## Hosted behavior
 
-当 adapter 运行在 hosted/cloud 路由时，`ProjectGraphSnapshot.hostedWorkspace` 也是正式消费面，不是可忽略附带字段。前端依赖：
-
-1. `workspaceId`
-2. `schemaVersion`
-3. `ownerRef`
-4. `status`
-5. `entryUrl`
-6. `createdAt`
-7. `lastActiveAt`
-8. `retentionDays`
-9. `exportState`
-10. `closedAt`
-11. `retentionDeadline`
-12. `coreFileExportUrl`
-13. `coreFileExportExpiresAt`
-
-## 2. Canonical Files
-
-`Vityo` 允许直接围绕这些 canonical files 和目录做 UI：
-
-1. `pafio.toml`
-2. `pafio.lock`
-3. `pafio-toolchain.toml`
-4. `.pafio/vendor/`
-5. `.pafio/build/`
-6. `styio.toml`
-7. `.styio.toml`
-
-## 3. Non-Negotiable Rules
-
-1. `Vityo` 不通过读 `PAFIO_HOME` 私有结构来猜测项目状态。
-2. workspace members、targets、toolchain、vendor、lock freshness 最终都必须来自 machine payload 或正式命令。
-3. 缺少正式 payload 时，前端可以用 canonical files 做临时推断，但该模式必须清楚标记为 partial。
-4. 如果 shell 设置了 `VITYO_STYIO_BIN`，manifest-mode 的 `pafio project-graph` / `pafio tool status` 读取必须消费同一个 override；前端不能展示一个 `styio` 来源而让 `pafio` 实际使用另一个。
-5. hosted 模式下，workspace 生命周期与导出状态必须来自 `hostedWorkspace` 记录，不能靠 URL、缓存目录或本地时间推断。
-6. 字段级来源置信度必须随 snapshot 一起传播；UI、agent context 和 release gates 不得把 `inferred` 或 `capability-gap` 字段显示成 machine payload 事实。
-
-## 4. Adapter Modes
-
-1. `CLI Adapter`
-2. `FFI Adapter`
-3. `Cloud Adapter`
+Hosted routes are handled by the Platform adapter. Hosted state is not folded
+into Pafio metadata and cannot be reconstructed from local project files.

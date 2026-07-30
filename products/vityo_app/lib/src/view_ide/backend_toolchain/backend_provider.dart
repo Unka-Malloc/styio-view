@@ -5,7 +5,6 @@ import 'execution_adapter.dart';
 import 'project_graph_adapter.dart';
 import 'project_graph_contract.dart';
 import 'runtime_event_adapter.dart';
-import 'toolchain_management_adapter.dart';
 
 abstract interface class BackendProvider {
   String get id;
@@ -25,8 +24,6 @@ abstract interface class BackendProvider {
   Future<DependencySourceAdapter> createDependencySourceAdapter();
 
   Future<DeploymentAdapter> createDeploymentAdapter();
-
-  Future<ToolchainManagementAdapter> createToolchainManagementAdapter();
 }
 
 class BackendProviderRegistry {

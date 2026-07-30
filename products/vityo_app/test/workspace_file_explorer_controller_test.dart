@@ -489,7 +489,7 @@ ProjectGraphSnapshot _projectGraph({required List<String> editorFiles}) {
     targets: const <ProjectTargetDescriptor>[],
     editorFiles: editorFiles,
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'fixture',
     ),
     lockState: ProjectLockState.unknown,

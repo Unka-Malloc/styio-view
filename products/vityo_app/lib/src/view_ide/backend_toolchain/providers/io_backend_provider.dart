@@ -10,8 +10,6 @@ import '../project_graph_adapter.dart';
 import '../project_graph_adapter_io.dart';
 import '../project_graph_contract.dart';
 import '../runtime_event_adapter.dart';
-import '../toolchain_management_adapter.dart';
-import '../toolchain_management_adapter_io.dart';
 
 abstract class IoBackendProvider implements BackendProvider {
   const IoBackendProvider({
@@ -63,12 +61,5 @@ abstract class IoBackendProvider implements BackendProvider {
   @override
   Future<DeploymentAdapter> createDeploymentAdapter() {
     return createPlatformDeploymentAdapter(platformTarget: platformTarget);
-  }
-
-  @override
-  Future<ToolchainManagementAdapter> createToolchainManagementAdapter() {
-    return createPlatformToolchainManagementAdapter(
-      platformTarget: platformTarget,
-    );
   }
 }

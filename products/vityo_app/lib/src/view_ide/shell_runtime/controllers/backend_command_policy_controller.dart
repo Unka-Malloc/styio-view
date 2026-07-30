@@ -14,34 +14,17 @@ final class BackendCommandPolicyController {
     required ProjectGraphSnapshot projectGraph,
   }) {
     switch (commandId) {
-      case AppCommandId.fetchDependencies:
+      case AppCommandId.syncDependencies:
         return blockedDependencySourceCommandReason(
           platformTarget: platformTarget,
           projectGraph: projectGraph,
-          command: 'fetch',
+          command: 'sync',
         );
       case AppCommandId.vendorDependencies:
         return blockedDependencySourceCommandReason(
           platformTarget: platformTarget,
           projectGraph: projectGraph,
           command: 'vendor',
-        );
-      case AppCommandId.useActiveCompiler:
-        return blockedToolchainReason(
-          projectGraph: projectGraph,
-          requiresResolvedCompiler: true,
-        );
-      case AppCommandId.pinActiveCompiler:
-        return blockedToolchainReason(
-          projectGraph: projectGraph,
-          requiresResolvedCompiler: true,
-          requiresManifest: true,
-        );
-      case AppCommandId.clearPinnedCompiler:
-        return blockedToolchainReason(
-          projectGraph: projectGraph,
-          requiresManifest: true,
-          requiresPin: true,
         );
       case AppCommandId.packProject:
         return blockedDeploymentReason(projectGraph: projectGraph);
@@ -53,27 +36,6 @@ final class BackendCommandPolicyController {
       default:
         return null;
     }
-  }
-
-  String? blockedToolchainReason({
-    required ProjectGraphSnapshot projectGraph,
-    bool requiresResolvedCompiler = false,
-    bool requiresManifest = false,
-    bool requiresPin = false,
-  }) {
-    if (_requiresHostedBackend(projectGraph)) {
-      return '${platformTarget.label} does not expose local pafio toolchain management.';
-    }
-    if (requiresResolvedCompiler && projectGraph.activeCompiler == null) {
-      return 'No active compiler handshake is currently resolved for this project.';
-    }
-    if (requiresManifest && !projectGraph.hasManifest) {
-      return 'Project toolchain commands require a resolved pafio manifest path.';
-    }
-    if (requiresPin && projectGraph.toolchainPinPath == null) {
-      return 'No project toolchain pin is currently resolved.';
-    }
-    return null;
   }
 
   String? blockedDeploymentReason({

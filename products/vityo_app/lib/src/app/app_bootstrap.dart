@@ -15,7 +15,6 @@ import '../view_ide/backend_toolchain/hosted_control_plane.dart';
 import '../view_ide/backend_toolchain/project_graph_adapter.dart';
 import '../view_ide/backend_toolchain/project_graph_contract.dart';
 import '../view_ide/backend_toolchain/runtime_event_adapter.dart';
-import '../view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import '../view_ide/interaction/interaction.dart';
 import '../ide/editor/document_state.dart';
 import '../view_ide/environment/environment.dart';
@@ -201,7 +200,6 @@ class AppBootstrap {
     required this.runtimeEventAdapter,
     required this.dependencySourceAdapter,
     required this.deploymentAdapter,
-    required this.toolchainManagementAdapter,
     required this.agentCodingController,
     required this.agentProviderConfigurator,
     this.agentExtensionToolExecutionRegistry,
@@ -243,7 +241,6 @@ class AppBootstrap {
   final RuntimeEventAdapter runtimeEventAdapter;
   final DependencySourceAdapter dependencySourceAdapter;
   final DeploymentAdapter deploymentAdapter;
-  final ToolchainManagementAdapter toolchainManagementAdapter;
   final AgentCodingSessionController agentCodingController;
   final AgentProviderConfigurator agentProviderConfigurator;
   final ExtensionAgentToolExecutionRegistry?
@@ -551,9 +548,10 @@ class AppBootstrap {
     BackendProviderRegistry? backendProviders,
   }) async {
     final platformTarget = detectPlatformTarget();
-    final backendProvider = (backendProviders ??
-            createDefaultBackendProviderRegistry())
-        .resolve(platformTarget);
+    final backendProvider =
+        (backendProviders ?? createDefaultBackendProviderRegistry()).resolve(
+          platformTarget,
+        );
     var workspaceDocumentStore = await createWorkspaceDocumentStore();
     final moduleRegistry = await ModuleRegistry.loadFromAssets(
       indexAssetPath: 'assets/module_manifests/index.json',
@@ -640,8 +638,6 @@ class AppBootstrap {
     final dependencySourceAdapter = await backendProvider
         .createDependencySourceAdapter();
     final deploymentAdapter = await backendProvider.createDeploymentAdapter();
-    final toolchainManagementAdapter = await backendProvider
-        .createToolchainManagementAdapter();
     final ffiBridge = await nativeModuleLoader.describe(
       'local.runtime.desktop',
     );
@@ -688,7 +684,6 @@ class AppBootstrap {
         StyioServiceSubscriptionController(driver: languageServiceDriver);
     final languageProjectContext = resolveLanguageServiceProjectContext(
       workspaceRoot: projectSnapshot.workspaceRoot,
-      styioConfigPath: projectSnapshot.styioConfigPath,
     );
     final editorController = EditorSessionController(
       initialDocument: initialDocument,
@@ -843,7 +838,6 @@ class AppBootstrap {
       runtimeEventAdapter: runtimeEventAdapter,
       dependencySourceAdapter: dependencySourceAdapter,
       deploymentAdapter: deploymentAdapter,
-      toolchainManagementAdapter: toolchainManagementAdapter,
       agentCodingController: agentCodingController,
       agentProviderConfigurator: agentProviderConfigurator,
       agentExtensionToolExecutionRegistry: agentExtensionToolExecutionRegistry,
@@ -1338,11 +1332,10 @@ class AppBootstrap {
   @visibleForTesting
   static AppLanguageServiceProjectContext resolveLanguageServiceProjectContext({
     required String workspaceRoot,
-    String? styioConfigPath,
   }) {
     return AppLanguageServiceProjectContext(
       workingDirectory: workspaceRoot,
-      configPath: styioConfigPath,
+      configPath: null,
     );
   }
 

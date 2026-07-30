@@ -63,33 +63,15 @@ void main() {
       ),
       activate: true,
     );
-    await manager.registerToolchain(
-      const ToolchainDescriptor(
-        id: 'styio-compiler',
-        kind: ToolchainKind.compiler,
-        displayName: 'Styio Compiler',
-        executablePath: '/usr/bin/styio',
-        metadata: <String, Object?>{'toolFamily': 'styio'},
-      ),
-    );
-
     final summary = await manager.bootstrapSummary(
       kind: ToolchainKind.compiler,
-      requiredStyioRoles: const <StyioToolchainRole>[
-        StyioToolchainRole.languageService,
-        StyioToolchainRole.compiler,
-      ],
     );
     final executionPlan = summary.executionPlan();
     final json = summary.toJson();
 
     expect(summary.ready, isFalse);
-    expect(summary.managerReport.ready, isTrue);
-    expect(
-      summary.styioLifecycle.state,
-      StyioToolchainLifecycleState.selectable,
-    );
-    expect(summary.settingsActionIds, contains('select-styio-compiler'));
+    expect(summary.managerReport.ready, isFalse);
+    expect(summary.settingsActionIds, contains('select-existing-toolchain'));
     expect(
       summary.projectBootstrapActionIds,
       contains('open-toolchain-settings'),
@@ -99,13 +81,13 @@ void main() {
     expect(executionPlan.surfaceCounts['settings'], greaterThanOrEqualTo(1));
     expect(
       executionPlan.steps.map((step) => step.actionId),
-      contains('select-styio-compiler'),
+      contains('select-existing-toolchain'),
     );
     expect(
       (json['executionPlan']! as Map<String, Object?>)['canExecute'],
       isTrue,
     );
-    expect(json['settingsActionIds'], contains('select-styio-compiler'));
+    expect(json['settingsActionIds'], contains('select-existing-toolchain'));
     expect(
       (json['agentContext']! as Map<String, Object?>)['activeToolchains'],
       isNotEmpty,
@@ -123,11 +105,11 @@ void main() {
     );
     final routed = await router.dispatch(
       executionPlan,
-      'select-styio-compiler',
+      'select-existing-toolchain',
     );
     final missing = await const ToolchainBootstrapActionRouter().dispatch(
       executionPlan,
-      'select-styio-compiler',
+      'select-existing-toolchain',
     );
     final unknown = await router.dispatch(executionPlan, 'unknown-action');
 
@@ -135,7 +117,7 @@ void main() {
     expect(routed.status, ToolchainBootstrapActionDispatchStatus.dispatched);
     expect(routed.surface, ToolchainBootstrapActionSurface.settings);
     expect(routed.toJson()['status'], 'dispatched');
-    expect(routedActionIds, <String>['select-styio-compiler']);
+    expect(routedActionIds, <String>['select-existing-toolchain']);
     expect(
       missing.status,
       ToolchainBootstrapActionDispatchStatus.missingHandler,
@@ -159,7 +141,7 @@ void main() {
         ),
         ToolchainBootstrapActionStep(
           stepId: 'toolchain-bootstrap.2',
-          actionId: 'install-managed-styio-toolchain',
+          actionId: 'plan-managed-toolchain-installation',
           surface: ToolchainBootstrapActionSurface.installer,
           required: true,
         ),
@@ -196,7 +178,7 @@ void main() {
     expect(result.dispatchedCount, 3);
     expect(routed, <String>[
       'open-toolchain-settings',
-      'install-managed-styio-toolchain',
+      'plan-managed-toolchain-installation',
       'validate-project-toolchain',
     ]);
     expect(result.toJson()['completed'], isTrue);

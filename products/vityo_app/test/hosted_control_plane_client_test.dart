@@ -88,36 +88,10 @@ void main() {
         ProjectTargetKind.test,
       });
 
-      final toolchainAdapter = await createToolchainManagementAdapter(
-        platformTarget: PlatformTarget.ios,
-      );
-      final install = await toolchainAdapter.installManagedCompiler(
-        projectGraph: refreshedGraph,
-        styioBinaryPath: '/toolchains/styio-0.0.2/bin/styio',
-      );
-      final use = await toolchainAdapter.useManagedCompiler(
-        projectGraph: refreshedGraph,
-        compilerVersion: '0.0.2',
-        channel: 'stable',
-      );
-      final pin = await toolchainAdapter.pinManagedCompiler(
-        projectGraph: refreshedGraph,
-        compilerVersion: '0.0.2',
-        channel: 'stable',
-      );
-      final clearPin = await toolchainAdapter.clearPinnedCompiler(
-        projectGraph: refreshedGraph,
-      );
-      expect(install.succeeded, isTrue);
-      expect(use.succeeded, isTrue);
-      expect(pin.succeeded, isTrue);
-      expect(clearPin.succeeded, isTrue);
-      expect(install.payload?['compiler_version'], '0.0.2');
-
       final dependencyAdapter = await createDependencySourceAdapter(
         platformTarget: PlatformTarget.ios,
       );
-      final fetch = await dependencyAdapter.fetchDependencies(
+      final sync = await dependencyAdapter.syncDependencies(
         projectGraph: refreshedGraph,
         locked: true,
         offline: true,
@@ -128,9 +102,9 @@ void main() {
         locked: true,
         offline: false,
       );
-      expect(fetch.succeeded, isTrue);
+      expect(sync.succeeded, isTrue);
       expect(vendor.succeeded, isTrue);
-      expect(fetch.payload?['locked'], isTrue);
+      expect(sync.payload?['locked'], isTrue);
       expect(vendor.payload?['output_path'], '/workspace/demo/vendor-snapshot');
 
       final deploymentAdapter = await createDeploymentAdapter(
@@ -257,11 +231,7 @@ void main() {
       >[
         'POST /api/styio-hosted/v1/workspaces/open',
         'GET /api/styio-hosted/v1/workspaces/demo-workspace/project-graph',
-        'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/install',
-        'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/use',
-        'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/pin',
-        'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/clear-pin',
-        'POST /api/styio-hosted/v1/workspaces/demo-workspace/dependencies/fetch',
+        'POST /api/styio-hosted/v1/workspaces/demo-workspace/dependencies/sync',
         'POST /api/styio-hosted/v1/workspaces/demo-workspace/dependencies/vendor',
         'POST /api/styio-hosted/v1/workspaces/demo-workspace/deployment/pack',
         'POST /api/styio-hosted/v1/workspaces/demo-workspace/deployment/preflight',
@@ -285,55 +255,47 @@ void main() {
         'platform': 'ios',
       });
       expect(requestLog[2].body, <String, dynamic>{
-        'styio_binary_path': '/toolchains/styio-0.0.2/bin/styio',
-      });
-      expect(requestLog[3].body, <String, dynamic>{
-        'compiler_version': '0.0.2',
-        'channel': 'stable',
-      });
-      expect(requestLog[5].body, <String, dynamic>{});
-      expect(requestLog[6].body, <String, dynamic>{
         'locked': true,
         'offline': true,
       });
-      expect(requestLog[7].body, <String, dynamic>{
+      expect(requestLog[3].body, <String, dynamic>{
         'output_path': '/workspace/demo/vendor-snapshot',
         'locked': true,
         'offline': false,
       });
-      expect(requestLog[8].body, <String, dynamic>{
+      expect(requestLog[4].body, <String, dynamic>{
         'package_name': 'demo/app',
         'output_path': '/workspace/demo/dist',
       });
-      expect(requestLog[9].body, <String, dynamic>{'package_name': 'demo/app'});
-      expect(requestLog[10].body, <String, dynamic>{
+      expect(requestLog[5].body, <String, dynamic>{'package_name': 'demo/app'});
+      expect(requestLog[6].body, <String, dynamic>{
         'registry_root': '/registry/local',
         'package_name': 'demo/app',
       });
-      expect(requestLog[11].body, <String, dynamic>{
+      expect(requestLog[7].body, <String, dynamic>{
         'active_file_path': '/workspace/demo/src/main.styio',
         'document_text': '>_("run")\n',
         'package_name': 'demo/app',
         'target_name': 'demo',
         'target_kind': 'bin',
       });
-      expect(requestLog[12].body, <String, dynamic>{
+      expect(requestLog[8].body, <String, dynamic>{
         'active_file_path': '/workspace/demo/src/lib.styio',
         'document_text': 'pub fn demo() {}\n',
         'package_name': 'demo/app',
         'target_kind': 'lib',
       });
-      expect(requestLog[13].body, <String, dynamic>{
+      expect(requestLog[9].body, <String, dynamic>{
         'active_file_path': '/workspace/demo/tests/render_test.styio',
         'document_text': 'test "render" {}\n',
         'package_name': 'demo/app',
         'target_name': 'render',
         'target_kind': 'test',
       });
-      expect(requestLog[14].body, <String, dynamic>{
+      expect(requestLog[10].body, <String, dynamic>{
         'path': '/workspace/demo/src/main.styio',
       });
-      expect(requestLog[15].body, <String, dynamic>{
+      expect(requestLog[11].body, <String, dynamic>{
         'path': '/workspace/demo/src/main.styio',
         'document_text': 'remote := true\n',
         'revision': 4,
@@ -409,40 +371,7 @@ Map<String, dynamic> _responseForRequest(String method, String path) {
     ),
     'GET /api/styio-hosted/v1/workspaces/demo-workspace/project-graph' =>
       _projectGraphResponse(),
-    'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/install' =>
-      _hostedCommandResponse(
-        message: 'installed managed compiler',
-        payload: <String, Object?>{
-          'compiler_version': '0.0.2',
-          'channel': 'stable',
-          'install_root': '/workspace/demo/.pafio/tools/styio/0.0.2',
-          'install_binary_path':
-              '/workspace/demo/.pafio/tools/styio/0.0.2/bin/styio',
-        },
-      ),
-    'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/use' =>
-      _hostedCommandResponse(
-        message: 'activated managed compiler',
-        payload: <String, Object?>{
-          'compiler_version': '0.0.2',
-          'channel': 'stable',
-        },
-      ),
-    'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/pin' =>
-      _hostedCommandResponse(
-        message: 'pinned managed compiler',
-        payload: <String, Object?>{
-          'compiler_version': '0.0.2',
-          'channel': 'stable',
-          'pin_path': '/workspace/demo/pafio-toolchain.toml',
-        },
-      ),
-    'POST /api/styio-hosted/v1/workspaces/demo-workspace/tool/clear-pin' =>
-      _hostedCommandResponse(
-        message: 'cleared managed compiler pin',
-        payload: <String, Object?>{'pin_cleared': true},
-      ),
-    'POST /api/styio-hosted/v1/workspaces/demo-workspace/dependencies/fetch' =>
+    'POST /api/styio-hosted/v1/workspaces/demo-workspace/dependencies/sync' =>
       _hostedCommandResponse(
         message: 'fetched dependencies',
         payload: <String, Object?>{
@@ -681,10 +610,7 @@ Map<String, dynamic> _projectGraphPayload() {
     'workspace_members': const <String>[],
     'manifest_path': '/workspace/demo/pafio.toml',
     'lockfile_path': '/workspace/demo/pafio.lock',
-    'toolchain_pin_path': '/workspace/demo/pafio-toolchain.toml',
-    'styio_config_path': '/workspace/demo/styio.toml',
     'vendor_root': '/workspace/demo/.pafio/vendor',
-    'build_root': '/workspace/demo/.pafio/build',
     'packages': <Map<String, Object?>>[
       <String, Object?>{
         'package_name': 'demo/app',
@@ -773,20 +699,19 @@ Map<String, dynamic> _projectGraphPayload() {
       '/workspace/demo/tests/render_test.styio',
     ],
     'toolchain': <String, Object?>{
-      'source': 'project-pin',
-      'detail': 'Pinned compiler is active.',
-      'pin_path': '/workspace/demo/pafio-toolchain.toml',
-      'channel': 'stable',
+      'source': 'environment',
+      'detail': 'System Styio is active.',
+      'channel': 'system',
       'version': '0.0.1',
     },
     'lock_state': 'fresh',
     'vendor_state': 'present',
     'active_compiler': <String, Object?>{
-      'binary_path': '/workspace/demo/.pafio/tools/styio/current/bin/styio',
+      'binary_path': 'styio',
       'tool': 'styio',
       'compiler_version': '0.0.1',
-      'channel': 'stable',
-      'variant': 'full',
+      'channel': 'system',
+      'variant': 'system',
       'capabilities': <String>['machine_info_json', 'compile_plan'],
       'supported_contract_versions': <String, Object?>{
         'compile_plan': <int>[1],
@@ -795,23 +720,6 @@ Map<String, dynamic> _projectGraphPayload() {
       'integration_phase': 'hosted-product',
       'supported_adapter_modes': <String>['cloud', 'cli'],
       'feature_flags': <String, Object?>{'runtime_events': true},
-    },
-    'managed_toolchains': <String, Object?>{
-      'pafio_home': '/workspace/demo/.pafio',
-      'current_binary': '/workspace/demo/.pafio/tools/styio/current/bin/styio',
-      'current_metadata_path':
-          '/workspace/demo/.pafio/tools/styio/current/metadata.json',
-      'installed': <Map<String, Object?>>[
-        <String, Object?>{
-          'channel': 'stable',
-          'compiler_version': '0.0.1',
-          'install_root': '/workspace/demo/.pafio/tools/styio/0.0.1',
-          'install_binary_path':
-              '/workspace/demo/.pafio/tools/styio/0.0.1/bin/styio',
-          'install_metadata_path':
-              '/workspace/demo/.pafio/tools/styio/0.0.1/metadata.json',
-        },
-      ],
     },
     'package_distribution': <String, Object?>{
       'schema_version': 1,
@@ -840,34 +748,6 @@ Map<String, dynamic> _projectGraphPayload() {
       ],
       'publishable_packages': 1,
       'blocked_packages': 0,
-    },
-    'source_state': <String, Object?>{
-      'schema_version': 1,
-      'pafio_home': '/workspace/demo/.pafio',
-      'declared_git_dependencies': 0,
-      'declared_registry_dependencies': 1,
-      'git_cache': <String, Object?>{
-        'repos_root': '/workspace/demo/.pafio/git/repos',
-        'checkouts_root': '/workspace/demo/.pafio/git/checkouts',
-        'repos_present': true,
-        'checkouts_present': true,
-      },
-      'registry_cache': <String, Object?>{
-        'cache_root': '/workspace/demo/.pafio/registry',
-        'index_root': '/workspace/demo/.pafio/registry/index',
-        'blob_root': '/workspace/demo/.pafio/registry/blobs',
-        'checkout_root': '/workspace/demo/.pafio/registry/checkouts',
-        'index_present': true,
-        'blobs_present': true,
-        'checkouts_present': true,
-      },
-      'vendor': <String, Object?>{
-        'vendor_root': '/workspace/demo/.pafio/vendor',
-        'metadata_path': '/workspace/demo/.pafio/vendor/vendor.json',
-        'vendor_present': true,
-        'metadata_present': true,
-        'git_snapshots': 0,
-      },
     },
     'notes': <String>['Hosted project graph ready.'],
   };

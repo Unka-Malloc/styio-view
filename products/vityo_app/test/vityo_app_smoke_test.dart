@@ -16,7 +16,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart'
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/simple_styio_language_service.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_capability_matrix.dart';
@@ -214,10 +213,7 @@ void main() {
       workspaceMembers: const <String>['packages/render-kit'],
       manifestPath: '$root/pafio.toml',
       lockfilePath: '$root/pafio.lock',
-      toolchainPinPath: '$root/pafio-toolchain.toml',
-      styioConfigPath: '$root/styio.toml',
       vendorRoot: '$root/.pafio/vendor',
-      buildRoot: '$root/.pafio/build',
       packages: <ProjectPackageSnapshot>[
         ProjectPackageSnapshot(
           packageName: packageName,
@@ -264,10 +260,9 @@ void main() {
         '$root/src/runtime_graph.styio',
       ],
       toolchain: const ToolchainStatusSnapshot(
-        source: ToolchainResolutionSource.projectPin,
-        detail: 'Project toolchain pin discovered for the smoke test fixture.',
-        pinPath: '/workspace/demo/pafio-toolchain.toml',
-        channel: 'stable',
+        source: ToolchainResolutionSource.environment,
+        detail: 'System Styio discovered for the smoke test fixture.',
+        channel: 'system',
         version: '0.0.1',
       ),
       lockState: ProjectLockState.unknown,
@@ -377,7 +372,7 @@ void main() {
               id: 'smoke-language-service',
               kind: ToolchainKind.languageService,
               displayName: 'Smoke StyioService',
-              executablePath: '/workspace/demo/.pafio/bin/styio',
+              executablePath: '/opt/styio/bin/styio',
               active: true,
               version: '0.0.9',
               channel: 'smoke',
@@ -394,7 +389,7 @@ void main() {
             id: 'smoke-language-service',
             kind: ToolchainKind.languageService,
             displayName: 'Smoke StyioService',
-            executablePath: '/workspace/demo/.pafio/bin/styio',
+            executablePath: '/opt/styio/bin/styio',
             version: '0.0.9',
             channel: 'smoke',
           ),
@@ -446,7 +441,6 @@ void main() {
       runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: target),
       dependencySourceAdapter: const _FakeDependencySourceAdapter(),
       deploymentAdapter: const _FakeDeploymentAdapter(),
-      toolchainManagementAdapter: const _FakeToolchainManagementAdapter(),
       agentCodingController: createSmokeAgentController(
         target: target,
         workspaceController: workspaceController,
@@ -561,83 +555,6 @@ void main() {
           'runtime_event_payload': true,
         },
       ),
-      toolchainEnvironment: const ToolchainEnvironmentSnapshot(
-        schemaVersion: 1,
-        toolchain: ToolchainStatusSnapshot(
-          source: ToolchainResolutionSource.projectPin,
-          detail: 'Live workflow fixture resolves a pinned managed compiler.',
-          pinPath: '/workspace/demo/pafio-toolchain.toml',
-          channel: 'stable',
-          version: '0.0.5',
-        ),
-        activeCompiler: CompilerHandshakeSnapshot(
-          binaryPath: '/toolchains/styio/bin/styio',
-          tool: 'styio',
-          compilerVersion: '0.0.5',
-          channel: 'stable',
-          variant: 'live-mainline-fixture',
-          capabilities: <String>[
-            'machine_info_json',
-            'single_file_entry',
-            'jsonl_diagnostics',
-            'runtime_event_stream',
-          ],
-          supportedContractVersions: <String, List<int>>{
-            'machine_info': <int>[1],
-            'compile_plan': <int>[1],
-            'runtime_events': <int>[1],
-          },
-          integrationPhase: 'compile-plan-live',
-          supportedAdapterModes: <String>['single-file', 'project'],
-          featureFlags: <String, bool>{
-            'compile_plan_consumer': true,
-            'runtime_event_payload': true,
-          },
-        ),
-        currentCompiler: CompilerHandshakeSnapshot(
-          binaryPath: '/toolchains/styio/bin/styio',
-          tool: 'styio',
-          compilerVersion: '0.0.5',
-          channel: 'stable',
-          variant: 'live-mainline-fixture',
-          capabilities: <String>[
-            'machine_info_json',
-            'single_file_entry',
-            'jsonl_diagnostics',
-            'runtime_event_stream',
-          ],
-          supportedContractVersions: <String, List<int>>{
-            'machine_info': <int>[1],
-            'compile_plan': <int>[1],
-            'runtime_events': <int>[1],
-          },
-          integrationPhase: 'compile-plan-live',
-          supportedAdapterModes: <String>['single-file', 'project'],
-          featureFlags: <String, bool>{
-            'compile_plan_consumer': true,
-            'runtime_event_payload': true,
-          },
-        ),
-        managedToolchains: ManagedToolchainStateSnapshot(
-          pafioHome: '/workspace/demo/.pafio',
-          currentBinaryPath: '/workspace/demo/.pafio/bin/styio',
-          currentMetadataPath: '/workspace/demo/.pafio/current.json',
-          installed: <ManagedToolchainInstallSnapshot>[
-            ManagedToolchainInstallSnapshot(
-              channel: 'stable',
-              compilerVersion: '0.0.5',
-              installRoot: '/workspace/demo/.pafio/toolchains/stable-0.0.5',
-              installBinaryPath:
-                  '/workspace/demo/.pafio/toolchains/stable-0.0.5/bin/styio',
-              installMetadataPath:
-                  '/workspace/demo/.pafio/toolchains/stable-0.0.5/install.json',
-            ),
-          ],
-        ),
-        notes: <String>[
-          'Live workflow fixture exposes managed toolchain state.',
-        ],
-      ),
       packageDistribution: const PackageDistributionSnapshot(
         schemaVersion: 1,
         publishablePackages: 1,
@@ -659,19 +576,6 @@ void main() {
             packages: <String>['assertions'],
           ),
         ],
-      ),
-      sourceState: const ProjectSourceStateSnapshot(
-        schemaVersion: 1,
-        pafioHome: '/workspace/demo/.pafio',
-        declaredGitDependencies: 0,
-        declaredRegistryDependencies: 1,
-        vendor: VendorSourceStateSnapshot(
-          vendorRoot: '/workspace/demo/.pafio/vendor',
-          metadataPath: '/workspace/demo/.pafio/vendor/pafio-vendor.json',
-          vendorPresent: true,
-          metadataPresent: true,
-          gitSnapshots: 0,
-        ),
       ),
       notes: const <String>[
         'Live workflow fixture mirrors a compile-plan-ready project route.',
@@ -712,7 +616,7 @@ void main() {
               id: 'live-language-service',
               kind: ToolchainKind.languageService,
               displayName: 'Live StyioService',
-              executablePath: '/workspace/demo/.pafio/bin/styio',
+              executablePath: '/opt/styio/bin/styio',
               active: true,
               version: '0.0.5',
               channel: 'stable',
@@ -729,7 +633,7 @@ void main() {
             id: 'live-language-service',
             kind: ToolchainKind.languageService,
             displayName: 'Live StyioService',
-            executablePath: '/workspace/demo/.pafio/bin/styio',
+            executablePath: '/opt/styio/bin/styio',
             version: '0.0.5',
             channel: 'stable',
           ),
@@ -774,7 +678,6 @@ void main() {
       runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: target),
       dependencySourceAdapter: const _LiveDependencySourceAdapter(),
       deploymentAdapter: const _LiveDeploymentAdapter(),
-      toolchainManagementAdapter: const _LiveToolchainManagementAdapter(),
       agentCodingController: createSmokeAgentController(
         target: target,
         workspaceController: workspaceController,
@@ -887,7 +790,7 @@ fn blend(left: f64, right: f64): f64 {
     expect(find.text('source manager-report'), findsOneWidget);
     expect(find.byKey(const ValueKey('command-strip-run')), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('command-strip-fetchDependencies')),
+      find.byKey(const ValueKey('command-strip-syncDependencies')),
       findsOneWidget,
     );
     expect(
@@ -944,19 +847,14 @@ fn blend(left: f64, right: f64): f64 {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     const toolchain = ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.managedCurrent,
-      detail: 'Scratch project uses published managed toolchain state.',
+      source: ToolchainResolutionSource.environment,
+      detail: 'Scratch project uses the system Styio contract.',
     );
     final scratchProject = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/scratch',
       activeFilePath: '/workspace/scratch/main.styio',
       title: 'Scratch Coverage Project',
       toolchain: toolchain,
-      toolchainEnvironment: const ToolchainEnvironmentSnapshot(
-        schemaVersion: 1,
-        toolchain: toolchain,
-        managedToolchains: ManagedToolchainStateSnapshot(),
-      ),
       notes: const <String>['Scratch fallback card coverage.'],
     );
     final bootstrap = await createBootstrap(
@@ -1048,7 +946,7 @@ fn blend(left: f64, right: f64): f64 {
     );
     expect(find.text('Viewport Mobile'), findsWidgets);
     expect(
-      find.byKey(const ValueKey('command-strip-fetchDependencies')),
+      find.byKey(const ValueKey('command-strip-syncDependencies')),
       findsNothing,
     );
 
@@ -1648,13 +1546,11 @@ fn blend(left: f64, right: f64): f64 {
         await tester.pumpAndSettle();
       }
 
-      await tapWorkflowAction('project-operation-useActiveCompiler');
-      await tapWorkflowAction('project-operation-fetchDependencies');
+      await tapWorkflowAction('project-operation-syncDependencies');
       await tapWorkflowAction('project-operation-vendorDependencies');
       await tapWorkflowAction('project-operation-run');
       await tapWorkflowAction('project-operation-preparePublish');
 
-      expect(shell.lastToolchainCommand?.succeeded, isTrue);
       expect(shell.lastDependencySourceCommand?.command, 'vendor');
       expect(shell.lastDependencySourceCommand?.succeeded, isTrue);
       expect(
@@ -1666,7 +1562,6 @@ fn blend(left: f64, right: f64): f64 {
 
       expect(find.text('execution succeeded'), findsOneWidget);
       expect(find.text('dependencies succeeded'), findsOneWidget);
-      expect(find.text('environment succeeded'), findsOneWidget);
       expect(find.text('deployment succeeded'), findsOneWidget);
 
       await tester.scrollUntilVisible(
@@ -1689,8 +1584,7 @@ fn blend(left: f64, right: f64): f64 {
       await tester.drag(workspaceSidebarScrollable, const Offset(0, 2000));
       await tester.pumpAndSettle();
       for (final commandId in const <AppCommandId>[
-        AppCommandId.useActiveCompiler,
-        AppCommandId.fetchDependencies,
+        AppCommandId.syncDependencies,
         AppCommandId.vendorDependencies,
         AppCommandId.run,
         AppCommandId.preparePublish,
@@ -4933,78 +4827,18 @@ class _FakeExecutionAdapter implements ExecutionAdapter {
     );
   }
 }
-class _FakeToolchainManagementAdapter implements ToolchainManagementAdapter {
-  const _FakeToolchainManagementAdapter();
-
-  @override
-  Future<ToolchainCommandResult> clearPinnedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-  }) async {
-    return const ToolchainCommandResult(
-      command: 'tool pin',
-      status: ToolchainCommandStatus.blocked,
-      statusMessage: 'Smoke test toolchain operations remain blocked.',
-      stdout: '',
-      stderr: '',
-    );
-  }
-
-  @override
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String styioBinaryPath,
-  }) async {
-    return const ToolchainCommandResult(
-      command: 'tool install',
-      status: ToolchainCommandStatus.blocked,
-      statusMessage: 'Smoke test toolchain operations remain blocked.',
-      stdout: '',
-      stderr: '',
-    );
-  }
-
-  @override
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return const ToolchainCommandResult(
-      command: 'tool pin',
-      status: ToolchainCommandStatus.blocked,
-      statusMessage: 'Smoke test toolchain operations remain blocked.',
-      stdout: '',
-      stderr: '',
-    );
-  }
-
-  @override
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return const ToolchainCommandResult(
-      command: 'tool use',
-      status: ToolchainCommandStatus.blocked,
-      statusMessage: 'Smoke test toolchain operations remain blocked.',
-      stdout: '',
-      stderr: '',
-    );
-  }
-}
 
 class _FakeDependencySourceAdapter implements DependencySourceAdapter {
   const _FakeDependencySourceAdapter();
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) async {
     return const DependencySourceCommandResult(
-      command: 'fetch',
+      command: 'sync',
       status: DependencySourceCommandStatus.blocked,
       statusMessage: 'Smoke test dependency-source operations remain blocked.',
       stdout: '',
@@ -5124,63 +4958,17 @@ class _LiveExecutionAdapter implements ExecutionAdapter {
   }
 }
 
-class _LiveToolchainManagementAdapter implements ToolchainManagementAdapter {
-  const _LiveToolchainManagementAdapter();
-
-  @override
-  Future<ToolchainCommandResult> clearPinnedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-  }) async {
-    return _success('tool pin');
-  }
-
-  @override
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String styioBinaryPath,
-  }) async {
-    return _success('tool install');
-  }
-
-  @override
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _success('tool pin');
-  }
-
-  @override
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _success('tool use');
-  }
-
-  ToolchainCommandResult _success(String command) {
-    return ToolchainCommandResult(
-      command: command,
-      status: ToolchainCommandStatus.succeeded,
-      statusMessage: 'live workflow toolchain command succeeded.',
-      stdout: '',
-      stderr: '',
-    );
-  }
-}
 
 class _LiveDependencySourceAdapter implements DependencySourceAdapter {
   const _LiveDependencySourceAdapter();
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) async {
-    return _success('fetch');
+    return _success('sync');
   }
 
   @override

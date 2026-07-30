@@ -39,8 +39,8 @@ These gates are **not** executed by default CI. They require explicit activation
 
 | Gate Script | What It Proves | Trigger |
 |-------------|----------------|---------|
-| `ecosystem-product-gate.py` | Full product workflow matrix: desktop-local and hosted/cloud lanes complete install/use/pin/fetch/vendor/pack/run/test/preflight; managed toolchain switch; multi-package workspace; filesystem registry distribution; registry conflict and missing-package failure; compile/dependency/preflight structured error return | `VITYO_PRODUCT_GATE=1` + external fixtures |
-| `ecosystem-sample-workflow-gate.py` (styio-pafio sibling) | Cross-repo sample workflow: managed toolchain switch, vendored offline, registry-hosted source, explicit `--package` selection and publish-policy protection | `VITYO_PRODUCT_GATE=1` + styio-pafio checkout |
+| `ecosystem-product-gate.py` | Desktop owner-adapter matrix: real `pafio metadata --json`, system `styio --machine-info=json`, and stable local project composition | `VITYO_PRODUCT_GATE=1` + fixed Pafio/Styio fixtures |
+| Cross-repository owner matrix | Fixed-revision Pafio metadata/workflow, Styio compiler contracts, Platform hosted/registry/worker contracts, and Vityo adapters | coordinated nightly matrix |
 | Product coverage gate (within `delivery-gate.sh`) | Product-matrix coverage beyond default CI unit/widget test scope | `VITYO_PRODUCT_GATE=1` + external fixtures |
 
 ### What Default CI Green Means

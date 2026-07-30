@@ -60,30 +60,12 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
           activeFilePath: workspaceController.activeFilePath,
         );
         return;
-      case AppCommandId.fetchDependencies:
-        await fetchDependencies();
+      case AppCommandId.syncDependencies:
+        await syncDependencies();
         return;
       case AppCommandId.vendorDependencies:
         await vendorDependencies();
         return;
-      case AppCommandId.useActiveCompiler:
-        final compiler = workspaceController.activeProject.activeCompiler!;
-        await useManagedCompiler(
-          compilerVersion: compiler.compilerVersion,
-          channel: compiler.channel,
-        );
-        return;
-      case AppCommandId.pinActiveCompiler:
-        final compiler = workspaceController.activeProject.activeCompiler!;
-        await pinManagedCompiler(
-          compilerVersion: compiler.compilerVersion,
-          channel: compiler.channel,
-        );
-        return;
-      case AppCommandId.clearPinnedCompiler:
-        await clearPinnedCompiler();
-        return;
-      case AppCommandId.bootstrapStyioToolchain:
       case AppCommandId.executeToolchainInstallPlan:
         await _agentToolchainCommandController.apply(
           AgentIdeCommandSuggestion(commandId: commandId.name),

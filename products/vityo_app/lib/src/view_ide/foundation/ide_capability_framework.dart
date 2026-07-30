@@ -568,9 +568,9 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain',
           summary:
-              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, managed downloads, Styio-first toolchain lifecycle reports, bootstrap summaries for settings/project/agent consumers, Agent toolchain bootstrap context facts, suggested command ids, and prompt guidance, bootstrapStyioToolchain and executeToolchainInstallPlan registered command routing, project bootstrap managed install planning, install execution recovery action rendering, installer recovery route handling, ToolchainBootstrapExecutionPlan settings/installer/project action steps, ToolchainBootstrapActionRouter dispatch contracts, ToolchainBootstrapExecutionBridge sequential step execution, ShellRuntimeModel bootstrap action dispatch, SettingsSurface bootstrap dispatch result rendering, settings bootstrap action controls, and extension toolchain route consumption are wired.',
+              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, generic bootstrap summaries, install execution recovery actions, settings controls, Clang/C++ selection, and extension toolchain route consumption are wired. Styio compiler identity is consumed through its machine contract and is not installed, pinned, or switched by Pafio.',
           todo:
-              'TODO: bind concrete installer UX and project bootstrap runners to ToolchainBootstrapExecutionBridge handlers.',
+              'TODO: bind generic installer UX and project validation runners to ToolchainBootstrapExecutionBridge handlers.',
           runtimeMaturityBlocking: false,
           references: <String>[
             'VS Code extensions toolchain model',

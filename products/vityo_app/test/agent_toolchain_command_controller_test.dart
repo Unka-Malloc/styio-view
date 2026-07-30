@@ -22,108 +22,55 @@ void main() {
     );
   });
 
-  test('dirty workspace blocks compiler mutation before dispatch', () async {
-    final fixture = _fixture(blockDirty: true);
-    addTearDown(fixture.dispose);
-
-    expect(
-      await fixture.commands.apply(
-        const AgentIdeCommandSuggestion(commandId: 'pinActiveCompiler'),
-      ),
-      isFalse,
-    );
-    expect(fixture.executed, isEmpty);
-  });
-
-  test('missing bootstrap dispatch fails closed with typed receipt', () async {
+  test('unknown toolchain commands are rejected', () async {
     final fixture = _fixture();
     addTearDown(fixture.dispose);
 
     expect(
-      await fixture.commands.apply(
-        const AgentIdeCommandSuggestion(commandId: 'bootstrapStyioToolchain'),
+      () => fixture.commands.apply(
+        const AgentIdeCommandSuggestion(commandId: 'unknownToolchainCommand'),
       ),
-      isFalse,
-    );
-    expect(
-      fixture.agent.lastCommandResult?.message,
-      contains('no bootstrap result'),
+      throwsArgumentError,
     );
   });
 }
 
-_Fixture _fixture({bool blockDirty = false}) {
+_Fixture _fixture() {
   final agent = AgentController();
   final toolchain = ToolchainController(
-    managementAdapter: const _UnexpectedAdapter(),
     projectGraph: () => ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/fixture',
       activeFilePath: 'main.styio',
       title: 'fixture',
       notes: const <String>[],
     ),
-    refreshProjectGraph: ({String? reason}) async {},
     manager: null,
     statusReport: null,
     log: (_) {},
   );
-  final fixture = _Fixture(agent: agent, toolchain: toolchain);
-  fixture.commands = AgentToolchainCommandController(
+  final commands = AgentToolchainCommandController(
     agentController: agent,
     toolchainController: toolchain,
-    blockedReasonForCommand: (_) => null,
-    executeCommand: (command) async => fixture.executed.add(command.name),
     selectClangCppVersion: (versionId, {cppStandard}) async => null,
-    handleBootstrapAction: (_) async => null,
     executeLastInstallPlan: () async => null,
-    blockWhenDirty: (_) => blockDirty,
-    log: (_) {},
     notify: () {},
   );
-  return fixture;
+  return _Fixture(agent: agent, toolchain: toolchain, commands: commands);
 }
 
 final class _Fixture {
-  _Fixture({required this.agent, required this.toolchain});
+  _Fixture({
+    required this.agent,
+    required this.toolchain,
+    required this.commands,
+  });
+
   final AgentController agent;
   final ToolchainController toolchain;
-  late AgentToolchainCommandController commands;
-  final List<String> executed = <String>[];
+  final AgentToolchainCommandController commands;
 
   void dispose() {
     toolchain.dispose();
     agent.dispose();
   }
-}
-
-final class _UnexpectedAdapter implements ToolchainManagementAdapter {
-  const _UnexpectedAdapter();
-
-  Never _unexpected() =>
-      throw StateError('Toolchain adapter was not expected.');
-
-  @override
-  Future<ToolchainCommandResult> clearPinnedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-  }) async => _unexpected();
-
-  @override
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String styioBinaryPath,
-  }) async => _unexpected();
-
-  @override
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async => _unexpected();
-
-  @override
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async => _unexpected();
 }

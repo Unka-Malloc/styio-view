@@ -5,7 +5,7 @@ import 'project_graph_contract.dart';
 import 'pafio_cli_discovery.dart';
 
 const String missingLocalPafioBinaryMessage =
-    'No pafio binary was resolved. Set VITYO_PAFIO_BIN or keep styio-pafio available in the local workspace.';
+    'No pafio binary was resolved. Set VITYO_PAFIO_BIN or install pafio on PATH.';
 
 enum LocalPafioCommandOutcome { blocked, succeeded, failed }
 
@@ -63,9 +63,7 @@ Future<T> runLocalPafioCommand<T>({
   required PafioCommandResultFactory<T> factory,
   String missingBinaryMessage = missingLocalPafioBinaryMessage,
 }) async {
-  final pafioBinary = await resolvePafioBinary(
-    workspaceRoot: projectGraph.workspaceRoot,
-  );
+  final pafioBinary = await resolvePafioBinary();
   if (pafioBinary == null) {
     return blockedPafioCommandResult(
       factory: factory,

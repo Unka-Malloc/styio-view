@@ -1,5 +1,4 @@
 import '../backend_toolchain/project_graph_contract.dart';
-import '../backend_toolchain/toolchain_management_adapter.dart';
 import '../toolchain/clang_cpp_version_configuration.dart';
 import '../toolchain/clang_cpp_version_manager.dart';
 import '../toolchain/toolchain_catalog.dart';
@@ -40,56 +39,40 @@ class ToolchainStatusSurface {
     required this.recoveryActions,
     this.version,
     this.channel,
-    this.pinPath,
-    this.lastCommand,
-    this.lastCommandStatus,
-    this.lastCommandMessage,
   });
 
   factory ToolchainStatusSurface.fromProjectToolchain(
-    ToolchainStatusSnapshot snapshot, {
-    ToolchainCommandResult? lastCommand,
-  }) {
-    final severity = _severityFor(snapshot, lastCommand);
+    ToolchainStatusSnapshot snapshot,
+  ) {
+    final severity = _severityFor(snapshot);
     return ToolchainStatusSurface(
       source: snapshot.source.label,
       severity: severity,
       title: _titleFor(severity),
-      message: lastCommand?.statusMessage ?? snapshot.detail,
+      message: snapshot.detail,
       version: snapshot.version,
       channel: snapshot.channel,
-      pinPath: snapshot.pinPath,
-      lastCommand: lastCommand?.command,
-      lastCommandStatus: lastCommand?.status.name,
-      lastCommandMessage: lastCommand?.statusMessage,
-      recoveryActions: _recoveryActionsFor(severity, lastCommand),
+      recoveryActions: _recoveryActionsFor(severity),
     );
   }
 
   factory ToolchainStatusSurface.fromManagerStatusReport(
-    ToolchainManagerStatusReport report, {
-    ToolchainCommandResult? lastCommand,
-  }) {
-    final severity = lastCommand != null && !lastCommand.succeeded
-        ? _severityForCommand(lastCommand)
-        : _severityForManagerStatus(report.status);
+    ToolchainManagerStatusReport report,
+  ) {
+    final severity = _severityForManagerStatus(report.status);
     final descriptor = report.resolution.descriptor;
     return ToolchainStatusSurface(
       source: 'manager-report',
       severity: severity,
       title: _titleFor(severity),
       message:
-          lastCommand?.statusMessage ??
           report.message ??
           report.health?.message ??
           report.resolution.message ??
           _managerMessageFor(report.status),
       version: descriptor?.version,
       channel: descriptor?.channel,
-      lastCommand: lastCommand?.command,
-      lastCommandStatus: lastCommand?.status.name,
-      lastCommandMessage: lastCommand?.statusMessage,
-      recoveryActions: _recoveryActionsFor(severity, lastCommand),
+      recoveryActions: _recoveryActionsFor(severity),
     );
   }
 
@@ -99,10 +82,6 @@ class ToolchainStatusSurface {
   final String message;
   final String? version;
   final String? channel;
-  final String? pinPath;
-  final String? lastCommand;
-  final String? lastCommandStatus;
-  final String? lastCommandMessage;
   final List<ToolchainRecoveryAction> recoveryActions;
 
   bool get actionable {
@@ -119,10 +98,6 @@ class ToolchainStatusSurface {
       'message': message,
       if (version != null) 'version': version,
       if (channel != null) 'channel': channel,
-      if (pinPath != null) 'pinPath': pinPath,
-      if (lastCommand != null) 'lastCommand': lastCommand,
-      if (lastCommandStatus != null) 'lastCommandStatus': lastCommandStatus,
-      if (lastCommandMessage != null) 'lastCommandMessage': lastCommandMessage,
       'recoveryActions': recoveryActions
           .map((action) => action.toJson())
           .toList(growable: false),
@@ -132,28 +107,12 @@ class ToolchainStatusSurface {
 
   static ToolchainStatusSeverity _severityFor(
     ToolchainStatusSnapshot snapshot,
-    ToolchainCommandResult? lastCommand,
   ) {
-    if (lastCommand != null) {
-      return _severityForCommand(lastCommand);
-    }
     return switch (snapshot.source) {
-      ToolchainResolutionSource.projectPin ||
-      ToolchainResolutionSource.managedCurrent ||
       ToolchainResolutionSource.environment => ToolchainStatusSeverity.ready,
       ToolchainResolutionSource.unavailable =>
         ToolchainStatusSeverity.unavailable,
       ToolchainResolutionSource.unknown => ToolchainStatusSeverity.unavailable,
-    };
-  }
-
-  static ToolchainStatusSeverity _severityForCommand(
-    ToolchainCommandResult command,
-  ) {
-    return switch (command.status) {
-      ToolchainCommandStatus.succeeded => ToolchainStatusSeverity.ready,
-      ToolchainCommandStatus.blocked => ToolchainStatusSeverity.blocked,
-      ToolchainCommandStatus.failed => ToolchainStatusSeverity.failed,
     };
   }
 
@@ -189,7 +148,6 @@ class ToolchainStatusSurface {
 
   static List<ToolchainRecoveryAction> _recoveryActionsFor(
     ToolchainStatusSeverity severity,
-    ToolchainCommandResult? lastCommand,
   ) {
     return switch (severity) {
       ToolchainStatusSeverity.ready => const <ToolchainRecoveryAction>[],
@@ -197,40 +155,37 @@ class ToolchainStatusSurface {
         ToolchainRecoveryAction(
           id: 'select-existing-toolchain',
           label: 'Select toolchain',
-          description: 'Choose an existing Styio toolchain for this workspace.',
+          description:
+              'Choose an existing system toolchain for this workspace.',
         ),
         ToolchainRecoveryAction(
           id: 'install-managed-toolchain',
           label: 'Install managed toolchain',
-          description: 'Install a Vityo-managed Styio toolchain when allowed.',
+          description: 'Install an IDE-managed toolchain when allowed.',
         ),
         ToolchainRecoveryAction(
           id: 'use-degraded-mode',
           label: 'Use degraded mode',
-          description: 'Continue with features that do not require Styio.',
+          description: 'Continue with features that do not require a compiler.',
         ),
       ],
       ToolchainStatusSeverity.blocked => <ToolchainRecoveryAction>[
-        ToolchainRecoveryAction(
+        const ToolchainRecoveryAction(
           id: 'fix-toolchain-precondition',
           label: 'Fix precondition',
-          description:
-              lastCommand?.statusMessage ??
-              'Resolve the blocked toolchain command precondition.',
+          description: 'Resolve the blocked toolchain precondition.',
         ),
         const ToolchainRecoveryAction(
           id: 'select-existing-toolchain',
           label: 'Select toolchain',
-          description: 'Choose a compatible local Styio toolchain.',
+          description: 'Choose a compatible local toolchain.',
         ),
       ],
       ToolchainStatusSeverity.failed => <ToolchainRecoveryAction>[
-        ToolchainRecoveryAction(
-          id: 'retry-${(lastCommand?.command ?? 'toolchain').replaceAll(' ', '-')}',
+        const ToolchainRecoveryAction(
+          id: 'retry-toolchain',
           label: 'Retry command',
-          description:
-              lastCommand?.statusMessage ??
-              'Retry the failed toolchain command after reviewing logs.',
+          description: 'Retry toolchain discovery after reviewing logs.',
         ),
         const ToolchainRecoveryAction(
           id: 'show-toolchain-logs',
@@ -240,7 +195,7 @@ class ToolchainStatusSurface {
         const ToolchainRecoveryAction(
           id: 'select-existing-toolchain',
           label: 'Select toolchain',
-          description: 'Switch to another compatible Styio toolchain.',
+          description: 'Switch to another compatible toolchain.',
         ),
       ],
     };
@@ -275,14 +230,10 @@ class ToolchainSettingsSurface {
 
   factory ToolchainSettingsSurface.fromManagerStatusReport(
     ToolchainManagerStatusReport report, {
-    ToolchainCommandResult? lastCommand,
     ClangCppVersionPreference? clangCppVersionPreference,
   }) {
     return ToolchainSettingsSurface(
-      status: ToolchainStatusSurface.fromManagerStatusReport(
-        report,
-        lastCommand: lastCommand,
-      ),
+      status: ToolchainStatusSurface.fromManagerStatusReport(report),
       targetId: report.snapshot.targetId,
       workspaceId: report.snapshot.workspaceId,
       toolchains: report.snapshot.entries

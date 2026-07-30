@@ -121,31 +121,16 @@ void main() {
         ),
         recoveryState: ToolchainRecoveryState(
           kind: ToolchainRecoveryStateKind.needsSelection,
-          actionIds: <String>['select-styio-language-service'],
+          actionIds: <String>['select-existing-toolchain'],
         ),
       ),
-      styioLifecycle: StyioToolchainLifecycleReport(
-        state: StyioToolchainLifecycleState.missing,
-        requiredRoles: <StyioToolchainRole>[
-          StyioToolchainRole.languageService,
-        ],
-        roles: <StyioToolchainRoleStatus>[
-          StyioToolchainRoleStatus(
-            role: StyioToolchainRole.languageService,
-            state: StyioToolchainRoleState.missing,
-            required: true,
-            message: 'Missing Styio language service.',
-          ),
-        ],
-        message: 'Missing Styio toolchain.',
-      ),
-      settingsActionIds: <String>['install-styio-language-service'],
-      installerActionIds: <String>['install-managed-styio-toolchain'],
-      projectBootstrapActionIds: <String>['bootstrap-styio-toolchain'],
+      settingsActionIds: <String>['select-existing-toolchain'],
+      installerActionIds: <String>['plan-managed-toolchain-installation'],
+      projectBootstrapActionIds: <String>['open-toolchain-settings'],
     );
     const dispatch = ToolchainBootstrapActionDispatchResult(
       status: ToolchainBootstrapActionDispatchStatus.missingHandler,
-      actionId: 'install-managed-styio-toolchain',
+      actionId: 'plan-managed-toolchain-installation',
       message: 'No installer handler is registered.',
       todo: 'TODO: bind installer action handler.',
     );
@@ -169,10 +154,10 @@ void main() {
     expect(executionPlan['stepCount'], 3);
     expect(
       suggestedCommandIds,
-      containsAll(<String>['bootstrapStyioToolchain', 'openSettings']),
+      <String>['openSettings'],
     );
     expect(lastDispatch['status'], 'missing-handler');
-    expect(lastDispatch['actionId'], 'install-managed-styio-toolchain');
+    expect(lastDispatch['actionId'], 'plan-managed-toolchain-installation');
     expect(lastDispatch['todo'], contains('TODO'));
   });
 }

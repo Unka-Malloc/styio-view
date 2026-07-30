@@ -6,6 +6,7 @@ import 'package:vityo_app/src/ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/adapter_contracts.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/hosted_control_plane.dart';
+import 'package:vityo_app/src/view_ide/backend_toolchain/pafio_cli_discovery.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/view_ide/language/language_contract.dart';
@@ -43,8 +44,7 @@ void main() {
 name = "demo/app"
 version = "0.1.0"
 
-[toolchain]
-channel = "stable"
+[build]
 implicit-std = true
 
 [[bin]]
@@ -52,19 +52,15 @@ name = "demo"
 path = "src/main.styio"
 ''');
 
-      await _writeExecutable(
+      await _writePafioExecutable(
         File(
           '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
         ),
         '''#!/usr/bin/env python3
 import json, sys
 
-if sys.argv[1:] == ['machine-info', '--json']:
-    print(json.dumps({
-        'tool': 'pafio',
-        'feature_flags': {'workflow_success_payloads': True},
-        'supported_contract_versions': {'workflow_success_payloads': [1]},
-    }))
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
     raise SystemExit(0)
 
 if '--json' in sys.argv and 'run' in sys.argv:
@@ -254,8 +250,7 @@ raise SystemExit(64)
 name = "demo/app"
 version = "0.1.0"
 
-[toolchain]
-channel = "stable"
+[build]
 implicit-std = true
 
 [lib]
@@ -266,19 +261,15 @@ name = "demo"
 path = "src/main.styio"
 ''');
 
-      await _writeExecutable(
+      await _writePafioExecutable(
         File(
           '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
         ),
         '''#!/usr/bin/env python3
 import json, sys
 
-if sys.argv[1:] == ['machine-info', '--json']:
-    print(json.dumps({
-        'tool': 'pafio',
-        'feature_flags': {'workflow_success_payloads': True},
-        'supported_contract_versions': {'workflow_success_payloads': [1]},
-    }))
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
     raise SystemExit(0)
 
 if '--json' in sys.argv and 'build' in sys.argv:
@@ -397,8 +388,7 @@ raise SystemExit(64)
 name = "demo/app"
 version = "0.1.0"
 
-[toolchain]
-channel = "stable"
+[build]
 implicit-std = true
 
 [[bin]]
@@ -406,19 +396,15 @@ name = "demo"
 path = "src/main.styio"
 ''');
 
-    await _writeExecutable(
+    await _writePafioExecutable(
       File(
         '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
       ),
       '''#!/usr/bin/env python3
 import json, sys
 
-if sys.argv[1:] == ['machine-info', '--json']:
-    print(json.dumps({
-        'tool': 'pafio',
-        'feature_flags': {'workflow_success_payloads': True},
-        'supported_contract_versions': {'workflow_success_payloads': [1]},
-    }))
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
     raise SystemExit(0)
 
 if '--json' in sys.argv and 'run' in sys.argv:
@@ -771,8 +757,7 @@ raise SystemExit(65)
 name = "demo/app"
 version = "0.1.0"
 
-[toolchain]
-channel = "stable"
+[build]
 implicit-std = true
 
 [[bin]]
@@ -780,19 +765,15 @@ name = "demo"
 path = "src/main.styio"
 ''');
 
-      await _writeExecutable(
+      await _writePafioExecutable(
         File(
           '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
         ),
         '''#!/usr/bin/env python3
 import json, sys
 
-if sys.argv[1:] == ['machine-info', '--json']:
-    print(json.dumps({
-        'tool': 'pafio',
-        'feature_flags': {'workflow_success_payloads': True},
-        'supported_contract_versions': {'workflow_success_payloads': [1]},
-    }))
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
     raise SystemExit(0)
 
 raise SystemExit(66)
@@ -1221,18 +1202,15 @@ path = "src/lib.styio"
 name = "render"
 path = "tests/render_test.styio"
 ''');
-      await _writeExecutable(
+      await _writePafioExecutable(
         File(
           '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
         ),
         '''#!/usr/bin/env python3
 import json, os, sys
 
-if sys.argv[1:] == ['machine-info', '--json']:
-    print(json.dumps({
-        'tool': 'pafio',
-        'supported_contract_versions': {'workflow_success_payloads': [1]},
-    }))
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
     raise SystemExit(0)
 
 if '--json' in sys.argv and 'test' in sys.argv:
@@ -1545,6 +1523,15 @@ Future<File> _writeExecutable(File file, String contents) async {
   return file;
 }
 
+Future<File> _writePafioExecutable(File file, String contents) async {
+  final executable = await _writeExecutable(file, contents);
+  debugOverridePafioDiscoveryEnvironment(<String, String>{
+    'VITYO_PAFIO_BIN': executable.path,
+  });
+  addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+  return executable;
+}
+
 String _comparableExistingPath(String path) {
   String resolved;
   try {
@@ -1610,12 +1597,8 @@ ProjectGraphSnapshot _projectGraph({
     workspaceMembers: const <String>[],
     manifestPath: manifestPath,
     lockfilePath: '$workspaceRoot${Platform.pathSeparator}pafio.lock',
-    toolchainPinPath:
-        '$workspaceRoot${Platform.pathSeparator}pafio-toolchain.toml',
     vendorRoot:
         '$workspaceRoot${Platform.pathSeparator}.pafio${Platform.pathSeparator}vendor',
-    buildRoot:
-        '$workspaceRoot${Platform.pathSeparator}.pafio${Platform.pathSeparator}build',
     packages: packages,
     dependencies: const <ProjectDependencySnapshot>[],
     targets: targets,
@@ -1623,7 +1606,7 @@ ProjectGraphSnapshot _projectGraph({
         .map((target) => target.filePath)
         .toList(growable: false),
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'project pin',
     ),
     lockState: ProjectLockState.missing,

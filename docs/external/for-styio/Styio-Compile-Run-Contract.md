@@ -59,7 +59,7 @@
 
 当前 `Vityo` 的 project route 已不再停留在 preview-only：
 
-1. 项目图优先消费 `pafio project-graph --json`
+1. 项目状态消费 `pafio metadata --json`
 2. 项目执行优先消费 `pafio build/run/test --json` 的 `workflow_success_payloads` published family
 3. `styio` 继续作为 compile-plan consumer 与 receipt / diagnostics 的真相源
 

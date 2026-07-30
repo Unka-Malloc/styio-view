@@ -6,7 +6,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart'
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/ide/editor/controller/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document/document_state.dart';
@@ -62,7 +61,6 @@ void main() {
         runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
-        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -157,13 +155,13 @@ class _NoopDependencySourceAdapter implements DependencySourceAdapter {
   const _NoopDependencySourceAdapter();
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) async {
     return const DependencySourceCommandResult(
-      command: 'fetch',
+      command: 'sync',
       status: DependencySourceCommandStatus.blocked,
       statusMessage: 'not needed for dispatch totality test',
       stdout: '',
@@ -238,52 +236,6 @@ class _NoopDeploymentAdapter implements DeploymentAdapter {
   }
 }
 
-class _NoopToolchainManagementAdapter implements ToolchainManagementAdapter {
-  const _NoopToolchainManagementAdapter();
-
-  @override
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String styioBinaryPath,
-  }) async {
-    return _blocked('tool install');
-  }
-
-  @override
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _blocked('tool use');
-  }
-
-  @override
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _blocked('tool pin');
-  }
-
-  @override
-  Future<ToolchainCommandResult> clearPinnedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-  }) async {
-    return _blocked('tool pin clear');
-  }
-
-  ToolchainCommandResult _blocked(String command) {
-    return ToolchainCommandResult(
-      command: command,
-      status: ToolchainCommandStatus.blocked,
-      statusMessage: 'not needed for dispatch totality test',
-      stdout: '',
-      stderr: '',
-    );
-  }
-}
 
 class _NoopStyioLanguageService implements StyioLanguageService {
   const _NoopStyioLanguageService();

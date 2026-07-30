@@ -4,8 +4,6 @@ part of '../shell_runtime_model.dart';
 
 /// Public toolchain facade backed by the toolchain domain controller.
 mixin ShellRuntimeToolchainFacade on ShellRuntimeFacadeHost {
-  ToolchainCommandResult? get lastToolchainCommand =>
-      _toolchainController.lastCommand;
   ToolchainInstallPlan? get lastToolchainInstallPlan =>
       _toolchainController.lastInstallPlan;
   ToolchainInstallExecutionResult? get lastToolchainInstallExecutionResult =>
@@ -56,31 +54,6 @@ mixin ShellRuntimeToolchainFacade on ShellRuntimeFacadeHost {
   Future<ToolchainBootstrapActionDispatchResult?>
   handleToolchainBootstrapAction(String actionId) =>
       _toolchainController.handleBootstrapAction(actionId);
-
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required String styioBinaryPath,
-  }) => _toolchainController.installManagedCompiler(
-    styioBinaryPath: styioBinaryPath,
-  );
-
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required String compilerVersion,
-    String? channel,
-  }) => _toolchainController.useManagedCompiler(
-    compilerVersion: compilerVersion,
-    channel: channel,
-  );
-
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required String compilerVersion,
-    String? channel,
-  }) => _toolchainController.pinManagedCompiler(
-    compilerVersion: compilerVersion,
-    channel: channel,
-  );
-
-  Future<ToolchainCommandResult> clearPinnedCompiler() =>
-      _toolchainController.clearPinnedCompiler();
 
   Future<void> handleToolchainRecoveryAction(ToolchainRecoveryAction action) =>
       _toolchainController.handleRecoveryAction(action);

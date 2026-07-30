@@ -305,7 +305,7 @@
 | `WorkbenchShellSurfaces` contract | `ShellModel`, `ShellScope`, `BottomSurfaceTab`, `AppCommandId` |
 | `ProblemsTestingSourceControlSurfaces` contract | `WorkspaceDiagnosticsSnapshot`, `Diagnostic`, `WorkspaceEditPlan` |
 | `ExecutionAdapter` contract | `ExecutionAdapter`, `ExecutionSession`, `RuntimeTaskDefinition` |
-| `ToolchainManagementAdapter` contract | `ToolchainStatusSurface`, `ToolchainRecoveryAction` |
+| generic `ToolchainManager` contract | `ToolchainStatusSurface`, `ToolchainRecoveryAction` |
 | `LanguageServiceAdapter` contract | `StyioLanguageService`, `Diagnostic`, `StyioServiceRuntimeSessionEvent` |
 
 ---

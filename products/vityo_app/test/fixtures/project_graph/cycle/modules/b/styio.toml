@@ -1,7 +1,0 @@
-[module]
-name = "cycle/b"
-version = "1.0.0"
-
-[dependencies]
-c = { path = "../c", package = "cycle/c", version = "^1.0.0" }
-

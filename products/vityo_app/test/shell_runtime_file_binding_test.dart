@@ -10,7 +10,6 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/hosted_control_plane.da
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/ide/editor/controller/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document/document_state.dart';
@@ -85,7 +84,6 @@ void main() {
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -143,7 +141,6 @@ void main() {
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -212,7 +209,6 @@ void main() {
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -296,7 +292,6 @@ void main() {
         runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
-        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -370,7 +365,6 @@ void main() {
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -455,7 +449,6 @@ value = blend()
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -533,7 +526,6 @@ next -> @prices
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -628,7 +620,6 @@ value = blend(1.0, 2.0)
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -712,7 +703,6 @@ book: OrderBook
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -807,7 +797,6 @@ value = blend(1.0, 2.0)
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -903,7 +892,6 @@ book: OrderBook
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1004,7 +992,6 @@ target: Price
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1104,7 +1091,6 @@ book: OrderBook
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1196,7 +1182,6 @@ value = blend(1.0, 2.0)
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1287,7 +1272,6 @@ entry = 1
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1364,7 +1348,6 @@ entry = 1
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1455,7 +1438,6 @@ value = blend(1.0, 2.0)
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1549,7 +1531,6 @@ fn run(): f64 {
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1627,7 +1608,6 @@ price -> @prices
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
     );
     addTearDown(shell.dispose);
 
@@ -1709,7 +1689,6 @@ value = 1
         runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
-        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -1789,7 +1768,6 @@ value = 1
         runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
-        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -1895,7 +1873,6 @@ value = 1
         runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
-        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
       );
       addTearDown(shell.dispose);
 
@@ -1998,7 +1975,6 @@ value = 1
         runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
         dependencySourceAdapter: const _NoopDependencySourceAdapter(),
         deploymentAdapter: const _NoopDeploymentAdapter(),
-        toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
         editorFileBinding: binding,
       );
       addTearDown(shell.dispose);
@@ -2078,7 +2054,6 @@ value = 1
       runtimeEventAdapter: const _NoopRuntimeEventAdapter(),
       dependencySourceAdapter: const _NoopDependencySourceAdapter(),
       deploymentAdapter: const _NoopDeploymentAdapter(),
-      toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
       editorFileBinding: binding,
     );
     addTearDown(shell.dispose);
@@ -2370,7 +2345,7 @@ value = 1
       );
       addTearDown(shell.dispose);
 
-      await shell.executeCommand(AppCommandId.fetchDependencies);
+      await shell.executeCommand(AppCommandId.syncDependencies);
       await shell.executeCommand(AppCommandId.refreshModules);
       await shell.executeCommand(AppCommandId.openSettings);
 
@@ -2384,11 +2359,11 @@ value = 1
 
       expect(implementations.target, isNull);
       expect(
-        shell.blockedReasonForCommand(AppCommandId.fetchDependencies),
-        'fetch requires a resolved pafio manifest path.',
+        shell.blockedReasonForCommand(AppCommandId.syncDependencies),
+        'sync requires a resolved pafio manifest path.',
       );
       for (final fragment in const <String>[
-        'Fetch blocked: fetch requires a resolved pafio manifest path',
+        'Fetch blocked: sync requires a resolved pafio manifest path',
         'Module host refresh requested',
         'Native bridge local.runtime.desktop',
         'Settings route is reserved',
@@ -2592,10 +2567,10 @@ value = 1
     addTearDown(shell.dispose);
 
     expect(
-      shell.blockedReasonForCommand(AppCommandId.fetchDependencies),
-      'fetch requires a resolved pafio manifest path.',
+      shell.blockedReasonForCommand(AppCommandId.syncDependencies),
+      'sync requires a resolved pafio manifest path.',
     );
-    await shell.executeCommand(AppCommandId.fetchDependencies);
+    await shell.executeCommand(AppCommandId.syncDependencies);
 
     for (final commandId in const <AppCommandId>[
       AppCommandId.commandPalette,
@@ -2670,7 +2645,7 @@ value = 1
           reason: 'Expected debug log to contain "$fragment".',
         );
       }
-      await shell.fetchDependencies();
+      await shell.syncDependencies();
       await shell.vendorDependencies(outputPath: '/workspace/demo/vendor');
       await shell.packProject(
         packageName: 'demo/app',
@@ -2683,7 +2658,7 @@ value = 1
       );
 
       for (final fragment in const <String>[
-        'fetch packages: 2',
+        'sync packages: 2',
         'vendor root: /workspace/demo/vendor',
         'vendor metadata: /workspace/demo/vendor/pafio-vendor.json',
         'deploy package: demo/app',
@@ -2850,7 +2825,6 @@ ShellRuntimeModel _createNoopShellRuntime({
     runtimeEventAdapter: runtimeEventAdapter,
     dependencySourceAdapter: dependencySourceAdapter,
     deploymentAdapter: deploymentAdapter,
-    toolchainManagementAdapter: const _NoopToolchainManagementAdapter(),
   );
 }
 
@@ -3037,13 +3011,13 @@ class _PayloadDependencySourceAdapter implements DependencySourceAdapter {
   const _PayloadDependencySourceAdapter();
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) async {
     return const DependencySourceCommandResult(
-      command: 'fetch',
+      command: 'sync',
       status: DependencySourceCommandStatus.succeeded,
       statusMessage: 'fetched dependencies',
       stdout: '',
@@ -3078,13 +3052,13 @@ class _NoopDependencySourceAdapter implements DependencySourceAdapter {
   const _NoopDependencySourceAdapter();
 
   @override
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     required ProjectGraphSnapshot projectGraph,
     bool locked = false,
     bool offline = false,
   }) async {
     return const DependencySourceCommandResult(
-      command: 'fetch',
+      command: 'sync',
       status: DependencySourceCommandStatus.blocked,
       statusMessage: 'not needed for shell file binding test',
       stdout: '',
@@ -3221,52 +3195,6 @@ class _NoopDeploymentAdapter implements DeploymentAdapter {
   }
 }
 
-class _NoopToolchainManagementAdapter implements ToolchainManagementAdapter {
-  const _NoopToolchainManagementAdapter();
-
-  @override
-  Future<ToolchainCommandResult> installManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String styioBinaryPath,
-  }) async {
-    return _blocked('tool install');
-  }
-
-  @override
-  Future<ToolchainCommandResult> useManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _blocked('tool use');
-  }
-
-  @override
-  Future<ToolchainCommandResult> pinManagedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-    required String compilerVersion,
-    String? channel,
-  }) async {
-    return _blocked('tool pin');
-  }
-
-  @override
-  Future<ToolchainCommandResult> clearPinnedCompiler({
-    required ProjectGraphSnapshot projectGraph,
-  }) async {
-    return _blocked('tool pin clear');
-  }
-
-  ToolchainCommandResult _blocked(String command) {
-    return ToolchainCommandResult(
-      command: command,
-      status: ToolchainCommandStatus.blocked,
-      statusMessage: 'not needed for shell file binding test',
-      stdout: '',
-      stderr: '',
-    );
-  }
-}
 
 class _NoopStyioLanguageService implements StyioLanguageService {
   const _NoopStyioLanguageService();
@@ -3461,7 +3389,7 @@ ProjectGraphSnapshot _hostedProjectGraph() {
     targets: const <ProjectTargetDescriptor>[],
     editorFiles: const <String>['/workspace/demo/src/main.styio'],
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.managedCurrent,
+      source: ToolchainResolutionSource.environment,
       detail: 'hosted toolchain',
       channel: 'stable',
       version: '0.0.2',

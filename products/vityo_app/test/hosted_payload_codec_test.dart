@@ -131,10 +131,7 @@ void main() {
         'workspace_members': <String>['packages/render'],
         'manifest_path': '/workspace/demo/pafio.toml',
         'lockfile_path': '/workspace/demo/pafio.lock',
-        'toolchain_pin_path': '/workspace/demo/pafio-toolchain.toml',
-        'styio_config_path': '/workspace/demo/styio.toml',
         'vendor_root': '/workspace/demo/.pafio/vendor',
-        'build_root': '/workspace/demo/.pafio/build',
         'lock_state': 'fresh',
         'vendor_state': 'present',
         'editor_files': <String>['/workspace/demo/src/main.styio'],
@@ -187,10 +184,9 @@ void main() {
           },
         ],
         'toolchain': <String, dynamic>{
-          'source': 'project-pin',
-          'detail': 'Pinned toolchain is active.',
-          'pin_path': '/workspace/demo/pafio-toolchain.toml',
-          'channel': 'stable',
+          'source': 'environment',
+          'detail': 'System Styio is active.',
+          'channel': 'system',
           'version': '0.0.5',
         },
         'active_compiler': <String, dynamic>{
@@ -208,50 +204,6 @@ void main() {
           'feature_flags': <Object?, Object?>{
             'runtime': true,
             'ignored': 'yes',
-          },
-        },
-        'managed_toolchains': <String, dynamic>{
-          'pafio_home': '/workspace/demo/.pafio',
-          'current_binary': '/workspace/demo/.pafio/bin/styio',
-          'current_metadata_path': '/workspace/demo/.pafio/current.json',
-          'installed': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'channel': 'stable',
-              'compiler_version': '0.0.5',
-              'install_root': '/workspace/demo/.pafio/toolchains/stable',
-              'install_binary_path':
-                  '/workspace/demo/.pafio/toolchains/stable/styio',
-              'install_metadata_path':
-                  '/workspace/demo/.pafio/toolchains/stable/metadata.json',
-            },
-          ],
-        },
-        'source_state': <String, dynamic>{
-          'schema_version': 2,
-          'pafio_home': '/workspace/demo/.pafio',
-          'declared_git_dependencies': 1,
-          'declared_registry_dependencies': 2,
-          'git_cache': <String, dynamic>{
-            'repos_root': '/workspace/demo/.pafio/git/repos',
-            'checkouts_root': '/workspace/demo/.pafio/git/checkouts',
-            'repos_present': true,
-            'checkouts_present': true,
-          },
-          'registry_cache': <String, dynamic>{
-            'cache_root': '/workspace/demo/.pafio/registry',
-            'index_root': '/workspace/demo/.pafio/registry/index',
-            'blob_root': '/workspace/demo/.pafio/registry/blobs',
-            'checkout_root': '/workspace/demo/.pafio/registry/checkouts',
-            'index_present': true,
-            'blobs_present': true,
-            'checkouts_present': true,
-          },
-          'vendor': <String, dynamic>{
-            'vendor_root': '/workspace/demo/.pafio/vendor',
-            'metadata_path': '/workspace/demo/.pafio/vendor/vendor.json',
-            'vendor_present': true,
-            'metadata_present': true,
-            'git_snapshots': 1,
           },
         },
         'notes': <String>['hosted ok'],
@@ -272,7 +224,7 @@ void main() {
     );
     expect(graph.packages.single.dependencies, hasLength(5));
     expect(graph.dependencies.last.publishBlocking, isTrue);
-    expect(graph.toolchain.source, ToolchainResolutionSource.projectPin);
+    expect(graph.toolchain.source, ToolchainResolutionSource.environment);
     expect(graph.lockState, ProjectLockState.fresh);
     expect(graph.vendorState, ProjectVendorState.present);
     expect(graph.activeCompiler!.supportsContract('compile_plan'), isTrue);
@@ -281,11 +233,6 @@ void main() {
       <int>[1, 2],
     );
     expect(graph.activeCompiler!.hasFeatureFlag('runtime'), isTrue);
-    expect(graph.toolchainEnvironment!.projectPin!.channel, 'stable');
-    expect(
-      graph.toolchainEnvironment!.managedToolchains.installed,
-      hasLength(1),
-    );
     expect(graph.packageDistribution!.publishablePackages, 0);
     expect(graph.packageDistribution!.blockedPackages, 1);
     expect(
@@ -298,9 +245,6 @@ void main() {
       ),
       containsAll(<String>['https', 'file']),
     );
-    expect(graph.sourceState!.gitCache.reposPresent, isTrue);
-    expect(graph.sourceState!.registryCache.blobsPresent, isTrue);
-    expect(graph.sourceState!.vendor.metadataPresent, isTrue);
     expect(graph.hostedWorkspace!.workspaceId, 'demo-workspace');
     expect(graph.notes, <String>['hosted ok']);
   });
@@ -342,8 +286,8 @@ void main() {
     expect(lockStateFromString('missing'), ProjectLockState.missing);
     expect(vendorStateFromString('missing'), ProjectVendorState.missing);
     expect(
-      toolchainSourceFromString('managed-current'),
-      ToolchainResolutionSource.managedCurrent,
+      toolchainSourceFromString('environment'),
+      ToolchainResolutionSource.environment,
     );
     expect(
       toolchainSourceFromString('environment'),

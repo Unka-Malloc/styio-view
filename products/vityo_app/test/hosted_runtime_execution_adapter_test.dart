@@ -176,7 +176,7 @@ class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {
   }
 
   @override
-  Future<Map<String, dynamic>> fetchDependencies({
+  Future<Map<String, dynamic>> syncDependencies({
     required String workspaceId,
     bool locked = false,
     bool offline = false,
@@ -238,37 +238,6 @@ class _RecordingHostedControlPlaneClient implements HostedControlPlaneClient {
     required String path,
     required String documentText,
     required int revision,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolClearPin({required String workspaceId}) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolInstall({
-    required String workspaceId,
-    required String styioBinaryPath,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolPin({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  }) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<Map<String, dynamic>> toolUse({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
   }) {
     throw UnimplementedError();
   }

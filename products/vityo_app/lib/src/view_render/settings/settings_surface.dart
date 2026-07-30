@@ -882,8 +882,6 @@ class _ToolchainSettingsCard extends StatelessWidget {
                 Chip(label: Text('version ${status.version}')),
               if (status.channel != null)
                 Chip(label: Text('channel ${status.channel}')),
-              if (status.lastCommand != null)
-                Chip(label: Text('command ${status.lastCommand}')),
             ],
           ),
           if (status.recoveryActions.isNotEmpty) ...[
@@ -984,7 +982,8 @@ class _ToolchainBootstrapSummaryView extends StatelessWidget {
           Text('Toolchain Bootstrap', style: theme.textTheme.titleSmall),
           const SizedBox(height: 6),
           Text(
-            summary.styioLifecycle.message,
+            summary.managerReport.message ??
+                'Toolchain state is derived from the generic manager.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -994,7 +993,6 @@ class _ToolchainBootstrapSummaryView extends StatelessWidget {
             children: [
               Chip(label: Text(summary.ready ? 'ready' : 'actionable')),
               Chip(label: Text('manager ${summary.managerReport.status.name}')),
-              Chip(label: Text('styio ${summary.styioLifecycle.state.name}')),
             ],
           ),
           if (dispatchResult != null) ...[

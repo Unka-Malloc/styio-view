@@ -59,7 +59,6 @@ Toolchain status follows the same projection rule:
 
 ```text
 Toolchain / ProjectGraphSnapshot.toolchain
-Toolchain / ToolchainCommandResult
 Toolchain / ToolchainManagerStatusReport
   -> Interaction / ToolchainStatusSurface
     -> Appearance / toolchain-status-renderer

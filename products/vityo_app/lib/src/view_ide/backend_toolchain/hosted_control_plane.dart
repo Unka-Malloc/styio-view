@@ -40,26 +40,7 @@ abstract class HostedControlPlaneClient {
     required int revision,
   });
 
-  Future<Map<String, dynamic>> toolInstall({
-    required String workspaceId,
-    required String styioBinaryPath,
-  });
-
-  Future<Map<String, dynamic>> toolUse({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  });
-
-  Future<Map<String, dynamic>> toolPin({
-    required String workspaceId,
-    required String compilerVersion,
-    String? channel,
-  });
-
-  Future<Map<String, dynamic>> toolClearPin({required String workspaceId});
-
-  Future<Map<String, dynamic>> fetchDependencies({
+  Future<Map<String, dynamic>> syncDependencies({
     required String workspaceId,
     bool locked = false,
     bool offline = false,

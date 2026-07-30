@@ -156,10 +156,7 @@ class WorkspaceGraphAdapter {
 
     add(snapshot.manifestPath);
     add(snapshot.lockfilePath);
-    add(snapshot.toolchainPinPath);
-    add(snapshot.styioConfigPath);
     add(snapshot.vendorRoot);
-    add(snapshot.buildRoot);
 
     return entries;
   }
@@ -167,7 +164,7 @@ class WorkspaceGraphAdapter {
   /// Derives a partial reason from the project snapshot state.
   String? _partialReasonFromProjectSnapshot(ProjectGraphSnapshot snapshot) {
     if (snapshot.hasProjectGraphPayloadFailure) {
-      return 'Published project graph payload failed to load; using inferred data.';
+      return 'Pafio metadata v1 failed to load; project facts are unavailable.';
     }
     if (snapshot.kind == ProjectKind.scratch) {
       return 'Running in scratch mode; no manifest available.';

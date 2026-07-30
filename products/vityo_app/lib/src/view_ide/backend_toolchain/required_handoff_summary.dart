@@ -91,10 +91,10 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
     handoffs.add(
       RequiredHandoff(
         owner: HandoffOwner.pafio,
-        title: 'Repair published project graph payload',
+        title: 'Repair Pafio metadata v1 payload',
         detail:
-            'pafio already advertises a project graph contract, but Vityo could not consume it cleanly. ${projectGraph.projectGraphPayloadFailure!.detail}',
-        docPath: 'docs/for-pafio/Pafio-Project-Graph-Contract.md',
+            'Vityo could not consume pafio metadata --json cleanly. ${projectGraph.projectGraphPayloadFailure!.detail}',
+        docPath: 'docs/external/for-pafio/Pafio-Metadata-Contract.md',
         blocking: true,
       ),
     );
@@ -105,10 +105,10 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
     handoffs.add(
       const RequiredHandoff(
         owner: HandoffOwner.pafio,
-        title: 'Publish project graph success payload',
+        title: 'Publish metadata v1',
         detail:
-            'Workspace members, packages, targets, and toolchain state are still inferred from canonical files because pafio has not published a dedicated project graph payload.',
-        docPath: 'docs/for-pafio/Pafio-Project-Graph-Contract.md',
+            'Workspace members, packages, dependencies, and targets require the public Pafio metadata v1 payload.',
+        docPath: 'docs/external/for-pafio/Pafio-Metadata-Contract.md',
         blocking: true,
       ),
     );
@@ -120,46 +120,10 @@ List<RequiredHandoff> summarizeRequiredHandoffs({
     handoffs.add(
       const RequiredHandoff(
         owner: HandoffOwner.pafio,
-        title: 'Publish lock and vendor freshness state',
+        title: 'Publish precise lock and vendor state',
         detail:
-            'The shell can see canonical files, but freshness and workflow completion state still need stable success payloads from pafio.',
-        docPath: 'docs/for-pafio/Pafio-Workflow-Success-Payloads.md',
-      ),
-    );
-  }
-
-  if (projectGraph.hasToolchainStatePayloadFailure) {
-    handoffs.add(
-      RequiredHandoff(
-        owner: HandoffOwner.pafio,
-        title: 'Repair published toolchain and registry state',
-        detail:
-            'pafio already advertises toolchain_state, but Vityo could not consume the published payload cleanly. ${projectGraph.toolchainStatePayloadFailure!.detail}',
-        docPath: 'docs/for-pafio/Pafio-Toolchain-And-Registry-State.md',
-      ),
-    );
-  } else if (!projectGraph.hasToolchainEnvironment) {
-    handoffs.add(
-      const RequiredHandoff(
-        owner: HandoffOwner.pafio,
-        title: 'Publish toolchain and registry state',
-        detail:
-            'Toolchain resolution, managed installs, and registry readiness need a machine-readable pafio contract instead of filesystem inference.',
-        docPath: 'docs/for-pafio/Pafio-Toolchain-And-Registry-State.md',
-      ),
-    );
-  }
-
-  if (!projectGraph.hasSourceState &&
-      projectGraph.hasManifest &&
-      !projectGraph.hasProjectGraphPayloadFailure) {
-    handoffs.add(
-      const RequiredHandoff(
-        owner: HandoffOwner.pafio,
-        title: 'Publish dependency source and cache state',
-        detail:
-            'Vendored snapshots, git caches, and registry cache roots still need a machine-readable pafio contract instead of filesystem inference.',
-        docPath: 'docs/for-pafio/Pafio-Toolchain-And-Registry-State.md',
+            'Metadata v1 exposes lock and vendor presence; workflow completion continues through stable Pafio workflow JSON.',
+        docPath: 'docs/external/for-pafio/Pafio-Workflow-Success-Payloads.md',
       ),
     );
   }

@@ -141,11 +141,11 @@ python3 scripts/check_compat_facades.py
 1. `Vityo` 拥有产品合同，上游来适配。
 2. Flutter 主线不依赖上游内部源码结构、类名或某个专门命名的 native 包。
 3. 缺能力时，adapter 返回 capability gap，不让 UI 崩溃或猜状态。
-4. `DependencySourceAdapter`、`DeploymentAdapter`、`ToolchainManagementAdapter` 这三条产品运维 lane 也属于同一后端工具链面，不能回流进 UI 层自行实现。
+4. `DependencySourceAdapter` 与 `DeploymentAdapter` 属于后端工作流面；compiler 状态由 Styio machine contract 直接提供，不能回流进 UI 层自行推断。
 
 平台后端由 `BackendProviderRegistry` 统一装配：
 
-1. 每个平台拥有独立的 `BackendProvider` 入口，负责创建该平台的 project graph、execution、runtime event、dependency、deployment 与 toolchain management adapters。
+1. 每个平台拥有独立的 `BackendProvider` 入口，负责创建该平台的 project metadata、execution、runtime event、dependency 与 deployment adapters。
 2. `AppBootstrap` 只解析一次当前平台 Provider，不再直接调用各 Adapter 的全局平台工厂。
 3. Provider 注册以稳定 `id`、支持平台集合和优先级为选择合同；同平台同优先级冲突、重复 `id` 或缺少 Provider 都必须 fail closed。
 4. 默认 Provider 位于 `products/vityo_app/lib/src/view_ide/backend_toolchain/providers/`；平台专项实现可以通过注入 `BackendProviderRegistry` 独立开发和测试，不需要修改 `AppBootstrap`。
@@ -174,15 +174,15 @@ python3 scripts/check_compat_facades.py
 
 负责：
 
-1. 读取 canonical project files 或 machine payload
+1. 读取 Pafio metadata、Styio machine-info 或 Platform hosted payload
 2. 暴露 workspace graph、targets、toolchain、lock/vendor/build 状态
 3. 驱动左侧工程树、target selector 和 toolchain badge
 
 关键原则：
 
 1. `Vityo` 不通过私有目录结构推断业务状态。
-2. `pafio.toml / pafio.lock / pafio-toolchain.toml / .pafio / styio.toml` 是当前允许的 canonical files。
-3. 一旦 `pafio` 发布正式 project graph payload，主线切到 payload。
+2. `pafio.toml` 仅用于识别本地项目；package facts必须来自 `pafio metadata --json`。
+3. compiler 与 hosted workspace 分别来自 Styio machine contract 和 Platform hosted API。
 
 正式合同见：
 

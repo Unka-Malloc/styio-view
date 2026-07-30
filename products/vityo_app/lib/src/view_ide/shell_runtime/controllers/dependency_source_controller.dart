@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../backend_toolchain/backend_toolchain.dart';
 
-/// Owns dependency fetch/vendor execution and the latest command result.
+/// Owns dependency sync/vendor execution and the latest command result.
 final class DependencySourceController extends ChangeNotifier {
   DependencySourceController({
     required this.adapter,
@@ -20,16 +20,16 @@ final class DependencySourceController extends ChangeNotifier {
 
   DependencySourceCommandResult? get lastCommand => _lastCommand;
 
-  Future<DependencySourceCommandResult> fetchDependencies({
+  Future<DependencySourceCommandResult> syncDependencies({
     bool locked = false,
     bool offline = false,
   }) async {
-    final result = await adapter.fetchDependencies(
+    final result = await adapter.syncDependencies(
       projectGraph: projectGraph(),
       locked: locked,
       offline: offline,
     );
-    return _complete(result, refreshReason: 'fetch completed');
+    return _complete(result, refreshReason: 'sync completed');
   }
 
   Future<DependencySourceCommandResult> vendorDependencies({

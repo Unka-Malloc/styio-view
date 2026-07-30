@@ -18,7 +18,6 @@ export 'required_handoff_summary.dart';
 export 'runtime_event_adapter.dart';
 export 'pafio_cli_discovery.dart';
 export 'pafio_cli_support.dart';
-export 'toolchain_management_adapter.dart';
 export 'workspace_graph_adapter.dart';
 export 'workspace_graph_builder.dart';
 export 'workspace_graph_snapshot.dart';

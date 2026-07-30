@@ -472,14 +472,12 @@ void main() {
     expect(
       entriesById['toolchain.manager']?.summary,
       contains(
-        'Agent toolchain bootstrap context facts, suggested command ids, and prompt guidance',
+        'generic bootstrap summaries',
       ),
     );
     expect(
       entriesById['toolchain.manager']?.summary,
-      contains(
-        'bootstrapStyioToolchain and executeToolchainInstallPlan registered command routing',
-      ),
+      contains('Styio compiler identity is consumed through its machine contract'),
     );
     expect(
       entriesById['toolchain.manager']?.summary,
@@ -487,7 +485,7 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
-      contains('project bootstrap managed install planning'),
+      contains('Clang/C++ selection'),
     );
     expect(
       entriesById['toolchain.manager']?.summary,

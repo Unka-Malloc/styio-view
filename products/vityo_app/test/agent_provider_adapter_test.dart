@@ -1379,11 +1379,7 @@ void main() {
       expect(systemMessage['content'], contains('metadata.moduleHostRefresh'));
       expect(systemMessage['content'], contains('commands.refactorCommands'));
       expect(systemMessage['content'], contains('commands.toolchainCommands'));
-      expect(
-        systemMessage['content'],
-        contains('commands.lastResult.metadata.toolchainCommand'),
-      );
-      expect(systemMessage['content'], contains('useActiveCompiler'));
+      expect(systemMessage['content'], contains('Styio-owned machine fact'));
       expect(systemMessage['content'], contains('requiresInput true'));
       expect(systemMessage['content'], contains('inputContract'));
       expect(systemMessage['content'], contains('inputExamples'));

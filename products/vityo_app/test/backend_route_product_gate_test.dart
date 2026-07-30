@@ -329,7 +329,7 @@ ProjectGraphSnapshot _hostedProjectGraph() {
     targets: const <ProjectTargetDescriptor>[],
     editorFiles: const <String>['/workspace/hosted-route-gate/src/main.styio'],
     toolchain: const ToolchainStatusSnapshot(
-      source: ToolchainResolutionSource.projectPin,
+      source: ToolchainResolutionSource.environment,
       detail: 'hosted pin',
     ),
     lockState: ProjectLockState.fresh,

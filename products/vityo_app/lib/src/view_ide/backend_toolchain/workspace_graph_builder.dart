@@ -127,21 +127,23 @@ class WorkspaceGraphBuilder {
 
     // 5. Compute graph hash.
     final packageIds = packages
-        .map((pkg) =>
-            GraphHash.packageId(
-              packageName: pkg.packageName,
-              version: pkg.version,
-              rootPath: pkg.rootPath,
-            ))
+        .map(
+          (pkg) => GraphHash.packageId(
+            packageName: pkg.packageName,
+            version: pkg.version,
+            rootPath: pkg.rootPath,
+          ),
+        )
         .toList(growable: false);
     final dependencyIds = dependencies
-        .map((dep) =>
-            GraphHash.dependencyId(
-              sourcePackageName: dep.sourcePackageName,
-              dependencyName: dep.dependencyName,
-              kind: dep.kind.label,
-              requirement: dep.requirement,
-            ))
+        .map(
+          (dep) => GraphHash.dependencyId(
+            sourcePackageName: dep.sourcePackageName,
+            dependencyName: dep.dependencyName,
+            kind: dep.kind.label,
+            requirement: dep.requirement,
+          ),
+        )
         .toList(growable: false);
     final tid = GraphHash.toolchainId(
       channel: toolchain.channel,
@@ -165,7 +167,8 @@ class WorkspaceGraphBuilder {
     // 7. Build canonical files map (path -> dependency names in adjacency).
     final packagesAdjacency = <String, List<String>>{};
     for (final pkg in packages) {
-      packagesAdjacency[pkg.packageName] = dependencyGraph[pkg.packageName] ?? <String>[];
+      packagesAdjacency[pkg.packageName] =
+          dependencyGraph[pkg.packageName] ?? <String>[];
     }
 
     // 8. Assemble snapshot.
@@ -318,21 +321,23 @@ class WorkspaceGraphBuilder {
 
     // Recompute graph hash (always recompute since it depends on all files).
     final packageIds = packages
-        .map((pkg) =>
-            GraphHash.packageId(
-              packageName: pkg.packageName,
-              version: pkg.version,
-              rootPath: pkg.rootPath,
-            ))
+        .map(
+          (pkg) => GraphHash.packageId(
+            packageName: pkg.packageName,
+            version: pkg.version,
+            rootPath: pkg.rootPath,
+          ),
+        )
         .toList(growable: false);
     final dependencyIds = dependencies
-        .map((dep) =>
-            GraphHash.dependencyId(
-              sourcePackageName: dep.sourcePackageName,
-              dependencyName: dep.dependencyName,
-              kind: dep.kind.label,
-              requirement: dep.requirement,
-            ))
+        .map(
+          (dep) => GraphHash.dependencyId(
+            sourcePackageName: dep.sourcePackageName,
+            dependencyName: dep.dependencyName,
+            kind: dep.kind.label,
+            requirement: dep.requirement,
+          ),
+        )
         .toList(growable: false);
     final tid = GraphHash.toolchainId(
       channel: toolchain.channel,
@@ -356,7 +361,8 @@ class WorkspaceGraphBuilder {
     // Build adjacency list.
     final packagesAdjacency = <String, List<String>>{};
     for (final pkg in packages) {
-      packagesAdjacency[pkg.packageName] = dependencyGraph[pkg.packageName] ?? <String>[];
+      packagesAdjacency[pkg.packageName] =
+          dependencyGraph[pkg.packageName] ?? <String>[];
     }
 
     // Assemble snapshot, preserving partial state from previous if still applicable.
@@ -551,11 +557,6 @@ class WorkspaceGraphBuilder {
       }
       // Lockfile change affects all packages.
       if (file.filePath.endsWith('pafio.lock')) {
-        changedNames.addAll(packages.map((p) => p.packageName));
-        continue;
-      }
-      // Toolchain pin change affects all packages.
-      if (file.filePath.endsWith('pafio-toolchain.toml')) {
         changedNames.addAll(packages.map((p) => p.packageName));
         continue;
       }

@@ -69,8 +69,11 @@ class EcosystemProductGateTest(unittest.TestCase):
             reports=[{"scenario": "edit-save-run"}],
         )
         self.assertTrue(passed["ok"])
-        self.assertEqual(passed["gate"], "vityo-desktop-product-gate")
-        self.assertEqual(passed["capability"], "trusted-desktop-ide-loop")
+        self.assertEqual(passed["gate"], "vityo-ecosystem-owner-gate")
+        self.assertEqual(
+            passed["capability"],
+            "pafio-styio-owner-composition",
+        )
 
         no_reports = self.gate.result_payload(
             platform="linux", ok=False, returncode=0, reports=[]
@@ -94,19 +97,7 @@ class EcosystemProductGateTest(unittest.TestCase):
             script = root / "pafio/scripts/ecosystem-product-gate.py"
             script.parent.mkdir(parents=True)
             script.write_text(
-                "\n".join(
-                    f"def {name}(*args): return args[0] / '{index}.json'"
-                    for index, name in enumerate(
-                        (
-                            "write_hosted_workspace",
-                            "write_hosted_workspace_project",
-                            "write_hosted_failing_dependency_workspace",
-                            "write_registry_publish_package",
-                            "write_registry_consumer_project",
-                            "write_registry_missing_consumer_project",
-                        )
-                    )
-                ),
+                "def write_hosted_workspace(*args): return args[0] / 'pafio.toml'\n",
                 encoding="utf-8",
             )
             factory = self.gate.load_pafio_workspace_factory(root / "pafio")
@@ -118,8 +109,12 @@ class EcosystemProductGateTest(unittest.TestCase):
             )
 
         self.assertEqual(environment["VITYO_PRODUCT_GATE"], "1")
-        self.assertTrue(environment["VITYO_PRODUCT_MANIFEST6_PATH"].endswith("5.json"))
-        self.assertIn("registry", environment["VITYO_PRODUCT_REGISTRY_ROOT"])
+        self.assertTrue(
+            environment["VITYO_PRODUCT_MANIFEST_PATH"].endswith("pafio.toml")
+        )
+        self.assertTrue(
+            environment["VITYO_PRODUCT_WORKSPACE_ROOT"].endswith("desktop-single")
+        )
 
     def test_helpers_cover_ci_paths_output_and_human_summary(self) -> None:
         self.assertTrue(self.gate.enabled(" YES "))

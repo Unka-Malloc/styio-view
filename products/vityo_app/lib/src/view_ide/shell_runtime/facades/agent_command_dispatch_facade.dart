@@ -96,15 +96,11 @@ mixin ShellRuntimeAgentCommandDispatchFacade on ShellRuntimeFacadeHost {
         return _agentToolchainCommandController.apply(suggestion);
       case 'run':
         return _agentExecutionCommandController.apply(suggestion);
-      case 'fetchDependencies':
+      case 'syncDependencies':
       case 'vendorDependencies':
       case 'packProject':
       case 'preparePublish':
         return _agentProjectLifecycleCommandController.apply(suggestion);
-      case 'useActiveCompiler':
-      case 'pinActiveCompiler':
-      case 'clearPinnedCompiler':
-      case 'bootstrapStyioToolchain':
       case 'executeToolchainInstallPlan':
         return _agentToolchainCommandController.apply(suggestion);
       case 'refreshModules':

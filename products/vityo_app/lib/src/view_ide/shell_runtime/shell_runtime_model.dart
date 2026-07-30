@@ -126,7 +126,6 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     required RuntimeEventAdapter runtimeEventAdapter,
     required DependencySourceAdapter dependencySourceAdapter,
     required DeploymentAdapter deploymentAdapter,
-    required ToolchainManagementAdapter toolchainManagementAdapter,
     this.toolchainManager,
     EditorSessionDataStore? editorSessionDataStore,
     String editorSessionWorkspaceId = 'default',
@@ -319,9 +318,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       log: appendLog,
     )..addListener(_handleDependencySourceChanged);
     _toolchainController = ToolchainController(
-      managementAdapter: toolchainManagementAdapter,
       projectGraph: () => workspaceController.activeProject,
-      refreshProjectGraph: refreshProjectGraph,
       manager: toolchainManager,
       statusReport: toolchainStatusReport,
       log: appendLog,
@@ -484,7 +481,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     _agentProjectLifecycleCommandController =
         AgentProjectLifecycleCommandController(
           agentController: _agentController,
-          fetchDependencies: fetchDependencies,
+          syncDependencies: syncDependencies,
           vendorDependencies: vendorDependencies,
           packProject: packProject,
           preparePublish: preparePublish,
@@ -493,13 +490,8 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     _agentToolchainCommandController = AgentToolchainCommandController(
       agentController: _agentController,
       toolchainController: _toolchainController,
-      blockedReasonForCommand: blockedReasonForCommand,
-      executeCommand: executeCommand,
       selectClangCppVersion: selectClangCppVersion,
-      handleBootstrapAction: handleToolchainBootstrapAction,
       executeLastInstallPlan: executeLastToolchainInstallPlan,
-      blockWhenDirty: _blockAgentDiskBackedCommandWhenDirty,
-      log: appendLog,
       notify: notifyListeners,
     );
     _agentNativeToolCommandController = AgentNativeToolCommandController(

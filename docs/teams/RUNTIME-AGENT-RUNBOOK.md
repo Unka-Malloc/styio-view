@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 runtime surface、debug/agent 面板、prompt/profile 入口与执行态 UI 的日常维护入口。
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-07-30
 
 ## Mission
 
@@ -45,6 +45,9 @@ Key SSOTs:
 9. Permission, provider route, or sandbox changes must update [../governance/SECURITY-AND-SUPPLY-CHAIN.md](../governance/SECURITY-AND-SUPPLY-CHAIN.md) when the policy changes.
 
 10. `runtime_event_log.dart` changes must keep replay output deterministic on Windows and POSIX hosts; avoid path separator, line-ending, or clock assumptions in runtime event summaries and tests.
+11. Agent context may compose Pafio metadata, Styio machine facts, and Platform
+    hosted facts only through their formal adapters; it must not expose Pafio
+    private storage or suggest removed compiler-management commands.
 
 ## Change Classes
 

@@ -233,12 +233,13 @@ Toolchain backend ownership is split:
 |---|---|
 | `toolchain/` | Vityo toolchain backend profile assets, normalization notes, handoff examples, and local backend surface. |
 | `docs/contracts/` | Vityo product adapter contracts. |
-| `styio-nightly` | Compiler binary truth, managed toolchain install/use/pin semantics, machine-info, service capability, and capability SSOT. |
-| `styio-pafio` | Package/workflow/backend-service truth, hosted control plane, project graph, toolchain state, dependency, and deployment backend services. |
+| `styio-nightly` | Compiler binary truth, machine-info, compile-plan consumption, diagnostics, receipt, runtime events, and language-service capability SSOT. |
+| `styio-pafio` | Package/workspace/dependency/target metadata, lock/resolution/vendor state, and local project workflow truth. |
+| Styio Platform | Hosted workspace lifecycle, registry control, cloud jobs, and workers. |
 
 Frontend should consume product contracts and normalized machine payloads, not raw profile files, compiler symlinks, cache layout, or `.pafio` internals on the main runtime path.
 
-`StyioService` is not an OS-level foundation. It is launched from the selected Styio toolchain through Vityo's Toolchain Manager, Process Manager, and Styio Service Connector. OS APIs provide process, file, permission, and network foundations only.
+`StyioService` is not an OS-level foundation. Vityo discovers the system Styio executable and consumes its published machine contracts through the Process Manager and Styio Service Connector. OS APIs provide process, file, permission, and network foundations only.
 
 ## 11. Retired Plan Documents
 

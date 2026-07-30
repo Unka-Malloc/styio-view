@@ -188,13 +188,10 @@ void main() {
     expect(decoded.systemPrompt, contains('provider recovery commands'));
     expect(decoded.systemPrompt, contains('commands.settingsCommands'));
     expect(decoded.systemPrompt, contains('commands.toolchainCommands'));
-    expect(decoded.systemPrompt, contains('toolchains.suggestedCommandIds'));
     expect(
       decoded.systemPrompt,
-      contains('toolchains.bootstrap.executionPlan'),
+      contains('read toolchains entries, activeCompiler, nativeTools'),
     );
-    expect(decoded.systemPrompt, contains('metadata.toolchainCommand'));
-    expect(decoded.systemPrompt, contains('useActiveCompiler'));
     expect(decoded.systemPrompt, contains('requiresInput true'));
     expect(decoded.systemPrompt, contains('inputContract'));
     expect(decoded.systemPrompt, contains('inputExamples'));

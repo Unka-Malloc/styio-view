@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
-import 'package:vityo_app/src/view_ide/backend_toolchain/toolchain_management_adapter.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
 import 'package:vityo_app/src/view_ide/toolchain/clang_cpp_version_configuration.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
@@ -12,58 +11,44 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_manager.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_resolver.dart';
 
 void main() {
-  test('toolchain status surface projects ready project pin state', () {
+  test('toolchain status surface projects system compiler state', () {
     final surface = ToolchainStatusSurface.fromProjectToolchain(
       const ToolchainStatusSnapshot(
-        source: ToolchainResolutionSource.projectPin,
-        detail: 'Project toolchain pin resolved.',
-        pinPath: '/workspace/demo/pafio-toolchain.toml',
-        channel: 'stable',
+        source: ToolchainResolutionSource.environment,
+        detail: 'System Styio machine contract resolved.',
+        channel: 'system',
         version: '0.0.5',
       ),
     );
 
     expect(surface.severity, ToolchainStatusSeverity.ready);
     expect(surface.title, 'Toolchain ready');
-    expect(surface.source, 'project-pin');
+    expect(surface.source, 'environment');
     expect(surface.version, '0.0.5');
-    expect(surface.channel, 'stable');
+    expect(surface.channel, 'system');
     expect(surface.actionable, isFalse);
     expect(surface.recoveryActions, isEmpty);
-    expect(surface.toJson()['pinPath'], '/workspace/demo/pafio-toolchain.toml');
   });
 
-  test('toolchain status surface projects failed command recovery', () {
+  test('toolchain status surface projects unavailable compiler recovery', () {
     final surface = ToolchainStatusSurface.fromProjectToolchain(
       const ToolchainStatusSnapshot(
-        source: ToolchainResolutionSource.managedCurrent,
-        detail: 'Managed toolchain resolved.',
-        channel: 'nightly',
-        version: '0.0.6',
-      ),
-      lastCommand: const ToolchainCommandResult(
-        command: 'tool use',
-        status: ToolchainCommandStatus.failed,
-        statusMessage: 'pafio tool use failed with exit code 64.',
-        stdout: '',
-        stderr: 'exit 64',
+        source: ToolchainResolutionSource.unavailable,
+        detail: 'System Styio is unavailable.',
       ),
     );
 
-    expect(surface.severity, ToolchainStatusSeverity.failed);
-    expect(surface.title, 'Toolchain command failed');
-    expect(surface.message, 'pafio tool use failed with exit code 64.');
-    expect(surface.lastCommand, 'tool use');
+    expect(surface.severity, ToolchainStatusSeverity.unavailable);
+    expect(surface.title, 'Toolchain unavailable');
+    expect(surface.message, 'System Styio is unavailable.');
     expect(surface.actionable, isTrue);
     expect(
       surface.recoveryActions.map((action) => action.id),
       containsAll(<String>[
-        'retry-tool-use',
-        'show-toolchain-logs',
         'select-existing-toolchain',
+        'use-degraded-mode',
       ]),
     );
-    expect(surface.toJson()['lastCommandStatus'], 'failed');
   });
 
   test('toolchain status surface projects manager status report', () {

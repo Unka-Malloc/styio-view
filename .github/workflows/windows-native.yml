@@ -18,13 +18,13 @@ jobs:
     timeout-minutes: 90
     env:
       PYTHON_BIN: python
-      STYIO_PYTHON_VERSION: "3.13.5"
-      STYIO_NODE_VERSION: "24.15.0"
-      STYIO_FLUTTER_VERSION: "3.41.7"
+      VITYO_PYTHON_VERSION: "3.13.5"
+      VITYO_NODE_VERSION: "24.15.0"
+      VITYO_FLUTTER_VERSION: "3.41.7"
 
     steps:
-      - name: Checkout Styio IDE nightly
-        uses: actions/checkout@v5
+      - name: Checkout Vityo nightly
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           fetch-depth: 0
           path: vityo-nightly
@@ -47,40 +47,40 @@ jobs:
           exit 1
 
       - name: Checkout Styio sibling repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5
         with:
           repository: Unka-Malloc/styio-nightly
           ref: ${{ steps.sibling-ref.outputs.ref }}
           path: styio-nightly
 
       - name: Set up standardized Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
         with:
-          python-version: ${{ env.STYIO_PYTHON_VERSION }}
+          python-version: ${{ env.VITYO_PYTHON_VERSION }}
 
       - name: Set up standardized Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
         with:
-          node-version: ${{ env.STYIO_NODE_VERSION }}
+          node-version: ${{ env.VITYO_NODE_VERSION }}
 
       - name: Set up standardized Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2  # v2
         with:
-          flutter-version: ${{ env.STYIO_FLUTTER_VERSION }}
+          flutter-version: ${{ env.VITYO_FLUTTER_VERSION }}
 
       - name: Set up MSVC command environment
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756  # v1
         with:
           arch: x64
 
       - name: Install CI Chrome
         id: setup-chrome
-        uses: browser-actions/setup-chrome@v2
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd  # v2
         with:
           chrome-version: stable
 
       - name: Install CMake, Ninja, and LLVM 18 development package
-        uses: mamba-org/setup-micromamba@v2
+        uses: mamba-org/setup-micromamba@add3a49764cedee8ee24e82dfde87f5bc2914462  # v2
         with:
           environment-name: styio-llvm18
           cache-environment: true
@@ -130,13 +130,13 @@ jobs:
       - name: Verify standardized Windows toolchain
         shell: powershell
         run: |
-          python --version | Select-String -Pattern "$env:STYIO_PYTHON_VERSION"
-          node --version | Select-String -Pattern "v$env:STYIO_NODE_VERSION"
+          python --version | Select-String -Pattern "$env:VITYO_PYTHON_VERSION"
+          node --version | Select-String -Pattern "v$env:VITYO_NODE_VERSION"
           npm --version
           $flutterVersionOutput = flutter --version
           $flutterVersion = ($flutterVersionOutput -split "`r?`n" | Where-Object { $_ -like "Flutter *" } | Select-Object -First 1)
           if (!$flutterVersion) { throw "Flutter version line not found: $flutterVersionOutput" }
-          $flutterVersion | Select-String -Pattern "$env:STYIO_FLUTTER_VERSION"
+          $flutterVersion | Select-String -Pattern "$env:VITYO_FLUTTER_VERSION"
           flutter config --enable-web --enable-windows-desktop
           & "${{ steps.setup-chrome.outputs.chrome-path }}" --version
 
@@ -199,12 +199,12 @@ jobs:
           echo "base_ref=${BASE_REF}" >> "$GITHUB_OUTPUT"
           echo "range=${RANGE}" >> "$GITHUB_OUTPUT"
 
-      - name: Run Styio IDE nightly Windows CI gate
+      - name: Run Vityo nightly Windows CI gate
         working-directory: vityo-nightly
         shell: bash
         env:
           CHROME_EXECUTABLE: ${{ steps.setup-chrome.outputs.chrome-path }}
-          STYIO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+          VITYO_CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
           STYIO: ${{ steps.styio-bin.outputs.path }}
         run: >
           bash scripts/delivery-gate.sh
@@ -214,29 +214,29 @@ jobs:
           --skip-audit
 
       - name: Run Flutter analyze
-        working-directory: vityo-nightly/products/styio_ide
+        working-directory: vityo-nightly/products/vityo_app
         shell: powershell
         run: flutter analyze
 
       - name: Build native Windows release target
-        working-directory: vityo-nightly/products/styio_ide
+        working-directory: vityo-nightly/products/vityo_app
         shell: powershell
         run: flutter build windows --release
 
       - name: Upload Windows coverage reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-coverage-reports-windows
           path: |
             vityo-nightly/.coverage
-            vityo-nightly/products/styio_ide/coverage/lcov.info
+            vityo-nightly/products/vityo_app/coverage/lcov.info
           if-no-files-found: ignore
 
       - name: Upload Windows build artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: vityo-windows-release
-          path: vityo-nightly/products/styio_ide/build/windows/**/*
+          path: vityo-nightly/products/vityo_app/build/windows/**/*
           if-no-files-found: ignore

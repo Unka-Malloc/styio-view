@@ -1,4 +1,4 @@
-# Styio IDE Core Completion Audit
+# Vityo Core Completion Audit
 
 **Purpose:** Record the Vityo Core Completion Audit reference material for Vityo architecture, release, or maintenance work.
 
@@ -34,14 +34,14 @@ For this audit, "complete" means:
 
 | Requirement | Primary artifacts | Verification evidence | Current verdict |
 |---|---|---|---|
-| Foundation exists as a lower layer | `products/styio_ide/lib/src/view_ide/foundation/` | `flutter test test/foundation_test.dart test/credential_data_store_test.dart` was included in the focused core suite. | Covered by focused tests, not independently audited line-by-line in this file. |
-| Platform Detector exists below Context | `products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_detector/` | Focused platform tests in the core suite cover Platform Context and system compatibility managers. | Implemented surface present; full detector-by-detector audit still pending. |
-| Platform Context stores facts, not behavior | `products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_context/` | `test/platform_context_test.dart` was included in focused core suite. | Covered by focused tests. |
-| Platform Adapter derives compatibility from facts | `products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_adapter/` | `test/system_compatibility_managers_test.dart` was included in focused core suite. | Covered by focused tests. |
-| Platform Manager exposes system managers | `products/styio_ide/lib/src/view_ide/environment/system_compatibility/platform_manager/platform_manager.dart` | Full Flutter test after latest changes passed. | Covered as integration surface; manager-by-manager completion audit still pending. |
-| File System Manager supports upper layers | `products/styio_ide/lib/src/view_ide/environment/system_compatibility/file_system/` | `test/file_system_manager_test.dart` was included in focused core suite. | Covered by focused tests. |
-| Shell Manager / PTY Manager support runtime use | `products/styio_ide/lib/src/view_ide/environment/system_compatibility/shell/`, `products/styio_ide/lib/src/view_ide/environment/system_compatibility/pty/` | `test/shell_manager_test.dart`, `test/pty_manager_test.dart`, and terminal runtime tests pass. | Covered by focused tests. |
-| Configuration persists settings via Foundation | `products/styio_ide/lib/src/view_ide/environment/configuration/` | `test/configuration_toolchain_test.dart` passes. | Covered. |
+| Foundation exists as a lower layer | `products/vityo_app/lib/src/view_ide/foundation/` | `flutter test test/foundation_test.dart test/credential_data_store_test.dart` was included in the focused core suite. | Covered by focused tests, not independently audited line-by-line in this file. |
+| Platform Detector exists below Context | `products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_detector/` | Focused platform tests in the core suite cover Platform Context and system compatibility managers. | Implemented surface present; full detector-by-detector audit still pending. |
+| Platform Context stores facts, not behavior | `products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_context/` | `test/platform_context_test.dart` was included in focused core suite. | Covered by focused tests. |
+| Platform Adapter derives compatibility from facts | `products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_adapter/` | `test/system_compatibility_managers_test.dart` was included in focused core suite. | Covered by focused tests. |
+| Platform Manager exposes system managers | `products/vityo_app/lib/src/view_ide/environment/system_compatibility/platform_manager/platform_manager.dart` | Full Flutter test after latest changes passed. | Covered as integration surface; manager-by-manager completion audit still pending. |
+| File System Manager supports upper layers | `products/vityo_app/lib/src/view_ide/environment/system_compatibility/file_system/` | `test/file_system_manager_test.dart` was included in focused core suite. | Covered by focused tests. |
+| Shell Manager / PTY Manager support runtime use | `products/vityo_app/lib/src/view_ide/environment/system_compatibility/shell/`, `products/vityo_app/lib/src/view_ide/environment/system_compatibility/pty/` | `test/shell_manager_test.dart`, `test/pty_manager_test.dart`, and terminal runtime tests pass. | Covered by focused tests. |
+| Configuration persists settings via Foundation | `products/vityo_app/lib/src/view_ide/environment/configuration/` | `test/configuration_toolchain_test.dart` passes. | Covered. |
 | Credentials do not live in ordinary config | `FoundationCredentialDataStore`, `CredentialDataStore`, `ConfigurationStore` | Credential and raw-secret rejection tests pass in `test/configuration_toolchain_test.dart`. | Covered. |
 | Environment overlays are IDE-local, not OS mutations | `environment_variable_configuration.dart` | Environment overlay tests pass in `test/configuration_toolchain_test.dart`. | Covered. |
 | Toolchain catalog persists and scopes by platform | `toolchain_catalog.dart`, `toolchain_configuration_store.dart`, `toolchain_manager.dart` | Catalog, selection, platform target scoping, and manager tests pass in `test/configuration_toolchain_test.dart`. | Covered. |
@@ -55,7 +55,7 @@ For this audit, "complete" means:
 | Language result cache is project-context aware | `styio_service_connector.dart`, `styio_service_project_document_rule_provider.dart` | `test/language_result_cache_context_binding_test.dart` and project provider tests passed in focused language suite. | Covered. |
 | Diagnostics surface can consume service output | Routed/cached language service, editor status widgets | Full Flutter test passed, including language service status widget and smoke tests. | Covered for current service/fallback output. |
 | Completion/hover/semantic/reference/rename consume real Styio facts | Language service payload/fact adapters, semantic snapshot, editor features | UI and fallback feature tests pass, but current real Styio CLI does not emit observed JSONL facts for completion, hover, semantic tokens, symbols, or references. | Not complete as real StyioService capability. |
-| Full frontend tests pass after latest core changes | `products/styio_ide` | `flutter test` -> `+844 ~9 All tests passed`. | Covered for Flutter frontend. |
+| Full frontend tests pass after latest core changes | `products/vityo_app` | `flutter test` -> `+844 ~9 All tests passed`. | Covered for Flutter frontend. |
 | Full repo delivery gates pass | Repo-level scripts, docs gates, CI gates | Not run in this audit. | Not complete. |
 
 ## 3. Latest Verification Snapshot

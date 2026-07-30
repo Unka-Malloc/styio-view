@@ -1,9 +1,9 @@
-# Styio IDE Extension and Contribution Model
+# Vityo Extension and Contribution Model
 
 **Purpose:** Define Vityo's Styio-native extension and contribution model — how modules declare capabilities, how contributions are routed, and how the extension host isolates and activates extensions. This is NOT a VS Code extension API clone.
 
 **Owner:** Extension/module architecture owner (`CODEOWNERS` → module_host domain)
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-30
 
 ---
 
@@ -34,7 +34,7 @@ class ExtensionManifest {
 }
 ```
 
-Reference: `products/styio_ide/lib/src/view_ide/module_host/extension_manifest_contract.dart`
+Reference: `products/vityo_app/lib/src/view_ide/module_host/extension_manifest_contract.dart`
 
 ### 2.2 Manifest Validation
 
@@ -53,17 +53,22 @@ Vityo defines typed contribution points, each owned by a domain:
 |-------------------|-------------|-----------|---------|
 | `commands` | `commands/` | `ExtensionCommandContribution` | Register a command in palette |
 | `languages` | `language/` | `ExtensionLanguageContribution` | Register a language service |
-| `agent_providers` | `agent/` | `ExtensionAgentProviderContribution` | Register an AI provider |
-| `agent_tools` | `agent/` | `ExtensionAgentToolContribution` | Register an agent tool |
+| `agent_clients` | `agent_client/` | Agent connection contribution | Register a compatible Agent connection/launcher |
+| `agent_workbench_views` | `view_render/agent_workbench/` | Agent Workbench view contribution | Register a view over protocol-projected Agent state |
 | `debug_adapters` | `debugger/` | `ExtensionDebugContribution` | Register a debug adapter |
 | `toolchains` | `toolchain/` | `ExtensionToolchainContribution` | Register a toolchain |
 | `themes` | `theme/` | `ExtensionThemeContribution` | Register a theme |
 | `views` | `view_render/extensions/` | `ExtensionViewContribution` | Register a UI view |
 | `runtime_tasks` | `runtime/` | `ExtensionRuntimeTaskContribution` | Register a runtime task |
 
+Model providers and Agent tools are not IDE contribution points. They belong to the connected Agent
+runtime. Existing IDE-side `agent_providers` or `agent_tools` implementation is part of the atomic
+migration recorded in [Vityo Implementation Gaps](./Vityo-Implementation-Gaps.md), not a target
+extension contract.
+
 ### 3.2 Contribution Router
 
-The `ExtensionContributionRouter` (at `products/styio_ide/lib/src/view_ide/module_host/extension_contribution_router.dart`) routes contributions to their domain owners. Each domain owner validates and registers the contribution.
+The `ExtensionContributionRouter` (at `products/vityo_app/lib/src/view_ide/module_host/extension_contribution_router.dart`) routes contributions to their domain owners. Each domain owner validates and registers the contribution.
 
 ### 3.3 Contribution Lifecycle
 
@@ -90,7 +95,7 @@ The `ExtensionContributionRouter` (at `products/styio_ide/lib/src/view_ide/modul
 - `process` extensions communicate via stdin/stdout or socket with typed codecs.
 - `hosted` extensions require network permission and health monitoring.
 
-Reference: `products/styio_ide/lib/src/view_ide/module_host/extension_host_isolation.dart`
+Reference: `products/vityo_app/lib/src/view_ide/module_host/extension_host_isolation.dart`
 
 ## 5. Extension Lifecycle
 
@@ -127,7 +132,7 @@ Activation events (modeled after Theia/VS Code concepts but Styio-native):
 
 ## 6. Extension Marketplace
 
-The `ExtensionMarketplace` (at `products/styio_ide/lib/src/view_ide/module_host/extension_marketplace.dart`) provides:
+The `ExtensionMarketplace` (at `products/vityo_app/lib/src/view_ide/module_host/extension_marketplace.dart`) provides:
 
 - Discovery of available extensions
 - Installation with dependency resolution
@@ -137,7 +142,7 @@ The `ExtensionMarketplace` (at `products/styio_ide/lib/src/view_ide/module_host/
 
 ## 7. Capability Matrix Integration
 
-Extensions declare `requiredCapabilities` in their manifest. The `ModuleCapabilityMatrix` (at `products/styio_ide/lib/src/view_ide/module_host/module_capability_matrix.dart`) gates activation:
+Extensions declare `requiredCapabilities` in their manifest. The `ModuleCapabilityMatrix` (at `products/vityo_app/lib/src/view_ide/module_host/module_capability_matrix.dart`) gates activation:
 
 - If a required capability is unavailable, the extension is blocked.
 - If a required capability is degraded, the extension activates with limited functionality.
@@ -169,6 +174,7 @@ Every new contribution point must have:
 
 - [Vityo Mainstream Architecture Alignment](./Vityo-Mainstream-Architecture-Alignment.md)
 - [Vityo Protocol And Capability Negotiation](./Vityo-Protocol-And-Capability-Negotiation.md)
+- [Vityo Agent-Native IDE Architecture](./Vityo-Agent-Native-IDE-Architecture.md)
 - [ADR-0009 Module Runtime and Staged Updates](../adr/ADR-0009-module-runtime-and-staged-updates.md)
 - [Module Platform Runbook](../teams/MODULE-PLATFORM-RUNBOOK.md)
 - [Extension Module Runbook](../teams/EXTENSION-MODULE-RUNBOOK.md)

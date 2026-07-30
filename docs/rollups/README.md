@@ -1,15 +1,17 @@
 # Rollups Docs
 
-**Purpose:** 提供 `Vityo` 的压缩活跃摘要与默认阅读入口，让当前状态和活跃缺口能在不先通读 raw history 的前提下被快速定位。
+**Purpose:** Provide compact active summaries and a default current-state entry point for Vityo without treating historical reports as product truth.
 
-**Last updated:** 2026-04-17
+**Last updated:** 2026-07-30
 
 ## Scope
 
-1. 当前状态摘要。
-2. 活跃 gap ledger。
-3. 跨多个 checkpoint 仍然有效的短摘要。
+1. The current product and governance summary.
+2. Short implementation summaries that remain valid across checkpoints.
+3. Links to owner design documents for active gaps.
 
 ## Maintenance Rule
 
-`rollups/` 只压缩活跃真相，不能替代 `design/`、`specs/`、`plans/`、`review/` 或 `history/` 的 owner 文档。
+`rollups/` compresses active truth only. Superseded provider, panel-first, merge, or audit reports
+belong in `docs/archive/history/`. Rollups never replace owner documents in `design/`, `specs/`,
+`plan/`, `review/`, or `history/`.

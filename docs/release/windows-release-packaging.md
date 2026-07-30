@@ -20,7 +20,7 @@ The Windows release artifact is:
 The hosted workflow at `.github/workflows/windows-native.yml` must:
 
 1. Run on `windows-latest`.
-2. Provide `STYIO`, `STYIO_CHROME_PATH`, `CHROME_EXECUTABLE`, and `PYTHON_BIN` to the delivery gate.
+2. Provide `STYIO`, `VITYO_CHROME_PATH`, `CHROME_EXECUTABLE`, and `PYTHON_BIN` to the delivery gate.
 3. Run `scripts/delivery-gate.sh --mode push` without `--skip-health` or `--skip-ecosystem`.
 4. Run `flutter analyze`.
 5. Run `flutter build windows --release`.

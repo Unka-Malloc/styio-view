@@ -31,7 +31,7 @@ def write(path: Path, text: str) -> None:
 
 @contextmanager
 def patched_architecture_roots(gate, tmp_root: Path):
-    app_lib_root = tmp_root / "products" / "styio_ide" / "lib"
+    app_lib_root = tmp_root / "products" / "vityo_app" / "lib"
     src_root = app_lib_root / "src"
     originals = (
         gate.APP_LIB_ROOT,
@@ -76,7 +76,7 @@ class ArchitectureBoundaryGateTest(unittest.TestCase):
                 errors = self.gate.check_view_ide_no_view_render_dependency()
 
         self.assertTrue(
-            any("view_ide must not import or export view_render" in error for error in errors),
+            any("IDE domain must not import or export view_render" in error for error in errors),
             errors,
         )
 
@@ -85,7 +85,7 @@ class ArchitectureBoundaryGateTest(unittest.TestCase):
             with patched_architecture_roots(self.gate, Path(tmp_name)) as src_root:
                 write(
                     src_root / "view_ide" / "sample.dart",
-                    "import 'package:styio_ide/src/view_render/view_render.dart';\n",
+                    "import 'package:vityo_app/src/view_render/view_render.dart';\n",
                 )
                 write(
                     src_root / "view_render" / "view_render.dart",
@@ -95,7 +95,7 @@ class ArchitectureBoundaryGateTest(unittest.TestCase):
                 errors = self.gate.check_view_ide_no_view_render_dependency()
 
         self.assertTrue(
-            any("view_ide must not import or export view_render" in error for error in errors),
+            any("IDE domain must not import or export view_render" in error for error in errors),
             errors,
         )
 

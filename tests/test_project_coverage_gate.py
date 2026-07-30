@@ -50,7 +50,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
         self.assertIn("vityo-coverage-reports-windows", workflow)
         self.assertIn("vityo-coverage-reports-macos", workflow)
         self.assertIn("vityo-nightly/.coverage", workflow)
-        self.assertIn("vityo-nightly/frontend/vityo_app/coverage/lcov.info", workflow)
+        self.assertIn("vityo-nightly/products/vityo_app/coverage/lcov.info", workflow)
 
     def test_local_ci_gate_runs_real_platform_delivery_gates(self) -> None:
         workflow = (REPO_ROOT / ".github/workflows/local-ci-gate.yml").read_text(encoding="utf-8")
@@ -62,7 +62,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
         self.assertEqual(workflow.count("--skip-audit"), 3)
         self.assertNotIn("--skip-health", workflow)
         self.assertNotIn("--skip-ecosystem", workflow)
-        for value in ("STYIO:", "STYIO_CHROME_PATH:", "CHROME_EXECUTABLE:", "PYTHON_BIN:"):
+        for value in ("STYIO:", "VITYO_CHROME_PATH:", "CHROME_EXECUTABLE:", "PYTHON_BIN:"):
             self.assertIn(value, workflow)
         self.assertIn("flutter build linux --release", workflow)
         self.assertIn("flutter build windows --release", workflow)
@@ -72,7 +72,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
         workflow = (REPO_ROOT / ".github/workflows/project-coverage-gate.yml").read_text(encoding="utf-8")
 
         self.assertIn("name: project-coverage-gate", workflow)
-        self.assertIn('STYIO_FLUTTER_VERSION: "3.41.7"', workflow)
+        self.assertIn('VITYO_FLUTTER_VERSION: "3.41.7"', workflow)
         self.assertIn("python3 -m pip install coverage", workflow)
         self.assertIn("flutter pub get", workflow)
         self.assertIn(
@@ -80,7 +80,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
             workflow,
         )
         self.assertIn("vityo-project-coverage", workflow)
-        self.assertIn("frontend/vityo_app/coverage/lcov.info", workflow)
+        self.assertIn("products/vityo_app/coverage/lcov.info", workflow)
 
     def test_parse_lcov_sums_records_and_rejects_invalid_reports(self) -> None:
         with tempfile.TemporaryDirectory(prefix="project-coverage-", dir=REPO_ROOT) as tmp_name:
@@ -144,7 +144,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
         original_root = self.gate.ROOT
         try:
             self.gate.ROOT = REPO_ROOT
-            app_dir = REPO_ROOT / "frontend/vityo_app"
+            app_dir = REPO_ROOT / "products/vityo_app"
             explicit = REPO_ROOT / "out/flutter.lcov.info"
 
             self.assertEqual(
@@ -178,7 +178,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
                 self.assertEqual(
                     self.gate.run_flutter_gate(
                         fail_under=95,
-                        flutter_dir=Path("frontend/vityo_app"),
+                        flutter_dir=Path("products/vityo_app"),
                         flutter_bin=None,
                     ),
                     2,

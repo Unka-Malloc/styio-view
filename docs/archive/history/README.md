@@ -1,13 +1,15 @@
 # Archive History Docs
 
-**Purpose:** 保存从 `docs/history/` 退役后的主题化历史记录，确保 raw provenance 被保留，但不与活跃恢复面竞争。
+**Purpose:** Preserve retired history, rollup, and audit provenance without letting it compete with active product truth.
 
-**Last updated:** 2026-04-17
+**Last updated:** 2026-07-30
 
 ## Scope
 
-1. 已归档的主题化 history notes。
+1. Retired topic-based history notes.
+2. Superseded rollups, audits, and implementation reports retained for provenance.
 
 ## Maintenance Rule
 
-只有在 lifecycle 元数据同步后，才把退役 history 从 active tree 移到这里。
+Every move into this directory must be registered in
+`docs/archive/ARCHIVE-MANIFEST.json`, followed by lifecycle refresh and index generation.

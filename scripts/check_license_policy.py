@@ -9,9 +9,9 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-PUBSPEC = REPO_ROOT / "products/styio_ide/pubspec.yaml"
+PUBSPEC = REPO_ROOT / "products/vityo_app/pubspec.yaml"
 
-ALLOWED_DART_PACKAGES = {
+ALLOWED_EXTERNAL_DART_PACKAGES = {
     "flutter",
     "crypto",
     "cupertino_icons",
@@ -22,6 +22,11 @@ ALLOWED_DART_PACKAGES = {
     "web",
     "flutter_test",
     "flutter_lints",
+    "test",
+}
+
+FIRST_PARTY_DART_PACKAGE_PATHS = {
+    "vityo_agent_protocol": "../../packages/vityo_agent_protocol",
 }
 
 FORBIDDEN_LICENSE_MARKERS = (
@@ -32,33 +37,60 @@ FORBIDDEN_LICENSE_MARKERS = (
 )
 
 
-def parse_pubspec_dependencies() -> set[str]:
+def parse_pubspec_dependencies() -> tuple[set[str], dict[str, str]]:
     if not PUBSPEC.is_file():
-        return set()
+        return set(), {}
     packages: set[str] = set()
+    local_paths: dict[str, str] = {}
     in_dependency_block = False
+    current_package: str | None = None
     for line in PUBSPEC.read_text(encoding="utf-8").splitlines():
         if re.match(r"^(dependencies|dev_dependencies):\s*$", line):
             in_dependency_block = True
+            current_package = None
             continue
         if in_dependency_block and line and not line.startswith(" "):
             in_dependency_block = False
+            current_package = None
         if not in_dependency_block:
             continue
         match = re.match(r"^\s{2}([A-Za-z0-9_]+):", line)
         if match:
-            packages.add(match.group(1))
-    return packages
+            current_package = match.group(1)
+            packages.add(current_package)
+            continue
+        path_match = re.match(r"^\s{4}path:\s*(\S.*?)\s*$", line)
+        if current_package is not None and path_match:
+            local_paths[current_package] = path_match.group(1).strip("\"'")
+    return packages, local_paths
 
 
 def check_license_policy() -> list[str]:
     errors: list[str] = []
     if not PUBSPEC.is_file():
         return [f"missing pubspec: {PUBSPEC.relative_to(REPO_ROOT).as_posix()}"]
-    packages = parse_pubspec_dependencies()
-    extra = sorted(packages - ALLOWED_DART_PACKAGES)
+    packages, local_paths = parse_pubspec_dependencies()
+    extra = sorted(
+        packages
+        - ALLOWED_EXTERNAL_DART_PACKAGES
+        - FIRST_PARTY_DART_PACKAGE_PATHS.keys()
+    )
     if extra:
         errors.append("pubspec contains packages outside license allowlist: " + ", ".join(extra))
+    for package, expected_path in FIRST_PARTY_DART_PACKAGE_PATHS.items():
+        if package not in packages:
+            continue
+        actual_path = local_paths.get(package)
+        if actual_path != expected_path:
+            errors.append(
+                f"first-party package `{package}` must use repository path `{expected_path}`"
+            )
+            continue
+        package_pubspec = (PUBSPEC.parent / actual_path / "pubspec.yaml").resolve()
+        if not package_pubspec.is_file():
+            errors.append(
+                f"first-party package `{package}` is missing its repository pubspec"
+            )
 
     third_party = REPO_ROOT / "docs/specs/THIRD-PARTY.md"
     if not third_party.is_file():

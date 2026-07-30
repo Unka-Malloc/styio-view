@@ -191,7 +191,7 @@ class PerformanceGateRunnerTest(unittest.TestCase):
     def test_run_benchmark_suite_uses_dart_runner_and_embedded_json(self) -> None:
         with tempfile.TemporaryDirectory(prefix="performance-runner-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)
-            app = root / "frontend/vityo_app"
+            app = root / "products/vityo_app"
             runner = app / "benchmark/run_all_benchmarks.dart"
             write(runner, "// runner\n")
             stdout = (

@@ -11,9 +11,9 @@ Own the Vityo extension and contribution model: extension manifest schema, typed
 ## Owned Surface
 
 Primary paths:
-1. `products/styio_ide/lib/src/view_ide/module_host/`
-2. `products/styio_ide/assets/module_manifests/`
-3. `products/styio_ide/assets/capability_matrices/`
+1. `products/vityo_app/lib/src/view_ide/module_host/`
+2. `products/vityo_app/assets/module_manifests/`
+3. `products/vityo_app/assets/capability_matrices/`
 4. `docs/design/Vityo-Extension-And-Contribution-Model.md`
 5. `docs/teams/EXTENSION-MODULE-RUNBOOK.md`
 
@@ -42,14 +42,16 @@ Key SSOTs:
 
 Minimum:
 ```bash
-cd products/styio_ide && flutter test test/extension_manifest_contract_test.dart test/extension_contribution_manifest_test.dart test/module_lifecycle_test.dart
-cd products/styio_ide && flutter analyze
+cd products/vityo_app && flutter test test/extension_manifest_contract_test.dart test/extension_contribution_manifest_test.dart test/module_lifecycle_test.dart
+cd products/vityo_app && flutter analyze
 ```
 
 ## Cross-Team Dependencies
 
 1. Architecture team must review extension model changes.
-2. Agent team must review agent provider/tool contribution changes.
+2. Agent Runtime and Runtime / Agent Client teams must review compatible-Agent connection or Agent
+   Workbench view contributions. Model-provider and Agent-tool contributions must remain
+   Agent-runtime-owned.
 3. Language team must review language contribution changes.
 4. Theme/UX team must review theme contribution changes.
 5. Security/governance team must review extension isolation and permission changes.

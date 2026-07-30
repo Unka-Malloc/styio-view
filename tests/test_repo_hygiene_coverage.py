@@ -175,7 +175,7 @@ class RepoHygieneCoverageTest(unittest.TestCase):
             self.gate.VIEW_RENDER_ROOT = root / "view_render"
             self.gate.LEGACY_COMMANDS_ROOT = root / "legacy_commands"
             self.gate.VIEW_IDE_LANGUAGE_ROOT = root / "view_ide/language"
-            self.gate.VIEW_IDE_EDITOR_ROOT = root / "view_ide/editor"
+            self.gate.VIEW_IDE_EDITOR_ROOT = root / "ide/editor"
             try:
                 boundary_errors = self.gate.check_view_boundary_imports()
                 self.assertTrue(any("required view boundary directory is missing" in error for error in boundary_errors))
@@ -192,9 +192,9 @@ class RepoHygieneCoverageTest(unittest.TestCase):
                 (root / "view_ide/language/extra.dart").write_text("class Extra {}\n", encoding="utf-8")
                 language_errors = self.gate.check_view_ide_language_layout()
 
-                (root / "view_ide/editor").mkdir(parents=True)
-                (root / "view_ide/editor/editor.dart").write_text("export 'wrong.dart';\n", encoding="utf-8")
-                (root / "view_ide/editor/extra.dart").write_text("class Extra {}\n", encoding="utf-8")
+                (root / "ide/editor").mkdir(parents=True)
+                (root / "ide/editor/editor.dart").write_text("export 'wrong.dart';\n", encoding="utf-8")
+                (root / "ide/editor/extra.dart").write_text("class Extra {}\n", encoding="utf-8")
                 editor_errors = self.gate.check_view_ide_editor_layout()
             finally:
                 self.gate.REPO_ROOT = original_root
@@ -210,46 +210,7 @@ class RepoHygieneCoverageTest(unittest.TestCase):
         self.assertTrue(any("top-level view_ide/language files must be registered facades" in error for error in language_errors))
         self.assertTrue(any("required editor submodule is missing" in error for error in editor_errors))
         self.assertTrue(any("editor.dart must stay the canonical editor barrel" in error for error in editor_errors))
-        self.assertTrue(any("top-level view_ide/editor files must be registered facades" in error for error in editor_errors))
-
-    def test_legacy_facade_helpers_cover_missing_invalid_and_missing_target(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="repo-hygiene-", dir=REPO_ROOT) as tmp_name:
-            root = Path(tmp_name)
-            original_root = self.gate.REPO_ROOT
-            self.gate.REPO_ROOT = root
-            try:
-                missing = self.gate.check_legacy_view_ide_facades(
-                    legacy_root=root / "legacy",
-                    migrated_root=root / "migrated",
-                    legacy_name="sample",
-                )
-                (root / "legacy").mkdir()
-                (root / "migrated").mkdir()
-                (root / "legacy/a.dart").write_text("class A {}\n", encoding="utf-8")
-                invalid = self.gate.check_legacy_view_ide_facades(
-                    legacy_root=root / "legacy",
-                    migrated_root=root / "migrated",
-                    legacy_name="sample",
-                )
-                (root / "legacy/a.dart").write_text("export '../view_ide/sample/a.dart';\n", encoding="utf-8")
-                missing_target = self.gate.check_legacy_view_ide_facades(
-                    legacy_root=root / "legacy",
-                    migrated_root=root / "migrated",
-                    legacy_name="sample",
-                )
-                (root / "migrated/a.dart").write_text("class A {}\n", encoding="utf-8")
-                clean = self.gate.check_legacy_view_ide_facades(
-                    legacy_root=root / "legacy",
-                    migrated_root=root / "migrated",
-                    legacy_name="sample",
-                )
-            finally:
-                self.gate.REPO_ROOT = original_root
-
-        self.assertIn("required legacy sample facade directory is missing", missing[0])
-        self.assertIn("must stay one-line facades", invalid[0])
-        self.assertIn("facade target is missing", missing_target[0])
-        self.assertEqual(clean, [])
+        self.assertTrue(any("top-level ide/editor files must be registered facades" in error for error in editor_errors))
 
     def test_push_history_report_and_main_modes(self) -> None:
         rev_list = subprocess.CompletedProcess([], 0, stdout="oid1 path\n", stderr="")
@@ -293,18 +254,9 @@ class RepoHygieneCoverageTest(unittest.TestCase):
             "check_doc_references",
             "check_project_branding",
             "check_view_boundary_imports",
-            "check_legacy_backend_toolchain_facades",
             "check_legacy_command_adapter",
-            "check_legacy_editor_facades",
-            "check_legacy_language_facades",
-            "check_legacy_workspace_facades",
-            "check_legacy_module_host_facades",
-            "check_legacy_runtime_facades",
             "check_legacy_render_shell_facades",
-            "check_legacy_view_render_facades",
             "check_shell_runtime_boundary",
-            "check_legacy_agent_facades",
-            "check_legacy_platform_facades",
             "check_view_ide_language_layout",
             "check_view_ide_editor_layout",
         )
@@ -320,113 +272,19 @@ class RepoHygieneCoverageTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("nothing to check", stdout.getvalue())
 
-    def test_legacy_facade_wrappers_delegate_to_shared_checker(self) -> None:
-        wrappers = (
-            (
-                self.gate.check_legacy_editor_facades,
-                self.gate.LEGACY_EDITOR_ROOT,
-                self.gate.VIEW_IDE_EDITOR_ROOT,
-                "editor",
-                self.gate.LEGACY_EDITOR_FACADE_FILES,
-                None,
-            ),
-            (
-                self.gate.check_legacy_workspace_facades,
-                self.gate.LEGACY_WORKSPACE_ROOT,
-                self.gate.VIEW_IDE_WORKSPACE_ROOT,
-                "workspace",
-                self.gate.LEGACY_WORKSPACE_FACADE_FILES,
-                "../../view_ide/workspace",
-            ),
-            (
-                self.gate.check_legacy_module_host_facades,
-                self.gate.LEGACY_MODULE_HOST_ROOT,
-                self.gate.VIEW_IDE_MODULE_HOST_ROOT,
-                "module_host",
-                None,
-                None,
-            ),
-            (
-                self.gate.check_legacy_runtime_facades,
-                self.gate.LEGACY_RUNTIME_ROOT,
-                self.gate.VIEW_IDE_RUNTIME_ROOT,
-                "runtime",
-                self.gate.LEGACY_RUNTIME_FACADE_FILES,
-                None,
-            ),
-            (
-                self.gate.check_legacy_agent_facades,
-                self.gate.LEGACY_AGENT_ROOT,
-                self.gate.VIEW_IDE_AGENT_ROOT,
-                "agent",
-                self.gate.LEGACY_AGENT_FACADE_FILES,
-                None,
-            ),
-            (
-                self.gate.check_legacy_platform_facades,
-                self.gate.LEGACY_PLATFORM_ROOT,
-                self.gate.VIEW_IDE_PLATFORM_ROOT,
-                "platform",
-                self.gate.LEGACY_PLATFORM_FACADE_FILES,
-                None,
-            ),
-        )
-
-        for wrapper, legacy_root, migrated_root, legacy_name, file_names, export_prefix in wrappers:
-            with self.subTest(legacy_name=legacy_name):
-                with mock.patch.object(
-                    self.gate,
-                    "check_legacy_view_ide_facades",
-                    return_value=[legacy_name],
-                ) as shared:
-                    self.assertEqual(wrapper(), [legacy_name])
-
-                kwargs = shared.call_args.kwargs
-                self.assertEqual(kwargs["legacy_root"], legacy_root)
-                self.assertEqual(kwargs["migrated_root"], migrated_root)
-                self.assertEqual(kwargs["legacy_name"], legacy_name)
-                if file_names is None:
-                    self.assertNotIn("file_names", kwargs)
-                else:
-                    self.assertEqual(kwargs["file_names"], file_names)
-                if export_prefix is None:
-                    self.assertNotIn("export_prefix", kwargs)
-                else:
-                    self.assertEqual(kwargs["export_prefix"], export_prefix)
-
-    def test_render_facade_checks_report_missing_files_and_targets(self) -> None:
+    def test_render_shell_facade_check_reports_missing_files_and_targets(self) -> None:
         with tempfile.TemporaryDirectory(prefix="repo-hygiene-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)
             original_values = {
                 "REPO_ROOT": self.gate.REPO_ROOT,
                 "LEGACY_APP_LAYOUT_ROOT": self.gate.LEGACY_APP_LAYOUT_ROOT,
                 "LEGACY_WORKSPACE_ROOT": self.gate.LEGACY_WORKSPACE_ROOT,
-                "LEGACY_EDITOR_ROOT": self.gate.LEGACY_EDITOR_ROOT,
-                "LEGACY_AGENT_ROOT": self.gate.LEGACY_AGENT_ROOT,
-                "LEGACY_RUNTIME_ROOT": self.gate.LEGACY_RUNTIME_ROOT,
-                "LEGACY_THEME_ROOT": self.gate.LEGACY_THEME_ROOT,
-                "LEGACY_PLATFORM_ROOT": self.gate.LEGACY_PLATFORM_ROOT,
                 "VIEW_RENDER_SHELL_ROOT": self.gate.VIEW_RENDER_SHELL_ROOT,
-                "VIEW_RENDER_EDITOR_ROOT": self.gate.VIEW_RENDER_EDITOR_ROOT,
-                "VIEW_RENDER_AGENT_ROOT": self.gate.VIEW_RENDER_AGENT_ROOT,
-                "VIEW_RENDER_RUNTIME_ROOT": self.gate.VIEW_RENDER_RUNTIME_ROOT,
-                "VIEW_RENDER_THEME_ROOT": self.gate.VIEW_RENDER_THEME_ROOT,
-                "VIEW_RENDER_PLATFORM_ROOT": self.gate.VIEW_RENDER_PLATFORM_ROOT,
             }
             self.gate.REPO_ROOT = root
             self.gate.LEGACY_APP_LAYOUT_ROOT = root / "legacy/layout"
             self.gate.LEGACY_WORKSPACE_ROOT = root / "legacy/workspace"
-            self.gate.LEGACY_EDITOR_ROOT = root / "legacy/editor"
-            self.gate.LEGACY_AGENT_ROOT = root / "legacy/agent"
-            self.gate.LEGACY_RUNTIME_ROOT = root / "legacy/runtime"
-            self.gate.LEGACY_THEME_ROOT = root / "legacy/theme"
-            self.gate.LEGACY_PLATFORM_ROOT = root / "legacy/platform"
             self.gate.VIEW_RENDER_SHELL_ROOT = root / "render/shell"
-            self.gate.VIEW_RENDER_EDITOR_ROOT = root / "render/editor"
-            self.gate.VIEW_RENDER_AGENT_ROOT = root / "render/agent"
-            self.gate.VIEW_RENDER_RUNTIME_ROOT = root / "render/runtime"
-            self.gate.VIEW_RENDER_THEME_ROOT = root / "render/theme"
-            self.gate.VIEW_RENDER_PLATFORM_ROOT = root / "render/platform"
             try:
                 shell_missing = self.gate.check_legacy_render_shell_facades()
 
@@ -445,28 +303,12 @@ class RepoHygieneCoverageTest(unittest.TestCase):
                     encoding="utf-8",
                 )
                 shell_missing_targets = self.gate.check_legacy_render_shell_facades()
-
-                view_missing = self.gate.check_legacy_view_render_facades()
-
-                for directory, name, export_target in (
-                    (self.gate.LEGACY_AGENT_ROOT, "agent_surface.dart", "../view_render/agent/agent_surface.dart"),
-                    (self.gate.LEGACY_EDITOR_ROOT, "editor_surface.dart", "../view_render/editor/editor_surface.dart"),
-                    (self.gate.LEGACY_RUNTIME_ROOT, "runtime_surface.dart", "../view_render/runtime/runtime_surface.dart"),
-                    (self.gate.LEGACY_RUNTIME_ROOT, "debug_console_surface.dart", "../view_render/runtime/debug_console_surface.dart"),
-                    (self.gate.LEGACY_THEME_ROOT, "vityo_theme.dart", "../view_render/theme/vityo_theme.dart"),
-                    (self.gate.LEGACY_PLATFORM_ROOT, "viewport_profile.dart", "../view_render/platform/viewport_profile.dart"),
-                ):
-                    directory.mkdir(parents=True, exist_ok=True)
-                    (directory / name).write_text(f"export '{export_target}';\n", encoding="utf-8")
-                view_missing_targets = self.gate.check_legacy_view_render_facades()
             finally:
                 for name, value in original_values.items():
                     setattr(self.gate, name, value)
 
         self.assertTrue(any("required legacy render shell facade is missing" in error for error in shell_missing))
         self.assertTrue(any("facade target is missing" in error for error in shell_missing_targets))
-        self.assertTrue(any("required legacy view_render facade is missing" in error for error in view_missing))
-        self.assertTrue(any("facade target is missing" in error for error in view_missing_targets))
 
     def test_shell_runtime_and_layout_early_return_paths(self) -> None:
         with tempfile.TemporaryDirectory(prefix="repo-hygiene-", dir=REPO_ROOT) as tmp_name:
@@ -507,51 +349,15 @@ class RepoHygieneCoverageTest(unittest.TestCase):
         self.assertIn("must preserve render shell marker: enum BottomSurfaceTab", joined)
         self.assertIn("must preserve render shell marker: class ShellModel extends ShellRuntimeModel", joined)
 
-    def test_legacy_facade_helper_handles_missing_migrated_root_and_named_file(self) -> None:
-        with tempfile.TemporaryDirectory(prefix="repo-hygiene-", dir=REPO_ROOT) as tmp_name:
-            root = Path(tmp_name)
-            original_root = self.gate.REPO_ROOT
-            self.gate.REPO_ROOT = root
-            try:
-                (root / "legacy").mkdir()
-                self.assertEqual(
-                    self.gate.check_legacy_view_ide_facades(
-                        legacy_root=root / "legacy",
-                        migrated_root=root / "missing-migrated",
-                        legacy_name="sample",
-                    ),
-                    [],
-                )
-                (root / "migrated").mkdir()
-                errors = self.gate.check_legacy_view_ide_facades(
-                    legacy_root=root / "legacy",
-                    migrated_root=root / "migrated",
-                    legacy_name="sample",
-                    file_names=("missing.dart",),
-                )
-            finally:
-                self.gate.REPO_ROOT = original_root
-
-        self.assertIn("required legacy sample facade is missing", errors[0])
-
     def test_main_push_and_empty_policy_error_paths(self) -> None:
         check_names = (
             "check_gitignore",
             "check_doc_references",
             "check_project_branding",
             "check_view_boundary_imports",
-            "check_legacy_backend_toolchain_facades",
             "check_legacy_command_adapter",
-            "check_legacy_editor_facades",
-            "check_legacy_language_facades",
-            "check_legacy_workspace_facades",
-            "check_legacy_module_host_facades",
-            "check_legacy_runtime_facades",
             "check_legacy_render_shell_facades",
-            "check_legacy_view_render_facades",
             "check_shell_runtime_boundary",
-            "check_legacy_agent_facades",
-            "check_legacy_platform_facades",
             "check_view_ide_language_layout",
             "check_view_ide_editor_layout",
         )

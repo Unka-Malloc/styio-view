@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-APP_LIB_ROOT = REPO_ROOT / "products" / "styio_ide" / "lib"
+APP_LIB_ROOT = REPO_ROOT / "products" / "vityo_app" / "lib"
 SRC_ROOT = APP_LIB_ROOT / "src"
 VIEW_IDE_ROOT = SRC_ROOT / "view_ide"
 IDE_ROOT = SRC_ROOT / "ide"
@@ -116,8 +116,8 @@ def is_under(path: Path, root: Path) -> bool:
 def resolve_dart_uri(uri: str, source: Path) -> Path | None:
     if uri.startswith("dart:"):
         return None
-    if uri.startswith("package:styio_ide/"):
-        return (APP_LIB_ROOT / uri.removeprefix("package:styio_ide/")).resolve()
+    if uri.startswith("package:vityo_app/"):
+        return (APP_LIB_ROOT / uri.removeprefix("package:vityo_app/")).resolve()
     if uri.startswith("package:"):
         return None
     if "://" in uri:
@@ -224,7 +224,7 @@ def print_text_report(errors: list[str]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Check Styio IDE view_ide/view_render architecture boundaries."
+        description="Check Vityo view_ide/view_render architecture boundaries."
     )
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of text.")
     args = parser.parse_args(argv)

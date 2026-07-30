@@ -1,10 +1,10 @@
 # ADR-0013: AI And Profile Integrations Use Provider Adapters
 
-**Purpose:** 记录 `Vityo` 如何把 AI provider、本地 agent 接入和 profile 同步做成可替换组件，而不是把某一类模型或服务硬编码进主壳。
+**Purpose:** Preserve the provider/profile adapter decision and identify the Agent-provider portions superseded by [ADR-0019](./ADR-0019-vityo-is-the-styio-agent-native-ide.md); `ProfileSyncAdapter` remains active.
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-07-30
 
-**Status:** Accepted
+**Status:** Partially superseded by ADR-0019
 
 **Date:** 2026-04-12
 
@@ -39,3 +39,13 @@
 1. 基础壳在没有本地 agent 和没有云 sync 的情况下也必须可用
 2. 本地 agent、云推理和 profile sync 都可以独立迭代
 3. 需要定义 provider 配置、密钥存储和故障退化路径
+
+## Current Interpretation
+
+1. `ProfileSyncAdapter` remains an optional IDE service and local-only profiles remain valid when it
+   is absent.
+2. Model/provider adapters, including OpenAI-compatible endpoints, belong to compatible Agent
+   runtimes rather than the Vityo IDE.
+3. The IDE connects to those runtimes only through the versioned Agent protocol.
+4. The original IDE-owned `AgentProviderAdapter` decision is historical and is not an active target
+   architecture.

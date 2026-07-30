@@ -148,11 +148,11 @@ Should the next milestone be the trustworthy desktop IDE loop instead of requiri
 
 - `docs/design/Vityo-Product-Spec.md`：产品不变量、桌面优先范围、平台策略。
 - `docs/design/Vityo-Implementation-Gaps.md`：未完成能力、上游阻塞和三个陈旧的低层“Decision needed”条目。
-- `docs/plan/styio-ide/Requirements.md` and `docs/plan/styio-coding-agent/Requirements.md`:
+- `docs/plan/vityo/Requirements.md` and `docs/plan/vityo-coding-agent/Requirements.md`:
   current two-line delivery contracts.
-- `docs/plan/styio-ide/Evidence.md` and `docs/plan/styio-coding-agent/Evidence.md`: current
+- `docs/plan/vityo/Evidence.md` and `docs/plan/vityo-coding-agent/Evidence.md`: current
   repository findings and external architecture evidence.
-- `docs/plan/styio-ide/Checkpoints.json` and
-  `docs/plan/styio-coding-agent/Checkpoints.json`: current implementation lifecycles and
+- `docs/plan/vityo/Checkpoints.json` and
+  `docs/plan/vityo-coding-agent/Checkpoints.json`: current implementation lifecycles and
   dependencies.
 - `docs/review/Logic-Conflicts.md` 与 `docs/adr/`：此前产品冲突均已裁决，不重复提问。

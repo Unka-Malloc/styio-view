@@ -1,9 +1,9 @@
-# Styio IDE Security and Supply Chain Policy
+# Vityo Security and Supply Chain Policy
 
-**Purpose:** Define Vityo's security posture and supply chain integrity rules — credential safety, agent permission boundaries, dependency provenance, SBOM, generated artifact policy, and release readiness.
+**Purpose:** Define security and supply-chain rules across the Vityo IDE, the shared Agent protocol, and compatible Agent runtimes.
 
 **Owner:** Governance owner (`CODEOWNERS` → governance domain)
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-30
 
 ---
 
@@ -39,9 +39,26 @@ All UI surfaces that display settings or context MUST redact:
 - Home directory paths → `$HOME/...`
 - User-specific paths → `[USER_PATH]/...`
 
-Reference implementations include `log_redactor.dart`, `secret_store.dart`, and the agent context projection code. Any new display surface must use the redacted projection, not raw provider configuration.
+Reference implementations include `log_redactor.dart`, `secret_store.dart`, and the Agent context
+projection code. Any IDE display surface must use a redacted protocol projection. Model/provider
+configuration and credentials belong to the Agent runtime and must not be copied into IDE-owned
+profiles or workspace state.
 
 ## 2. Agent Permission Boundaries
+
+### 2.0 Ownership
+
+The security boundary follows [ADR-0019](../adr/ADR-0019-vityo-is-the-styio-agent-native-ide.md):
+
+1. The Agent runtime owns model/provider credentials, tool catalogs and execution, policy
+   evaluation, permission-grant persistence, durable session journals, and multi-Agent delegation.
+2. Vityo owns the workspace root and revision, context-export scope, permission-request
+   presentation, the user's decision, change preview, and workspace transaction enforcement.
+3. `packages/vityo_agent_protocol` carries requests, decisions, proposals, events, and receipts.
+   It does not confer direct workspace access.
+4. Existing IDE-side provider, tool-loop, policy, and journal files are migration-only
+   implementation anchors. They remain governed until the atomic code migration removes them, but
+   they do not define target ownership.
 
 ### 2.1 Permission Levels
 
@@ -63,13 +80,18 @@ Permission elevation requires explicit user confirmation with clear reason displ
 
 ### 2.3 Network Safety
 
-- Remote provider connections must use TLS.
-- Agent tool calls requiring network must declare `network` scope.
-- Network requests from agent tools are subject to timeout and rate limiting.
+- Agent-runtime provider connections must use TLS.
+- Agent-runtime tool calls requiring network must declare `network` scope.
+- Network requests from Agent tools are subject to timeout and rate limiting.
+- Vityo must not make model-provider network requests.
 
 ### 2.4 Permission Model File
 
-`products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart` is the governed permission model. Changes to permission names, ordering, default behavior, or approval text must be reviewed as compatibility and security changes.
+The stable boundary is the shared protocol permission request/decision plus Vityo's IDE-side
+presentation. `products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart` is a
+currently governed compatibility anchor while runtime policy moves to
+`products/vityo_coding_agent/lib/src/policy/`. Changes to request scope, ordering, default
+presentation, or approval text require compatibility and security review.
 
 Required evidence:
 
@@ -80,7 +102,7 @@ Required evidence:
 
 ### 2.5 Agent Role Policy And Permission Lattice
 
-`agent_permission_model.dart` defines:
+The current IDE compatibility anchor `agent_permission_model.dart` defines:
 - `AgentRole` enum: `build`, `plan`, `general`, `explore`, `scout`, `review`
 - `AgentCapability` enum: `fileRead`, `fileWrite`, `processExec`, `network`, `secretAccess`, `moduleInstall`, `cloudUpload`, `terminalInteractive`
 - `AgentPermissionLattice`: child agent permissions must be a subset of parent permissions; privilege escalation across roles is denied with structured `AgentSpawnPolicyDecision`.
@@ -94,7 +116,11 @@ Changes to the role definitions, capability enum, or lattice derivation must pre
 
 ### 2.6 Tool Permission System
 
-`products/styio_ide/lib/src/view_ide/agent_client/agent_tool_permission.dart` owns the permission decision engine for agent tool calls. Governed invariants:
+Agent runtime policy is owned by
+`products/vityo_coding_agent/lib/src/policy/policy_evaluator.dart` and
+`permission_grant_store.dart`. The current IDE-side
+`products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission.dart` remains governed as a
+migration-only duplicate until it is removed atomically. Governed invariants:
 
 1. **Three action states**: `allow`, `ask`, `deny` — every tool maps to exactly one.
 2. **Pattern-based rules**: `AgentToolPermissionRule` with priority ordering and wildcard (`*`) matching. Higher-priority rules override lower-priority.
@@ -108,7 +134,10 @@ See also `agent_tool_permission_policy_store.dart` (permission policy persistenc
 
 ### 2.7 Sandbox Router
 
-`products/styio_ide/lib/src/view_ide/agent_client/agent_tool_sandbox_router.dart` owns the sandboxed execution pipeline for all agent tool calls. Governed invariants:
+Agent tool execution is owned by
+`products/vityo_coding_agent/lib/src/tools/tool_executor.dart`. The current IDE-side
+`products/vityo_app/lib/src/view_ide/agent_client/agent_tool_sandbox_router.dart` remains governed
+as a migration-only duplicate. Governed invariants:
 
 1. **All agent tool calls route through this sandboxed router** — no direct transport bypass.
 2. **Multi-layer validation**: permission plan → execution mode → capabilities → output size.
@@ -120,7 +149,10 @@ See also `agent_tool_permission_policy_store.dart` (permission policy persistenc
 
 ### 2.8 Execution Journal And Replay
 
-`products/styio_ide/lib/src/view_ide/agent_client/agent_tool_call_execution_journal.dart` owns the audit journal for tool call execution. Governed invariants:
+Durable Agent journals and effect receipts are owned by
+`products/vityo_coding_agent/lib/src/sessions/`. The current IDE-side
+`agent_tool_call_execution_journal.dart` remains a migration-only audit anchor. Governed
+invariants:
 
 1. Every tool call produces an `AgentToolCallExecutionJournalEntry` with call ID, tool ID, status, input sample, result sample, error message, permission reason, execution status, permission status, review decision status, issue codes, and event count.
 2. Journal entries support **replay**: `toReplayRequest()` produces a dispatch request with `replayedFromJournal: true` metadata.
@@ -129,7 +161,9 @@ See also `agent_tool_permission_policy_store.dart` (permission policy persistenc
 
 ### 2.9 Permission Decision Scope Within Agent Sessions
 
-`products/styio_ide/lib/src/view_ide/agent_client/agent_session.dart` defines:
+The Agent runtime owns durable session state. The current IDE-side
+`products/vityo_app/lib/src/view_ide/agent_client/agent_session.dart` defines a compatibility
+projection used by the Workbench while protocol-backed projections replace it:
 - `PermissionRequestScope`: `readOnly`, `workspaceWrite`, `toolchainManaged`, `fullAccessDisabledByDefault` — sequenced from least to most permissive (7 total scopes).
 - `PermissionDecision`: `pending`, `allowOnce`, `allowForSession`, `deny`, `cancel`.
 - `AgentAuditEventKind`: `sessionCreated`, `toolRequested`, `permissionRequested`, `permissionDecided`, `patchPreviewed`, `patchApplied`.
@@ -147,7 +181,7 @@ Changes to permission scope ordering, decision values, or audit event kinds must
 Dependabot is configured in `.github/dependabot.yml` for:
 
 - GitHub Actions workflows at `/`
-- Flutter/Dart `pub` dependencies at `/products/styio_ide`
+- Flutter/Dart `pub` dependencies at `/products/vityo_app`
 - npm prototype dependencies at `/prototype`
 
 Dependabot PRs are review inputs, not automatic policy approval. Dependency additions still require `DEPENDENCY-USAGE.md` license/source/usage evidence before merge.
@@ -212,7 +246,7 @@ Before activation, extensions are checked for:
 
 ### 5.3 Module Manifest Security Baseline
 
-`products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart` owns trust checks for module manifests. Manifest security changes must preserve:
+`products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart` owns trust checks for module manifests. Manifest security changes must preserve:
 
 1. Schema validation before activation.
 2. Deny-by-default behavior for unknown privileged capabilities.
@@ -229,7 +263,7 @@ Governed invariants in `ModuleManifestSecurityPolicy`:
 
 ### 6.1 Sandbox Contract
 
-`products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart` owns local execution policy. Security-critical execution must:
+`products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart` owns local execution policy. Security-critical execution must:
 
 1. Build commands from argv arrays, not string concatenation.
 2. Avoid shell mode for security-critical paths.
@@ -268,7 +302,7 @@ No change may move raw credential values into serialized settings, workspace fil
 ### 7.1 CI Workflow Security
 
 - GitHub Actions workflows use pinned action versions with commit hashes.
-- Until every workflow action is SHA-pinned, `scripts/github-actions-pin-gate.py --mode audit` must run in CI and release readiness can promote it to `--mode enforce`.
+- Every workflow action is SHA-pinned, and CI runs `scripts/github-actions-pin-gate.py --mode enforce` to prevent tag-based references from returning.
 - Every workflow must declare top-level minimum permissions. The default baseline is `permissions: contents: read`; write scopes require explicit review.
 - `pull_request_target` is disabled by policy for repository workflows.
 - Secrets are passed via GitHub Secrets, never hardcoded.
@@ -299,11 +333,11 @@ python3 scripts/check_security_baseline.py
 ```
 
 Required security files (must exist):
-- `products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart`
-- `products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart`
-- `products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart`
-- `products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart`
-- `products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart`
+- `products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart`
+- `products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
+- `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
+- `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
+- `products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart`
 
 Forbidden patterns in security-critical files:
 - Silent `catch (_)` — must not silently swallow exceptions.
@@ -320,17 +354,22 @@ Every file below participates in the security, permission, audit, or supply-chai
 
 | File | Purpose | Boundary |
 |------|---------|----------|
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_permission_model.dart` | Agent role policy, capability enum, permission lattice, context minimizer | Permission levels, role defaults, lattice derivation, context redaction |
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_permission.dart` | Tool permission action/decision/plan, pattern-based rules, audit records | Decision engine, action mapping, rule matching, audit trail |
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Permission policy persistence and override loading | Policy serialization, override application |
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_sandbox_router.dart` | Sandboxed tool execution pipeline, multi-layer validation, audit log | All agent tool call routing, permission/capability/mode enforcement, output limits, audit |
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_call_execution_journal.dart` | Tool call execution journal with replay, sensitive data redaction | Journal entries, replay plans, audit evidence, redacted output |
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_session.dart` | Permission request scope, decision, session audit events | Permission scope sequencing, decision lifecycle, immutable session audit |
-| `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_registry.dart` | Tool definition registry with capability declarations | Tool capability inventory, permission mode metadata |
-| `products/styio_ide/lib/src/view_ide/environment/execution/execution_sandbox.dart` | Local execution policy: cwd containment, trust, approval, network, env allowlist, timeout | Command safety, resource bounds, structured denial |
-| `products/styio_ide/lib/src/view_ide/environment/configuration/log_redactor.dart` | Pattern-based and field-based credential redaction | All log, diagnostic, runtime, and agent-context output redaction |
-| `products/styio_ide/lib/src/view_ide/environment/configuration/secret_store.dart` | Credential reference lookup and local secret store | Secret resolution, no raw credential exposure |
-| `products/styio_ide/lib/src/view_ide/module_host/module_manifest_security.dart` | Module manifest trust validation, quarantine, rollback | Schema validation, permission allowlist, signature/checksum verification, engine compatibility |
+| `packages/vityo_agent_protocol/` | Versioned IDE/Agent messages | Requests, decisions, events, proposals, and receipts |
+| `products/vityo_coding_agent/lib/src/policy/` | Agent runtime policy and grant persistence | Tool authority, least privilege, grant lifecycle |
+| `products/vityo_coding_agent/lib/src/tools/` | Agent runtime tool catalog and executor | Tool validation, execution, bounds, and results |
+| `products/vityo_coding_agent/lib/src/sessions/` | Durable Agent sessions and effect receipts | Journal, replay/recovery, redacted evidence |
+| `products/vityo_app/lib/src/view_ide/agent_client/protocol_agent_client.dart` | IDE protocol connection | Message transport and negotiated projection |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart` | IDE permission presentation plus migration-only role/policy code | Request/decision projection; legacy policy stays governed until removal |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission.dart` | Migration-only IDE tool policy | Must remain fail-closed until atomic removal |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Migration-only IDE policy persistence | Must not become the target permission store |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_sandbox_router.dart` | Migration-only IDE tool execution | Must remain governed until Agent-runtime handoff |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_call_execution_journal.dart` | Migration-only IDE tool journal | Redaction and audit safety until removal |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_session.dart` | IDE Workbench session projection plus legacy state | Permission/change projection; no target durable-session ownership |
+| `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_registry.dart` | Migration-only IDE tool registry | Must not accept new runtime tool ownership |
+| `products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart` | Local execution policy: cwd containment, trust, approval, network, env allowlist, timeout | Command safety, resource bounds, structured denial |
+| `products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart` | Pattern-based and field-based credential redaction | All log, diagnostic, runtime, and agent-context output redaction |
+| `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart` | Credential reference lookup and local secret store | Secret resolution, no raw credential exposure |
+| `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart` | Module manifest trust validation, quarantine, rollback | Schema validation, permission allowlist, signature/checksum verification, engine compatibility |
 | `scripts/check_security_baseline.py` | Security-critical file existence and forbidden-pattern scan | Required file list, forbidden pattern definitions |
 | `scripts/supply-chain-governance-gate.py` | CI/CD and supply-chain governance: workflow permissions, Dependabot, SBOM, secret scan | Workflow security, Dependabot coverage, SBOM markers, secret ignore, secret scan |
 | `scripts/dependency-policy-gate.py` | Dependency registration enforcement: every dependency in DEPENDENCY-USAGE.md | pubspec.yaml and package.json dependency registration |
@@ -348,7 +387,8 @@ The following plan nodes, components, and CI surfaces consume this security cont
 2. **Better Plan security-permissions-audit release-evidence checkpoint**: Validates that gates, tests, and documentation satisfy launch readiness.
 3. **Better Plan Windows / Linux / macOS desktop adaptation nodes**: Consume execution sandbox and tool permission boundaries for platform-specific process execution.
 4. **Better Plan module-extension-contributions and module-runtime-staged-update**: Consume module manifest security policies for extension activation and staged update safety.
-5. **Better Plan ide-product-hardening**: Consumes agent permission model and sandbox router for hardened agent tool execution.
+5. **Better Plan IDE product hardening**: Consumes protocol permission/change projections and
+   workspace transactions; Agent tool execution hardening belongs to the companion runtime track.
 6. **Better Plan documentation-governance-release-gates**: Validates that governance gates (supply-chain, security baseline, dependency policy) remain wired in CI.
 7. **`.github/workflows/audit.yml` and `.github/workflows/repo-hygiene.yml`**: Wire governance gate scripts into CI execution.
 8. **Release readiness gate (`scripts/release-readiness-gate.py`)**: Validates that all governance gates pass before release.
@@ -357,24 +397,25 @@ The following plan nodes, components, and CI surfaces consume this security cont
 
 | Invariant | Owned By | Enforcement |
 |-----------|----------|-------------|
-| Dangerous actions have permission/approval/denial/audit | `agent_tool_permission.dart`, `agent_tool_sandbox_router.dart`, `agent_tool_call_execution_journal.dart` | Sandbox router multi-layer validation + audit log |
-| Credentials redacted in UI, logs, runtime, agent context | `log_redactor.dart`, `secret_store.dart`, `agent_permission_model.dart` (context minimizer) | Pattern-based + field-based redaction; security baseline gate scans for raw literals |
+| Dangerous Agent actions have permission/approval/denial/audit | Coding Agent `policy/`, `tools/`, `sessions/`; shared protocol; IDE decision presentation | Runtime policy/journal plus protocol receipt and IDE user decision |
+| Credentials redacted in UI, logs, runtime, Agent context | Runtime redaction; IDE `log_redactor.dart`, `secret_store.dart`, context projection | Pattern-based + field-based redaction; security baseline gate scans for raw literals |
 | Module manifests validated before activation | `module_manifest_security.dart` | Schema + signature + checksum + permission allowlist + engine compatibility |
 | Execution sandbox enforces containment and resource limits | `execution_sandbox.dart` | CWD containment, traversal/symlink detection, env allowlist, timeout, output limits |
-| Agent role permissions default to least privilege | `agent_permission_model.dart` | Role defaults exclude privileged capabilities; lattice denies child escalation |
+| Agent role permissions default to least privilege | Coding Agent `policy/`; legacy IDE `agent_permission_model.dart` until removal | Runtime policy tests; legacy lattice remains fail-closed during migration |
 | Dependencies registered in SBOM | `dependency-policy-gate.py` + `DEPENDENCY-USAGE.md` | Gate exits non-zero for unregistered deps |
-| CI workflow actions SHA-pinned | `github-actions-pin-gate.py` | Audit or enforce mode |
+| CI workflow actions SHA-pinned | `github-actions-pin-gate.py` | Enforce mode |
 | High-signal secrets not committed | `supply-chain-governance-gate.py` | Secret scan over `.github/`, `scripts/`, `docs/governance/`, policy files |
 
-### 8.4 Single Implementation Path
+### 8.4 Migration To One Ownership Path
 
-All security, permission, audit, and supply-chain functionality follows a single current implementation path. There are no:
-- Debug-only, prototype-only, lab-only, or experimental security paths.
-- Legacy fallback permission models.
-- Parallel implementation variants for different product stages.
-- Hidden debug switches that bypass permission checks.
+The target has one owner per concern: Agent-runtime policy/tools/sessions, shared protocol messages,
+and IDE-side consent/change transactions. The IDE currently contains a legacy parallel
+provider/tool-loop/policy/session implementation. It is recorded as an implementation gap and must
+be removed in one atomic code migration; no new capability may extend that legacy path.
 
-Any future capability gaps must be represented as structured user-visible blocked states with owner, reason, and recovery path — not as silent fallback behavior.
+There must be no debug-only, prototype-only, lab-only, or hidden switch that bypasses permission
+checks. Capability gaps must appear as structured blocked states with owner, reason, and recovery
+path.
 
 ## 9. Incident Response
 
@@ -400,7 +441,7 @@ If a dependency has a known vulnerability:
 - [Release Checklist](./RELEASE-CHECKLIST.md)
 - [Architecture Runbook](../teams/ARCHITECTURE-RUNBOOK.md)
 - [Agent Runtime Runbook](../teams/AGENT-RUNTIME-RUNBOOK.md)
-- [Vityo Agent Runtime Architecture](../design/Vityo-Agent-Runtime-Architecture.md)
+- [Vityo Agent-Native IDE Architecture](../design/Vityo-Agent-Native-IDE-Architecture.md)
 - [Code Audit Checklist](../specs/audit/CODE-AUDIT-CHECKLIST.md)
 - [Technology Component Inventory](../specs/TECHNOLOGY-COMPONENT-INVENTORY.md)
 - [Release Readiness Gate](../../scripts/release-readiness-gate.py)

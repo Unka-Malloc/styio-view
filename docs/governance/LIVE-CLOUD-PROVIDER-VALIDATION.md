@@ -1,12 +1,20 @@
 # Live Cloud Provider Validation
 
-**Purpose:** Define the opt-in validation path for real cloud agent providers without storing raw credentials or treating live-provider evidence as default CI evidence.
+**Purpose:** Define an opt-in validation path for cloud providers owned by a compatible Agent runtime, without storing raw credentials or treating live-provider evidence as default CI evidence.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-30
 
 ## Scope
 
-Live cloud provider validation is optional release evidence for agent provider routes. It verifies that a configured OpenAI-compatible cloud endpoint can be reached through Vityo's agent provider adapter, credential resolver, route executor, and structured response adapter.
+Live cloud provider validation is optional evidence for the Agent-runtime delivery track. It verifies
+that a configured provider can be reached through the Coding Agent provider router and that Vityo
+receives only the resulting structured Agent protocol state. It is not evidence that the IDE
+connects to a provider.
+
+The Flutter test command below is preserved only as legacy migration evidence. New live-provider
+validation belongs under `products/vityo_coding_agent`; the IDE-side route must be removed by the
+atomic migration recorded in
+[Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
 
 This lane is not part of default local CI, pull request CI, or checkpoint health. Default CI must continue to use deterministic loopback, mocked transport, and credential-store tests.
 
@@ -15,8 +23,10 @@ This lane is not part of default local CI, pull request CI, or checkpoint health
 A live validation run must satisfy all of these conditions:
 
 1. The runner sets an explicit opt-in flag such as `VITYO_LIVE_AGENT_PROVIDER=1`.
-2. The provider endpoint is configured through an `AgentPromptProfile` and `AgentProviderEndpoint`, not through ad hoc HTTP code.
-3. Credentials are injected through `CredentialDataStore`, a runner secret, or a short-lived environment secret that is immediately bound to a `CredentialReference`.
+2. The provider endpoint is configured through an Agent-runtime provider route, not through Vityo
+   settings or ad hoc IDE HTTP code.
+3. Credentials are injected through the Agent runtime's credential boundary, a runner secret, or a
+   short-lived environment secret; Vityo receives no raw credential.
 4. Raw credential values are never written to logs, release notes, screenshots, artifacts, or `docs/release/local-validation-evidence.md`.
 5. The evidence record captures only redacted credential readiness, provider route, protocol family, model id, request id, response status, failure category, and recovery action.
 
@@ -32,10 +42,10 @@ Do not record a live provider as release evidence when the opt-in flag is absent
 
 ## Recommended Local Command Shape
 
-Use the existing deterministic tests before any live lane:
+Legacy IDE-route deterministic tests remain useful only until migration:
 
 ```bash
-cd products/styio_ide
+cd products/vityo_app
 flutter test --no-pub \
   test/agent_provider_route_executor_test.dart \
   test/agent_provider_credential_resolver_test.dart \

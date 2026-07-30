@@ -788,8 +788,8 @@ function sidebarToggleSvg(isOpen) {
 }
 const translations = {
   zhCn: {
-    documentTitle: "Styio 编辑器",
-    appTitle: "styio",
+    documentTitle: "Vityo 编辑器",
+    appTitle: "Vityo",
     openSidebar: "打开侧边栏",
     closeSidebar: "关闭侧边栏",
     fileTree: "文件树",
@@ -898,8 +898,8 @@ const translations = {
     assistantPlaceholderReply: "当前原型尚未接入 AI 后端，这是一条占位回复。",
   },
   en: {
-    documentTitle: "Styio Editor",
-    appTitle: "styio",
+    documentTitle: "Vityo Editor",
+    appTitle: "Vityo",
     openSidebar: "Open sidebar",
     closeSidebar: "Close sidebar",
     fileTree: "File tree",
@@ -1432,35 +1432,35 @@ function parseCustomPaletteConfig(rawText) {
   const workbench = parsed["workbench.colorCustomizations"];
   const editorColors = parsed["editor.tokenColorCustomizations"];
   const editorConfig = parsed.editor;
-  const styioView = parsed.styioView;
+  const vityoView = parsed.vityoView;
 
   const config = {
     name: typeof parsed.name === "string" ? parsed.name.trim() : "",
     styleKey:
-      findPresetByKeyOrLabel(uiStyleOptionsList, normalizeLegacyPresetValue(styioView?.style, legacyUiStyleKeyMap))
+      findPresetByKeyOrLabel(uiStyleOptionsList, normalizeLegacyPresetValue(vityoView?.style, legacyUiStyleKeyMap))
         ?.key ?? null,
-    languageKey: findPresetByKeyOrLabel(languageOptionsList, styioView?.language)?.key ?? null,
-    themeMode: ["dark", "light"].includes(styioView?.themeMode) ? styioView.themeMode : null,
-    editorMode: ["dark", "light"].includes(styioView?.editorMode) ? styioView.editorMode : null,
+    languageKey: findPresetByKeyOrLabel(languageOptionsList, vityoView?.language)?.key ?? null,
+    themeMode: ["dark", "light"].includes(vityoView?.themeMode) ? vityoView.themeMode : null,
+    editorMode: ["dark", "light"].includes(vityoView?.editorMode) ? vityoView.editorMode : null,
     themePaletteKey:
-      findPresetByKeyOrLabel(themePalettePresets, workbench?.["styio.themePalette"])?.key ?? null,
+      findPresetByKeyOrLabel(themePalettePresets, workbench?.["vityo.themePalette"])?.key ?? null,
     themeColorKey:
       findPresetByKeyOrLabel(
         themeColorPresets,
-        normalizeLegacyPresetValue(workbench?.["styio.themeColor"], legacyThemeColorKeyMap),
+        normalizeLegacyPresetValue(workbench?.["vityo.themeColor"], legacyThemeColorKeyMap),
       )?.key ?? null,
     themeTextKey:
-      findPresetByKeyOrLabel(themeTextPresets, workbench?.["styio.themeText"])?.key ?? null,
+      findPresetByKeyOrLabel(themeTextPresets, workbench?.["vityo.themeText"])?.key ?? null,
     themeBackgroundKey:
-      findPresetByKeyOrLabel(themeBackgroundPresets, workbench?.["styio.background"])?.key ?? null,
+      findPresetByKeyOrLabel(themeBackgroundPresets, workbench?.["vityo.background"])?.key ?? null,
     themeLineKey:
-      findPresetByKeyOrLabel(themeLinePresets, workbench?.["styio.themeLines"])?.key ?? null,
+      findPresetByKeyOrLabel(themeLinePresets, workbench?.["vityo.themeLines"])?.key ?? null,
     interfaceFontKey:
       findPresetByKeyOrLabel(
         interfaceFontOptionsList,
-        normalizeLegacyPresetValue(workbench?.["styio.interfaceFont"], legacyInterfaceFontKeyMap),
+        normalizeLegacyPresetValue(workbench?.["vityo.interfaceFont"], legacyInterfaceFontKeyMap),
       )?.key ?? null,
-    interfaceSizeKey: normalizeInterfaceSizeFromConfig(workbench?.["styio.interfaceSize"]),
+    interfaceSizeKey: normalizeInterfaceSizeFromConfig(workbench?.["vityo.interfaceSize"]),
     editorFontKey:
       findPresetByKeyOrLabel(
         editorFontOptionsList,
@@ -1469,34 +1469,34 @@ function parseCustomPaletteConfig(rawText) {
     editorFontSizeKey: normalizeEditorFontSizeFromConfig(editorConfig?.fontSize),
     tabSize: [2, 4].includes(editorConfig?.tabSize) ? editorConfig.tabSize : null,
     glyphComposition:
-      typeof styioView?.glyphComposition === "boolean" ? styioView.glyphComposition : null,
+      typeof vityoView?.glyphComposition === "boolean" ? vityoView.glyphComposition : null,
     editorPaletteKey:
       findPresetByKeyOrLabel(
         glyphPaletteOptions,
-        normalizeLegacyPresetValue(editorColors?.["styio.palette"], legacyDefaultGlyphPaletteKeyMap),
+        normalizeLegacyPresetValue(editorColors?.["vityo.palette"], legacyDefaultGlyphPaletteKeyMap),
       )?.key ?? null,
     editorBackgroundKey:
-      findPresetByKeyOrLabel(editorBackgroundPresets, editorColors?.["styio.editorBackground"])?.key ??
+      findPresetByKeyOrLabel(editorBackgroundPresets, editorColors?.["vityo.editorBackground"])?.key ??
       null,
     textColorKey:
-      findPresetByKeyOrLabel(editorTextColorPresets, editorColors?.["styio.textColor"])?.key ?? null,
+      findPresetByKeyOrLabel(editorTextColorPresets, editorColors?.["vityo.textColor"])?.key ?? null,
     textHighlightKey:
       findPresetByKeyOrLabel(
         editorTextHighlightPresets,
-        normalizeLegacyPresetValue(editorColors?.["styio.textHighlight"], legacyEditorTextHighlightKeyMap),
+        normalizeLegacyPresetValue(editorColors?.["vityo.textHighlight"], legacyEditorTextHighlightKeyMap),
       )?.key ?? null,
     blockSurfaceKey:
-      findPresetByKeyOrLabel(blockSurfacePresets, editorColors?.["styio.block"])?.key ?? null,
+      findPresetByKeyOrLabel(blockSurfacePresets, editorColors?.["vityo.block"])?.key ?? null,
     lineHighlightKey:
-      findPresetByKeyOrLabel(lineHighlightPresets, editorColors?.["styio.line"])?.key ?? null,
+      findPresetByKeyOrLabel(lineHighlightPresets, editorColors?.["vityo.line"])?.key ?? null,
     selectionHighlightKey:
-      findPresetByKeyOrLabel(selectionHighlightPresets, editorColors?.["styio.selection"])?.key ?? null,
+      findPresetByKeyOrLabel(selectionHighlightPresets, editorColors?.["vityo.selection"])?.key ?? null,
     symbolColors: {},
-    visualTokens: normalizeVisualTokenOverrides(styioView?.visualTokens),
-    replaceVisualTokens: Object.prototype.hasOwnProperty.call(styioView ?? {}, "visualTokens"),
+    visualTokens: normalizeVisualTokenOverrides(vityoView?.visualTokens),
+    replaceVisualTokens: Object.prototype.hasOwnProperty.call(vityoView ?? {}, "visualTokens"),
   };
 
-  const symbolColors = editorColors?.["styio.symbolColors"];
+  const symbolColors = editorColors?.["vityo.symbolColors"];
   if (symbolColors && typeof symbolColors === "object" && !Array.isArray(symbolColors)) {
     Object.entries(symbolColors).forEach(([key, value]) => {
       const spec = glyphSpecFromConfigKey(key);
@@ -1527,20 +1527,20 @@ function buildCustomPaletteConfigObject() {
     $schema: customPaletteConfigSchema,
     name: "Custom Palette",
     "workbench.colorCustomizations": {
-      "styio.themePalette": currentThemePaletteSelectionKey(),
-      "styio.themeColor": activeThemeColorKey,
-      "styio.themeText": activeThemeTextKey,
-      "styio.background": activeThemeBackgroundKey,
-      "styio.themeLines": activeThemeLineKey,
-      "styio.interfaceFont": activeInterfaceFontKey,
-      "styio.interfaceSize": currentInterfaceSize.size,
+      "vityo.themePalette": currentThemePaletteSelectionKey(),
+      "vityo.themeColor": activeThemeColorKey,
+      "vityo.themeText": activeThemeTextKey,
+      "vityo.background": activeThemeBackgroundKey,
+      "vityo.themeLines": activeThemeLineKey,
+      "vityo.interfaceFont": activeInterfaceFontKey,
+      "vityo.interfaceSize": currentInterfaceSize.size,
     },
     editor: {
       tabSize: indentSize,
       fontFamily: activeEditorFontKey,
       fontSize: Number.isFinite(editorFontSizeValue) ? editorFontSizeValue : currentEditorFontSize.size,
     },
-    styioView: {
+    vityoView: {
       style: activeUiStyleKey,
       language: activeLanguageKey,
       glyphComposition: glyphsOn,
@@ -1548,14 +1548,14 @@ function buildCustomPaletteConfigObject() {
       editorMode,
     },
     "editor.tokenColorCustomizations": {
-      "styio.palette": currentEditorPaletteSelectionKey(),
-      "styio.editorBackground": activeEditorBackgroundKey,
-      "styio.textColor": activeEditorTextColorKey,
-      "styio.textHighlight": activeEditorTextHighlightKey,
-      "styio.block": activeBlockSurfaceKey,
-      "styio.line": activeLineHighlightKey,
-      "styio.selection": activeSelectionHighlightKey,
-      "styio.symbolColors": symbolColors,
+      "vityo.palette": currentEditorPaletteSelectionKey(),
+      "vityo.editorBackground": activeEditorBackgroundKey,
+      "vityo.textColor": activeEditorTextColorKey,
+      "vityo.textHighlight": activeEditorTextHighlightKey,
+      "vityo.block": activeBlockSurfaceKey,
+      "vityo.line": activeLineHighlightKey,
+      "vityo.selection": activeSelectionHighlightKey,
+      "vityo.symbolColors": symbolColors,
     },
   };
 }
@@ -1563,7 +1563,7 @@ function buildCustomPaletteConfigObject() {
 function buildCustomPaletteConfigText() {
   const config = buildCustomPaletteConfigObject();
   if (hasVisualTokenOverrides(visualTokenOverrides)) {
-    config.styioView.visualTokens = buildVisualTokenConfigObject(visualTokenOverrides);
+    config.vityoView.visualTokens = buildVisualTokenConfigObject(visualTokenOverrides);
   }
   return JSON.stringify(config, null, 2);
 }
@@ -4688,7 +4688,7 @@ async function openPaletteConfigEditor() {
     confirmLabel: t("confirm"),
     cancelLabel: t("cancel"),
     textarea: buildCustomPaletteConfigText(),
-    placeholder: "{\n  \"$schema\": \"https://styio.dev/schemas/theme-customizations.json\"\n}",
+    placeholder: "{\n  \"$schema\": \"https://vityo.dev/schemas/theme-customizations.json\"\n}",
   });
   if (rawText === null) {
     return;

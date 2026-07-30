@@ -197,7 +197,7 @@ bindGridLayoutConfigTarget(document.body, {
 2. `inner_outer_margin_consistent = true` 时，`--grid-shell-section-gap` 直接跟随 `outer_margin`。
 3. `inner_outer_margin_consistent = false` 时，`--grid-shell-section-gap` 改由 `inner_margin` 单独控制。
 4. `scripts/check-editor-load.mjs` 会直接读取当前 CSS 变量，而不是写死 `16px`，因此缩放后自测仍然有效。
-5. `window.__styioGridLayoutConfig` 暴露了内部维护用的 `getSnapshot / set / update / reset`，用于运行时验证这套自动更新链路。
+5. `window.__vityoGridLayoutConfig` 暴露了内部维护用的 `getSnapshot / set / update / reset`，用于运行时验证这套自动更新链路。
 
 ## Layout Rules
 

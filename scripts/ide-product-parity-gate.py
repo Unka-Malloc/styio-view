@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Styio IDE Product Parity Gate.
+"""Vityo Product Parity Gate.
 
 Checks that Vityo's IDE capability parity foundation is correctly structured.
 Verifies: product docs, machine-verifiable baseline JSON, capability registry,
@@ -62,12 +62,12 @@ ALLOWED_BRAND_FILES = {
     "toolchain/vityo-ide-capability-baseline.json",
     # Codex branch agent/provider files contain technical reference comments
     # that cite competitor architectures — not UI product text.
-    "products/styio_ide/lib/src/view_ide/agent_client/agent_coding_skill.dart",
-    "products/styio_ide/lib/src/view_ide/agent_client/agent_profile.dart",
-    "products/styio_ide/lib/src/view_ide/agent_client/agent_provider_adapter.dart",
-    "products/styio_ide/lib/src/view_ide/agent_client/agent_provider_credential_resolver.dart",
-    "products/styio_ide/lib/src/view_ide/foundation/ide_capability_framework.dart",
-    "products/styio_ide/lib/src/view_render/agent_workbench/agent_surface.dart",
+    "products/vityo_app/lib/src/view_ide/agent_client/agent_coding_skill.dart",
+    "products/vityo_app/lib/src/view_ide/agent_client/agent_profile.dart",
+    "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_adapter.dart",
+    "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_credential_resolver.dart",
+    "products/vityo_app/lib/src/view_ide/foundation/ide_capability_framework.dart",
+    "products/vityo_app/lib/src/view_render/agent_workbench/agent_surface.dart",
 }
 
 
@@ -115,7 +115,7 @@ def check_anchor_exists(anchor: str, description: str) -> bool:
 def main() -> int:
     failures = 0
 
-    print("=== Styio IDE Product Parity Gate ===\n")
+    print("=== Vityo Product Parity Gate ===\n")
 
     # ── 1. Product docs ────────────────────────────────────────────
     print("── Product Docs ──")
@@ -193,7 +193,7 @@ def main() -> int:
 
     # ── 3. view_ide no Flutter imports ─────────────────────────────
     print("\n── Architecture: view_ide Flutter imports ──")
-    view_ide_dir = REPO_ROOT / "products" / "styio_ide" / "lib" / "src" / "view_ide"
+    view_ide_dir = REPO_ROOT / "products" / "vityo_app" / "lib" / "src" / "view_ide"
     flutter_imports = [
         "package:flutter/material.dart",
         "package:flutter/widgets.dart",
@@ -226,8 +226,8 @@ def main() -> int:
     # ── 4. No competitor brand names in UI code ────────────────────
     print("\n── No Competitor Brands in UI ──")
     ui_dirs = [
-        "products/styio_ide/lib/src/view_ide/",
-        "products/styio_ide/lib/src/view_render/",
+        "products/vityo_app/lib/src/view_ide/",
+        "products/vityo_app/lib/src/view_render/",
         "prototype/editor.js",
         "prototype/editor-modules/",
     ]
@@ -306,7 +306,7 @@ def main() -> int:
         r'ANTHROPIC_API_KEY\s*=\s*[a-zA-Z0-9_-]{10,}',
     ]
     search_roots = [
-        "products/styio_ide/lib/src/",
+        "products/vityo_app/lib/src/",
         "scripts/",
         "toolchain/",
     ]
@@ -362,11 +362,11 @@ def main() -> int:
     # ── 7. Test anchors for key domains ────────────────────────────
     print("\n── Required Test Anchors ──")
     required_tests = [
-        ("products/styio_ide/test/*capability*", "Capability registry tests"),
-        ("products/styio_ide/test/*agent*", "Agent context/permission tests"),
-        ("products/styio_ide/test/*diagnostic*", "Diagnostics tests"),
-        ("products/styio_ide/test/*source_control*", "Source control tests"),
-        ("products/styio_ide/test/*runtime*", "Runtime/debug tests"),
+        ("products/vityo_app/test/*capability*", "Capability registry tests"),
+        ("products/vityo_app/test/*agent*", "Agent context/permission tests"),
+        ("products/vityo_app/test/*diagnostic*", "Diagnostics tests"),
+        ("products/vityo_app/test/*source_control*", "Source control tests"),
+        ("products/vityo_app/test/*runtime*", "Runtime/debug tests"),
     ]
     for glob_pattern, desc in required_tests:
         failures += 0 if check_test_anchor(glob_pattern, desc) else 1

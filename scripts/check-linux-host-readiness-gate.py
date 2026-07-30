@@ -326,7 +326,7 @@ def check_crlf_scripts() -> dict[str, object]:
     """Check that no `.sh` files under the Flutter shell tree have CRLF line
     endings, which would prevent execution inside a WSL/Linux environment."""
     flutter_dirs = [
-        REPO_ROOT / "products" / "styio_ide",
+        REPO_ROOT / "products" / "vityo_app",
     ]
     crlf_files: list[str] = []
     for base_dir in flutter_dirs:

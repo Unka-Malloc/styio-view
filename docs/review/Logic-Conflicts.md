@@ -1,8 +1,8 @@
 # Vityo Logic Conflicts
 
-**Purpose:** 记录 `Vityo` 当前尚未关闭的产品与架构冲突、风险和待裁决问题；已接受的结论应迁移到 ADR。
+**Purpose:** Record Vityo product and architecture conflicts and route accepted conclusions to their owning ADR.
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-07-30
 
 ## 1. 平台执行限制
 
@@ -29,8 +29,8 @@
 
 | ID | Topic | Status | Risk | Next Step |
 |----|-------|--------|------|-----------|
-| LC-007 | 本地 agent 的模型体积和许可边界未定 | Resolved | 已接受“只冻结 provider 抽象；本地 agent 首发不内建，后续以外接组件或模块接入” | 由 ADR-0013、M6 执行。 |
-| LC-008 | 云端 profile 与 prompt 同步的隐私与合规要求未定 | Resolved | 已接受“profile / prompt sync 采用可插拔组件；未挂载时保持 local-only；云 agent 走 OpenAI-compatible endpoint adapter，预上线可接 OpenRouter 类 provider” | 由 ADR-0013、M6、M7 执行。 |
+| LC-007 | Local model size and licensing boundary | Resolved | Vityo does not embed a model or own a model provider. Local or hosted model selection belongs to Vityo Coding Agent or another compatible Agent connected through the versioned protocol. | Governed by ADR-0019 and the Agent-Native IDE architecture. |
+| LC-008 | Privacy boundary for profile, prompt, and provider configuration | Resolved | Optional Vityo ProfileSync remains pluggable and local-only when absent. Model/provider credentials and prompt-runtime configuration belong to the Agent runtime and must not be synchronized as IDE-owned provider state. | ADR-0019 supersedes only the IDE-provider portion of ADR-0013; the ProfileSync/local-only decision remains current. |
 | LC-009 | 模块热更新的分发与平台合规边界未定 | Resolved | 已接受“iOS 为唯一受 App Store 审核限制且最后上线的平台；其它平台自分发；任何不满足 iOS 边界的模块通过 capability matrix 排除在 iOS 外” | 由 ADR-0014、M8、M9 执行。 |
 | LC-010 | 模块卸载后的工作区配置、菜单和依赖回收未定 | Resolved | 已接受“移动端卸载全量回收、桌面端卸载由用户选保留或清除、Web 托管工作区关闭前警告并提供核心文件导出、默认保留 7 天后删除” | 由 ADR-0015、M8、M9 执行。 |
 

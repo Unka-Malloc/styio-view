@@ -16,12 +16,12 @@ from urllib.parse import parse_qs, unquote, urlparse, urlsplit
 ROOT = Path(__file__).resolve().parent
 DEFAULT_WORKSPACE = ROOT / "workspace"
 WORKSPACE_CONFIG = ROOT / ".workspace-root"
-HOST = os.environ.get("STYIO_DEV_SERVER_HOST", "127.0.0.1")
-PORT = int(os.environ.get("STYIO_DEV_SERVER_PORT", "4180"))
-SESSION_COOKIE_NAME = "styio_dev_server_session"
-SESSION_TOKEN_HEADER = "X-Styio-Dev-Server-Token"
-SESSION_TOKEN_ENV = "STYIO_DEV_SERVER_TOKEN"
-ENABLE_MUTATION_ENV = "STYIO_DEV_SERVER_ENABLE_MUTATION"
+HOST = os.environ.get("VITYO_DEV_SERVER_HOST", "127.0.0.1")
+PORT = int(os.environ.get("VITYO_DEV_SERVER_PORT", "4180"))
+SESSION_COOKIE_NAME = "vityo_dev_server_session"
+SESSION_TOKEN_HEADER = "X-Vityo-Dev-Server-Token"
+SESSION_TOKEN_ENV = "VITYO_DEV_SERVER_TOKEN"
+ENABLE_MUTATION_ENV = "VITYO_DEV_SERVER_ENABLE_MUTATION"
 SESSION_TOKEN = os.environ.get(SESSION_TOKEN_ENV) or secrets.token_urlsafe(32)
 LOCAL_HOSTNAMES = {"127.0.0.1", "localhost", "::1"}
 TRUTHY_ENV_VALUES = {"1", "true", "yes", "y", "on"}
@@ -805,8 +805,8 @@ class PrototypeHandler(SimpleHTTPRequestHandler):
 
 
 def resolve_listen_address() -> tuple[str, int]:
-    host = os.environ.get("STYIO_DEV_SERVER_HOST", "127.0.0.1")
-    port = int(os.environ.get("STYIO_DEV_SERVER_PORT") or os.environ.get("PORT") or "4180")
+    host = os.environ.get("VITYO_DEV_SERVER_HOST", "127.0.0.1")
+    port = int(os.environ.get("VITYO_DEV_SERVER_PORT") or os.environ.get("PORT") or "4180")
     args = sys.argv[1:]
     index = 0
     while index < len(args):

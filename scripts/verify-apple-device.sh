@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/scripts/lib/flutter-workspace-common.sh"
-FLUTTER_DIR_DEFAULT="$ROOT/products/styio_ide"
+FLUTTER_DIR_DEFAULT="$ROOT/products/vityo_app"
 WORK_DIR_DEFAULT="$ROOT/build/apple-device-workspaces"
 
 PROFILE=""

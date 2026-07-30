@@ -22,8 +22,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 REQUIRED_PACKAGING_FILES: dict[str, str] = {
-    "packaging/linux/io.styio.ide.desktop": "FreeDesktop.org desktop entry",
-    "packaging/linux/io.styio.ide.metainfo.xml": "AppStream metadata",
+    "packaging/linux/io.vityo.desktop": "FreeDesktop.org desktop entry",
+    "packaging/linux/io.vityo.metainfo.xml": "AppStream metadata",
     "packaging/linux/DEBIAN/control": "Debian package control file",
     "packaging/linux/README.md": "Packaging directory README",
 }
@@ -117,8 +117,8 @@ def run_checks() -> list[dict[str, object]]:
     for relative_path, purpose in REQUIRED_PACKAGING_FILES.items():
         results.append(check_file_exists(relative_path, purpose))
 
-    results.append(check_desktop_file("packaging/linux/io.styio.ide.desktop"))
-    results.append(check_appstream_xml("packaging/linux/io.styio.ide.metainfo.xml"))
+    results.append(check_desktop_file("packaging/linux/io.vityo.desktop"))
+    results.append(check_appstream_xml("packaging/linux/io.vityo.metainfo.xml"))
     results.append(check_debian_control("packaging/linux/DEBIAN/control"))
 
     return results

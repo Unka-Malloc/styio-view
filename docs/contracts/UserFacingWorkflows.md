@@ -2,9 +2,9 @@
 
 **Purpose:** Define the product workflow contract for first launch, workspace lifecycle, editing, command routing, run/debug, diagnostics, agent review, settings, modules, hosted export, and recovery UX.
 
-**Owner:** `products/styio_ide/lib/src/` (app bootstrap, shell/runtime, workspace, editor, commands, runtime, agent, diagnostics, settings, module host, hosted lifecycle)
-**Last updated:** 2026-07-26
-**Plan traceability:** [Styio IDE requirements](../plan/styio-ide/Requirements.md)
+**Owner:** `products/vityo_app/lib/src/` (app bootstrap, shell/runtime, workspace, editor, commands, runtime, agent, diagnostics, settings, module host, hosted lifecycle)
+**Last updated:** 2026-07-30
+**Plan traceability:** [Vityo requirements](../plan/vityo/Requirements.md)
 `REQ-IDE-002`, `REQ-IDE-003`, `REQ-IDE-004`, and `REQ-IDE-008`
 
 ---
@@ -15,120 +15,126 @@
 
 | Artifact | File | Role |
 |----------|------|------|
-| `AppBootstrap` bootstrap flow | `products/styio_ide/lib/src/app/app_bootstrap.dart` | Orchestrates first-launch service wiring: seeds catalogs, language service. |
+| `AppBootstrap` bootstrap flow | `products/vityo_app/lib/src/app/app_bootstrap.dart` | Orchestrates first-launch service wiring: seeds catalogs, language service. |
 ### 1.2 Workspace Lifecycle
 
 | Artifact | File | Role |
 |----------|------|------|
-| `WorkspaceController` | `products/styio_ide/lib/src/ide/workspace/workspace_controller.dart` | `ChangeNotifier` managing active project snapshot, open files list, active file path. |
-| `WorkspaceDocumentStore` | `products/styio_ide/lib/src/ide/workspace/workspace_document_store.dart` | Abstract document store interface. |
-| `FileSystemWorkspaceDocumentStore` | `products/styio_ide/lib/src/ide/workspace/workspace_document_store_io.dart` | IO implementation: local filesystem read/write with metadata sidecars. |
-| `HostedWorkspaceDocumentStore` | `products/styio_ide/lib/src/ide/workspace/hosted_workspace_document_store.dart` | Hosted backend document store. |
-| `HostedWorkspaceLifecycle` | `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Close-plan, pending-deletion, connector-parity. |
-| `WorkspaceFileOperationService` | `products/styio_ide/lib/src/ide/workspace/workspace_file_operations.dart` | File CRUD operations with path validation. |
-| `WorkspaceFileCommandRouter` | `products/styio_ide/lib/src/ide/workspace/workspace_file_command_router.dart` | Routes file commands. |
-| `WorkspaceFileExplorerController` | `products/styio_ide/lib/src/ide/workspace/workspace_file_explorer_controller.dart` | File tree state: expanded nodes, selection, filtering. |
-| `VFS` | `products/styio_ide/lib/src/ide/workspace/vfs.dart` | Virtual filesystem abstraction for path resolution. |
+| `WorkspaceController` | `products/vityo_app/lib/src/ide/workspace/workspace_controller.dart` | `ChangeNotifier` managing active project snapshot, open files list, active file path. |
+| `WorkspaceDocumentStore` | `products/vityo_app/lib/src/ide/workspace/workspace_document_store.dart` | Abstract document store interface. |
+| `FileSystemWorkspaceDocumentStore` | `products/vityo_app/lib/src/ide/workspace/workspace_document_store_io.dart` | IO implementation: local filesystem read/write with metadata sidecars. |
+| `HostedWorkspaceDocumentStore` | `products/vityo_app/lib/src/ide/workspace/hosted_workspace_document_store.dart` | Hosted backend document store. |
+| `HostedWorkspaceLifecycle` | `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Close-plan, pending-deletion, connector-parity. |
+| `WorkspaceFileOperationService` | `products/vityo_app/lib/src/ide/workspace/workspace_file_operations.dart` | File CRUD operations with path validation. |
+| `WorkspaceFileCommandRouter` | `products/vityo_app/lib/src/ide/workspace/workspace_file_command_router.dart` | Routes file commands. |
+| `WorkspaceFileExplorerController` | `products/vityo_app/lib/src/ide/workspace/workspace_file_explorer_controller.dart` | File tree state: expanded nodes, selection, filtering. |
+| `VFS` | `products/vityo_app/lib/src/ide/workspace/vfs.dart` | Virtual filesystem abstraction for path resolution. |
 
 ### 1.4 Command Palette
 
 | Artifact | File | Role |
 |----------|------|------|
-| `AppCommandId` enum | `products/styio_ide/lib/src/view_ide/commands/app_commands.dart` | 80+ canonical command IDs. |
-| `StyioCommandRegistry` | `products/styio_ide/lib/src/view_ide/commands/app_commands.dart` | Canonical command catalog. |
-| `CommandPaletteService` | `products/styio_ide/lib/src/view_ide/commands/command_palette.dart` | Pure-Dart scoring, matching, filtering. |
-| `CommandPaletteModel` | `products/styio_ide/lib/src/view_ide/commands/command_palette_model.dart` | Overlay state machine. |
-| `CommandPaletteSurface` | `products/styio_ide/lib/src/view_render/commands/command_palette_surface.dart` | Flutter widget. |
-| `CommandKeybindingProfile` | `products/styio_ide/lib/src/view_ide/commands/command_keybinding_profile.dart` | Keybinding profile, conflict detection. |
-| `ExtensionCommandContributionCatalog` | `products/styio_ide/lib/src/view_ide/commands/extension_command_contributions.dart` | Dynamic command contributions. |
+| `AppCommandId` enum | `products/vityo_app/lib/src/view_ide/commands/app_commands.dart` | 80+ canonical command IDs. |
+| `VityoCommandRegistry` | `products/vityo_app/lib/src/view_ide/commands/app_commands.dart` | Canonical command catalog. |
+| `CommandPaletteService` | `products/vityo_app/lib/src/view_ide/commands/command_palette.dart` | Pure-Dart scoring, matching, filtering. |
+| `CommandPaletteModel` | `products/vityo_app/lib/src/view_ide/commands/command_palette_model.dart` | Overlay state machine. |
+| `CommandPaletteSurface` | `products/vityo_app/lib/src/view_render/commands/command_palette_surface.dart` | Flutter widget. |
+| `CommandKeybindingProfile` | `products/vityo_app/lib/src/view_ide/commands/command_keybinding_profile.dart` | Keybinding profile, conflict detection. |
+| `ExtensionCommandContributionCatalog` | `products/vityo_app/lib/src/view_ide/commands/extension_command_contributions.dart` | Dynamic command contributions. |
 
 ### 1.5 Run / Debug
 
 | Artifact | File | Role |
 |----------|------|------|
-| `ExecutionAdapter` | `products/styio_ide/lib/src/view_ide/backend_toolchain/execution_adapter.dart` | Abstract compile/run adapter. |
-| `ExecutionAdapterIO` | `products/styio_ide/lib/src/view_ide/backend_toolchain/execution_adapter_io.dart` | IO implementation via local CLI. |
-| `HostedControlPlaneClient` | `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart` | Cloud execution client. |
-| `HostedExecutionCodec` | `products/styio_ide/lib/src/view_ide/backend_toolchain/hosted_execution_codec.dart` | Decodes backend responses into `ExecutionSession` + runtime events. |
-| `RuntimeTaskDefinition` | `products/styio_ide/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Canonical task definition with kind (`shell`, `run`, `build`, `test`, `debug`, `agent`, `toolchain`). |
-| `RuntimeTaskLifecycleEvent` | `products/styio_ide/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Unified lifecycle event: status transitions. |
-| `RuntimeExecutionPlanner` | `products/styio_ide/lib/src/view_ide/runtime/runtime_execution_plan.dart` | Execution planning: plan, handoff, binding. |
-| `RuntimeSurface` | `products/styio_ide/lib/src/view_render/runtime/runtime_surface.dart` | Runtime surface widget. |
-| `RuntimeOutputChannelBuffer` | `products/styio_ide/lib/src/view_ide/runtime/runtime_output_channels.dart` | Output channel model: 7 channel kinds. |
+| `ExecutionAdapter` | `products/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter.dart` | Abstract compile/run adapter. |
+| `ExecutionAdapterIO` | `products/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter_io.dart` | IO implementation via local CLI. |
+| `HostedControlPlaneClient` | `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane.dart` | Cloud execution client. |
+| `HostedExecutionCodec` | `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_execution_codec.dart` | Decodes backend responses into `ExecutionSession` + runtime events. |
+| `RuntimeTaskDefinition` | `products/vityo_app/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Canonical task definition with kind (`shell`, `run`, `build`, `test`, `debug`, `agent`, `toolchain`). |
+| `RuntimeTaskLifecycleEvent` | `products/vityo_app/lib/src/view_ide/runtime/runtime_task_lifecycle.dart` | Unified lifecycle event: status transitions. |
+| `RuntimeExecutionPlanner` | `products/vityo_app/lib/src/view_ide/runtime/runtime_execution_plan.dart` | Execution planning: plan, handoff, binding. |
+| `RuntimeSurface` | `products/vityo_app/lib/src/view_render/runtime/runtime_surface.dart` | Runtime surface widget. |
+| `RuntimeOutputChannelBuffer` | `products/vityo_app/lib/src/view_ide/runtime/runtime_output_channels.dart` | Output channel model: 7 channel kinds. |
 
 ### 1.6 Diagnostics
 
 | Artifact | File | Role |
 |----------|------|------|
-| `Diagnostic` (core model) | `products/styio_ide/lib/src/view_ide/language/contract/language_contract.dart` | Severity + code + message + `SourceRange`. |
-| `RevisionBoundDiagnostic` | `products/styio_ide/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Diagnostic bound to a document revision; stale if mismatches. |
-| `DiagnosticSource` / `DiagnosticConfidence` | `products/styio_ide/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Source: `compiler`, `languageService`, `extension`. Confidence: `authoritative`, `heuristic`, `speculative`. |
-| `WorkspaceDiagnosticsProducerExecutionPlan` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics.dart` | Execution plan for a diagnostics producer. |
-| `WorkspaceDiagnosticsSnapshot` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics.dart` | Immutable snapshot of all workspace diagnostics. |
-| `WorkspaceDiagnosticsController` | `products/styio_ide/lib/src/ide/workspace/workspace_diagnostics_controller.dart` | Orchestrates diagnostics producers and dispatches snapshots. |
-| `ProblemsSurface` | `products/styio_ide/lib/src/view_render/problems/problems_surface.dart` | Renders per-document and workspace-wide diagnostics. |
-| `StyioWorkspaceDiagnosticsProvider` | `products/styio_ide/lib/src/view_ide/language/service/styio_workspace_diagnostics_provider.dart` | Language-service-backed provider. |
+| `Diagnostic` (core model) | `products/vityo_app/lib/src/view_ide/language/contract/language_contract.dart` | Severity + code + message + `SourceRange`. |
+| `RevisionBoundDiagnostic` | `products/vityo_app/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Diagnostic bound to a document revision; stale if mismatches. |
+| `DiagnosticSource` / `DiagnosticConfidence` | `products/vityo_app/lib/src/view_ide/language/diagnostics/diagnostic_revision_gate.dart` | Source: `compiler`, `languageService`, `extension`. Confidence: `authoritative`, `heuristic`, `speculative`. |
+| `WorkspaceDiagnosticsProducerExecutionPlan` | `products/vityo_app/lib/src/ide/workspace/workspace_diagnostics.dart` | Execution plan for a diagnostics producer. |
+| `WorkspaceDiagnosticsSnapshot` | `products/vityo_app/lib/src/ide/workspace/workspace_diagnostics.dart` | Immutable snapshot of all workspace diagnostics. |
+| `WorkspaceDiagnosticsController` | `products/vityo_app/lib/src/ide/workspace/workspace_diagnostics_controller.dart` | Orchestrates diagnostics producers and dispatches snapshots. |
+| `ProblemsSurface` | `products/vityo_app/lib/src/view_render/problems/problems_surface.dart` | Renders per-document and workspace-wide diagnostics. |
+| `StyioWorkspaceDiagnosticsProvider` | `products/vityo_app/lib/src/view_ide/language/service/styio_workspace_diagnostics_provider.dart` | Language-service-backed provider. |
 
 ### 1.7 Agent Review
 
+The target workflow is protocol-backed Agent Workbench review. The IDE owns context export,
+permission presentation, revision-bound change preview, and workspace transactions. The connected
+Agent owns provider/model access, tool loops, policy, and durable sessions. Provider/controller
+artifacts listed below are current migration inventory only; they are not accepted IDE ownership.
+
 | Artifact | File | Role |
 |----------|------|------|
-| `AgentSurface` | `products/styio_ide/lib/src/view_render/agent_workbench/agent_surface.dart` | Agent surface widget: provider profile, runtime status, pending patch. |
-| `AgentCodingSessionController` | `products/styio_ide/lib/src/view_ide/agent_client/agent_coding_session_controller.dart` | Coding session lifecycle: dispatch, recovery, patch queue. |
-| `AgentCodePatchApplier` | `products/styio_ide/lib/src/view_ide/agent_client/agent_code_patch_applier.dart` | Patch application: `WorkspaceEditPlan` from patch text. |
-| `AgentWorkspaceSnapshot` | `products/styio_ide/lib/src/view_ide/agent_client/agent_workspace_snapshot.dart` | Workspace snapshot for agent context. |
-| `AgentToolCallDispatcher` | `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_call_dispatcher.dart` | Tool call dispatch with permission check. |
-| `AgentToolPermissionPolicyStore` | `products/styio_ide/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Per-tool permission policies (allow/deny/confirm). |
+| `AgentSurface` | `products/vityo_app/lib/src/view_render/agent_workbench/agent_surface.dart` | Agent Workbench view for task state, permission, change preview, and receipts. |
+| `ProtocolAgentClient` | `products/vityo_app/lib/src/view_ide/agent_client/protocol_agent_client.dart` | Versioned connection to Vityo Coding Agent or another compatible Agent. |
+| `AgentCodingSessionController` | `products/vityo_app/lib/src/view_ide/agent_client/agent_coding_session_controller.dart` | Legacy IDE controller retained only as migration inventory. |
+| `AgentCodePatchApplier` | `products/vityo_app/lib/src/view_ide/agent_client/agent_code_patch_applier.dart` | Patch application: `WorkspaceEditPlan` from patch text. |
+| `AgentWorkspaceSnapshot` | `products/vityo_app/lib/src/view_ide/agent_client/agent_workspace_snapshot.dart` | Workspace snapshot for agent context. |
+| `AgentToolCallDispatcher` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_call_dispatcher.dart` | Legacy IDE tool dispatcher retained only until Agent-runtime migration. |
+| `AgentToolPermissionPolicyStore` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Legacy IDE policy store retained only until Agent-runtime migration. |
 
 ### 1.8 Settings
 
 | Artifact | File | Role |
 |----------|------|------|
-| `SettingsSurface` | `products/styio_ide/lib/src/view_render/settings/settings_surface.dart` | Settings widget: toolchain, prefs, theme, capabilities. |
-| `ToolchainSettingsSurface` | `products/styio_ide/lib/src/view_ide/interaction/toolchain_status_surface.dart` | Toolchain status and install plan. |
-| `VityoThemeOverride` / `ThemeOverrideStore` | `products/styio_ide/lib/src/view_ide/environment/configuration/` | Theme configuration. |
-| `ShellConfigurationStore` | `products/styio_ide/lib/src/view_ide/environment/configuration/shell_configuration_store.dart` | Shell configuration persistence. |
+| `SettingsSurface` | `products/vityo_app/lib/src/view_render/settings/settings_surface.dart` | Settings widget: toolchain, prefs, theme, capabilities. |
+| `ToolchainSettingsSurface` | `products/vityo_app/lib/src/view_ide/interaction/toolchain_status_surface.dart` | Toolchain status and install plan. |
+| `VityoThemeOverride` / `ThemeOverrideStore` | `products/vityo_app/lib/src/view_ide/environment/configuration/` | Theme configuration. |
+| `ShellConfigurationStore` | `products/vityo_app/lib/src/view_ide/environment/configuration/shell_configuration_store.dart` | Shell configuration persistence. |
 
 ### 1.9 Modules
 
 | Artifact | File | Role |
 |----------|------|------|
-| `ModuleManifest` | `products/styio_ide/lib/src/view_ide/module_host/module_manifest.dart` | Module manifest: moduleId, kind, slot. |
-| `ModuleLifecyclePlan` / `ModuleLifecycleState` | `products/styio_ide/lib/src/view_ide/module_host/module_lifecycle.dart` | Lifecycle action and state. |
-| `ModuleDefinition` | `products/styio_ide/lib/src/view_ide/module_host/module_definition.dart` | Manifest + capability matrix. |
-| `ExtensionLifecycleRecord` | `products/styio_ide/lib/src/view_ide/module_host/extension_lifecycle.dart` | Extension lifecycle status. |
-| `ExtensionContributionRouter` | `products/styio_ide/lib/src/view_ide/module_host/extension_contribution_router.dart` | Routes contributions to surfaces. |
+| `ModuleManifest` | `products/vityo_app/lib/src/view_ide/module_host/module_manifest.dart` | Module manifest: moduleId, kind, slot. |
+| `ModuleLifecyclePlan` / `ModuleLifecycleState` | `products/vityo_app/lib/src/view_ide/module_host/module_lifecycle.dart` | Lifecycle action and state. |
+| `ModuleDefinition` | `products/vityo_app/lib/src/view_ide/module_host/module_definition.dart` | Manifest + capability matrix. |
+| `ExtensionLifecycleRecord` | `products/vityo_app/lib/src/view_ide/module_host/extension_lifecycle.dart` | Extension lifecycle status. |
+| `ExtensionContributionRouter` | `products/vityo_app/lib/src/view_ide/module_host/extension_contribution_router.dart` | Routes contributions to surfaces. |
 
 ### 1.10 Hosted Export
 
 | Artifact | File | Role |
 |----------|------|------|
-| `HostedWorkspaceLifecycle` | `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Close-plan, pending-deletion, connector-parity. |
-| `HostedWorkspaceClosePlan` | `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Export state, URL, expiration. |
-| `HostedWorkspacePendingDeletionPlan` | `products/styio_ide/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Deletion plan: retention, deadline, remaining. |
-| `HostedWorkspaceLifecycleBanner` | `products/styio_ide/lib/src/view_render/shell/hosted_workspace_lifecycle_banner.dart` | UI banner: close guard, export link. |
-| `HostedBackendRetryExecutor` | `products/styio_ide/lib/src/ide/workspace/hosted_backend_retry_executor.dart` | Retry action execution. |
+| `HostedWorkspaceLifecycle` | `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Close-plan, pending-deletion, connector-parity. |
+| `HostedWorkspaceClosePlan` | `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Export state, URL, expiration. |
+| `HostedWorkspacePendingDeletionPlan` | `products/vityo_app/lib/src/ide/workspace/hosted_workspace_lifecycle.dart` | Deletion plan: retention, deadline, remaining. |
+| `HostedWorkspaceLifecycleBanner` | `products/vityo_app/lib/src/view_render/shell/hosted_workspace_lifecycle_banner.dart` | UI banner: close guard, export link. |
+| `HostedBackendRetryExecutor` | `products/vityo_app/lib/src/ide/workspace/hosted_backend_retry_executor.dart` | Retry action execution. |
 
 ### 1.11 Recovery UX
 
 | Artifact | File | Role |
 |----------|------|------|
-| `ToolchainRecoveryAction` / handler | `products/styio_ide/lib/src/view_render/runtime/runtime_surface.dart` | Recovery action for toolchain failures. |
-| `ToolchainStatusSurface` | `products/styio_ide/lib/src/view_ide/interaction/toolchain_status_surface.dart` | Toolchain status with recovery actions. |
-| `StyioServiceRuntimeSessionEvent` | `products/styio_ide/lib/src/view_ide/language/service/styio_service_runtime.dart` | Language service runtime state: `active`, `refreshing`, `failed`, `disposed`. |
-| `LanguageServiceStatusSurface` | `products/styio_ide/lib/src/view_ide/interaction/language_service_status_surface.dart` | Language service status indicator. |
+| `ToolchainRecoveryAction` / handler | `products/vityo_app/lib/src/view_render/runtime/runtime_surface.dart` | Recovery action for toolchain failures. |
+| `ToolchainStatusSurface` | `products/vityo_app/lib/src/view_ide/interaction/toolchain_status_surface.dart` | Toolchain status with recovery actions. |
+| `StyioServiceRuntimeSessionEvent` | `products/vityo_app/lib/src/view_ide/language/service/styio_service_runtime.dart` | Language service runtime state: `active`, `refreshing`, `failed`, `disposed`. |
+| `LanguageServiceStatusSurface` | `products/vityo_app/lib/src/view_ide/interaction/language_service_status_surface.dart` | Language service status indicator. |
 
 ### 1.12 Cross-Surface State Projection
 
 | Artifact | File | Role |
 |----------|------|------|
-| `ShellModel` | `products/styio_ide/lib/src/view_render/shell/shell_model.dart` | Central state model: layout, tab routing, command dispatch. |
-| `ShellScope` | `products/styio_ide/lib/src/view_render/shell/shell_scope.dart` | `InheritedNotifier<ShellModel>` for shell-wide access. |
-| `FoundationLifecycleCoordinator` | `products/styio_ide/lib/src/view_ide/foundation/lifecycle_coordinator/` | 6-state lifecycle coordination. |
-| `IdeCapabilityFramework` | `products/styio_ide/lib/src/view_ide/foundation/ide_capability_framework.dart` | 12 layers, 32 required capabilities. |
-| `IdeCapabilityRegistry` | `products/styio_ide/lib/src/view_ide/workbench/ide_capability_registry.dart` | Single truth for capability metadata. |
-| `SurfaceRegistry` | `products/styio_ide/lib/src/view_ide/workbench/surface_registry.dart` | Surface registry with placement types. |
-| `BottomSurfaceTab` enum | `products/styio_ide/lib/src/view_render/shell/shell_model.dart` | 27 bottom-surface tabs. |
+| `ShellModel` | `products/vityo_app/lib/src/view_render/shell/shell_model.dart` | Central state model: layout, tab routing, command dispatch. |
+| `ShellScope` | `products/vityo_app/lib/src/view_render/shell/shell_scope.dart` | `InheritedNotifier<ShellModel>` for shell-wide access. |
+| `FoundationLifecycleCoordinator` | `products/vityo_app/lib/src/view_ide/foundation/lifecycle_coordinator/` | 6-state lifecycle coordination. |
+| `IdeCapabilityFramework` | `products/vityo_app/lib/src/view_ide/foundation/ide_capability_framework.dart` | 12 layers, 32 required capabilities. |
+| `IdeCapabilityRegistry` | `products/vityo_app/lib/src/view_ide/workbench/ide_capability_registry.dart` | Single truth for capability metadata. |
+| `SurfaceRegistry` | `products/vityo_app/lib/src/view_ide/workbench/surface_registry.dart` | Surface registry with placement types. |
+| `BottomSurfaceTab` enum | `products/vityo_app/lib/src/view_render/shell/shell_model.dart` | 27 bottom-surface tabs. |
 
 ---
 
@@ -254,10 +260,14 @@
 - **Recovery:** `refreshWorkspaceDiagnostics`.
 
 ### 4.6 Agent Review
-- **Success:** Patch preview; user applies or cancels.
-- **Blocked provider unavailable:** Recovery draft.
-- **Blocked patch conflict:** Conflict reported; user reverts.
-- **Recovery:** Adjust provider or retry.
+- **Success:** The Workbench shows plan and permission state; a revision-bound change proposal is
+  previewed and accepted or rejected; the IDE returns transaction and verification receipts.
+- **Blocked Agent unavailable:** The Workbench reports a disconnected/blocked Agent while the IDE's
+  edit, analyze, test, run, and observe paths remain usable.
+- **Blocked stale or conflicting change:** No partial mutation; the user may request a refreshed
+  proposal or reject it.
+- **Recovery:** Reconnect/switch the compatible Agent, refresh the proposal, retry validation, or
+  continue the developer loop without an Agent.
 
 ### 4.7 Settings / Toolchain
 - **Success:** Selection or install completes.
@@ -313,7 +323,7 @@
 ## 7. Single Implementation Path
 
 - **No duplicate document stores:** `WorkspaceDocumentStore` is single interface; 3 implementations.
-- **No parallel command registries:** `StyioCommandRegistry` is single catalog.
+- **No parallel command registries:** `VityoCommandRegistry` is single catalog.
 - **No duplicate workspace controllers:** `WorkspaceController` is single entry point.
 - **No legacy edit paths:** All edits through `EditorTransactionService`.
 - **No alternative agent patch paths:** All patches through `AgentCodePatchApplier`.

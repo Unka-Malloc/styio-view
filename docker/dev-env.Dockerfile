@@ -17,7 +17,7 @@ ENV ANDROID_SDK_ROOT=/opt/android-sdk
 ENV ANDROID_HOME=/opt/android-sdk
 ENV VITYO_ANDROID_PROFILES=${ANDROID_PROFILES}
 ENV VITYO_ANDROID_DEFAULT_PROFILE=${ANDROID_DEFAULT_PROFILE}
-ENV STYIO_CHROME_PATH=/usr/bin/chromium
+ENV VITYO_CHROME_PATH=/usr/bin/chromium
 ENV CHROME_EXECUTABLE=/usr/bin/chromium
 ENV PATH=/opt/Vityo-tools/bin:/opt/nodejs/current/bin:/opt/flutter/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:$PATH
 

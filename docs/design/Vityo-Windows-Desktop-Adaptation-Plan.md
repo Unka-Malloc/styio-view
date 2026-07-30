@@ -1,4 +1,4 @@
-# Styio IDE Windows Desktop Adaptation Plan
+# Vityo Windows Desktop Adaptation Plan
 
 **Purpose:** Preserve Windows desktop open-work signals cited by convergence checkpoints; do not add parallel domain logic.
 

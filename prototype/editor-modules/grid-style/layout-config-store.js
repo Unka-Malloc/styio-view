@@ -36,7 +36,7 @@ export function installGridLayoutConfigDebugApi(globalObject) {
     reset: () => gridLayoutConfigStore.reset(),
   });
 
-  globalObject.__styioGridLayoutConfig = debugApi;
+  globalObject.__vityoGridLayoutConfig = debugApi;
   return debugApi;
 }
 

@@ -470,13 +470,13 @@ export const legacyInterfaceSizeKeyMap = {
   large: "17",
 };
 export const legacyThemeColorKeyMap = {
-  styioGold: "defaultGold",
-  "Styio Gold": "Gold",
+  vityoGold: "defaultGold",
+  "Vityo Gold": "Gold",
   "Default Gold": "Gold",
 };
 export const legacyInterfaceFontKeyMap = {
-  styioSans: "defaultSans",
-  "Styio Sans": "defaultSans",
+  vityoSans: "defaultSans",
+  "Vityo Sans": "defaultSans",
   "Default Sans": "defaultSans",
   inter: "defaultSans",
   Inter: "defaultSans",
@@ -505,13 +505,13 @@ export const legacyEditorFontSizeKeyMap = {
   "5": "17",
 };
 export const legacyEditorTextHighlightKeyMap = {
-  styioGold: "defaultGold",
-  "Styio Gold": "Gold",
+  vityoGold: "defaultGold",
+  "Vityo Gold": "Gold",
   "Default Gold": "Gold",
 };
 export const legacyDefaultGlyphPaletteKeyMap = {
-  styio: "default",
-  Styio: "Default",
+  vityo: "default",
+  Vityo: "Default",
 };
 export const editorBackgroundPresets = [
   {

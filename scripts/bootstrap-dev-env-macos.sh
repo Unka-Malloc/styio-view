@@ -3,12 +3,12 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET_HOME="${HOME}"
-PYTHON_STANDARD_VERSION="${STYIO_TOOLCHAIN_PYTHON_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.python-version")}"
-NODE_STANDARD_VERSION="${STYIO_TOOLCHAIN_NODE_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.nvmrc")}"
-FLUTTER_STANDARD_VERSION="${STYIO_TOOLCHAIN_FLUTTER_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.flutter-version")}"
-DART_STANDARD_VERSION="${STYIO_TOOLCHAIN_DART_STANDARD_VERSION:-3.11.5}"
-CHROMIUM_STANDARD_VERSION="${STYIO_TOOLCHAIN_CHROMIUM_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.chromium-version")}"
-CMAKE_STANDARD_VERSION="${STYIO_TOOLCHAIN_CMAKE_STANDARD_VERSION:-3.31.6}"
+PYTHON_STANDARD_VERSION="${VITYO_TOOLCHAIN_PYTHON_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.python-version")}"
+NODE_STANDARD_VERSION="${VITYO_TOOLCHAIN_NODE_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.nvmrc")}"
+FLUTTER_STANDARD_VERSION="${VITYO_TOOLCHAIN_FLUTTER_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.flutter-version")}"
+DART_STANDARD_VERSION="${VITYO_TOOLCHAIN_DART_STANDARD_VERSION:-3.11.5}"
+CHROMIUM_STANDARD_VERSION="${VITYO_TOOLCHAIN_CHROMIUM_STANDARD_VERSION:-$(tr -d '[:space:]' < "$ROOT/.chromium-version")}"
+CMAKE_STANDARD_VERSION="${VITYO_TOOLCHAIN_CMAKE_STANDARD_VERSION:-3.31.6}"
 ANDROID_CMDLINE_TOOLS_VERSION="${VITYO_ANDROID_CMDLINE_TOOLS_VERSION:-14742923}"
 ANDROID_PROFILE_FILE="${VITYO_ANDROID_PROFILE_FILE:-$ROOT/toolchain/android-sdk-profiles.csv}"
 ANDROID_PROFILES="${VITYO_ANDROID_PROFILES:-android-35,android-36}"
@@ -303,8 +303,8 @@ Profile:
 
 Suggested shell exports:
   export FLUTTER_HOME="$FLUTTER_HOME"
-  export STYIO_CHROME_PATH="$browser_bin"
-  export CHROME_EXECUTABLE="\$STYIO_CHROME_PATH"
+  export VITYO_CHROME_PATH="$browser_bin"
+  export CHROME_EXECUTABLE="\$VITYO_CHROME_PATH"
   export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
   export ANDROID_HOME="\$ANDROID_SDK_ROOT"
   export JAVA_HOME="$java_home"
@@ -319,9 +319,9 @@ Typical next steps:
   ./scripts/android-sdk-profile.sh build --profiles $ANDROID_PROFILES --parallel --artifact apk --mode debug
   ./scripts/apple-platform-profile.sh build --profiles ios-13,ios-15 --parallel --mode debug --simulator --no-codesign
   ./scripts/apple-platform-profile.sh build --profiles macos-10.15,macos-12 --parallel --mode debug
-  cd "$ROOT/products/styio_ide" && "\$FLUTTER_HOME/bin/flutter" analyze
-  cd "$ROOT/products/styio_ide" && "\$FLUTTER_HOME/bin/flutter" test
-  cd "$ROOT/prototype" && STYIO_CHROME_PATH="$browser_bin" STYIO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
+  cd "$ROOT/products/vityo_app" && "\$FLUTTER_HOME/bin/flutter" analyze
+  cd "$ROOT/products/vityo_app" && "\$FLUTTER_HOME/bin/flutter" test
+  cd "$ROOT/prototype" && VITYO_CHROME_PATH="$browser_bin" VITYO_EDITOR_URL=http://127.0.0.1:4180/editor npm run selftest:editor
 EOF
 }
 

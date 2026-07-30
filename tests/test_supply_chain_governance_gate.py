@@ -49,7 +49,7 @@ class SupplyChainGovernanceGateTest(unittest.TestCase):
             "      - uses: actions/checkout@0123456789abcdef0123456789abcdef01234567\n"
             "      - run: python3 scripts/supply-chain-governance-gate.py\n"
             "      - run: python3 scripts/dependency-policy-gate.py\n"
-            "      - run: python3 scripts/github-actions-pin-gate.py --mode audit\n"
+            "      - run: python3 scripts/github-actions-pin-gate.py --mode enforce\n"
             "      - run: python3 scripts/check_security_baseline.py\n"
             "      - run: python3 scripts/check_license_policy.py\n"
         )
@@ -66,7 +66,7 @@ class SupplyChainGovernanceGateTest(unittest.TestCase):
             "      interval: \"weekly\"\n"
             "    open-pull-requests-limit: 5\n"
             "  - package-ecosystem: \"pub\"\n"
-            "    directory: \"/frontend/vityo_app\"\n"
+            "    directory: \"/products/vityo_app\"\n"
             "    schedule:\n"
             "      interval: \"weekly\"\n"
             "    open-pull-requests-limit: 5\n"
@@ -103,7 +103,7 @@ class SupplyChainGovernanceGateTest(unittest.TestCase):
             "scripts/check_license_policy.py\n",
         )
         self._write_file(root, "docs/specs/THIRD-PARTY.md")
-        self._write_file(root, "frontend/vityo_app/pubspec.lock")
+        self._write_file(root, "products/vityo_app/pubspec.lock")
         self._write_file(root, "prototype/package-lock.json", json.dumps({"lockfileVersion": 3}))
         for script in self.gate.REQUIRED_GATE_SCRIPTS:
             self._write_file(root, script.as_posix(), "#!/usr/bin/env python3\n")
@@ -156,7 +156,7 @@ class SupplyChainGovernanceGateTest(unittest.TestCase):
             results = self.gate.collect_checks(root)
 
         failed_names = {result.name for result in results if not result.ok}
-        self.assertIn("dependabot update: pub /frontend/vityo_app", failed_names)
+        self.assertIn("dependabot update: pub /products/vityo_app", failed_names)
         self.assertIn("dependabot update: npm /prototype", failed_names)
 
     def test_secret_scan_flags_high_signal_tokens(self) -> None:

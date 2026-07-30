@@ -1,6 +1,6 @@
 # Cache Contract
 
-**Purpose:** Define the shared cache contract for Styio IDE — owner, key, entry, invalidation, dependency tracking, eviction, freshness, serialization, and observation.
+**Purpose:** Define the shared cache contract for Vityo — owner, key, entry, invalidation, dependency tracking, eviction, freshness, serialization, and observation.
 
 **Last updated:** 2026-06-25
 
@@ -75,7 +75,7 @@ All cache keys MUST include, where applicable:
 | Project Graph | Per-workspace | Canonical file change, manifest edit |
 | File Gist | Per-file | File content change, toolchain change |
 | Runtime Event Derived | Per-session | New events appended, session reset |
-| AI Context | Per-request | Context candidate list change |
+| Agent Context | Per-request | Context candidate list change |
 
 ## 6. Invalidation Rules
 

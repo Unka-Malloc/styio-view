@@ -5,7 +5,7 @@ usage() {
   cat <<'USAGE'
 Usage: scripts/delivery-gate.sh [options]
 
-Run the common Styio delivery floor by composing repository hygiene, the docs
+Run the common Vityo delivery floor by composing repository hygiene, the docs
 gate, external audit, checkpoint health, and the ecosystem product gate into
 one entrypoint. CI and VITYO_PRODUCT_GATE=1 require the product gate; local
 runs without that opt-in record an explicit skip.

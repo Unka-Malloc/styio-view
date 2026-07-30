@@ -1,8 +1,8 @@
-# Styio IDE Implementation Gaps
+# Vityo Implementation Gaps
 
-**Purpose:** Track current implementation and integration facts that ground the Styio IDE and Coding Agent delivery plans without duplicating their workflow state.
+**Purpose:** Track current implementation and integration facts that ground the two delivery tracks for one Vityo product without duplicating their workflow state.
 
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-30
 
 **Latest audit run:** 2026-06-25 02:00–02:30 UTC
 
@@ -13,7 +13,7 @@
 ## 1. Scope
 
 This document is the owner register for current gaps. Better Plan workflow state and execution
-ordering live only in `docs/plan/styio-ide/` and `docs/plan/styio-coding-agent/`.
+ordering live only in `docs/plan/vityo/` and `docs/plan/vityo-coding-agent/`.
 
 Completed or accepted design baselines live in [Vityo-Delivered-Design-Baseline.md](./Vityo-Delivered-Design-Baseline.md). This document only records missing implementation, missing integration, unresolved upstream contracts, missing validation, or unsettled design decisions.
 
@@ -27,6 +27,13 @@ Status values:
 | Partially implemented | Repo-local anchors exist, but the full product or integration path is not complete. |
 | Validation needed | Code or design anchors exist, but product-level gates are not proven. |
 | Decision needed | The design boundary is not settled enough to implement. |
+
+## 1.1 Agent-Native Convergence Gap
+
+| Gap | Status | Owner | Required closure |
+|---|---|---|---|
+| Retire IDE direct model-provider/controller ownership | Implementation needed | Vityo IDE + Coding Agent runtime | The current IDE code still contains provider profiles, OpenAI-compatible transport, provider routing, tool-loop policy, and session-controller implementation inherited from the superseded panel-first architecture. Move model/provider, tool-loop, policy, durable-session, and multi-Agent orchestration ownership into `products/vityo_coding_agent` (or another compatible Agent), keep the IDE as a versioned protocol client, then remove the superseded IDE implementation and tests atomically. Preserve IDE-owned revisions, Styio facts, permission presentation, change preview, and workspace transaction application. This documentation convergence does not claim that code migration is complete. |
+| Agent Workbench product closure | Partially implemented | Vityo | Prove a task loop with plan visibility, explicit permission decisions, revision-bound change preview, IDE-owned apply/rollback, and verification receipts through the shared Agent protocol. The IDE must also prove `edit -> analyze -> test -> run -> observe` with no Agent connected. |
 
 ## 2. Language And StyioService Gaps
 
@@ -71,7 +78,7 @@ Status values:
 |---|---|---|---|
 | File System Manager implementation | Partially implemented | Vityo | Local File System Manager has stable path/stat/read/write/bytes/list/delete/watch/copy/move/rename anchors, file URI conversion, normalized containment checks, `FileSystemBoundaryGuard`, `FileSystemTextCodec`, local/file/hosted provider routing, executable-bit handling, explicit overwrite behavior, manager-local `FileSystemOperationFailure` classification, and workspace document watch integration through `FileSystemWorkspaceDocumentStore.watchDocument`. Remaining closure: product-specific boundary policy adoption, broader non-local operation routing beyond hosted document load/save, and wider operation-level structured result adoption. |
 | LocalFileSystemManager | Partially implemented | Vityo | Concrete local desktop implementation exists for path, file IO, directory watch, copy/move/rename, executable bit handling, and failure classification. Remaining closure: platform-matrix verification outside the current local test host and product-specific boundary policy adoption. |
-| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `products/styio_ide/lib/src/platform/`. `HostedWorkspaceFileSystemProvider` is implemented in `products/styio_ide/lib/src/ide/workspace/` for `vityo-hosted://` document load/save routes backed by `HostedWorkspaceDocumentStore`, with unpublished hosted file-system operations represented as structured unsupported failures. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://, vityo-hosted://. Remaining closure: broaden product adoption and validate any future non-document hosted operations only after the hosted control-plane contract publishes them. |
+| Remote/browser/virtual providers | Partially implemented | Vityo | `MemoryFileSystemProvider` and `BrowserVirtualFileSystemProvider` are implemented in `products/vityo_app/lib/src/platform/`. `HostedWorkspaceFileSystemProvider` is implemented in `products/vityo_app/lib/src/ide/workspace/` for `vityo-hosted://` document load/save routes backed by `HostedWorkspaceDocumentStore`, with unpublished hosted file-system operations represented as structured unsupported failures. `FileSystemOperationResult<T>` provides structured outcomes. URI schemes: file://, memory://, browser-vfs://, vityo-hosted://. Remaining closure: broaden product adoption and validate any future non-document hosted operations only after the hosted control-plane contract publishes them. |
 | File System Prober placement | Decision needed | Vityo | Decide whether it is documented under Platform Detector or File System Manager internals. |
 | `canX` preflight API set | Decision needed | Vityo | Decide which preflight checks are worth exposing before execute-and-classify behavior. |
 | Platform Manager interface implementation | Partially implemented | Vityo | `PlatformManagerBundle` aggregates concrete system-specific managers from `PlatformContextSnapshot`, `PlatformAdapter`, and manager factories, and exposes a thin status snapshot. File System, Process, Network, Resource, Shell, PTY, Clipboard, Notification, and Local Service managers now expose manager-local structured failure envelopes. Remaining closure: product-level adoption and cross-platform provider decisions beyond the current Linux/Debian/ARM anchors. |
@@ -92,7 +99,12 @@ Status values:
 | Build/run/test product gate | Partially implemented | Vityo | `backend_route_product_gate_test.dart` validates local-cli, hosted, and blocked backend route states against `BackendExecutionRouteSelection`, Runtime Surface rendering, and build/test native result summaries without invoking real compilers or cloud providers. Shell runtime tests assert that native build/test result metadata exposes normalized backend route facts for agent coding context. Live local/hosted product workflow gates now assert `selectBackendExecutionRoute` when `VITYO_PRODUCT_GATE=1` supplies the external fixtures. Remaining closure: keep adding concrete workflow fixtures as product lanes mature. |
 | Package/workflow payload maturity | Upstream blocked | styio-pafio | Published project graph, toolchain state, registry/package state, dependency, and workflow success payloads. |
 
-## 7. AI, Theme, Module, And Mobile Gaps
+## 7. Agent, Theme, Module, And Mobile Gaps
+
+The provider/controller rows below inventory the legacy IDE implementation so the later migration
+can remove it completely. They are not accepted IDE ownership and must not be extended. Provider
+validation and provider credentials belong to the Agent-runtime delivery track; the IDE closure is
+protocol interoperability, Workbench review, and workspace-transaction enforcement.
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
@@ -116,12 +128,13 @@ Status values:
 | M6 IDE hardening | Validation needed | Vityo | Product-level full UI, contract, sample matrix, and workflow gates. |
 | Runtime event product completeness | Partially implemented | Vityo | `StyioServiceRuntimeSession` emits lifecycle events and metadata-only `StyioServiceRuntimeStatusSnapshot` values that expose provider manifest state plus diagnostics/completion/hover/semantic-token capability states and counts without raw language payloads. Interaction now has `LanguageServiceStatusSurface` to project those snapshots into UI-consumable status models without rendering ownership. `AppBootstrap`, `ShellRuntimeModel`, and `EditorSurface` now carry and render that status in the real editor language pane, with a widget-test anchor for the status card surface. Remaining closure: validate the full app flow against a real asynchronous StyioService update on every supported platform. |
 | Hosted workspace retention/export UX | Validation needed | Vityo | User-visible close/export/retention/delete path. |
-| Dual-line Better Plan documentation routing | Resolved | Styio IDE and Coding Agent | `docs/plan/` is the canonical workflow root and contains exactly the independent `styio-ide` and `styio-coding-agent` plans. Current owner facts stay in design, contract, ADR, review, and validation documents; the current Better Plan tool validates the root manifest, both state files, and requirement labels. |
+| Two-track Better Plan documentation routing | Resolved | Vityo | `docs/plan/` is the canonical workflow root and contains an IDE delivery track plus a first-party companion-runtime delivery track for one Vityo product. Current owner facts stay in design, contract, ADR, review, and validation documents; the current Better Plan tool validates the root manifest, both state files, and requirement labels. |
 
 ## 9. Plan and Owner Routing Rule
 
-Do not create a third product plan or duplicate workflow state in owner documents. Route work by
-product line and keep shared protocol changes inside the consuming IDE and Coding Agent lifecycles.
+Do not create a third delivery track or duplicate workflow state in owner documents. Route work by
+delivery track and keep shared protocol changes inside both consuming IDE and Coding Agent
+lifecycles.
 
 Use these destinations:
 
@@ -129,8 +142,8 @@ Use these destinations:
 |---|---|
 | Stable product/system truth | `docs/design/` |
 | Current implementation or integration fact | `docs/design/Vityo-Implementation-Gaps.md` |
-| Styio IDE workflow state | `docs/plan/styio-ide/` |
-| Styio Coding Agent workflow state | `docs/plan/styio-coding-agent/` |
+| Vityo workflow state | `docs/plan/vityo/` |
+| Vityo Coding Agent workflow state | `docs/plan/vityo-coding-agent/` |
 | Upstream Styio handoff | `docs/external/for-styio/` |
 | Upstream Pafio handoff | `docs/external/for-pafio/` |
 | Workspace-wide Better Plan manifest and policy | `docs/plan/` |

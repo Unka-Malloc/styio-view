@@ -101,7 +101,7 @@ REQUIRED_IDE_CAPABILITY_TESTS = {
     "runtime and toolchain": (
         Path("products/vityo_app/test/shell_runtime_file_binding_test.dart"),
         Path("products/vityo_app/test/execution_adapter_test.dart"),
-        Path("products/vityo_app/test/toolchain_management_adapter_test.dart"),
+        Path("products/vityo_app/test/toolchain_controller_test.dart"),
         Path("products/vityo_app/test/toolchain_provenance_verifier_test.dart"),
         Path("products/vityo_app/test/toolchain_status_surface_test.dart"),
     ),

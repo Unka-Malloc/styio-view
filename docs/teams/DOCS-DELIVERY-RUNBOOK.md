@@ -190,4 +190,9 @@ contracts became the authoritative validation surfaces.
 CODEOWNERS guidance, and team routing on the canonical protocol-only IDE paths. Completed-plan and
 archive references remain historical provenance rather than compatibility promises.
 
+2026-07-31: Replaced the stale release-readiness evidence anchor for the removed toolchain
+management adapter test with the current toolchain controller boundary. Updated the delivered
+baseline and local validation evidence together, then verified that no active documentation or gate
+still names the removed test.
+
 <!-- codex merge: docs/build/scripts assets imported -->

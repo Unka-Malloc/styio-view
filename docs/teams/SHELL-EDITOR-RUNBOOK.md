@@ -75,8 +75,9 @@ Key SSOTs:
     command routing must preserve direct editor, workspace, source-control, debug, and toolchain
     inputs without restoring a generic Agent controller or fallback.
 24. Prototype browser-path resolution must reject broken symbolic links before platform-specific
-    child traversal. Preview-host security tests require a non-zero rejection plus the loopback
-    diagnostic; they must not depend on an OS-specific shell exit-code value.
+    child traversal. Preview-host security tests execute the non-zero loopback rejection on POSIX
+    hosts and verify the same shell contract statically on Windows, where Python-to-Git-Bash
+    subprocess startup is not a product security boundary.
 
 ## Change Classes
 

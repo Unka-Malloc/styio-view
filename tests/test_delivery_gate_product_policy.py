@@ -17,9 +17,11 @@ class DeliveryGateProductPolicyTest(unittest.TestCase):
         self.assertIn('is_true "${CI:-}"', script)
         self.assertIn('is_true "${GITHUB_ACTIONS:-}"', script)
         self.assertIn('is_true "${VITYO_PRODUCT_GATE:-}"', script)
-        self.assertIn(
-            "ecosystem-product-gate.py --require-real-matrix --json", script
-        )
+        self.assertIn("scripts/ecosystem-product-gate.py", script)
+        self.assertIn("--require-real-matrix", script)
+        self.assertIn("--json", script)
+        self.assertIn('PRODUCT_GATE_CMD+=(--styio-bin "$VITYO_PRODUCT_STYIO_BIN")', script)
+        self.assertIn('PRODUCT_GATE_CMD+=(--pafio-bin "$VITYO_PRODUCT_PAFIO_BIN")', script)
         self.assertIn('PRODUCT_GATE_STATUS="failed"', script)
         self.assertIn('PRODUCT_GATE_STATUS="proven"', script)
         self.assertIn('PRODUCT_GATE_STATUS="skipped"', script)

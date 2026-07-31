@@ -23,7 +23,6 @@ jobs:
       VITYO_PYTHON_VERSION: "3.13.5"
       VITYO_NODE_VERSION: "24.15.0"
       VITYO_FLUTTER_VERSION: "3.41.7"
-      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -198,7 +197,7 @@ jobs:
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: linux
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
-          VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PRODUCT_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
           VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-linux.json
         run: >
@@ -284,7 +283,6 @@ jobs:
       VITYO_PYTHON_VERSION: "3.13.5"
       VITYO_NODE_VERSION: "24.15.0"
       VITYO_FLUTTER_VERSION: "3.41.7"
-      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -505,7 +503,7 @@ jobs:
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: windows
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
-          VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PRODUCT_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
           VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-windows.json
         run: >
@@ -595,7 +593,6 @@ jobs:
       VITYO_PYTHON_VERSION: "3.13.5"
       VITYO_NODE_VERSION: "24.15.0"
       VITYO_FLUTTER_VERSION: "3.41.7"
-      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -765,7 +762,7 @@ jobs:
           STYIO: ${{ steps.styio-bin.outputs.path }}
           VITYO_PRODUCT_PLATFORM: macos
           VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
-          VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PRODUCT_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
           VITYO_PAFIO_ROOT: ../pafio-nightly
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-macos.json
         run: >

@@ -74,6 +74,9 @@ Key SSOTs:
     Agent descriptors and an IDE-owned `WorkspaceTransactionService` are both available. Shell
     command routing must preserve direct editor, workspace, source-control, debug, and toolchain
     inputs without restoring a generic Agent controller or fallback.
+24. Prototype browser-path resolution must reject broken symbolic links before platform-specific
+    child traversal. Preview-host security tests require a non-zero rejection plus the loopback
+    diagnostic; they must not depend on an OS-specific shell exit-code value.
 
 ## Change Classes
 

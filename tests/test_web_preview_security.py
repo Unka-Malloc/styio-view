@@ -26,7 +26,7 @@ class WebPreviewSecurityTest(unittest.TestCase):
             check=False,
         )
 
-        self.assertEqual(process.returncode, 2)
+        self.assertNotEqual(process.returncode, 0)
         self.assertIn("must be loopback", process.stderr)
 
 

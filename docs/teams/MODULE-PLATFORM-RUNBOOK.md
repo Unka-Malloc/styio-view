@@ -52,7 +52,7 @@ Key SSOTs:
 9. Module package store changes must keep the public `src/module_host/` entrypoint and the IDE-owned `src/view_ide/module_host/` implementation in sync; update package-store persistence, validation, and rollback tests together.
 10. Flutter platform bootstrap script changes must preserve Windows host, WSL Debian, and Docker Linux behavior, including executable bits, LF line endings, and explicit toolchain path overrides.
 11. The `agent.surface.basic` capability matrix describes where the Agent Workbench can connect to Vityo Coding Agent or another compatible Agent through the versioned protocol. It must not imply that Vityo owns or directly connects to a model provider.
-12. The behavior-bearing `agent.surface.basic` module manifest remains current migration input until the separately tracked runtime migration closes; documentation-only positioning work must not silently change its activation or dependency semantics.
+12. The `agent.surface.basic` module manifest is the protocol-only Agent Workbench module contract: it may contribute Agent Client, collaboration-projection, and workspace-transaction capabilities, but must not restore model-provider adapters, profile injection, or an IDE-owned tool loop.
 
 ## Change Classes
 
@@ -96,4 +96,4 @@ For module package-store and platform bootstrap changes, include the host matrix
 - `file_system_operation_result.dart`: Rewrote sealed-class object patterns to `is`/`as` type checks for Dart SDK compatibility; added explicit `const` constructor for sealed superclass.
 - No behavioral changes. All existing API contracts preserved.
 
-2026-07-30: Updated the `agent.surface.basic` capability-matrix notes to name the Agent Workbench and its protocol connection to compatible Agents. The matrix change is descriptive only; module activation, protocol schema, and runtime behavior are unchanged.
+2026-07-31: Completed the `agent.surface.basic` protocol-only migration. The manifest now activates the presentation-owned Agent Workbench entrypoint and advertises only Agent Client, collaboration-projection, and workspace-transaction capabilities; provider adapters and profile injection are explicitly disabled. The capability matrix retains the same six-platform availability and distribution policy.

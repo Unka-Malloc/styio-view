@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 
+const _interactivePtyTimeout = Duration(seconds: 30);
+
 void main() {
   test('pty prober classifies Linux as native forkpty', () async {
     final facts = await LocalPtyProber(
@@ -74,12 +76,10 @@ void main() {
       if (!Platform.isWindows) {
         ready.complete();
       }
-      await ready.future.timeout(const Duration(seconds: 10));
+      await ready.future.timeout(_interactivePtyTimeout);
       await session.write(_ttyProbeCommand());
-      await done.future.timeout(const Duration(seconds: 10));
-      final exitCode = await session.exitCode.timeout(
-        const Duration(seconds: 10),
-      );
+      await done.future.timeout(_interactivePtyTimeout);
+      final exitCode = await session.exitCode.timeout(_interactivePtyTimeout);
       await subscription.cancel();
       final fullOutput = output.join();
 

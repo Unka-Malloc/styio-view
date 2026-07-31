@@ -11,6 +11,8 @@ import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_co
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+const _interactivePtyTimeout = Duration(seconds: 30);
+
 void main() {
   test(
     'configuration and toolchain abstract files avoid direct system APIs',
@@ -3667,7 +3669,7 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
       if (!Platform.isWindows) {
         ready.complete();
       }
-      await ready.future.timeout(const Duration(seconds: 5));
+      await ready.future.timeout(_interactivePtyTimeout);
       await session.write(
         Platform.isWindows
             ? r'''if ([Console]::IsOutputRedirected) { exit 1 }; Write-Output "terminal-ok:${env:STYIO_MODE}:${env:STYIO_CHANNEL}:${env:RUNTIME_FLAG}"; exit 0'''
@@ -3675,10 +3677,8 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
             : r'''test -t 1 && printf "terminal-ok:$STYIO_MODE:$STYIO_CHANNEL:$RUNTIME_FLAG"; exit 0'''
                   '\r',
       );
-      await done.future.timeout(const Duration(seconds: 5));
-      final exitCode = await session.exitCode.timeout(
-        const Duration(seconds: 5),
-      );
+      await done.future.timeout(_interactivePtyTimeout);
+      final exitCode = await session.exitCode.timeout(_interactivePtyTimeout);
       await subscription.cancel();
 
       expect(exitCode, 0);

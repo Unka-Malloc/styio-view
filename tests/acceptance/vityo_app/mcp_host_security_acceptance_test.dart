@@ -18,6 +18,7 @@ Future<void> main() async {
   await _rootsCapabilitiesAndExtensionsRevokeImmediately();
   await _securityPolicyDeniesBeforeEffectsAndRedactsReceipts();
   await _canonicalRootAuthorizationRejectsTraversalAndLinkEscape();
+  await _rootRevocationDuringResolutionFailsClosed();
 }
 
 /// REQ-IDE-006 / criterion 1 / MCP lifecycle, discovery, truthful-fact,
@@ -38,15 +39,17 @@ Future<void> _dynamicDiscoveryAndBoundedRevisionedContext() async {
   final approvedFile = File(
     '${workspace.path}${Platform.pathSeparator}approved.txt',
   );
-  await approvedFile.writeAsString('approved workspace evidence');
+  await approvedFile.writeAsString(
+    'approved workspace evidence ${List<String>.filled(2048, 'x').join()}',
+  );
 
   final roots = WorkspaceRootRegistry();
   final context = RevisionedIdeContextExportService(
     provider: _FactsProvider(),
     currentWorkspaceRevision: () => 12,
-    sanitizer: McpPayloadSanitizer(
-      sensitiveValues: const <String>{'private-fixture-value'},
-    ),
+    sanitizer: McpPayloadSanitizer.withSensitiveValues(const <String>{
+      'private-fixture-value',
+    }),
   );
   final catalog = IdeToolCatalog(
     adapters: <IdeToolAdapter>[
@@ -75,9 +78,9 @@ Future<void> _dynamicDiscoveryAndBoundedRevisionedContext() async {
     security: ToolSecurityPolicy(
       grants: ToolGrantRegistry(),
       auditLog: ToolAuditLog(maxEntries: 32),
-      sanitizer: McpPayloadSanitizer(
-        sensitiveValues: const <String>{'private-fixture-value'},
-      ),
+      sanitizer: McpPayloadSanitizer.withSensitiveValues(const <String>{
+        'private-fixture-value',
+      }),
       maxResultBytes: 4096,
     ),
   );
@@ -194,8 +197,19 @@ Future<void> _dynamicDiscoveryAndBoundedRevisionedContext() async {
     );
     _expect(
       fileCall['isError'] != true &&
-          jsonEncode(fileCall).contains('approved workspace evidence'),
-      'approved root file must be readable through the narrow adapter',
+          jsonEncode(fileCall).contains('approved workspace evidence') &&
+          fileCall['structuredContent'] is Map<String, Object?> &&
+          (fileCall['structuredContent']
+                  as Map<String, Object?>)['truncated'] ==
+              true &&
+          ((fileCall['structuredContent']
+                      as Map<String, Object?>)['omittedUtf8Bytes']
+                  as int) >
+              0 &&
+          (fileCall['structuredContent']
+                  as Map<String, Object?>)['omittedCodeUnitsExact'] ==
+              false,
+      'approved root file must be read with explicit bounded omissions',
     );
   } finally {
     await server.close();
@@ -258,6 +272,23 @@ Future<void> _rootsCapabilitiesAndExtensionsRevokeImmediately() async {
 
   try {
     await _initialize(server, 'session-live');
+    final duplicateInitialize = await server.handle(
+      sessionId: 'session-live',
+      message: JsonRpcRequest(
+        id: const JsonRpcId.integer(999),
+        method: 'initialize',
+        params: const <String, Object?>{
+          'protocolVersion': mcpProtocolVersion,
+          'capabilities': <String, Object?>{},
+        },
+      ),
+    );
+    _expect(
+      duplicateInitialize is JsonRpcErrorResponse &&
+          (duplicateInitialize.error.data as Map<String, Object?>)['code'] ==
+              'already_initialized',
+      'duplicate initialize must fail without replacing live session state',
+    );
     final notifications = <JsonRpcNotification>[];
     final subscription = server
         .notificationsFor('session-live')
@@ -398,9 +429,9 @@ Future<void> _securityPolicyDeniesBeforeEffectsAndRedactsReceipts() async {
     security: ToolSecurityPolicy(
       grants: grants,
       auditLog: audit,
-      sanitizer: McpPayloadSanitizer(
-        sensitiveValues: const <String>{'private-fixture-value'},
-      ),
+      sanitizer: McpPayloadSanitizer.withSensitiveValues(const <String>{
+        'private-fixture-value',
+      }),
       maxResultBytes: 1024,
     ),
   );
@@ -564,6 +595,40 @@ Future<void> _canonicalRootAuthorizationRejectsTraversalAndLinkEscape() async {
         link.rootRevision == snapshot.revision,
     'canonical containment must reject traversal and symlink escape',
   );
+}
+
+Future<void> _rootRevocationDuringResolutionFailsClosed() async {
+  final resolver = _ControlledCanonicalPathResolver();
+  final roots = WorkspaceRootRegistry(resolver: resolver);
+  final snapshot = await roots.replaceRoots(
+    sessionId: 'session-race',
+    proposals: const <WorkspaceRootProposal>[
+      WorkspaceRootProposal(path: '/approved', displayName: 'approved'),
+    ],
+    consentReceiptId: 'consent-race',
+  );
+
+  final authorization = roots.authorize(
+    sessionId: 'session-race',
+    candidate: '/approved/file.txt',
+  );
+  await resolver.authorizationStarted.future;
+  final revoked = await roots.replaceRoots(
+    sessionId: 'session-race',
+    proposals: const <WorkspaceRootProposal>[],
+    consentReceiptId: 'consent-revoked',
+  );
+  resolver.releaseAuthorization.complete();
+  final result = await authorization;
+
+  _expect(
+    !result.allowed &&
+        result.code == 'root_revoked' &&
+        result.rootRevision == revoked.revision &&
+        revoked.revision == snapshot.revision + 1,
+    'authorization must fail closed when consent is revoked during resolution',
+  );
+  await roots.close();
 }
 
 Future<Map<String, Object?>> _initialize(
@@ -779,5 +844,25 @@ final class _MappingCanonicalPathResolver implements CanonicalPathResolver {
       throw FileSystemException('fixture path is not mapped');
     }
     return resolved;
+  }
+}
+
+final class _ControlledCanonicalPathResolver implements CanonicalPathResolver {
+  final Completer<void> authorizationStarted = Completer<void>();
+  final Completer<void> releaseAuthorization = Completer<void>();
+
+  @override
+  Future<CanonicalPath> resolve(String path) async {
+    if (path == '/approved') {
+      return const CanonicalPath(path: '/approved');
+    }
+    if (path == '/approved/file.txt') {
+      if (!authorizationStarted.isCompleted) {
+        authorizationStarted.complete();
+      }
+      await releaseAuthorization.future;
+      return const CanonicalPath(path: '/approved/file.txt');
+    }
+    throw FileSystemException('fixture path is not mapped');
   }
 }

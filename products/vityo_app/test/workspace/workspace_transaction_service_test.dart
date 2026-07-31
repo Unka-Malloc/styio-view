@@ -86,8 +86,87 @@ void main() {
         ],
       ),
     );
-    expect((await service.commit(ready.id)).outcome,
-        WorkspaceTransactionOutcome.failed);
+    expect(
+      (await service.commit(ready.id)).outcome,
+      WorkspaceTransactionOutcome.failed,
+    );
     expect(revisions.snapshot(), before);
   });
+
+  test('preview and rollback retention are bounded and recoverable', () async {
+    final revisions = InMemoryWorkspaceRevisionService(
+      initialDocuments: const <String, String>{'a': 'one'},
+    );
+    final service = RevisionedWorkspaceTransactionService(
+      revisions,
+      maxPreparedPreviews: 1,
+      maxCommittedTransactions: 1,
+      maxReplacementCharactersPerChangeSet: 3,
+    );
+
+    final conflict = await service.preview(
+      _change(revisions, id: 'conflict', replacement: 'ONE', start: 0, end: 4),
+    );
+    expect(conflict.outcome, WorkspaceTransactionOutcome.conflict);
+
+    final first = await service.preview(
+      _change(revisions, id: 'first', replacement: 'ONE'),
+    );
+    expect(first.outcome, WorkspaceTransactionOutcome.ready);
+    final saturatedPreview = await service.preview(
+      _change(revisions, id: 'saturated-preview', replacement: 'TWO'),
+    );
+    expect(saturatedPreview.outcome, WorkspaceTransactionOutcome.failed);
+
+    final committed = await service.commit(first.id);
+    expect(committed.outcome, WorkspaceTransactionOutcome.committed);
+    expect(revisions.snapshot().document('a').text, 'ONE');
+
+    final second = await service.preview(
+      _change(revisions, id: 'second', replacement: 'TWO'),
+    );
+    expect(second.outcome, WorkspaceTransactionOutcome.ready);
+    final saturatedCommit = await service.commit(second.id);
+    expect(saturatedCommit.outcome, WorkspaceTransactionOutcome.failed);
+    expect(revisions.snapshot().document('a').text, 'ONE');
+
+    revisions.failNextCommit();
+    expect(
+      (await service.rollback(committed.id)).outcome,
+      WorkspaceTransactionOutcome.failed,
+    );
+    expect(
+      (await service.rollback(committed.id)).outcome,
+      WorkspaceTransactionOutcome.rolledBack,
+    );
+    expect(revisions.snapshot().document('a').text, 'one');
+
+    final oversized = await service.preview(
+      _change(revisions, id: 'oversized', replacement: 'four'),
+    );
+    expect(oversized.outcome, WorkspaceTransactionOutcome.failed);
+  });
+}
+
+WorkspaceChangeSet _change(
+  InMemoryWorkspaceRevisionService revisions, {
+  required String id,
+  required String replacement,
+  int start = 0,
+  int end = 3,
+}) {
+  final snapshot = revisions.snapshot();
+  return WorkspaceChangeSet(
+    id: id,
+    baseWorkspaceRevision: snapshot.workspaceRevision,
+    resources: <WorkspaceResourceChange>[
+      WorkspaceResourceChange(
+        resourceId: 'a',
+        baseDocumentRevision: snapshot.document('a').revision,
+        edits: <WorkspaceTextChange>[
+          WorkspaceTextChange(start: start, end: end, replacement: replacement),
+        ],
+      ),
+    ],
+  );
 }

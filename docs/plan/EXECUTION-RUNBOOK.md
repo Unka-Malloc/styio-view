@@ -2,7 +2,7 @@
 
 **Purpose:** Give a mechanical, fail-closed procedure for planning, implementing, validating, repairing, and auditing Vityo Better Plan Nodes without relying on unrecorded agent judgment.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## 1. Authority Rules
 
@@ -159,9 +159,10 @@ Evidence may contain command identity, exit code, bounded duration, schema/fixtu
 and repository-relative paths. It must not contain secrets, personal paths, machine identity,
 backend runtime data, or unbounded raw logs.
 
-## 6. Remaining Vityo Execution Order
+## 6. Completed Vityo Execution Order
 
-Only these future lifecycles may be executed, in this order:
+These lifecycles are completed immutable history. Their order is retained as provenance and they
+must not be replayed:
 
 1. `014e7fb0-3f51-4033-be71-eca130a4a2ea` — remove IDE-owned model/provider and coding-loop runtime
    surfaces, leaving the Agent Workbench backed only by the versioned Agent Client.
@@ -170,12 +171,12 @@ Only these future lifecycles may be executed, in this order:
 3. `c5bfe53f-4094-4771-b323-12a99750c95b` — run the final platform-independent IDE regression for
    one immutable candidate and record the final receipt.
 
-If the workspace state does not show this order through `prerequisites`, repair the graph before
-implementation.
+Future work must use a distinct eligible Node rather than reopening any lifecycle above.
 
-## 7. Protocol-Only Agent Boundary Playbook
+## 7. Historical Protocol-Only Agent Boundary Playbook
 
-Node `014e7fb0-3f51-4033-be71-eca130a4a2ea` must be executed in these phases:
+Node `014e7fb0-3f51-4033-be71-eca130a4a2ea` used these phases. The removed paths and symbols below
+are immutable migration provenance, not current implementation or compatibility surfaces:
 
 1. **Inventory:** enumerate, before editing:
    - every file under `products/vityo_app/lib/src/view_ide/agent_client/`;
@@ -351,9 +352,9 @@ The focused tests must inject, and assert without launching a real suite:
 | Source changes during synthetic iteration | Failed receipt with `source_fingerprint_drift`. |
 | Receipt replacement fails | No partial file; bounded `receipt_write_failed` envelope. |
 
-## 9. Final Validation Playbook
+## 9. Historical Final Validation Playbook
 
-Node `c5bfe53f-4094-4771-b323-12a99750c95b` is validation-only:
+Node `c5bfe53f-4094-4771-b323-12a99750c95b` was validation-only and used this procedure:
 
 1. Require explicit user authorization for the final run.
 2. Confirm every implementation prerequisite is completed and no source-writing task is active.

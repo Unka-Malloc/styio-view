@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../ide/workbench/agent_collaboration/agent_collaboration_service.dart';
@@ -9,10 +11,7 @@ import 'task_session_list.dart';
 
 /// Shell-facing Agent Workbench host driven only by collaboration projections.
 final class AgentWorkbenchSurface extends StatefulWidget {
-  const AgentWorkbenchSurface({
-    required this.collaboration,
-    super.key,
-  });
+  const AgentWorkbenchSurface({required this.collaboration, super.key});
 
   final AgentCollaborationService? collaboration;
 
@@ -23,6 +22,7 @@ final class AgentWorkbenchSurface extends StatefulWidget {
 final class _AgentWorkbenchSurfaceState extends State<AgentWorkbenchSurface> {
   String? _selectedSessionId;
   CollaborationProjection? _projection;
+  StreamSubscription<CollaborationProjection>? _projectionSubscription;
 
   @override
   void initState() {
@@ -39,13 +39,15 @@ final class _AgentWorkbenchSurfaceState extends State<AgentWorkbenchSurface> {
   }
 
   void _bind(AgentCollaborationService? collaboration) {
+    unawaited(_projectionSubscription?.cancel());
+    _projectionSubscription = null;
     _projection = collaboration?.projection;
     final ids = _projection?.orderedSessionIds ?? const <String>[];
     if (_selectedSessionId == null || !ids.contains(_selectedSessionId)) {
       _selectedSessionId = ids.isEmpty ? null : ids.first;
     }
-    collaboration?.changes.listen((projection) {
-      if (!mounted) {
+    _projectionSubscription = collaboration?.changes.listen((projection) {
+      if (!mounted || widget.collaboration != collaboration) {
         return;
       }
       setState(() {
@@ -57,6 +59,13 @@ final class _AgentWorkbenchSurfaceState extends State<AgentWorkbenchSurface> {
         }
       });
     });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_projectionSubscription?.cancel());
+    _projectionSubscription = null;
+    super.dispose();
   }
 
   @override
@@ -78,17 +87,17 @@ final class _AgentWorkbenchSurfaceState extends State<AgentWorkbenchSurface> {
     }
 
     final selectedId = _selectedSessionId;
-    final selectedSession =
-        selectedId == null ? null : projection.sessions[selectedId];
-    final pendingReviews = selectedSession?.changeReviews.values
+    final selectedSession = selectedId == null
+        ? null
+        : projection.sessions[selectedId];
+    final pendingReviews =
+        selectedSession?.changeReviews.values
             .where(
-              (review) =>
-                  review.outcome == WorkspaceTransactionOutcome.ready,
+              (review) => review.outcome == WorkspaceTransactionOutcome.ready,
             )
             .toList(growable: false) ??
         const <AgentChangeReviewProjection>[];
-    final pendingReview =
-        pendingReviews.isEmpty ? null : pendingReviews.first;
+    final pendingReview = pendingReviews.isEmpty ? null : pendingReviews.first;
 
     return Row(
       key: const ValueKey<String>('agent-workbench-surface'),

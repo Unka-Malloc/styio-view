@@ -49,7 +49,7 @@ python3 scripts/release-readiness-gate.py --skip-build
 2. `lib/src/view_render/shell/` 作为用户壳层、底部面板和 scaffold 的外观边界
 3. `lib/src/view_render/editor/` 作为编辑器 Flutter surface、源码预览、language inspector 和交互展示边界
 4. `lib/src/view_render/runtime/` 作为 runtime/debug surface 的外观边界
-5. `lib/src/view_render/agent_workbench/` 作为 Agent 任务、权限、变更和回执投影的外观边界
+5. `lib/src/presentation/agent_workbench/` 作为 Agent 任务、权限、变更和回执投影的外观边界
 6. `lib/src/view_render/theme/` 与 `lib/src/view_render/platform/` 作为主题和 viewport 响应式外观边界
 7. 桌面、移动端与 Web 的壳层和页面编排
 8. 面向人的工作区、运行视图、Agent Workbench 和主题体验
@@ -69,8 +69,9 @@ python3 scripts/release-readiness-gate.py --skip-build
 
 1. Vityo 是唯一对外产品；Coding Agent 是第一方配套运行时，不是第二个产品身份。
 2. IDE 实现只落在 `products/vityo_app`，Coding Agent 实现只落在 `products/vityo_coding_agent`。
-3. IDE 通过 `lib/src/view_ide/agent_client/` 消费版本化协议，不导入 Coding Agent 实现。
-4. Agent Workbench 呈现只落在 `lib/src/view_render/agent_workbench/`。
+3. IDE 通过 `lib/src/ide/agent_client/` 消费版本化协议，不导入 Coding Agent 实现。
+4. Agent 协作投影只落在 `lib/src/ide/workbench/agent_collaboration/`，Workbench 呈现只落在
+   `lib/src/presentation/agent_workbench/`。
 5. IDE 不直接连接模型 provider；provider、工具循环、策略、持久会话和 multi-Agent 编排归 Agent 运行时。
 6. 跨边界 DTO、能力协商与会话信封只落在 `packages/vityo_agent_protocol`。
 7. 已移除的旧产品根、旧包身份和旧 Agent 根目录不得重新创建。
@@ -140,46 +141,32 @@ flutter run -d macos
 ## 当前目录结构
 
 ```text
-lib/src/view_render
-lib/src/view_render/agent_workbench
-lib/src/view_render/editor
-lib/src/view_render/platform
-lib/src/view_render/runtime
-lib/src/view_render/shell
-lib/src/view_render/theme
-lib/src/view_ide
+lib/src/app                         # composition root
+lib/src/ide                         # protocol-neutral IDE domain
+lib/src/ide/agent_client            # supervised Agent protocol client and IDE MCP host
+lib/src/ide/editor                  # document, selection, render-plan, transaction models
+lib/src/ide/execution               # standalone developer loop
+lib/src/ide/workbench               # immutable IDE and Agent collaboration projections
+lib/src/ide/workspace               # revisioned workspace services and transactions
+lib/src/presentation/agent_workbench
+lib/src/view_ide                    # Flutter-free application/domain services
+lib/src/view_ide/backend_toolchain
+lib/src/view_ide/commands
+lib/src/view_ide/environment
+lib/src/view_ide/foundation
 lib/src/view_ide/language
-lib/src/view_ide/language/contract
-lib/src/view_ide/language/syntax
-lib/src/view_ide/language/semantic
-lib/src/view_ide/language/service
-lib/src/view_ide/language/features
-lib/src/view_ide/editor
-lib/src/view_ide/editor/document
-lib/src/view_ide/editor/selection
-lib/src/view_ide/editor/controller
-lib/src/view_ide/editor/transactions
-lib/src/view_ide/editor/render_plan
-lib/src/view_ide/editor/actions
-lib/src/view_ide/workspace
 lib/src/view_ide/module_host
 lib/src/view_ide/runtime
 lib/src/view_ide/shell_runtime
-lib/src/view_ide/agent
-lib/src/view_ide/commands
-lib/src/view_ide/platform
-lib/src/view_ide/backend_toolchain
-lib/src/app
-lib/src/editor
-lib/src/language          # compatibility exports only
-lib/src/backend_toolchain  # compatibility exports only
-lib/src/integration        # compatibility exports only
-lib/src/language
-lib/src/runtime
-lib/src/agent
-lib/src/theme
-lib/src/module_host
+lib/src/view_render                 # Flutter presentation
+lib/src/view_render/editor
+lib/src/view_render/runtime
+lib/src/view_render/settings
+lib/src/view_render/shell
+lib/src/view_render/theme
 lib/src/platform
+lib/src/runtime
+lib/src/theme
 assets/module_manifests
 assets/capability_matrices
 ```

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import 'agent_client_models.dart';
+import 'tools/tool_security_policy.dart';
 
 final class AgentSessionRecoveryFailure implements Exception {
   const AgentSessionRecoveryFailure(this.code, this.message);
@@ -72,7 +73,9 @@ final class AgentSessionRecoveryStore {
     required this.maxSessions,
     required this.maxTimelineEntriesPerSession,
     required this.maxEncodedBytes,
-  }) : _storage = storage {
+    McpPayloadSanitizer sanitizer = const McpPayloadSanitizer(),
+  }) : _storage = storage,
+       _sanitizer = sanitizer {
     if (maxSessions <= 0 ||
         maxTimelineEntriesPerSession <= 0 ||
         maxEncodedBytes <= 0) {
@@ -81,24 +84,9 @@ final class AgentSessionRecoveryStore {
   }
 
   static const _schemaVersion = 1;
-  static const _sensitiveKeys = <String>{
-    'authorization',
-    'cookie',
-    'token',
-    'access_token',
-    'refresh_token',
-    'api_key',
-    'apikey',
-    'password',
-    'secret',
-    'credential',
-  };
-  static final _bearerPattern = RegExp(
-    r'\bBearer\s+[A-Za-z0-9._~+/=-]+',
-    caseSensitive: false,
-  );
 
   final AgentSessionRecoveryStorage _storage;
+  final McpPayloadSanitizer _sanitizer;
   final int maxSessions;
   final int maxTimelineEntriesPerSession;
   final int maxEncodedBytes;
@@ -132,10 +120,10 @@ final class AgentSessionRecoveryStore {
     await _storage.write(envelope);
   });
 
-  Future<List<AgentRecoveryCheckpoint>> loadAll() async {
+  Future<List<AgentRecoveryCheckpoint>> loadAll() => _serialize(() async {
     final checkpoints = await _loadMap();
     return List<AgentRecoveryCheckpoint>.unmodifiable(checkpoints.values);
-  }
+  });
 
   AgentRecoveryCheckpoint _bounded(AgentRecoveryCheckpoint checkpoint) {
     final omitted = checkpoint.timeline.length > maxTimelineEntriesPerSession
@@ -262,24 +250,7 @@ final class AgentSessionRecoveryStore {
         ),
       );
 
-  Object? _sanitize(Object? value) {
-    if (value is Map<Object?, Object?>) {
-      return <String, Object?>{
-        for (final entry in value.entries)
-          entry.key.toString():
-              _sensitiveKeys.contains(entry.key.toString().toLowerCase())
-              ? '[REDACTED]'
-              : _sanitize(entry.value),
-      };
-    }
-    if (value is Iterable<Object?>) {
-      return value.map(_sanitize).toList(growable: false);
-    }
-    if (value is String) {
-      return value.replaceAll(_bearerPattern, '[REDACTED]');
-    }
-    return value;
-  }
+  Object? _sanitize(Object? value) => _sanitizer.sanitize(value);
 
   Future<T> _serialize<T>(Future<T> Function() operation) {
     final completer = Completer<T>();

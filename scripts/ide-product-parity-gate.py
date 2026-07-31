@@ -55,14 +55,12 @@ COMPETITOR_BRANDS = {
 
 # Allowed files where competitor names may appear (docs/product only)
 ALLOWED_BRAND_FILES = {
-    "products/vityo_app/lib/src/presentation/agent_workbench/agent_workbench_surface.dart",
     "docs/product",
     "docs/design/Vityo-IDE-Benchmark-Matrix.md",
     "docs/design/Vityo-IDE-Capability-Maturity.md",
     "scripts/ide-product-parity-gate.py",
     "toolchain/vityo-ide-capability-baseline.json",
-    # Codex branch agent/provider files contain technical reference comments
-    # that cite competitor architectures — not UI product text.
+    # The capability inventory records benchmark references, not UI labels.
     "products/vityo_app/lib/src/view_ide/foundation/ide_capability_framework.dart",
 }
 

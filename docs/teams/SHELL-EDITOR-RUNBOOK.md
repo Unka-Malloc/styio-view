@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Mission
 
@@ -16,7 +16,7 @@ Primary paths:
 2. `products/vityo_app/lib/src/view_render/shell/`
 3. `products/vityo_app/lib/src/view_render/editor/`
 4. `products/vityo_app/lib/src/view_render/runtime/`
-5. `products/vityo_app/lib/src/view_render/agent_workbench/`
+5. `products/vityo_app/lib/src/presentation/agent_workbench/`
 6. `products/vityo_app/lib/src/view_render/theme/`
 7. `products/vityo_app/lib/src/view_render/platform/`
 8. `products/vityo_app/lib/src/ide/editor/`
@@ -70,6 +70,10 @@ Key SSOTs:
 20. Prototype dev-server workspace root changes must persist resolved physical paths so macOS `/var` and `/private/var` aliases, Windows junctions, and symlinked workspaces compare against one canonical root in API responses and security tests.
 21. Prototype dev-server path assertions must compare resolved physical paths for existing workspace entries, because macOS temp directories can surface through both `/var` and `/private/var` during the same test process.
 22. Prototype dev-server absolute-path resolution must accept existing Windows physical paths that arrive through 8.3 short-name segments, then resolve them before workspace containment checks; relative workspace paths still keep case-sensitive child validation.
+23. App bootstrap may construct the optional Agent Client and collaboration Workbench only when
+    Agent descriptors and an IDE-owned `WorkspaceTransactionService` are both available. Shell
+    command routing must preserve direct editor, workspace, source-control, debug, and toolchain
+    inputs without restoring a generic Agent controller or fallback.
 
 ## Change Classes
 

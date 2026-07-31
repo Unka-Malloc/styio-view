@@ -19,6 +19,7 @@ abstract class ShellRuntimeFacadeHost extends ChangeNotifier {
   dynamic get _editorWorkspaceStateController;
   dynamic get _editorNavigationCommandController;
   dynamic get _editorQuickFixCommandController;
+  EditorRefactorCommandController get _editorRefactorCommandController;
   WorkspaceDocumentController get _workspaceDocumentController;
   dynamic get _workspacePersistenceController;
   dynamic get _workspaceFileCommandController;

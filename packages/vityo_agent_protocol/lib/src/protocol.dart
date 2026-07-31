@@ -3,6 +3,8 @@ import 'dart:convert';
 const acpProtocolVersion = 1;
 const vityoAgentProtocolVersion = '$acpProtocolVersion';
 const vityoAgentProtocolMaxMessageBytes = 1024 * 1024;
+const vityoAcpExtensionPrefix = '_vityo.dev/';
+const vityoAcpMetadataKey = 'vityo.dev';
 
 abstract final class AcpMethod {
   static const initialize = 'initialize';
@@ -12,11 +14,17 @@ abstract final class AcpMethod {
   static const sessionCancel = 'session/cancel';
   static const sessionUpdate = 'session/update';
   static const sessionRequestPermission = 'session/request_permission';
-  static const capabilitiesChanged = 'vityo/capabilities_changed';
+  static const capabilitiesChanged =
+      '${vityoAcpExtensionPrefix}capabilities_changed';
 }
 
 abstract final class AcpCapability {
   static const loadSession = 'loadSession';
+}
+
+abstract final class VityoCapability {
+  static const workspaceChangeProposal =
+      '${vityoAcpExtensionPrefix}workspace-change-proposal';
 }
 
 abstract final class AcpStopReason {
@@ -80,8 +88,8 @@ final class JsonRpcRequest extends JsonRpcMessage {
   JsonRpcRequest({
     required this.id,
     required this.method,
-    this.params = const <String, Object?>{},
-  }) {
+    Map<String, Object?> params = const <String, Object?>{},
+  }) : params = _freezeJsonObject(params, 'request params') {
     _requireIdentifier(method, 'method');
   }
 
@@ -101,8 +109,8 @@ final class JsonRpcRequest extends JsonRpcMessage {
 final class JsonRpcNotification extends JsonRpcMessage {
   JsonRpcNotification({
     required this.method,
-    this.params = const <String, Object?>{},
-  }) {
+    Map<String, Object?> params = const <String, Object?>{},
+  }) : params = _freezeJsonObject(params, 'notification params') {
     _requireIdentifier(method, 'method');
   }
 
@@ -118,7 +126,8 @@ final class JsonRpcNotification extends JsonRpcMessage {
 }
 
 final class JsonRpcSuccessResponse extends JsonRpcMessage {
-  const JsonRpcSuccessResponse({required this.id, required this.result});
+  JsonRpcSuccessResponse({required this.id, required Object? result})
+    : result = _freezeJsonValue(result, 'response result');
 
   final JsonRpcId id;
   final Object? result;
@@ -164,6 +173,7 @@ abstract final class JsonRpcCodec {
     JsonRpcMessage message, {
     int maxMessageBytes = vityoAgentProtocolMaxMessageBytes,
   }) {
+    _validateOutgoingMessage(message);
     final encoded = jsonEncode(message.toJson());
     _enforceByteLimit(encoded, maxMessageBytes);
     return encoded;
@@ -254,20 +264,218 @@ final class AcpPromptResult {
 
   factory AcpPromptResult.fromJson(Object? value) {
     final json = _requiredObjectValue(value, 'prompt result');
-    return AcpPromptResult(stopReason: _requiredString(json, 'stopReason'));
+    return AcpPromptResult(
+      stopReason: _requiredBoundedString(json, 'stopReason', 256),
+    );
   }
 
   final String stopReason;
+}
+
+final class VityoTextChange {
+  VityoTextChange({
+    required this.start,
+    required this.end,
+    required this.replacement,
+  }) {
+    if (start < 0 || end < start) {
+      throw ArgumentError('Text change range is invalid.');
+    }
+  }
+
+  factory VityoTextChange.fromJson(Object? value) {
+    final json = _requiredObjectValue(value, 'text change');
+    final start = _requiredNonNegativeInt(json, 'start');
+    final end = _requiredNonNegativeInt(json, 'end');
+    final replacement = _requiredStringValue(json, 'replacement');
+    if (end < start) {
+      throw const AgentProtocolException(
+        'malformed_message',
+        'text change end must not precede start',
+      );
+    }
+    return VityoTextChange(start: start, end: end, replacement: replacement);
+  }
+
+  final int start;
+  final int end;
+  final String replacement;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'start': start,
+    'end': end,
+    'replacement': replacement,
+  };
+}
+
+final class VityoResourceChange {
+  VityoResourceChange({
+    required this.resourceId,
+    required this.baseDocumentRevision,
+    required Iterable<VityoTextChange> edits,
+  }) : edits = List<VityoTextChange>.unmodifiable(edits) {
+    if (resourceId.isEmpty ||
+        resourceId.length > 4096 ||
+        baseDocumentRevision < 0 ||
+        this.edits.isEmpty) {
+      throw ArgumentError('Resource change is invalid.');
+    }
+  }
+
+  factory VityoResourceChange.fromJson(Object? value) {
+    final json = _requiredObjectValue(value, 'resource change');
+    final resourceId = _requiredBoundedString(json, 'resourceId', 4096);
+    final baseDocumentRevision = _requiredNonNegativeInt(
+      json,
+      'baseDocumentRevision',
+    );
+    final rawEdits = _requiredList(json, 'edits');
+    if (rawEdits.isEmpty || rawEdits.length > 500) {
+      throw const AgentProtocolException(
+        'message_too_large',
+        'resource change edits must be non-empty and bounded',
+      );
+    }
+    return VityoResourceChange(
+      resourceId: resourceId,
+      baseDocumentRevision: baseDocumentRevision,
+      edits: rawEdits.map(VityoTextChange.fromJson),
+    );
+  }
+
+  final String resourceId;
+  final int baseDocumentRevision;
+  final List<VityoTextChange> edits;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'resourceId': resourceId,
+    'baseDocumentRevision': baseDocumentRevision,
+    'edits': edits.map((edit) => edit.toJson()).toList(growable: false),
+  };
+}
+
+/// A protocol-owned, revision-bound proposal. The IDE remains the sole owner
+/// of preview, commit, rejection, and rollback.
+final class VityoWorkspaceChangeProposal {
+  VityoWorkspaceChangeProposal({
+    required this.id,
+    required this.baseWorkspaceRevision,
+    required Iterable<VityoResourceChange> resources,
+  }) : resources = List<VityoResourceChange>.unmodifiable(resources) {
+    _validate();
+  }
+
+  factory VityoWorkspaceChangeProposal.fromJson(Object? value) {
+    final json = _requiredObjectValue(value, 'workspace change proposal');
+    final rawResources = _requiredList(json, 'resources');
+    if (rawResources.isEmpty || rawResources.length > 64) {
+      throw const AgentProtocolException(
+        'message_too_large',
+        'workspace change proposal resources must be non-empty and bounded',
+      );
+    }
+    final resources = rawResources
+        .map(VityoResourceChange.fromJson)
+        .toList(growable: false);
+    final editCount = resources.fold<int>(
+      0,
+      (total, resource) => total + resource.edits.length,
+    );
+    final replacementCharacterCount = resources.fold<int>(
+      0,
+      (total, resource) =>
+          total +
+          resource.edits.fold<int>(
+            0,
+            (subtotal, edit) => subtotal + edit.replacement.length,
+          ),
+    );
+    if (resources.isEmpty ||
+        resources.map((resource) => resource.resourceId).toSet().length !=
+            resources.length) {
+      throw const AgentProtocolException(
+        'malformed_message',
+        'workspace change proposal resources are invalid',
+      );
+    }
+    if (resources.length > 64 ||
+        editCount > 500 ||
+        replacementCharacterCount > 200000) {
+      throw const AgentProtocolException(
+        'message_too_large',
+        'workspace change proposal exceeds its bounded limits',
+      );
+    }
+    final proposal = VityoWorkspaceChangeProposal(
+      id: _requiredBoundedString(json, 'id', 256),
+      baseWorkspaceRevision: _requiredNonNegativeInt(
+        json,
+        'baseWorkspaceRevision',
+      ),
+      resources: resources,
+    );
+    return proposal;
+  }
+
+  factory VityoWorkspaceChangeProposal.fromNotificationParams(
+    Map<String, Object?> params,
+  ) => VityoWorkspaceChangeProposal.fromJson(params['proposal']);
+
+  final String id;
+  final int baseWorkspaceRevision;
+  final List<VityoResourceChange> resources;
+
+  int get editCount => resources.fold<int>(
+    0,
+    (total, resource) => total + resource.edits.length,
+  );
+
+  int get replacementCharacterCount => resources.fold<int>(
+    0,
+    (total, resource) =>
+        total +
+        resource.edits.fold<int>(
+          0,
+          (subtotal, edit) => subtotal + edit.replacement.length,
+        ),
+  );
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'id': id,
+    'baseWorkspaceRevision': baseWorkspaceRevision,
+    'resources': resources
+        .map((resource) => resource.toJson())
+        .toList(growable: false),
+  };
+
+  Map<String, Object?> toNotificationParamsJson(String sessionId) =>
+      <String, Object?>{'sessionId': sessionId, 'proposal': toJson()};
+
+  void _validate() {
+    if (id.isEmpty ||
+        id.length > 256 ||
+        baseWorkspaceRevision < 0 ||
+        resources.isEmpty ||
+        resources.length > 64 ||
+        editCount > 500 ||
+        replacementCharacterCount > 200000 ||
+        resources.map((resource) => resource.resourceId).toSet().length !=
+            resources.length) {
+      throw ArgumentError('Workspace change proposal is invalid.');
+    }
+  }
 }
 
 void validateVityoExtensionMethod(
   String method,
   Set<String> negotiatedExtensions,
 ) {
-  if (!method.startsWith('vityo/')) {
+  if (!method.startsWith(vityoAcpExtensionPrefix) ||
+      method.length <= vityoAcpExtensionPrefix.length ||
+      method.length > 256) {
     throw const AgentProtocolException(
       'invalid_extension_namespace',
-      'Vityo extension methods must use the vityo/ namespace',
+      'Vityo extension methods must use the reserved _vityo.dev/ namespace',
     );
   }
   if (!negotiatedExtensions.contains(method)) {
@@ -275,6 +483,74 @@ void validateVityoExtensionMethod(
       'capability_revoked',
       'extension capability is not currently negotiated: $method',
     );
+  }
+}
+
+Map<String, Object?> _freezeJsonObject(
+  Map<String, Object?> value,
+  String label,
+) {
+  final frozen = _freezeJsonValue(value, label);
+  if (frozen is! Map<String, Object?>) {
+    throw AgentProtocolException(
+      'malformed_message',
+      '$label must be an object',
+    );
+  }
+  return frozen;
+}
+
+Object? _freezeJsonValue(Object? value, String label, [int depth = 0]) {
+  if (depth > 64) {
+    throw AgentProtocolException(
+      'message_too_large',
+      '$label exceeds the maximum nesting depth',
+    );
+  }
+  if (value == null || value is bool || value is num || value is String) {
+    return value;
+  }
+  if (value is List<Object?>) {
+    return List<Object?>.unmodifiable(
+      value.map((item) => _freezeJsonValue(item, label, depth + 1)),
+    );
+  }
+  if (value is Map<String, Object?>) {
+    return Map<String, Object?>.unmodifiable(<String, Object?>{
+      for (final entry in value.entries)
+        entry.key: _freezeJsonValue(entry.value, label, depth + 1),
+    });
+  }
+  throw AgentProtocolException(
+    'malformed_message',
+    '$label contains a non-JSON value',
+  );
+}
+
+void _validateOutgoingMessage(JsonRpcMessage message) {
+  switch (message) {
+    case JsonRpcRequest():
+      _validateJsonRpcId(message.id);
+    case JsonRpcNotification():
+      break;
+    case JsonRpcSuccessResponse():
+      _validateJsonRpcId(message.id);
+    case JsonRpcErrorResponse():
+      _validateJsonRpcId(message.id);
+      if (message.error.message.isEmpty ||
+          message.error.message.length > 1024) {
+        throw const AgentProtocolException(
+          'malformed_message',
+          'error message must be non-empty and bounded',
+        );
+      }
+  }
+}
+
+void _validateJsonRpcId(JsonRpcId id) {
+  final value = id.value;
+  if (value is String) {
+    _requireIdentifier(value, 'id');
   }
 }
 
@@ -310,6 +586,48 @@ String _requiredString(Map<String, Object?> json, String key) {
       'malformed_message',
       '$key must be a non-empty string',
     );
+  }
+  return value;
+}
+
+String _requiredStringValue(Map<String, Object?> json, String key) {
+  final value = json[key];
+  if (value is! String) {
+    throw AgentProtocolException('malformed_message', '$key must be a string');
+  }
+  return value;
+}
+
+String _requiredBoundedString(
+  Map<String, Object?> json,
+  String key,
+  int maxLength,
+) {
+  final value = _requiredString(json, key);
+  if (value.length > maxLength) {
+    throw AgentProtocolException(
+      'malformed_message',
+      '$key exceeds its character limit',
+    );
+  }
+  return value;
+}
+
+int _requiredNonNegativeInt(Map<String, Object?> json, String key) {
+  final value = json[key];
+  if (value is! int || value < 0) {
+    throw AgentProtocolException(
+      'malformed_message',
+      '$key must be a non-negative integer',
+    );
+  }
+  return value;
+}
+
+List<Object?> _requiredList(Map<String, Object?> json, String key) {
+  final value = json[key];
+  if (value is! List<Object?>) {
+    throw AgentProtocolException('malformed_message', '$key must be an array');
   }
   return value;
 }

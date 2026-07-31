@@ -159,30 +159,37 @@ final class RevisionedIdeContextExportService implements ContextExportService {
     final seen = <String>{};
     var usedBytes = 0;
     var nextIndex = start;
+    var oversizedItemCount = 0;
+    var oversizedUtf8Bytes = 0;
     while (nextIndex < candidates.length && selected.length < budget.maxItems) {
       final candidate = candidates[nextIndex];
       final item = _toItem(candidate, budget.maxCodeUnitsPerItem);
+      if (!seen.add(item.digest)) {
+        nextIndex += 1;
+        continue;
+      }
       final encodedBytes = utf8.encode(jsonEncode(item.toJson())).length;
+      if (encodedBytes > budget.maxUtf8Bytes) {
+        nextIndex += 1;
+        oversizedItemCount += 1;
+        oversizedUtf8Bytes += _sanitizedContentUtf8Bytes(candidate);
+        continue;
+      }
       if (usedBytes + encodedBytes > budget.maxUtf8Bytes) {
         break;
       }
       nextIndex += 1;
-      if (!seen.add(item.digest)) {
-        continue;
-      }
       selected.add(item);
       usedBytes += encodedBytes;
     }
     final omitted = candidates.skip(nextIndex).toList(growable: false);
-    final omittedBytes = omitted.fold<int>(
-      0,
-      (total, candidate) =>
-          total +
-          utf8
-              .encode(jsonEncode(_sanitizer.sanitize(candidate.content)))
-              .length,
-    );
-    final truncated = nextIndex < candidates.length;
+    final omittedBytes =
+        oversizedUtf8Bytes +
+        omitted.fold<int>(
+          0,
+          (total, candidate) => total + _sanitizedContentUtf8Bytes(candidate),
+        );
+    final truncated = oversizedItemCount > 0 || nextIndex < candidates.length;
     return ContextEvidencePage(
       schemaVersion: 1,
       workspaceRevision: facts.workspaceRevision,
@@ -192,10 +199,13 @@ final class RevisionedIdeContextExportService implements ContextExportService {
           ? _encodeCursor(facts.workspaceRevision, nextIndex)
           : null,
       truncated: truncated,
-      omittedItemCount: candidates.length - nextIndex,
+      omittedItemCount: oversizedItemCount + candidates.length - nextIndex,
       omittedUtf8Bytes: omittedBytes,
     );
   }
+
+  int _sanitizedContentUtf8Bytes(_ContextCandidate candidate) =>
+      utf8.encode(jsonEncode(_sanitizer.sanitize(candidate.content))).length;
 
   List<_ContextCandidate> _candidates(RevisionedIdeFacts facts) {
     final candidates = <_ContextCandidate>[
@@ -312,12 +322,20 @@ final class ContextReadToolAdapter implements IdeToolAdapter {
 }
 
 final class WorkspaceReadTextToolAdapter implements IdeToolAdapter {
-  const WorkspaceReadTextToolAdapter({
+  WorkspaceReadTextToolAdapter({
     required WorkspaceRootRegistry roots,
     required this.maxCodeUnits,
     required McpPayloadSanitizer sanitizer,
   }) : _roots = roots,
-       _sanitizer = sanitizer;
+       _sanitizer = sanitizer {
+    if (maxCodeUnits <= 0 || maxCodeUnits > 256 * 1024) {
+      throw ArgumentError.value(
+        maxCodeUnits,
+        'maxCodeUnits',
+        'must be between 1 and 262144',
+      );
+    }
+  }
 
   final WorkspaceRootRegistry _roots;
   final int maxCodeUnits;
@@ -363,15 +381,33 @@ final class WorkspaceReadTextToolAdapter implements IdeToolAdapter {
         'workspace path is not authorized',
       );
     }
-    final source = await File(authorization.canonicalPath!).readAsString();
-    final end = _safeCodeUnitEnd(source, maxCodeUnits);
-    final text = source.substring(0, end);
-    final sanitized = _sanitizer.sanitize(text) as String;
+    final source = await _readBoundedUtf8File(
+      authorization.canonicalPath!,
+      maxCodeUnits,
+      validateOpenTarget: () async {
+        final current = await _roots.authorize(
+          sessionId: invocation.sessionId,
+          candidate: authorization.canonicalPath!,
+        );
+        if (!current.allowed ||
+            current.rootRevision != authorization.rootRevision ||
+            current.rootId != authorization.rootId ||
+            current.canonicalPath != authorization.canonicalPath) {
+          throw const IdeToolFailure(
+            'resource_changed',
+            'workspace resource authorization changed while opening the file',
+          );
+        }
+      },
+    );
+    final sanitized = _sanitizer.sanitize(source.text) as String;
     return IdeToolResult(
       structuredContent: <String, Object?>{
         'text': sanitized,
-        'truncated': end < source.length,
-        'omittedCodeUnits': source.length - end,
+        'truncated': source.truncated,
+        'omittedCodeUnits': source.omittedCodeUnits,
+        'omittedCodeUnitsExact': source.omittedCodeUnitsExact,
+        'omittedUtf8Bytes': source.omittedUtf8Bytes,
         'rootId': authorization.rootId,
         'rootRevision': authorization.rootRevision,
       },
@@ -420,7 +456,9 @@ int _decodeCursor(String? cursor, int revision) {
     final decoded =
         jsonDecode(utf8.decode(base64Url.decode(base64Url.normalize(cursor))))
             as Map<String, Object?>;
-    if (decoded['revision'] != revision || decoded['index'] is! int) {
+    if (decoded['revision'] != revision ||
+        decoded['index'] is! int ||
+        (decoded['index'] as int) < 0) {
       throw const FormatException();
     }
     return decoded['index'] as int;
@@ -447,6 +485,96 @@ int _safeCodeUnitEnd(String value, int maximum) {
     }
   }
   return end;
+}
+
+Future<_BoundedUtf8File> _readBoundedUtf8File(
+  String path,
+  int maxCodeUnits, {
+  required Future<void> Function() validateOpenTarget,
+}) async {
+  final handle = await File(path).open();
+  try {
+    await validateOpenTarget();
+    final initialLength = await handle.length();
+    final byteLimit = maxCodeUnits * 4 + 3;
+    final requestedBytes = initialLength < byteLimit
+        ? initialLength
+        : byteLimit;
+    final bytes = await handle.read(requestedBytes);
+    final finalLength = await handle.length();
+    if (finalLength != initialLength) {
+      throw const IdeToolFailure(
+        'resource_changed',
+        'workspace resource changed while it was being read',
+      );
+    }
+    final complete = bytes.length == initialLength;
+    final decoded = _decodeUtf8Prefix(bytes, complete: complete);
+    final end = _safeCodeUnitEnd(decoded.text, maxCodeUnits);
+    final text = decoded.text.substring(0, end);
+    final emittedBytes = utf8.encode(text).length;
+    return _BoundedUtf8File(
+      text: text,
+      truncated: emittedBytes < initialLength,
+      omittedCodeUnits: decoded.text.length - end,
+      omittedCodeUnitsExact: complete,
+      omittedUtf8Bytes: initialLength - emittedBytes,
+    );
+  } finally {
+    await handle.close();
+  }
+}
+
+_DecodedUtf8Prefix _decodeUtf8Prefix(
+  List<int> bytes, {
+  required bool complete,
+}) {
+  if (complete) {
+    try {
+      return _DecodedUtf8Prefix(utf8.decode(bytes));
+    } on FormatException {
+      throw const IdeToolFailure(
+        'resource_invalid_encoding',
+        'workspace resource is not valid UTF-8',
+      );
+    }
+  }
+  final maximumTrim = bytes.length < 3 ? bytes.length : 3;
+  for (var trim = 0; trim <= maximumTrim; trim += 1) {
+    try {
+      return _DecodedUtf8Prefix(
+        utf8.decode(bytes.sublist(0, bytes.length - trim)),
+      );
+    } on FormatException {
+      // A bounded prefix may end in the middle of one UTF-8 scalar.
+    }
+  }
+  throw const IdeToolFailure(
+    'resource_invalid_encoding',
+    'workspace resource is not valid UTF-8',
+  );
+}
+
+final class _DecodedUtf8Prefix {
+  const _DecodedUtf8Prefix(this.text);
+
+  final String text;
+}
+
+final class _BoundedUtf8File {
+  const _BoundedUtf8File({
+    required this.text,
+    required this.truncated,
+    required this.omittedCodeUnits,
+    required this.omittedCodeUnitsExact,
+    required this.omittedUtf8Bytes,
+  });
+
+  final String text;
+  final bool truncated;
+  final int omittedCodeUnits;
+  final bool omittedCodeUnitsExact;
+  final int omittedUtf8Bytes;
 }
 
 int _requiredInt(Map<String, Object?> arguments, String key) {

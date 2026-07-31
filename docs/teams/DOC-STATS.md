@@ -2,7 +2,7 @@
 
 **Purpose:** Record the current size of each `docs/teams/` runbook using the repository-local docs audit counting rules; this is a maintenance snapshot, not a quality target.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Counting Method
 
@@ -15,17 +15,17 @@
 
 | Team | Document | Word count | Character count |
 |------|----------|------------|-----------------|
-| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,680 | 5,416 |
-| Agent Runtime | [AGENT-RUNTIME-RUNBOOK.md](./AGENT-RUNTIME-RUNBOOK.md) | 707 | 3,263 |
+| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,725 | 5,691 |
+| Agent Runtime | [AGENT-RUNTIME-RUNBOOK.md](./AGENT-RUNTIME-RUNBOOK.md) | 725 | 3,326 |
 | Architecture | [ARCHITECTURE-RUNBOOK.md](./ARCHITECTURE-RUNBOOK.md) | 911 | 4,026 |
-| Coordination | [COORDINATION-RUNBOOK.md](./COORDINATION-RUNBOOK.md) | 2,366 | 6,328 |
-| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 4,267 | 14,391 |
+| Coordination | [COORDINATION-RUNBOOK.md](./COORDINATION-RUNBOOK.md) | 2,360 | 6,292 |
+| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 4,378 | 15,046 |
 | Extension Module | [EXTENSION-MODULE-RUNBOOK.md](./EXTENSION-MODULE-RUNBOOK.md) | 669 | 3,192 |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | 1,445 | 5,412 |
-| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,104 | 4,408 |
-| Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,405 | 12,287 |
+| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,094 | 4,363 |
+| Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,462 | 12,645 |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | 1,127 | 2,776 |
-| **Total** | Team runbooks only | **17,681** | **61,499** |
+| **Total** | Team runbooks only | **17,896** | **62,769** |
 
 ## Support File Size
 

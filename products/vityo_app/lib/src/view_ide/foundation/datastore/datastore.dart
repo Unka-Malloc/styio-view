@@ -238,9 +238,8 @@ class FoundationDataRecord {
   }
 }
 
-typedef FoundationDataMigration = Map<String, Object?> Function(
-  Map<String, Object?> value,
-);
+typedef FoundationDataMigration =
+    Map<String, Object?> Function(Map<String, Object?> value);
 
 class FoundationDataMigrationStep {
   const FoundationDataMigrationStep({
@@ -269,21 +268,15 @@ class FoundationDataMigrationStep {
   }
 }
 
-typedef FoundationDataStoreUpdater = FutureOr<Map<String, Object?>?> Function(
-  Map<String, Object?>? current,
-);
+typedef FoundationDataStoreUpdater =
+    FutureOr<Map<String, Object?>?> Function(Map<String, Object?>? current);
 
 typedef FoundationDataStoreEditor =
     FutureOr<FoundationDataStoreEditDecision> Function(
-  Map<String, Object?>? current,
-);
+      Map<String, Object?>? current,
+    );
 
-enum FoundationDataStoreChangeKind {
-  written,
-  updated,
-  deleted,
-  migrated,
-}
+enum FoundationDataStoreChangeKind { written, updated, deleted, migrated }
 
 class FoundationDataStoreChange {
   FoundationDataStoreChange({
@@ -320,21 +313,12 @@ class FoundationDataStoreChange {
   }
 }
 
-enum FoundationDataStoreEditAction {
-  write,
-  delete,
-  keep,
-}
+enum FoundationDataStoreEditAction { write, delete, keep }
 
 class FoundationDataStoreEditDecision {
-  const FoundationDataStoreEditDecision._({
-    required this.action,
-    this.value,
-  });
+  const FoundationDataStoreEditDecision._({required this.action, this.value});
 
-  factory FoundationDataStoreEditDecision.write(
-    Map<String, Object?> value,
-  ) {
+  factory FoundationDataStoreEditDecision.write(Map<String, Object?> value) {
     return FoundationDataStoreEditDecision._(
       action: FoundationDataStoreEditAction.write,
       value: Map<String, Object?>.unmodifiable(value),
@@ -343,13 +327,13 @@ class FoundationDataStoreEditDecision {
 
   static const FoundationDataStoreEditDecision delete =
       FoundationDataStoreEditDecision._(
-    action: FoundationDataStoreEditAction.delete,
-  );
+        action: FoundationDataStoreEditAction.delete,
+      );
 
   static const FoundationDataStoreEditDecision keep =
       FoundationDataStoreEditDecision._(
-    action: FoundationDataStoreEditAction.keep,
-  );
+        action: FoundationDataStoreEditAction.keep,
+      );
 
   final FoundationDataStoreEditAction action;
   final Map<String, Object?>? value;
@@ -377,18 +361,15 @@ class FoundationDataStore {
     required String key,
     required Map<String, Object?> value,
   }) async {
-    return _lockService.runExclusive(
-      _lockKey(namespace, key),
-      (_) async {
-        await _writeJsonUnlocked(namespace: namespace, key: key, value: value);
-        _emitChange(
-          kind: FoundationDataStoreChangeKind.written,
-          namespace: namespace,
-          key: key,
-          value: value,
-        );
-      },
-    );
+    return _lockService.runExclusive(_lockKey(namespace, key), (_) async {
+      await _writeJsonUnlocked(namespace: namespace, key: key, value: value);
+      _emitChange(
+        kind: FoundationDataStoreChangeKind.written,
+        namespace: namespace,
+        key: key,
+        value: value,
+      );
+    });
   }
 
   Future<void> _writeJsonUnlocked({
@@ -501,20 +482,17 @@ class FoundationDataStore {
     required FoundationDataStoreNamespace namespace,
     required String key,
   }) async {
-    return _lockService.runExclusive(
-      _lockKey(namespace, key),
-      (_) async {
-        final deleted = await _deleteUnlocked(namespace: namespace, key: key);
-        if (deleted) {
-          _emitChange(
-            kind: FoundationDataStoreChangeKind.deleted,
-            namespace: namespace,
-            key: key,
-          );
-        }
-        return deleted;
-      },
-    );
+    return _lockService.runExclusive(_lockKey(namespace, key), (_) async {
+      final deleted = await _deleteUnlocked(namespace: namespace, key: key);
+      if (deleted) {
+        _emitChange(
+          kind: FoundationDataStoreChangeKind.deleted,
+          namespace: namespace,
+          key: key,
+        );
+      }
+      return deleted;
+    });
   }
 
   Future<bool> _deleteUnlocked({
@@ -536,11 +514,8 @@ class FoundationDataStore {
   }) async {
     return _lockService.runExclusive(
       _lockKey(namespace, key),
-      (_) => _updateJsonUnlocked(
-        namespace: namespace,
-        key: key,
-        update: update,
-      ),
+      (_) =>
+          _updateJsonUnlocked(namespace: namespace, key: key, update: update),
     );
   }
 
@@ -624,7 +599,8 @@ class FoundationDataStore {
     FoundationDataStoreChangeKind? kind,
   }) {
     return _changes.stream.where((change) {
-      final namespaceMatches = namespace == null ||
+      final namespaceMatches =
+          namespace == null ||
           (change.namespace == namespace.name &&
               change.scope == namespace.scope &&
               change.workspaceId == namespace.workspaceId);
@@ -655,9 +631,7 @@ class FoundationDataStore {
         schemaVersion: namespace.schemaVersion,
         scope: namespace.scope,
         workspaceId: namespace.workspaceId,
-        value: value == null
-            ? null
-            : Map<String, Object?>.unmodifiable(value),
+        value: value == null ? null : Map<String, Object?>.unmodifiable(value),
       ),
     );
   }
@@ -710,11 +684,7 @@ class FoundationPersistentStateFamily {
   final FoundationPersistenceKind persistenceKind;
 }
 
-enum FoundationPersistenceKind {
-  persisted,
-  cached,
-  ephemeral,
-}
+enum FoundationPersistenceKind { persisted, cached, ephemeral }
 
 extension FoundationPersistenceKindX on FoundationPersistenceKind {
   String get wireValue {
@@ -733,120 +703,122 @@ extension FoundationPersistenceKindX on FoundationPersistenceKind {
 /// in [FoundationDataStoreOwnerRegistry].
 const List<FoundationPersistentStateFamily> vityoPersistentStateFamilies =
     <FoundationPersistentStateFamily>[
-  FoundationPersistentStateFamily(
-    familyId: "configuration.settings",
-    layer: "Configuration",
-    description: "IDE settings values, environment-variable overlays, workspace "
-        "overrides, profile overrides, and migration metadata.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "configuration.endpoint-policy",
-    layer: "Configuration",
-    description: "Cloud/hosted endpoint policy and credential references.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "interaction.editor-session",
-    layer: "Interaction",
-    description: "Open documents, tabs, cursor/selection, dirty state, undo/redo "
-        "metadata, focus state.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "interaction.shell-layout",
-    layer: "Interaction",
-    description: "Shell panel layout, visibility, pinning, and collapsed state.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "interaction.command-palette-history",
-    layer: "Interaction",
-    description: "Command palette recent selections and favorites.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "appearance.theme",
-    layer: "Appearance",
-    description: "Theme selection, visual mode, user overrides, and token state.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "service.language-result-cache",
-    layer: "Service",
-    description: "Cached semantic tokens, diagnostics, hover payloads, completion "
-        "snapshots, and resolved references.",
-    persistenceKind: FoundationPersistenceKind.cached,
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "service.remote-service-status",
-    layer: "Service",
-    description: "Degraded service status, provider reachability, and last-known-"
-        "good timestamps.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "environment.toolchain-status",
-    layer: "Environment",
-    description: "Toolchain installation, version, health, and pinning state.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "environment.platform-context",
-    layer: "Environment",
-    description: "Platform detection results, capability probe cache, and native "
-        "feature availability.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "environment.extension-lifecycle",
-    layer: "Environment",
-    description: "Extension enablement, provider state, capability registration, "
-        "lifecycle state, and permission grants.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "environment.fallback-status",
-    layer: "Environment",
-    description: "Fallback reasons, degraded-mode state, and last-known-good "
-        "availability timestamps.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "workspace.project-graph",
-    layer: "Workspace",
-    description: "Canonical project file snapshots, target graph, toolchain "
-        "bindings, and build state.",
-    persistenceKind: FoundationPersistenceKind.cached,
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "workspace.index",
-    layer: "Workspace",
-    description: "Workspace file index, symbol index, and search index metadata.",
-    persistenceKind: FoundationPersistenceKind.cached,
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "runtime.task-history",
-    layer: "Runtime",
-    description: "Task execution history, terminal session metadata, and build "
-        "event logs.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "agent.provider-profile",
-    layer: "Agent",
-    description: "Agent provider profiles, endpoint configuration, permission "
-        "policy, and audit journal settings.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "agent.coding-loop-context",
-    layer: "Agent",
-    description: "Agent context snapshots, prompt history, and coding session "
-        "state.",
-    persistenceKind: FoundationPersistenceKind.cached,
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "debugger.breakpoint-state",
-    layer: "Debugger",
-    description: "Breakpoint configuration, watch expressions, and launch "
-        "configuration state.",
-  ),
-  FoundationPersistentStateFamily(
-    familyId: "toolchain.compiler-cache",
-    layer: "Toolchain",
-    description: "Compiler invocation cache, dependency resolution cache, and "
-        "build artifact metadata.",
-    persistenceKind: FoundationPersistenceKind.cached,
-  ),
-];
+      FoundationPersistentStateFamily(
+        familyId: "configuration.settings",
+        layer: "Configuration",
+        description:
+            "IDE settings values, environment-variable overlays, workspace "
+            "overrides, profile overrides, and migration metadata.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "configuration.endpoint-policy",
+        layer: "Configuration",
+        description: "Cloud/hosted endpoint policy and credential references.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "interaction.editor-session",
+        layer: "Interaction",
+        description:
+            "Open documents, tabs, cursor/selection, dirty state, undo/redo "
+            "metadata, focus state.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "interaction.shell-layout",
+        layer: "Interaction",
+        description:
+            "Shell panel layout, visibility, pinning, and collapsed state.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "interaction.command-palette-history",
+        layer: "Interaction",
+        description: "Command palette recent selections and favorites.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "appearance.theme",
+        layer: "Appearance",
+        description:
+            "Theme selection, visual mode, user overrides, and token state.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "service.language-result-cache",
+        layer: "Service",
+        description:
+            "Cached semantic tokens, diagnostics, hover payloads, completion "
+            "snapshots, and resolved references.",
+        persistenceKind: FoundationPersistenceKind.cached,
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "service.remote-service-status",
+        layer: "Service",
+        description:
+            "Degraded service status, provider reachability, and last-known-"
+            "good timestamps.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "environment.toolchain-status",
+        layer: "Environment",
+        description:
+            "Toolchain installation, version, health, and pinning state.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "environment.platform-context",
+        layer: "Environment",
+        description:
+            "Platform detection results, capability probe cache, and native "
+            "feature availability.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "environment.extension-lifecycle",
+        layer: "Environment",
+        description:
+            "Extension enablement, provider state, capability registration, "
+            "lifecycle state, and permission grants.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "environment.fallback-status",
+        layer: "Environment",
+        description:
+            "Fallback reasons, degraded-mode state, and last-known-good "
+            "availability timestamps.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "workspace.project-graph",
+        layer: "Workspace",
+        description:
+            "Canonical project file snapshots, target graph, toolchain "
+            "bindings, and build state.",
+        persistenceKind: FoundationPersistenceKind.cached,
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "workspace.index",
+        layer: "Workspace",
+        description:
+            "Workspace file index, symbol index, and search index metadata.",
+        persistenceKind: FoundationPersistenceKind.cached,
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "runtime.task-history",
+        layer: "Runtime",
+        description:
+            "Task execution history, terminal session metadata, and build "
+            "event logs.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "debugger.breakpoint-state",
+        layer: "Debugger",
+        description:
+            "Breakpoint configuration, watch expressions, and launch "
+            "configuration state.",
+      ),
+      FoundationPersistentStateFamily(
+        familyId: "toolchain.compiler-cache",
+        layer: "Toolchain",
+        description:
+            "Compiler invocation cache, dependency resolution cache, and "
+            "build artifact metadata.",
+        persistenceKind: FoundationPersistenceKind.cached,
+      ),
+    ];
 
 /// Validates that every persistent product state family has a registered
 /// DataStore owner or an explicit ephemeral-owner decision.
@@ -893,10 +865,7 @@ class FoundationDataStoreOwnerRegistry {
   /// Returns family ids that lack both a registered owner and an explicit
   /// ephemeral decision.
   List<String> missingOwnerFamilyIds() {
-    final covered = <String>{
-      ..._owners.keys,
-      ..._explicitEphemeralFamilies,
-    };
+    final covered = <String>{..._owners.keys, ..._explicitEphemeralFamilies};
     return vityoPersistentStateFamilies
         .where((f) => !covered.contains(f.familyId))
         .map((f) => f.familyId)
@@ -921,14 +890,17 @@ class FoundationDataStoreOwnerRegistry {
   FoundationDataStoreOwnerRegistryManifest manifest() {
     return FoundationDataStoreOwnerRegistryManifest(
       owners: _owners.values
-          .map((o) => FoundationDataStoreOwnerManifestEntry(
-                ownerId: o.ownerId,
-                layer: o.layer,
-                stateFamily: o.stateFamily,
-                allowedNamespaces: o.allowedNamespaces.toList(growable: false),
-                allowedNamespacePrefixes:
-                    o.allowedNamespacePrefixes.toList(growable: false),
-              ))
+          .map(
+            (o) => FoundationDataStoreOwnerManifestEntry(
+              ownerId: o.ownerId,
+              layer: o.layer,
+              stateFamily: o.stateFamily,
+              allowedNamespaces: o.allowedNamespaces.toList(growable: false),
+              allowedNamespacePrefixes: o.allowedNamespacePrefixes.toList(
+                growable: false,
+              ),
+            ),
+          )
           .toList(growable: false),
       ephemeralFamilies: _explicitEphemeralFamilies.toList(growable: false),
       isComplete: isComplete,

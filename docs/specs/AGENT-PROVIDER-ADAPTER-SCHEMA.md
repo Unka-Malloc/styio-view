@@ -8,8 +8,8 @@
 
 **Ownership:** Model/provider adapters belong to Vityo Coding Agent or another compatible Agent.
 Vityo connects to the Agent through `packages/vityo_agent_protocol` and does not consume this
-provider contract directly. Existing IDE implementations of these fields are migration inputs
-tracked in [Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
+provider contract directly. The retired IDE provider implementation is not a schema consumer or a
+compatibility surface.
 
 ## 1. 适用范围
 

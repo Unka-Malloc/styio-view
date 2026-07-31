@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Mission
 
@@ -53,7 +53,9 @@ Key SSOTs:
     Platform hosted APIs provide hosted state. No adapter may reconstruct one
     owner's facts from another owner's private files or legacy routes.
 14. Agent integration is protocol-only: Vityo owns source revisions, Styio analyze/test/run facts, change previews, and workspace transactions; Vityo Coding Agent or another compatible Agent owns model/provider access, tool loops, policy, durable sessions, and multi-Agent orchestration.
-15. Any IDE-side provider profile, provider controller, tool dispatcher, or policy-store artifact is migration inventory under `Vityo-Implementation-Gaps.md`, not an accepted adapter contract. Do not extend it while completing the Agent-Native IDE migration.
+15. The IDE-side provider/controller migration is complete. Agent plans, permissions, workspace
+    proposals, and receipts cross only `packages/vityo_agent_protocol`; removed provider profiles,
+    tool dispatchers, policy stores, and contribution kinds are not adapter aliases.
 
 ## Change Classes
 
@@ -92,3 +94,7 @@ Record:
 2026-07-26: Moved the hosted-workspace delivery-plan cross-reference to the `Vityo` Better Plan. This documentation-only routing change does not alter the hosted workspace contract schema or runtime behavior.
 
 2026-07-30: Aligned CacheContract, HostedWorkspaceCloudRoutes, SettingsProfileThemePersonalization, and UserFacingWorkflows with the Agent-Native IDE boundary. `Agent Context` replaces the old AI label, hosted workspace routes remain separate from the Agent Workbench, and legacy IDE provider/controller artifacts are recorded only as migration inventory. No contract schema or runtime behavior changed.
+
+2026-07-31: Updated `UserFacingWorkflows.md` to the completed protocol-only Agent Client,
+collaboration, MCP/context, Workbench, and workspace-transaction paths. Removed current-contract
+references to the retired IDE provider/controller implementation.

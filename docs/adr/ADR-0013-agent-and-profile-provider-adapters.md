@@ -1,10 +1,10 @@
 # ADR-0013: AI And Profile Integrations Use Provider Adapters
 
-**Purpose:** Preserve the provider/profile adapter decision and identify the Agent-provider portions superseded by [ADR-0019](./ADR-0019-vityo-is-the-styio-agent-native-ide.md); `ProfileSyncAdapter` remains active.
+**Purpose:** Preserve the historical provider/profile decision, mark the Agent-provider portion superseded by [ADR-0019](./ADR-0019-vityo-is-the-styio-agent-native-ide.md), and retain `ProfileSyncAdapter` only as a future provider-neutral schema.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
-**Status:** Partially superseded by ADR-0019
+**Status:** Agent-provider decision superseded; ProfileSync design retained
 
 **Date:** 2026-04-12
 
@@ -17,7 +17,9 @@
 3. prompt / profile 同步需要可选接入
 4. 云端 provider 需要可替换，不能绑死单一服务
 
-## Decision
+## Historical Decision
+
+The Agent-provider portions below are superseded and are not implementation targets for Vityo IDE.
 
 采用：
 
@@ -42,10 +44,12 @@
 
 ## Current Interpretation
 
-1. `ProfileSyncAdapter` remains an optional IDE service and local-only profiles remain valid when it
-   is absent.
+1. `ProfileSyncAdapter` is a future provider-neutral design schema. No runtime adapter or general
+   IDE user/prompt profile store currently exists.
 2. Model/provider adapters, including OpenAI-compatible endpoints, belong to compatible Agent
    runtimes rather than the Vityo IDE.
 3. The IDE connects to those runtimes only through the versioned Agent protocol.
 4. The original IDE-owned `AgentProviderAdapter` decision is historical and is not an active target
    architecture.
+5. If a general IDE profile is later introduced, it must remain local-first when ProfileSync is
+   absent and must exclude Agent prompt/model/provider state.

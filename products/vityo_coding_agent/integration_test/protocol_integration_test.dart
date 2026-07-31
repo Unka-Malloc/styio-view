@@ -29,10 +29,7 @@ Future<void> _realStdioHandshake() async {
         method: AcpMethod.initialize,
         params: const <String, Object?>{
           'protocolVersion': acpProtocolVersion,
-          'clientInfo': <String, Object?>{
-            'name': 'vityo',
-            'version': '0.1.0',
-          },
+          'clientInfo': <String, Object?>{'name': 'vityo', 'version': '0.1.0'},
         },
       ),
     ),
@@ -91,9 +88,9 @@ Future<void> _permissionAndMcpRouting() async {
     JsonRpcRequest(
       id: const JsonRpcId.integer(2),
       method: AcpMethod.sessionNew,
-      params: const <String, Object?>{
-        'cwd': 'controlled',
-        'mcpServers': <Object?>[
+      params: <String, Object?>{
+        'cwd': Directory.current.path,
+        'mcpServers': const <Object?>[
           <String, Object?>{'name': 'fixture', 'transport': 'memory'},
         ],
       },
@@ -101,6 +98,7 @@ Future<void> _permissionAndMcpRouting() async {
   );
   final decision = await endpoint.requestPermission(
     sessionId: 'routed-session',
+    toolCallId: 'tool-routed-session',
     options: const <String>{'allow_once', 'reject_once'},
   );
   if (decision != 'allow_once' ||
@@ -155,8 +153,10 @@ final class _RoutingTransport implements AgentServerTransport {
           JsonRpcSuccessResponse(
             id: message.id,
             result: const <String, Object?>{
-              'outcome': 'selected',
-              'optionId': 'allow_once',
+              'outcome': <String, Object?>{
+                'outcome': 'selected',
+                'optionId': 'allow_once-agent-permission-1',
+              },
             },
           ),
         ),

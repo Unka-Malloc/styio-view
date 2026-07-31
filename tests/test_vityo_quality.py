@@ -130,6 +130,43 @@ class VityoQualityTest(unittest.TestCase):
                         self.assertEqual(runner(), 9)
                 self.assertEqual(run.call_count, 1)
 
+    def test_formal_quality_lane_owns_one_complete_flutter_test(self) -> None:
+        with mock.patch.object(
+            self.quality,
+            "tool",
+            side_effect=lambda tool_name: f"/tools/{tool_name}",
+        ):
+            with mock.patch.object(
+                self.quality,
+                "run",
+                return_value=0,
+            ) as run:
+                self.assertEqual(self.quality.ide_quality(), 0)
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertIn(["/tools/flutter", "test", "--no-pub"], commands)
+        self.assertNotIn(
+            ["/tools/flutter", "test", "test/ide_quality"],
+            commands,
+        )
+
+        with mock.patch.object(
+            self.quality,
+            "tool",
+            side_effect=lambda tool_name: f"/tools/{tool_name}",
+        ):
+            with mock.patch.object(
+                self.quality,
+                "run",
+                return_value=0,
+            ) as run:
+                self.assertEqual(self.quality.agent_workbench(), 0)
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertIn(
+            ["/tools/flutter", "test", "--no-pub", "test/agent_workbench"],
+            commands,
+        )
+
     def test_source_fingerprint_binds_fixtures_and_is_deterministic(self) -> None:
         roots = self.quality._FINGERPRINT_ROOTS
         self.assertIn("tests/acceptance/vityo_app", roots)
@@ -230,6 +267,7 @@ class VityoQualityTest(unittest.TestCase):
         self.assertFalse(hasattr(self.quality, "_run_plan_validation"))
 
     def _patch_formal_success(self, stack: ExitStack, *, written: list) -> None:
+        self._patch_preflight_ready(stack)
         stack.enter_context(
             mock.patch.object(
                 self.quality,
@@ -278,6 +316,23 @@ class VityoQualityTest(unittest.TestCase):
                 self.quality,
                 "write_receipt_atomic",
                 side_effect=lambda _path, payload: written.append(dict(payload)),
+            )
+        )
+
+    def _patch_preflight_ready(self, stack: ExitStack) -> None:
+        stack.enter_context(
+            mock.patch.object(
+                self.quality,
+                "_preflight_ide_full",
+                return_value={
+                    "ready": True,
+                    "failure_code": None,
+                    "commit": "b" * 40,
+                    "platform": "linux",
+                    "source_fingerprint": "a" * 64,
+                    "protocol_schema_sha256": "d" * 64,
+                    "acceptance_fixtures_sha256": "e" * 64,
+                },
             )
         )
 
@@ -425,6 +480,97 @@ class VityoQualityTest(unittest.TestCase):
                 for runner in runner_mocks:
                     runner.assert_not_called()
 
+    def test_formal_full_refuses_failed_preflight_before_any_suite(self) -> None:
+        written: list[dict[str, object]] = []
+        runner_mocks = []
+        with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "_preflight_ide_full",
+                    return_value={
+                        "ready": False,
+                        "failure_code": "dirty_candidate",
+                        "commit": "b" * 40,
+                        "platform": "linux",
+                        "source_fingerprint": "a" * 64,
+                        "protocol_schema_sha256": "d" * 64,
+                        "acceptance_fixtures_sha256": "e" * 64,
+                    },
+                )
+            )
+            for entry in self.quality.FULL_IDE_PLAN:
+                runner_mocks.append(
+                    stack.enter_context(
+                        mock.patch.object(
+                            self.quality,
+                            entry.runner_name,
+                            return_value=0,
+                        )
+                    )
+                )
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "write_receipt_atomic",
+                    side_effect=lambda _path, payload: written.append(
+                        dict(payload)
+                    ),
+                )
+            )
+            self.assertEqual(
+                self.quality.ide_full(
+                    plan_only=False,
+                    preflight=False,
+                    receipt_path=Path("dirty.json"),
+                ),
+                1,
+            )
+
+        self.assertEqual(written[0]["failure_code"], "dirty_candidate")
+        for runner in runner_mocks:
+            runner.assert_not_called()
+
+    def test_formal_duplicate_preflight_preserves_existing_receipt(self) -> None:
+        with ExitStack() as stack:
+            stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "_preflight_ide_full",
+                    return_value={
+                        "ready": False,
+                        "failure_code": "duplicate_candidate_receipt",
+                        "commit": "b" * 40,
+                        "platform": "linux",
+                        "source_fingerprint": "a" * 64,
+                        "protocol_schema_sha256": "d" * 64,
+                        "acceptance_fixtures_sha256": "e" * 64,
+                    },
+                )
+            )
+            writer = stack.enter_context(
+                mock.patch.object(
+                    self.quality,
+                    "write_receipt_atomic",
+                )
+            )
+            stdout = io.StringIO()
+            with redirect_stdout(stdout):
+                self.assertEqual(
+                    self.quality.ide_full(
+                        plan_only=False,
+                        preflight=False,
+                        receipt_path=Path("existing.json"),
+                    ),
+                    1,
+                )
+
+        writer.assert_not_called()
+        self.assertEqual(
+            json.loads(stdout.getvalue())["failure_code"],
+            "duplicate_candidate_receipt",
+        )
+
     def test_formal_full_success_writes_complete_receipt(self) -> None:
         written: list[dict[str, object]] = []
         with ExitStack() as stack:
@@ -451,6 +597,7 @@ class VityoQualityTest(unittest.TestCase):
             with self.subTest(fail_index=fail_index):
                 written: list[dict[str, object]] = []
                 with ExitStack() as stack:
+                    self._patch_preflight_ready(stack)
                     stack.enter_context(
                         mock.patch.object(
                             self.quality,
@@ -524,6 +671,7 @@ class VityoQualityTest(unittest.TestCase):
     def test_early_harness_failure_writes_validation_harness_failed(self) -> None:
         written: list[dict[str, object]] = []
         with ExitStack() as stack:
+            self._patch_preflight_ready(stack)
             stack.enter_context(
                 mock.patch.object(
                     self.quality,
@@ -572,6 +720,7 @@ class VityoQualityTest(unittest.TestCase):
     def test_source_drift_writes_failed_receipt(self) -> None:
         written: list[dict[str, object]] = []
         with ExitStack() as stack:
+            self._patch_preflight_ready(stack)
             stack.enter_context(
                 mock.patch.object(
                     self.quality,

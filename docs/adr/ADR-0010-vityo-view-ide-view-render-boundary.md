@@ -2,7 +2,7 @@
 
 **Purpose:** Establish a strict architectural boundary between the domain/application layer and the presentation surface.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-31
 
 **Status:** Accepted
 **Date:** 2026-06-24
@@ -20,7 +20,7 @@ Vityo's Flutter codebase grew organically, resulting in unclear boundaries betwe
 We establish a strict boundary between `view_ide/` and `view_render/`:
 
 1. **`view_ide/`** is the **domain/application layer**. It contains:
-   - Domain models (editor state, workspace model, agent context)
+   - Domain models (editor state, workspace model, revision-bound IDE facts)
    - Adapter contracts (language service, project graph, execution, debug)
    - State management (not tied to any UI framework)
    - Command definitions
@@ -39,7 +39,8 @@ We establish a strict boundary between `view_ide/` and `view_render/`:
 
 3. **`app/`** is the **composition root**. It wires `view_ide` domain objects to `view_render` widgets through dependency injection and feature flags.
 
-4. **Legacy source roots are compatibility facades only.** Top-level files in `backend_toolchain/`, `editor/`, and `language/` remain only to preserve old import paths. They must be one-line `export` facades to registered `view_ide/` or, for legacy editor presentation entrypoints, `view_render/` targets.
+4. **Legacy source roots are removed.** Old top-level `backend_toolchain/`, `editor/`, and
+   `language/` import paths are not compatibility surfaces and must not be restored.
 
 ## Consequences
 
@@ -49,7 +50,8 @@ We establish a strict boundary between `view_ide/` and `view_render/`:
 - Adapter contracts can be validated without a running Flutter environment.
 - The agent system can be tested independently of any UI.
 - Clear separation enables potential future non-Flutter presentation surfaces.
-- Import rules are machine-enforceable via `scripts/check_architecture_boundaries.py` and `scripts/check_compat_facades.py`.
+- Import rules are machine-enforceable via `scripts/check_architecture_boundaries.py` and
+  `scripts/import-boundary-gate.py`.
 
 ### Negative
 
@@ -59,7 +61,7 @@ We establish a strict boundary between `view_ide/` and `view_render/`:
 
 ### Neutral
 
-- The boundary is enforced by resolved import graph checks and explicit compatibility facade checks.
+- The boundary is enforced by resolved import graph checks.
 - Violations are caught in CI, not at runtime.
 
 ## Enforcement
@@ -73,27 +75,23 @@ We establish a strict boundary between `view_ide/` and `view_render/`:
 3. `view_render/` imports `view_ide/` targets that are not registered contract/model surfaces.
 4. `view_render/` imports legacy compatibility roots such as `backend_toolchain/`, `editor/`, `language/`, or `integration/`.
 
-`scripts/check_compat_facades.py` fails when top-level legacy `backend_toolchain/`, `editor/`, or `language/` files contain implementation bodies or export outside their allowed migrated target roots.
-
 ### Code Review Checklist
 
 Reviewers must verify:
 1. New `view_ide/` files do not import Flutter presentation libraries.
 2. New `view_render/` files use existing registered contract/model surfaces, or add a narrow `VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS` entry with an architecture review.
 3. New domain models in `view_ide/` do not reference Flutter types (e.g., `Color`, `Widget`, `BuildContext`).
-4. Legacy `backend_toolchain/`, `editor/`, and `language/` files remain one-line compatibility facades.
+4. Removed legacy import roots are not restored.
 
 ### Migration Path
 
-Existing violations will be addressed incrementally:
-1. Phase 1: Stop adding new violations (enforced by gate).
-2. Phase 2: Refactor existing violations file by file.
-3. Phase 3: Remove grandfathered exceptions from gate.
+The source-root migration is complete. New violations are rejected by the architecture and import
+boundary gates; no compatibility phase remains.
 
 ## Validation
 
 - `scripts/check_architecture_boundaries.py` — resolved import/export graph scan
-- `scripts/check_compat_facades.py` — legacy compatibility facade scan
+- `scripts/import-boundary-gate.py` — product import-boundary scan
 - `python3 -m unittest tests.test_architecture_boundaries` — gate unit tests
 - `flutter analyze` — static analysis (indirect enforcement)
 - Code review checklist in `docs/teams/ARCHITECTURE-RUNBOOK.md`

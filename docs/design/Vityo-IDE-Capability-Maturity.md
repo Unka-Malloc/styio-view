@@ -2,7 +2,7 @@
 
 **Purpose:** Define Vityo's own capability maturity levels. Each capability is assessed against Vityo's product trajectory, not against a competitor's feature list. "Like VSCode" or "like JetBrains" is never a maturity level.
 
-**Last updated:** 2026-06-24
+**Last updated:** 2026-07-31
 
 **Status:** Active maturity tracking
 
@@ -123,7 +123,7 @@ Vityo capability maturity is measured in six levels. A capability advances by cr
 | Fuzzy matching | L3 | L4 | CommandPaletteService with scoring | Pattern matching returns relevant results |
 | Enablement | L2 | L3 | Permission requirements exist | Capability-gap commands show blocked reason |
 | Keyboard navigation | L1 | L3 | Keyboard shortcuts exist | Palette fully navigable by keyboard |
-| Agent-visible filtering | L0 | L2 | Not implemented | Dangerous/unavailable commands excluded from agent list |
+| Agent command separation | L3 | L3 | Agent tools live in the IDE MCP tool catalog, not the command palette | Human palette commands are never exposed as an implicit Agent command list |
 
 ### 2.11 Settings / Profile
 
@@ -131,10 +131,10 @@ Vityo capability maturity is measured in six levels. A capability advances by cr
 |---|---|---|---|---|
 | Settings schema | L1 | L2 | Configuration store exists | Schema-owned settings with migration |
 | Settings roundtrip | L1 | L2 | Not explicitly tested | Settings serialize and deserialize without loss |
-| Profile snapshot | L1 | L2 | AgentPromptProfile exists | Profile local-first, sync-optional |
+| General profile snapshot | L0 | L2 | No general IDE user/prompt profile store exists | A future provider-neutral profile is local-first and sync-optional |
 | Visual substitution toggle | L2 | L3 | Toggle exists | Setting persists across sessions |
-| Secret redaction | L1 | L2 | API key referenced by env var name | Display projection redacts secrets |
-| Agent-context consumption | L0 | L2 | Not implemented | Settings/profile snapshot safe for Agent context |
+| Secret redaction | L2 | L2 | Configuration rejects raw secret-like values; LogRedactor sanitizes output | Raw credentials never enter settings or cross-boundary output |
+| Agent-context separation | L2 | L2 | `RevisionedIdeContextExportService` is bounded, revision-bound, and sanitized | Settings never bypass the canonical context export |
 
 ### 2.12 Module Lifecycle
 
@@ -145,33 +145,34 @@ Vityo capability maturity is measured in six levels. A capability advances by cr
 | Staged update | L1 | L2 | Staged update flag exists | Real package download/staging/activation |
 | Install/uninstall | L2 | L3 | Lifecycle states defined | Uninstall follows platform reclaim policy |
 
-### 2.13 Agent Context
+### 2.13 Agent Context Export
 
 | Aspect | Current Level | Target Level | Evidence | Acceptance Criteria |
 |---|---|---|---|---|
-| Context channels | L1 | L2 | Context channel list in AgentPromptProfile | Each channel has defined scope and content |
-| Context snapshot | L0 | L1 | Not implemented | Snapshot serializable; includes workspace/document/selection/diagnostics/project/runtime |
-| Scope model | L0 | L1 | Not implemented | Scope controls which channels are included |
-| Redaction policy | L0 | L1 | Not implemented | Secrets, tokens, personal paths redacted |
-| Capability gap context | L0 | L1 | Not implemented | Agent receives structured capability gap summary |
+| Context tool | L2 | L3 | `ide.context.read` uses `RevisionedIdeContextExportService` | Context is available only through the declared MCP tool |
+| Revision binding | L3 | L3 | Query revision must equal the current workspace revision | Stale reads fail closed |
+| Budget and pagination | L2 | L3 | Item, UTF-8 byte, per-item code-unit, cursor, and deduplication bounds | Oversized context is truncated with explicit omission facts |
+| Redaction policy | L2 | L3 | `McpPayloadSanitizer` applies before digesting and returning content | Secrets and sensitive fields never leave the IDE boundary |
+| Capability facts | L2 | L2 | Capability, diagnostic, and execution-receipt facts are exported with provenance | Every item is structured, sensitivity-labelled, and provenance-bearing |
 
 ### 2.14 Agent Action Permissions
 
 | Aspect | Current Level | Target Level | Evidence | Acceptance Criteria |
 |---|---|---|---|---|
-| Permission levels | L2 | L3 | PermissionRequestScope, PermissionDecision exist | Each action category has minimum permission level |
-| Permission audit | L2 | L3 | AgentAuditEvent exists | All permission decisions recorded |
-| Dangerous action gating | L1 | L2 | Not explicitly modeled | Dangerous actions require higher permission |
-| Agent command routing | L0 | L2 | Not implemented | Agent actions go through command registry |
+| Permission decisions | L2 | L3 | Protocol-correlated `AgentPermissionRequest` with allow-once/reject-once decisions | Unsupported or duplicate decisions fail closed |
+| Permission lifecycle | L2 | L3 | `CollaborationStore` projects pending requests and clears terminal-session permissions | Each decision resolves at most once and terminal sessions retain no pending request |
+| Dangerous tool gating | L2 | L3 | IDE MCP tool risks, capability grants, workspace-root authorization, and security policy | Mutating tools require explicit grants and remain path-confined |
+| Agent request routing | L2 | L3 | Versioned Agent protocol plus declared IDE MCP tools | No Agent action bypasses protocol correlation or IDE-owned authority |
 
 ### 2.15 Patch / Preview / Apply / Undo
 
 | Aspect | Current Level | Target Level | Evidence | Acceptance Criteria |
 |---|---|---|---|---|
-| Patch preview | L2 | L3 | FileChangePreview, PatchApplyPlan exist | Preview does not modify documents |
-| Patch apply | L1 | L2 | Not wired through workspace edit | Apply uses workspace edit transaction |
-| Rollback | L0 | L1 | Not implemented | Last agent-applied edit can be rolled back |
-| Document model bypass prevention | L1 | L2 | Architecture rule exists | Agent cannot write files directly |
+| Change proposal | L2 | L3 | Versioned workspace proposal payload maps to `WorkspaceChangeSet` | Proposal is revision-bound and schema-validated |
+| Patch preview | L3 | L3 | `WorkspaceTransactionService.preview` produces immutable review state | Preview does not modify documents |
+| Patch apply/reject | L2 | L3 | `CollaborationStore` commits or rejects only ready previews | Apply uses the injected IDE-owned transaction authority |
+| Rollback | L2 | L3 | Transaction receipts retain rollback identity and the store routes rollback | Rollback is explicit, correlated, and revision-aware |
+| Document model bypass prevention | L3 | L3 | Agent process has no IDE filesystem authority; writes traverse workspace transactions | Agent cannot write workspace files directly |
 
 ### 2.16 Hosted Workspace Lifecycle
 

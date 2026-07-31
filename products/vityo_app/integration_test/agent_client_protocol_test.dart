@@ -20,7 +20,10 @@ Future<void> main() async {
     },
     policy: const AgentClientPolicy(
       requestTimeout: Duration(seconds: 3),
-      allowedExtensions: <String>{'vityo/test/write', 'vityo/test/status'},
+      allowedExtensions: <String>{
+        '_vityo.dev/test/write',
+        '_vityo.dev/test/status',
+      },
     ),
   );
   try {

@@ -73,8 +73,8 @@ const List<String> requiredVityoIdeCapabilityIds = <String>[
   'runtime.terminal',
   'debugger.dap',
   'toolchain.manager',
-  'agent.provider',
-  'agent.coding-loop',
+  'agent.client',
+  'agent.workbench',
   'extension.manifest',
   'extension.marketplace',
   'presentation.shell',
@@ -262,7 +262,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/environment/configuration',
           summary:
-              'Configuration DataStore ownership for IDE settings, provider profiles, and toolchain preferences.',
+              'Configuration DataStore ownership for IDE settings and toolchain preferences.',
           references: <String>[
             'VS Code configuration service',
             'IntelliJ application and project settings',
@@ -324,9 +324,9 @@ class VityoIdeCapabilityFramework {
           layer: IdeCapabilityLayer.service,
           title: 'Remote service connector',
           status: IdeCapabilityStatus.scaffolded,
-          ownerPath: 'lib/src/view_ide/agent',
+          ownerPath: 'lib/src/view_ide/backend_toolchain',
           summary:
-              'Agent provider route selection, user-managed OpenAI API credential references for Codex/Codex Spark profiles, Agent Workbench preset credential binding and credential-reference visibility, hosted backend connector parity action plans, HostedBackendRetryEndpointPlan retry/reopen/export/settings route contracts, HostedBackendRetryActionExecutor, HostedControlPlaneRetryTransport, and HostedBackendRetryRuntimeOutputBinding telemetry snapshots are wired. Direct Agent model-provider credential routing is not owned by the IDE.',
+              'Hosted backend connector parity action plans, HostedBackendRetryEndpointPlan retry/reopen/export/settings route contracts, HostedBackendRetryActionExecutor, HostedControlPlaneRetryTransport, and HostedBackendRetryRuntimeOutputBinding telemetry snapshots are wired. Agent model-provider credentials and provider routing are not IDE services.',
           todo:
               'TODO: bind hosted settings recovery handlers to concrete Settings UI.',
           runtimeMaturityBlocking: false,
@@ -342,7 +342,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.wired,
           ownerPath: 'lib/src/view_ide/commands',
           summary:
-              'Registered commands for persistence, language refresh, navigation, refactor, tools, settings, debug, Agent coding recovery, and extension command contribution route consumption.',
+              'Registered commands for persistence, language refresh, navigation, refactor, tools, settings, debug, and extension command contribution route consumption.',
           references: <String>[
             'VS Code command registry',
             'IntelliJ action system',
@@ -383,7 +383,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/ide/workspace',
           summary:
-              'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, WorkspaceSearchIndexFileSystemWatcherBinding File System Manager watch refresh execution, WorkspaceSearchWatcherPolicy debounce/queue/ignore contracts, WorkspaceSearchWatcherRefreshPlan batched refresh facts, WorkspaceSearchWatcherEventBatchController project-scale event batches, WorkspaceSearchWatcherStreamBatcher timer-backed watcher stream flushing, WorkspaceSearchWatcherRecoveryPlan recovery action facts, WorkspaceSearchWatcherRecoveryStore DataStore-backed recovery persistence, persistent index invalidation key contract, symbol search service with semantic snapshot source/confidence propagation and Search Surface rendering, file quick open service, replace preview contract with before/after diff summary, virtualized replace-preview document windows, persisted multi-file diff expansion state, replace apply confirmation, search history persistence, persisted result filter state, search history/index/filter/expansion summaries in the user surface, agent search command, Agent workspace replace preview/apply command routing, and match-level navigation callback are wired.',
+              'Workspace text search service, in-memory search index snapshot, WorkspaceSearchIndexController stale-revision refresh execution, WorkspaceSearchIndexFileSystemWatcherBinding File System Manager watch refresh execution, WorkspaceSearchWatcherPolicy debounce/queue/ignore contracts, WorkspaceSearchWatcherRefreshPlan batched refresh facts, WorkspaceSearchWatcherEventBatchController project-scale event batches, WorkspaceSearchWatcherStreamBatcher timer-backed watcher stream flushing, WorkspaceSearchWatcherRecoveryPlan recovery action facts, WorkspaceSearchWatcherRecoveryStore DataStore-backed recovery persistence, persistent index invalidation key contract, symbol search service with semantic snapshot source/confidence propagation and Search Surface rendering, file quick open service, replace preview contract with before/after diff summary, virtualized replace-preview document windows, persisted multi-file diff expansion state, replace apply confirmation, search history persistence, persisted result filter state, search history/index/filter/expansion summaries in the user surface, typed command input routing, and match-level navigation callback are wired.',
           todo:
               'TODO: add production watcher backpressure telemetry and platform-specific overflow recovery.',
           runtimeMaturityBlocking: false,
@@ -399,7 +399,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/ide/workspace',
           summary:
-              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, parsed diff hunks, SourceControlHunkSelectionState multi-hunk selection, SourceControlHunkDiscardConfirmationPlan destructive discard confirmation, hunk discard modal UI, hunk action selection plans, selected hunk patch generation, Git partial patch execution provider, shell hunk discard confirmation routing, shell hunk action execution routing, hunk action result rows, Agent context snapshots with hunk selection and partial patch results, virtualized diff window binding, persisted SourceControlDiffSessionStore window and hunk-selection state, SourceControlStatusController diff-session restore/persist hooks, SourceControlMergeWorkflowPlan conflict-resolution facts, SourceControlConflictResolutionPlan merge workflow actions, SourceControlConflictResolutionProviderRegistry provider operation bridge, diff confirmation plans and controls, Agent context snapshots with pending action plans and last action results, staging action contracts, Agent stage/unstage command routing, branch-switch plan command routing, commit-draft plan command routing, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, expandable history rows, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, non-Git provider adapter descriptors and surface summaries, file open, and save-all handoff.',
+              'Source Control surface is wired to dirty editor documents, Git porcelain status parsing, diff preview, diff review summaries, parsed diff hunks, SourceControlHunkSelectionState multi-hunk selection, SourceControlHunkDiscardConfirmationPlan destructive discard confirmation, hunk discard modal UI, hunk action selection plans, selected hunk patch generation, Git partial patch execution provider, shell hunk discard confirmation routing, shell hunk action execution routing, hunk action result rows, bounded source-control state for hunk selection, partial patch results, pending action plans, and last action results, virtualized diff window binding, persisted SourceControlDiffSessionStore window and hunk-selection state, SourceControlStatusController diff-session restore/persist hooks, SourceControlMergeWorkflowPlan conflict-resolution facts, SourceControlConflictResolutionPlan merge workflow actions, SourceControlConflictResolutionProviderRegistry provider operation bridge, diff confirmation plans and controls, staging action contracts, typed stage/unstage command routing, branch-switch plan command routing, commit-draft plan command routing, persisted commit drafts, commit dialog state validation, commit draft summaries, branch picker summaries, branch switch plans, Git branch switch provider, history summaries, expandable history rows, action planning and confirmation, Git stage/unstage/discard/commit action provider, Git branch/history provider contracts, non-Git provider adapter descriptors and surface summaries, file open, and save-all handoff.',
           todo:
               'TODO: bind SourceControlMergeWorkflowPlan to concrete merge editor UI.',
           runtimeMaturityBlocking: false,
@@ -493,7 +493,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/ide/workspace',
           summary:
-              'WorkspaceFileOperationService provides create, rename, delete, and reveal contracts backed by WorkspaceDocumentStore and WorkspaceController synchronization. WorkspaceFileExplorerController exposes a file tree snapshot, unified explorer actions, command palette file operation contributions, WorkspaceFileExplorerActionRisk classifications, confirmation plans, WorkspaceFileExplorerBatchActionPlan multi-action confirmation contracts, restored expanded/selected/revealed state, sort preferences, Foundation DataStore-backed explorer state persistence, normalized File System Manager discovery results, watch event snapshots, WorkspaceFileExplorerIgnoreRules, WorkspaceFileExplorerWatchDebouncePolicy, WorkspaceFileExplorerWatchStreamBatcher timer-backed debounce flushing, and WorkspaceFileExplorerFileSystemWatcherBinding concrete File System Manager watch execution. WorkspaceFileCommandRouter and WorkspaceFileCommandPaletteAdapter route typed command palette input into file operation requests, confirmation plans, or immediate reveal actions. ShellRuntimeModel exposes pending workspace file command confirmation controls for destructive command routes, the shell sidebar renders confirmation apply/cancel controls, and Agent workspace file command routing covers create, rename, reveal, and confirmation-staged delete.',
+              'WorkspaceFileOperationService provides create, rename, delete, and reveal contracts backed by WorkspaceDocumentStore and WorkspaceController synchronization. WorkspaceFileExplorerController exposes a file tree snapshot, unified explorer actions, command palette file operation contributions, WorkspaceFileExplorerActionRisk classifications, confirmation plans, WorkspaceFileExplorerBatchActionPlan multi-action confirmation contracts, restored expanded/selected/revealed state, sort preferences, Foundation DataStore-backed explorer state persistence, normalized File System Manager discovery results, watch event snapshots, WorkspaceFileExplorerIgnoreRules, WorkspaceFileExplorerWatchDebouncePolicy, WorkspaceFileExplorerWatchStreamBatcher timer-backed debounce flushing, and WorkspaceFileExplorerFileSystemWatcherBinding concrete File System Manager watch execution. WorkspaceFileCommandRouter and WorkspaceFileCommandPaletteAdapter route typed command palette input into file operation requests, confirmation plans, or immediate reveal actions. ShellRuntimeModel exposes pending workspace file command confirmation controls for destructive command routes, and the shell sidebar renders confirmation apply/cancel controls.',
           todo:
               'TODO: bind batch plans to concrete dialogs, richer file tree UI, and watcher overflow/backpressure telemetry.',
           runtimeMaturityBlocking: false,

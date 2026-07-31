@@ -14,7 +14,9 @@ void main() {
     expect(snapshot.entries.length, ids.length);
     expect(ids, contains('service.styio-language'));
     expect(ids, contains('service.language-result-cache'));
-    expect(ids, contains('agent.coding-loop'));
+    expect(ids, containsAll(<String>['agent.client', 'agent.workbench']));
+    expect(ids, isNot(contains('agent.provider')));
+    expect(ids, isNot(contains('agent.coding-loop')));
     expect(ids, contains('editor.document-model'));
     expect(ids, contains('interaction.search'));
     expect(ids, contains('interaction.source-control'));
@@ -50,7 +52,7 @@ void main() {
     );
     expect(
       entriesById['interaction.search']?.summary,
-      contains('Agent workspace replace preview/apply command routing'),
+      contains('typed command input routing'),
     );
     expect(
       entriesById['interaction.search']?.summary,
@@ -307,7 +309,7 @@ void main() {
     );
     expect(
       entriesById['workspace.file-explorer']?.summary,
-      contains('Agent workspace file command routing'),
+      contains('WorkspaceFileCommandRouter'),
     );
     expect(
       entriesById['workspace.file-explorer']?.summary,
@@ -423,10 +425,7 @@ void main() {
       entriesById['workspace.diagnostics']?.summary,
       contains('WorkspaceQuickFixTelemetryStore persisted review outcomes'),
     );
-    expect(
-      entriesById['runtime.terminal']?.status,
-      IdeCapabilityStatus.wired,
-    );
+    expect(entriesById['runtime.terminal']?.status, IdeCapabilityStatus.wired);
     expect(
       entriesById['runtime.terminal']?.summary,
       contains('TerminalInteractionController'),
@@ -471,17 +470,13 @@ void main() {
     expect(entriesById['debugger.dap']?.runtimeMaturityBlocking, isFalse);
     expect(
       entriesById['toolchain.manager']?.summary,
+      contains('generic bootstrap summaries'),
+    );
+    expect(
+      entriesById['toolchain.manager']?.summary,
       contains(
-        'generic bootstrap summaries',
+        'Styio compiler identity is consumed through its machine contract',
       ),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('Styio compiler identity is consumed through its machine contract'),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('ToolchainBootstrapExecutionBridge'),
     );
     expect(
       entriesById['toolchain.manager']?.summary,
@@ -489,31 +484,11 @@ void main() {
     );
     expect(
       entriesById['toolchain.manager']?.summary,
-      contains('install execution recovery action rendering'),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('installer recovery route handling'),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('ToolchainBootstrapExecutionPlan'),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('ToolchainBootstrapActionRouter dispatch contracts'),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('ShellRuntimeModel bootstrap action dispatch'),
-    );
-    expect(
-      entriesById['toolchain.manager']?.summary,
-      contains('SettingsSurface bootstrap dispatch result rendering'),
+      contains('install execution recovery actions'),
     );
     expect(
       entriesById['toolchain.manager']?.todo,
-      contains('concrete installer UX'),
+      contains('ToolchainBootstrapExecutionBridge'),
     );
     expect(entriesById['toolchain.manager']?.runtimeMaturityBlocking, isFalse);
     expect(
@@ -636,7 +611,7 @@ void main() {
     );
     expect(
       entriesById['interaction.source-control']?.summary,
-      contains('Agent context snapshots'),
+      isNot(contains('Agent context snapshots')),
     );
     expect(
       entriesById['interaction.source-control']?.summary,
@@ -644,7 +619,7 @@ void main() {
     );
     expect(
       entriesById['interaction.source-control']?.summary,
-      contains('Agent stage/unstage command routing'),
+      contains('typed stage/unstage command routing'),
     );
     expect(
       entriesById['extension.marketplace']?.status,
@@ -733,233 +708,32 @@ void main() {
       isNot(contains('add preview')),
     );
     expect(
-      entriesById['agent.coding-loop']?.dependencies,
-      contains('workspace.edit-application'),
+      entriesById['agent.workbench']?.dependencies,
+      containsAll(<String>['agent.client', 'workspace.edit-application']),
     );
     expect(
-      entriesById['agent.provider']?.summary,
-      contains('OpenAI Codex Spark preset'),
+      entriesById['agent.client']?.summary,
+      contains('Supervised Agent process lifecycle'),
     );
     expect(
-      entriesById['agent.provider']?.summary,
-      contains('structured response tool definitions'),
+      entriesById['agent.client']?.summary,
+      contains('versioned protocol session negotiation'),
     );
     expect(
-      entriesById['agent.provider']?.summary,
-      contains('checkpoint-aware prompt rules'),
+      entriesById['agent.client']?.summary,
+      contains('does not own model endpoints'),
     );
     expect(
-      entriesById['agent.provider']?.summary,
-      contains('Credential DataStore-backed bearer token references'),
+      entriesById['agent.workbench']?.summary,
+      contains('Immutable bounded collaboration projections'),
     );
     expect(
-      entriesById['agent.provider']?.summary,
-      contains('saved profile loading by profile key/profile id'),
-    );
-    expect(
-      entriesById['agent.provider']?.summary,
-      contains('mounted provider profile key tracking'),
-    );
-    expect(
-      entriesById['agent.provider']?.summary,
-      contains('Agent Surface saved provider profile picker mount action'),
-    );
-    expect(
-      entriesById['agent.provider']?.summary,
-      contains('failover provider mount execution'),
+      entriesById['agent.workbench']?.summary,
+      contains('revision-bound transactions'),
     );
     expect(
       entriesById['debugger.dap']?.summary,
       contains('DebugLaunchTelemetryStore'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('stable workspace edit preview/apply-result context'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('deterministic workspace fix plan ids'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('agent applyQuickFix preview gate'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('stale preview rejection'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('workspace apply failure metadata propagation'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('workspace-edit risk prompt guidance'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Source Control Agent context bridge'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Source Control stage/unstage command routing'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('failed-test rerun context'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('StyioService readiness checkpoints'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Styio language provider readiness context'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains(
-        'semantic feature confidence matrix context and prompt guidance',
-      ),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('AgentCodingExecutionReadiness issue facts'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('provider execution health blocking/degraded readiness facts'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Agent Surface readiness issue visibility'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('provider dispatch gate enforcement'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('blocked dispatch runtime activity evidence'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('AgentCodingChangeReviewGate patch review facts'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('concrete review surface action ids'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('AgentCodingAutonomyPolicy review-before-apply contracts'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Agent Surface autonomy policy visibility'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains(
-        'AgentCodingValidationPlan and '
-        'AgentCodingValidationCommandPlan registered command routing',
-      ),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Agent Surface validation command controls'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('AgentCodingValidationResult validation outcome summaries'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('AgentCodingValidationPipeline next-command progress facts'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('blocked validation plan activity visibility'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('failed patch repair prompt drafting'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('patch application runtime activity evidence'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('patch application validation snapshot binding'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('immediate validation snapshot persistence'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('provider adapter coding gate metadata summaries'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('checkpoint result prompt replay'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('validation-summary-aware persisted coding session history'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('ShellRuntime retry/replay recovery command dispatch'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('Agent Surface recovery command action controls'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('recovery validation summary visibility'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('recovery continue-validation action routing'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('recovery validation failure fix draft'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('recovery validation failure evidence prompt drafting'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('validation failure command evidence persistence'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('RuntimeOutputLiveBuffer agent activity publishing'),
-    );
-    expect(
-      entriesById['agent.provider']?.summary,
-      contains('AgentProviderSelectionPlan registry selection'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('AgentProviderSelectionContext prompt injection'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('provider selection status rendering'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('validation summary visibility'),
-    );
-    expect(
-      entriesById['agent.coding-loop']?.summary,
-      contains('validation failure evidence visibility'),
     );
     expect(snapshot.missingRequiredCapabilityIds, isEmpty);
     expect(json['missingRequiredCapabilityIds'], isEmpty);

@@ -3,6 +3,9 @@ import '../workspace/workspace_revision_service.dart';
 import '../workspace/workspace_transaction_service.dart';
 
 const int _maxAgentPatchEditCount = 500;
+const int _maxAgentPatchDocumentCount = 64;
+const int _maxAgentPatchIdLength = 256;
+const int _maxAgentPatchDocumentIdLength = 4096;
 const int _maxAgentPatchReplacementTextLength = 200000;
 
 /// Protocol-neutral Agent text replacement proposed against one document.
@@ -62,10 +65,17 @@ final class AgentCodePatchApplier {
   final InMemoryWorkspaceRevisionService revisionService;
 
   Future<AgentCodePatchApplicationResult> apply(AgentCodePatch patch) async {
-    if (patch.patchId.trim().isEmpty) {
+    if (patch.patchId.trim().isEmpty ||
+        patch.patchId.length > _maxAgentPatchIdLength) {
       return const AgentCodePatchApplicationResult(
         applied: false,
-        message: 'Agent patch id must not be empty.',
+        message: 'Agent patch id is invalid.',
+      );
+    }
+    if (patch.baseRevision != null && patch.baseRevision! < 0) {
+      return AgentCodePatchApplicationResult(
+        applied: false,
+        message: 'Agent patch ${patch.patchId} has an invalid base revision.',
       );
     }
     if (patch.edits.isEmpty) {
@@ -80,8 +90,20 @@ final class AgentCodePatchApplier {
         message: 'Agent patch ${patch.patchId} exceeds the edit limit.',
       );
     }
+    var replacementTextLength = 0;
+    for (final edit in patch.edits) {
+      replacementTextLength += edit.replacementText.length;
+      if (replacementTextLength > _maxAgentPatchReplacementTextLength) {
+        return AgentCodePatchApplicationResult(
+          applied: false,
+          message:
+              'Agent patch ${patch.patchId} exceeds the replacement text limit.',
+        );
+      }
+    }
     if (patch.edits.any(
-      (edit) => edit.replacementText.length > _maxAgentPatchReplacementTextLength,
+      (edit) =>
+          edit.replacementText.length > _maxAgentPatchReplacementTextLength,
     )) {
       return AgentCodePatchApplicationResult(
         applied: false,
@@ -89,11 +111,19 @@ final class AgentCodePatchApplier {
       );
     }
     for (final edit in patch.edits) {
-      if (edit.documentId.trim().isEmpty) {
+      if (edit.documentId.trim().isEmpty ||
+          edit.documentId.length > _maxAgentPatchDocumentIdLength) {
         return AgentCodePatchApplicationResult(
           applied: false,
           message:
-              'Agent patch ${patch.patchId} contains an edit without documentId.',
+              'Agent patch ${patch.patchId} contains an invalid documentId.',
+        );
+      }
+      if (edit.baseRevision != null && edit.baseRevision! < 0) {
+        return AgentCodePatchApplicationResult(
+          applied: false,
+          message:
+              'Agent patch ${patch.patchId} contains an invalid base revision.',
         );
       }
       if (_containsPathTraversalSegment(edit.documentId)) {
@@ -111,6 +141,12 @@ final class AgentCodePatchApplier {
       grouped
           .putIfAbsent(edit.documentId, () => <AgentCodePatchEdit>[])
           .add(edit);
+    }
+    if (grouped.length > _maxAgentPatchDocumentCount) {
+      return AgentCodePatchApplicationResult(
+        applied: false,
+        message: 'Agent patch ${patch.patchId} exceeds the document limit.',
+      );
     }
     final resources = <WorkspaceResourceChange>[];
     final skippedNoOpDocumentIds = <String>[];
@@ -159,6 +195,20 @@ final class AgentCodePatchApplier {
         previousEnd = edit.end;
         previous = edit;
       }
+      final explicitRevisions = edits
+          .map((edit) => edit.baseRevision)
+          .whereType<int>()
+          .toSet();
+      if (explicitRevisions.length > 1 ||
+          (patch.baseRevision != null &&
+              explicitRevisions.isNotEmpty &&
+              !explicitRevisions.contains(patch.baseRevision))) {
+        return AgentCodePatchApplicationResult(
+          applied: false,
+          message:
+              'Agent patch ${patch.patchId} contains inconsistent base revisions.',
+        );
+      }
 
       var nextText = document.text;
       for (final edit in edits.reversed) {
@@ -173,13 +223,13 @@ final class AgentCodePatchApplier {
         continue;
       }
       final expectedRevision =
-          entry.value.first.baseRevision ?? patch.baseRevision;
+          explicitRevisions.firstOrNull ?? patch.baseRevision;
       resources.add(
         WorkspaceResourceChange(
           resourceId: entry.key,
           baseDocumentRevision: expectedRevision ?? document.revision,
           edits: <WorkspaceTextChange>[
-            for (final edit in entry.value)
+            for (final edit in edits)
               WorkspaceTextChange(
                 start: edit.start,
                 end: edit.end,
@@ -228,7 +278,10 @@ final class AgentCodePatchApplier {
     return AgentCodePatchApplicationResult(
       applied: true,
       message: 'Applied Agent patch ${patch.patchId} atomically.',
-      appliedEditCount: patch.edits.length,
+      appliedEditCount: resources.fold<int>(
+        0,
+        (count, resource) => count + resource.edits.length,
+      ),
       appliedDocumentIds: List<String>.unmodifiable(documentIds),
       skippedNoOpDocumentIds: List<String>.unmodifiable(skippedNoOpDocumentIds),
     );

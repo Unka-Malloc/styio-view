@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Mission
 
@@ -111,6 +111,10 @@ claims.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
+30. After an atomic refactor, current owner, contract, architecture, security, release, and runbook
+    documents must reference only canonical implementation paths. Removed paths and symbols may
+    remain only in clearly marked immutable archive or completed-plan provenance; they must not be
+    described as compatibility anchors, future work, or active security gates.
 
 ## Change Classes
 
@@ -181,5 +185,9 @@ implementation gaps, foundation ownership, post-commit checks, lifecycle
 records, generated indexes, and team document statistics. Removed the obsolete
 ecosystem sample-workflow gate after the Pafio metadata and Platform hosted
 contracts became the authoritative validation surfaces.
+
+2026-07-31: Converged current Agent architecture, contracts, security policy, release inventory,
+CODEOWNERS guidance, and team routing on the canonical protocol-only IDE paths. Completed-plan and
+archive references remain historical provenance rather than compatibility promises.
 
 <!-- codex merge: docs/build/scripts assets imported -->

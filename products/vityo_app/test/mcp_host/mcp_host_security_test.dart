@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:vityo_agent_protocol/vityo_agent_protocol.dart';
@@ -63,9 +64,211 @@ void main() {
     expect(jsonEncode(failed), isNot(contains('private failure detail')));
     await server.close();
   });
+
+  test('grant storage and credential sanitization remain bounded', () {
+    final sensitiveValues = <String>{'private-value'};
+    final sanitizer = McpPayloadSanitizer.withSensitiveValues(sensitiveValues);
+    sensitiveValues.clear();
+
+    expect(
+      sanitizer.containsCredentialInput(const <String, Object?>{
+        'clientSecret': 'credential',
+      }),
+      isTrue,
+    );
+    expect(
+      sanitizer.sanitize(const <String, Object?>{
+        'clientSecret': 'credential',
+        'url': 'https://example.invalid/?access_token=value',
+        'message': 'private-value',
+      }),
+      <String, Object?>{
+        'clientSecret': '[REDACTED]',
+        'url': 'https://example.invalid/?access_token=[REDACTED]',
+        'message': '[REDACTED]',
+      },
+    );
+
+    final grants = ToolGrantRegistry(maxGrants: 1);
+    grants.grant(_grant('first', 'session-a'));
+    expect(() => grants.grant(_grant('second', 'session-b')), throwsStateError);
+    grants.revokeSession('session-a');
+    expect(() => grants.grant(_grant('second', 'session-b')), returnsNormally);
+  });
+
+  test('credential sanitization is cycle and depth bounded', () {
+    const sanitizer = McpPayloadSanitizer();
+    final cyclic = <String, Object?>{};
+    cyclic['self'] = cyclic;
+
+    expect(sanitizer.containsCredentialInput(cyclic), isTrue);
+    expect(sanitizer.sanitize(cyclic), <String, Object?>{'self': '[REDACTED]'});
+
+    Object? nested = 'safe';
+    for (var depth = 0; depth < 70; depth += 1) {
+      nested = <Object?>[nested];
+    }
+    expect(sanitizer.containsCredentialInput(nested), isTrue);
+    expect(jsonEncode(sanitizer.sanitize(nested)), contains('[REDACTED]'));
+  });
+
+  test(
+    'MCP sessions are bounded and duplicate initialize is rejected',
+    () async {
+      final adapter = _Adapter(
+        name: 'ide.fixture.session-limit',
+        risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
+      );
+      final server = _server(adapter, maxSessions: 1);
+      await _initialize(server);
+
+      final duplicate = await server.handle(
+        sessionId: 'session',
+        message: JsonRpcRequest(
+          id: const JsonRpcId.integer(3),
+          method: 'initialize',
+          params: const <String, Object?>{
+            'protocolVersion': mcpProtocolVersion,
+            'capabilities': <String, Object?>{},
+          },
+        ),
+      );
+      final limited = await server.handle(
+        sessionId: 'session-2',
+        message: JsonRpcRequest(
+          id: const JsonRpcId.integer(4),
+          method: 'initialize',
+          params: const <String, Object?>{
+            'protocolVersion': mcpProtocolVersion,
+            'capabilities': <String, Object?>{},
+          },
+        ),
+      );
+
+      expect(_rpcErrorCode(duplicate), 'already_initialized');
+      expect(_rpcErrorCode(limited), 'session_limit_exceeded');
+      await server.close();
+    },
+  );
+
+  test('MCP negotiates versions and permits lifecycle pings', () async {
+    final server = _server(
+      _Adapter(
+        name: 'ide.fixture.lifecycle',
+        risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
+      ),
+    );
+    final initialized = await server.handle(
+      sessionId: 'session',
+      message: JsonRpcRequest(
+        id: const JsonRpcId.integer(1),
+        method: 'initialize',
+        params: const <String, Object?>{
+          'protocolVersion': '2099-01-01',
+          'capabilities': <String, Object?>{},
+        },
+      ),
+    );
+    expect(
+      (initialized as JsonRpcSuccessResponse).result,
+      containsPair('protocolVersion', mcpProtocolVersion),
+    );
+    final ping = await server.handle(
+      sessionId: 'session',
+      message: JsonRpcRequest(id: const JsonRpcId.integer(2), method: 'ping'),
+    );
+    expect((ping as JsonRpcSuccessResponse).result, isEmpty);
+    final tooEarly = await server.handle(
+      sessionId: 'session',
+      message: JsonRpcRequest(
+        id: const JsonRpcId.integer(3),
+        method: 'tools/list',
+      ),
+    );
+    expect(_rpcErrorCode(tooEarly), 'not_initialized');
+    await server.close();
+  });
+
+  test(
+    'workspace root slots are reserved before canonical resolution',
+    () async {
+      final resolver = _BlockingCanonicalPathResolver();
+      final roots = WorkspaceRootRegistry(resolver: resolver, maxSessions: 1);
+      final first = roots.replaceRoots(
+        sessionId: 'session-a',
+        proposals: const <WorkspaceRootProposal>[
+          WorkspaceRootProposal(path: '/workspace', displayName: 'workspace'),
+        ],
+        consentReceiptId: 'consent-a',
+      );
+      await resolver.started.future;
+
+      await expectLater(
+        roots.replaceRoots(
+          sessionId: 'session-b',
+          proposals: const <WorkspaceRootProposal>[],
+          consentReceiptId: 'consent-b',
+        ),
+        throwsStateError,
+      );
+      resolver.release.complete();
+      await first;
+      await roots.close();
+    },
+  );
+
+  test('workspace path resolution is deadline bounded', () async {
+    final roots = WorkspaceRootRegistry(
+      resolver: _NeverCanonicalPathResolver(),
+      resolutionTimeout: const Duration(milliseconds: 20),
+    );
+    await expectLater(
+      roots.replaceRoots(
+        sessionId: 'session',
+        proposals: const <WorkspaceRootProposal>[
+          WorkspaceRootProposal(path: '/workspace', displayName: 'workspace'),
+        ],
+        consentReceiptId: 'consent',
+      ),
+      throwsA(isA<TimeoutException>()),
+    );
+    await roots.close();
+  });
+
+  test(
+    'tool execution concurrency is bounded before adapter effects',
+    () async {
+      final adapter = _BlockingAdapter();
+      final server = _server(adapter, maxConcurrentToolCallsPerSession: 1);
+      await _initialize(server);
+
+      final first = _call(server, adapter.descriptor.name);
+      await adapter.started.future;
+      final denied = await _call(server, adapter.descriptor.name);
+      expect(_code(denied), 'tool_concurrency_limit');
+      expect(adapter.callCount, 1);
+
+      adapter.release.complete();
+      expect((await first)['isError'], isFalse);
+      await server.close();
+    },
+  );
 }
 
-IdeMcpServer _server(IdeToolAdapter adapter, {ToolGrantRegistry? grants}) {
+ToolPermissionGrant _grant(String id, String sessionId) => ToolPermissionGrant(
+  id: id,
+  sessionId: sessionId,
+  toolName: 'ide.fixture.mutate',
+  risks: const <IdeToolRisk>{IdeToolRisk.mutating},
+  scope: ToolGrantScope.session,
+);
+
+IdeMcpServer _server(
+  IdeToolAdapter adapter, {
+  ToolGrantRegistry? grants,
+  int maxSessions = 64,
+  int maxConcurrentToolCallsPerSession = 16,
+}) {
   final catalog = IdeToolCatalog(adapters: <IdeToolAdapter>[adapter]);
   catalog.replaceCapabilities('session', <String>{
     adapter.descriptor.requiredCapabilityId,
@@ -79,6 +282,8 @@ IdeMcpServer _server(IdeToolAdapter adapter, {ToolGrantRegistry? grants}) {
       sanitizer: const McpPayloadSanitizer(),
       maxResultBytes: 2048,
     ),
+    maxSessions: maxSessions,
+    maxConcurrentToolCallsPerSession: maxConcurrentToolCallsPerSession,
   );
 }
 
@@ -120,6 +325,14 @@ Future<Map<String, Object?>> _call(
 String? _code(Map<String, Object?> result) =>
     (result['structuredContent'] as Map<String, Object?>)['code'] as String?;
 
+String? _rpcErrorCode(JsonRpcMessage? response) {
+  if (response is! JsonRpcErrorResponse) {
+    return null;
+  }
+  final data = response.error.data;
+  return data is Map<String, Object?> ? data['code'] as String? : null;
+}
+
 final class _Adapter implements IdeToolAdapter {
   _Adapter({
     required String name,
@@ -152,6 +365,61 @@ final class _Adapter implements IdeToolAdapter {
     }
     return IdeToolResult(
       structuredContent: const <String, Object?>{'changed': true},
+      workspaceRevision: 1,
+      provenance: 'fixture',
+      sensitivity: ContextSensitivity.internal,
+    );
+  }
+}
+
+final class _BlockingCanonicalPathResolver implements CanonicalPathResolver {
+  final Completer<void> started = Completer<void>();
+  final Completer<void> release = Completer<void>();
+
+  @override
+  Future<CanonicalPath> resolve(String path) async {
+    if (!started.isCompleted) {
+      started.complete();
+    }
+    await release.future;
+    return CanonicalPath(path: path);
+  }
+}
+
+final class _NeverCanonicalPathResolver implements CanonicalPathResolver {
+  @override
+  Future<CanonicalPath> resolve(String path) =>
+      Completer<CanonicalPath>().future;
+}
+
+final class _BlockingAdapter implements IdeToolAdapter {
+  final Completer<void> started = Completer<void>();
+  final Completer<void> release = Completer<void>();
+  int callCount = 0;
+
+  @override
+  final IdeToolDescriptor descriptor = IdeToolDescriptor(
+    name: 'ide.fixture.blocking',
+    title: 'blocking fixture',
+    description: 'Blocks until the acceptance fixture releases it.',
+    requiredCapabilityId: 'ide.fixture.blocking',
+    inputSchema: const <String, Object?>{
+      'type': 'object',
+      'additionalProperties': true,
+    },
+    outputSchema: const <String, Object?>{'type': 'object'},
+    risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
+  );
+
+  @override
+  Future<IdeToolResult> invoke(IdeToolInvocation invocation) async {
+    callCount += 1;
+    if (!started.isCompleted) {
+      started.complete();
+    }
+    await release.future;
+    return IdeToolResult(
+      structuredContent: const <String, Object?>{'completed': true},
       workspaceRevision: 1,
       provenance: 'fixture',
       sensitivity: ContextSensitivity.internal,

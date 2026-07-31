@@ -226,17 +226,22 @@ python3 scripts/repo-hygiene-gate.py --mode tracked
 ./scripts/delivery-gate.sh --mode checkpoint --skip-health
 ```
 
-IDE architecture, compatibility, sandbox/security, and performance budget checks:
+IDE architecture, import boundary, sandbox/security, and performance budget checks:
 
 ```bash
 python3 scripts/check_architecture_boundaries.py
-python3 scripts/check_compat_facades.py
+python3 scripts/import-boundary-gate.py
 python3 scripts/check_security_baseline.py
 python3 scripts/check_performance_budgets.py
 git diff --check
 ```
 
-`check_architecture_boundaries.py` enforces `view_ide/` as the Flutter-free domain/application layer and `view_render/` as the presentation layer. `check_compat_facades.py` keeps migrated legacy roots as one-line `export` facades. `check_security_baseline.py` protects sandbox execution, log redaction, secret storage, module manifest security, and agent permission modeling. `check_performance_budgets.py` verifies benchmark coverage for the performance-sensitive IDE paths.
+`check_architecture_boundaries.py` enforces `view_ide/` and `ide/` as Flutter-free
+domain/application layers and `view_render/` as the presentation layer.
+`import-boundary-gate.py` enforces the remaining product import rules.
+`check_security_baseline.py` protects sandbox execution, log redaction, secret storage, module
+manifest security, and Agent permission presentation. `check_performance_budgets.py` verifies
+benchmark coverage for the performance-sensitive IDE paths.
 
 Linux host readiness gate (run inside WSL or a Linux container before full builds):
 

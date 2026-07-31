@@ -220,13 +220,15 @@
       "nextMilestone": "L2 \u2014 real git status read (not write); local history persistence"
     },
     "settings_keymap_profile": {
-      "target": "Schema-owned settings with migration, local-first profile, sync-optional, secret redaction, Agent-safe projection. Theme covering IDE shell, editor, semantic blocks, glyph, diagnostics, runtime, agent, focus/selection.",
+      "target": "Schema-owned settings with migration, provider-neutral local-first profiles, optional sync, and secret redaction. Theme covers IDE shell, editor, semantic blocks, glyphs, diagnostics, runtime, Agent Workbench, focus, and selection.",
       "benchmarkPeers": [
         "vscode",
         "intellij-community"
       ],
-      "currentStatus": "L2 \u2014 Contract-backed (VityoSettingsSchema with migration, EditorSettings with visualSubstitutionEnabled toggle, AgentSettings with local-only/provider-missing modes, VityoProfileSnapshot with local-first support, secret redaction)",
+      "currentStatus": "L2 \u2014 Contract-backed (ConfigurationStore migrations, theme overrides, command-palette preferences, keybinding profiles, domain-specific shell/test/debug profiles, and secret redaction; no IDE-owned Agent prompt or provider profile)",
       "implementationAnchors": [
+        "products/vityo_app/lib/src/view_ide/environment/configuration/",
+        "products/vityo_app/lib/src/view_ide/commands/command_keybinding_profile.dart",
         "products/vityo_app/lib/src/view_render/theme/",
         "prototype/editor-modules/theme-presets.js"
       ],
@@ -236,29 +238,30 @@
       ],
       "knownGaps": [
         "Theme editor UI not implemented",
-        "Keybinding configuration store not implemented",
+        "General provider-neutral user profile store not implemented",
         "Cross-session profile sync not implemented (optional)"
       ],
-      "nextMilestone": "L3 \u2014 theme editor UI; keybinding configuration store"
+      "nextMilestone": "L3 \u2014 theme editor UI; provider-neutral local profile contract"
     },
     "security_trust": {
-      "target": "Permission model for agent actions, toolchain operations, and workspace edits. Audit trail for all agent-initiated changes. Secret redaction in all display/context projections. Local-only mode fully functional.",
+      "target": "Correlated permission presentation for Agent requests, capability-gated IDE MCP tools, IDE-owned workspace transactions, and secret redaction in all display/context projections. No-Agent local mode remains fully functional.",
       "benchmarkPeers": [
         "codex",
         "opencode"
       ],
-      "currentStatus": "L2 \u2014 Contract-backed (AgentRedactionPolicy, AgentPermissionLevel via PermissionRequestScope, AgentAuditEvent, secret redaction in AgentSettings.toDisplayJson and VityoProfileSnapshot.toAgentSafeJson)",
+      "currentStatus": "L2 \u2014 Contract-backed (AgentPermissionRequest with one-shot decisions, CollaborationStore lifecycle projection, MCP tool grants and workspace-root authorization, RevisionedIdeContextExportService sanitization, and IDE-owned workspace transactions)",
       "implementationAnchors": [
         "products/vityo_app/lib/src/view_ide/environment/configuration/",
         "products/vityo_app/lib/src/ide/agent_client/",
         "docs/design/Vityo-Implementation-Gaps.md"
       ],
       "tests": [
+        "products/vityo_app/test/agent_client/agent_client_contract_test.dart",
+        "products/vityo_app/test/agent_workbench/agent_workbench_contract_test.dart",
         "products/vityo_app/test/secret_redaction_test.dart",
         "products/vityo_app/test/module_manifest_security_test.dart"
       ],
       "knownGaps": [
-        "Real provider secret injection not implemented",
         "Workspace trust model not yet formalized",
         "Toolchain execution sandboxing not implemented"
       ],

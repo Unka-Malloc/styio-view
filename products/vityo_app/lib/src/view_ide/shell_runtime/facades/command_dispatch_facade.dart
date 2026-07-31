@@ -26,14 +26,12 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
         appendLog(_workspaceDiagnosticsRefreshMessage(snapshot));
         return;
       case AppCommandId.refreshSourceControl:
-        final status = await _sourceControlController.refreshStatus();
-        appendLog(_sourceControlController.refreshMessage(status));
+        await _sourceControlController.refreshStatus();
         return;
       case AppCommandId.previewSourceControlDiff:
-        final diff = await _sourceControlController.previewDiff(
+        await _sourceControlController.previewDiff(
           workspaceController.activeFilePath,
         );
-        appendLog(_sourceControlController.diffPreviewMessage(diff));
         return;
       case AppCommandId.stageSourceControl:
       case AppCommandId.unstageSourceControl:
@@ -45,7 +43,6 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
         return;
       case AppCommandId.collectProjectLanguageContext:
         await _projectLanguageContextController.collect();
-        appendLog('Project language context collected.');
         return;
       case AppCommandId.run:
         await _executionController.run(
@@ -101,7 +98,9 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
       case AppCommandId.applyWorkspaceReplace:
         final preview = _workspaceReplaceController.lastPreview;
         if (preview == null) {
-          appendLog('Apply Workspace Replace skipped: no preview is available.');
+          appendLog(
+            'Apply Workspace Replace skipped: no preview is available.',
+          );
           return;
         }
         await _workspaceReplaceController.apply(preview);
@@ -110,10 +109,9 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
       case AppCommandId.formatActiveDocument:
       case AppCommandId.runStaticAnalysis:
       case AppCommandId.runTests:
-        final result = await _nativeToolRuntimeController.run(
+        await _nativeToolRuntimeController.run(
           NativeToolCommand.fromAppCommandId(commandId),
         );
-        appendLog(result.message);
         return;
       case AppCommandId.rerunFailedTests:
         await _testingController.rerunFailed();
@@ -123,7 +121,7 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
         return;
       case AppCommandId.safeDelete:
       case AppCommandId.inlineVariable:
-        _shellCommandFallbackController.execute(commandId);
+        _editorRefactorCommandController.execute(commandId);
         return;
       case AppCommandId.refreshModules:
         await _moduleController.refresh();

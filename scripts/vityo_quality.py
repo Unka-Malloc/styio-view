@@ -141,8 +141,8 @@ def cutover() -> int:
         ([dart, "test"], ROOT / "packages" / "vityo_agent_protocol"),
         ([dart, "analyze"], ROOT / "products" / "vityo_coding_agent"),
         ([dart, "test"], ROOT / "products" / "vityo_coding_agent"),
-        ([flutter, "analyze"], ROOT / "products" / "vityo_app"),
-        ([flutter, "test", "test/vityo_app_smoke_test.dart"],
+        ([flutter, "analyze", "--no-pub"], ROOT / "products" / "vityo_app"),
+        ([flutter, "test", "--no-pub", "test/vityo_app_smoke_test.dart"],
          ROOT / "products" / "vityo_app"),
     )
     for command, cwd in commands:
@@ -690,6 +690,7 @@ def agent_workbench() -> int:
             [
                 flutter,
                 "analyze",
+                "--no-pub",
                 "lib/src/ide/workbench/agent_collaboration",
                 "lib/src/presentation/agent_workbench",
                 "test/agent_workbench",
@@ -701,7 +702,8 @@ def agent_workbench() -> int:
             [
                 flutter,
                 "test",
-                "test/agent_workbench/agent_workbench_contract_test.dart",
+                "--no-pub",
+                "test/agent_workbench",
             ],
             product,
         ),
@@ -717,6 +719,7 @@ def agent_workbench() -> int:
             [
                 flutter,
                 "test",
+                "--no-pub",
                 "../../tests/acceptance/vityo_app/"
                 "agent_workbench_acceptance_test.dart",
             ],
@@ -739,6 +742,7 @@ def ide_quality() -> int:
             [
                 flutter,
                 "analyze",
+                "--no-pub",
                 "lib/src/ide/agent_client",
                 "lib/src/ide/platform",
                 "lib/src/presentation/agent_workbench",
@@ -748,7 +752,10 @@ def ide_quality() -> int:
             ],
             product,
         ),
-        ([flutter, "test", "test/ide_quality"], product),
+        # The formal REQ-IDE-008 lane owns the single platform-independent
+        # full Flutter regression. Earlier suites remain focused and do not
+        # duplicate this invocation.
+        ([flutter, "test", "--no-pub"], product),
         (
             [
                 dart,
@@ -778,6 +785,7 @@ def ide_quality() -> int:
             [
                 flutter,
                 "test",
+                "--no-pub",
                 "../../tests/acceptance/vityo_app/"
                 "quality_runtime_acceptance_test.dart",
             ],
@@ -1127,6 +1135,30 @@ def _write_formal_receipt(
 
 
 def _ide_full_formal(receipt_path: pathlib.Path) -> int:
+    preflight = _preflight_ide_full(receipt_path)
+    if not preflight.get("ready"):
+        failure_code = str(
+            preflight.get("failure_code") or "validation_harness_failed"
+        )
+        payload = build_ide_failure_receipt(
+            failure_code=failure_code,
+            commit=preflight.get("commit"),
+            platform=preflight.get("platform"),
+            source_fingerprint=preflight.get("source_fingerprint"),
+            protocol_schema_sha256=preflight.get("protocol_schema_sha256"),
+            acceptance_fixtures_sha256=preflight.get(
+                "acceptance_fixtures_sha256"
+            ),
+            outcomes=_placeholder_outcomes(failure_code),
+        )
+        if failure_code in {
+            "duplicate_candidate_receipt",
+            "receipt_destination_unavailable",
+        }:
+            _print_json(payload)
+            return 1
+        return _write_formal_receipt(receipt_path, payload)
+
     commit: str | None = None
     platform: str | None = None
     source_fingerprint: str | None = None

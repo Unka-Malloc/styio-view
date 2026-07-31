@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import '../ide/agent_client/agent_client.dart';
 import '../ide/workbench/agent_collaboration/agent_collaboration_service.dart';
 import '../ide/workspace/workspace_transaction_service.dart';
-import '../ide/workspace/workspace_revision_service.dart';
 import '../ide/editor/editor_controller.dart';
 import '../view_ide/backend_toolchain/adapter_contracts.dart';
 import '../view_ide/backend_toolchain/backend_provider.dart';
@@ -61,6 +60,7 @@ class AppLanguageServiceProjectContext {
   final String workingDirectory;
   final String? configPath;
 }
+
 class AppExtensionStartupPlan {
   const AppExtensionStartupPlan({
     required this.manifestRegistry,
@@ -379,6 +379,20 @@ class AppBootstrap {
           recoveryAction: 'openSettings',
         ),
         AppBootstrapServiceDescriptor(
+          serviceId: 'agent.workspace-transactions',
+          ownerLayer: 'workspace',
+          requiredInjection: false,
+          capabilityGapCode: 'agent.workspace-transactions.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'agent.collaboration',
+          ownerLayer: 'agent-client',
+          requiredInjection: false,
+          capabilityGapCode: 'agent.collaboration.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
           serviceId: 'extension.startup-plan',
           ownerLayer: 'extension',
           requiredInjection: false,
@@ -504,6 +518,8 @@ class AppBootstrap {
       'runtime.output-buffer': true,
       'language.status': true,
       'agent.client-registry': agentClientRegistry != null,
+      'agent.workspace-transactions': agentCollaboration != null,
+      'agent.collaboration': agentCollaboration != null,
       'extension.startup-plan': extensionStartupPlan != null,
       'command-palette.preferences-store':
           commandPalettePreferencesStore != null,
@@ -542,7 +558,17 @@ class AppBootstrap {
     Map<String, AgentLaunchDescriptor> agentLaunchDescriptors =
         const <String, AgentLaunchDescriptor>{},
     AgentClientPolicy agentClientPolicy = const AgentClientPolicy(),
+    WorkspaceTransactionService? agentWorkspaceTransactions,
   }) async {
+    if (agentLaunchDescriptors.isNotEmpty &&
+        agentWorkspaceTransactions == null) {
+      throw ArgumentError.value(
+        agentWorkspaceTransactions,
+        'agentWorkspaceTransactions',
+        'Configured Agents require an IDE-owned workspace transaction '
+            'authority.',
+      );
+    }
     final platformTarget = detectPlatformTarget();
     final backendProvider =
         (backendProviders ?? createDefaultBackendProviderRegistry()).resolve(
@@ -746,17 +772,13 @@ class AppBootstrap {
       descriptors: agentLaunchDescriptors,
       policy: agentClientPolicy,
     );
-    final agentCollaboration = agentClientRegistry == null
-        ? null
-        : AgentCollaborationService(
-            registry: agentClientRegistry,
-            transactions: RevisionedWorkspaceTransactionService(
-              InMemoryWorkspaceRevisionService(),
-            ),
-            workspaceRoot: Uri.directory(
-              workspaceController.activeProject.workspaceRoot,
-            ),
-          );
+    final agentCollaboration = createAgentCollaboration(
+      registry: agentClientRegistry,
+      transactions: agentWorkspaceTransactions,
+      workspaceRoot: Uri.directory(
+        workspaceController.activeProject.workspaceRoot,
+      ),
+    );
 
     return AppBootstrap(
       platformTarget: platformTarget,
@@ -830,6 +852,30 @@ class AppBootstrap {
       return null;
     }
     return AgentClientRegistry(descriptors: descriptors, policy: policy);
+  }
+
+  @visibleForTesting
+  static AgentCollaborationService? createAgentCollaboration({
+    required AgentClientRegistry? registry,
+    required WorkspaceTransactionService? transactions,
+    required Uri workspaceRoot,
+  }) {
+    if (registry == null) {
+      return null;
+    }
+    if (transactions == null) {
+      throw ArgumentError.value(
+        transactions,
+        'transactions',
+        'A configured Agent Client requires an IDE-owned workspace '
+            'transaction authority.',
+      );
+    }
+    return AgentCollaborationService(
+      registry: registry,
+      transactions: transactions,
+      workspaceRoot: workspaceRoot,
+    );
   }
 
   @visibleForTesting
@@ -922,7 +968,6 @@ class AppBootstrap {
       contributionRoutes: contributionRoutes,
     );
   }
-
 
   @visibleForTesting
   static Future<WorkspaceDocumentStore> createEditorWorkspaceDocumentStore({

@@ -31,6 +31,7 @@ final class AgentSessionReducer {
     required this.sessionId,
     required int maxBufferedUpdates,
     AgentEventBackpressurePolicy? backpressurePolicy,
+    AgentSessionSnapshot? initialSnapshot,
   }) : _policy =
            backpressurePolicy ??
            AgentEventBackpressurePolicy(
@@ -38,7 +39,57 @@ final class AgentSessionReducer {
              maxQueuedBytes: 1024 * 1024,
              maxHotHistoryEvents: maxBufferedUpdates,
              maxHotHistoryBytes: 1024 * 1024,
-           );
+           ) {
+    if (sessionId.isEmpty ||
+        sessionId.length > 256 ||
+        maxBufferedUpdates <= 0 ||
+        _policy.maxQueuedEvents <= 0 ||
+        _policy.maxQueuedBytes <= 0 ||
+        _policy.maxHotHistoryEvents <= 0 ||
+        _policy.maxHotHistoryBytes <= 0) {
+      throw ArgumentError.value(
+        sessionId,
+        'Agent session reducer configuration',
+        'identifier and all limits must be positive and bounded',
+      );
+    }
+    if (initialSnapshot != null) {
+      if (initialSnapshot.sessionId != sessionId ||
+          initialSnapshot.revision < 0 ||
+          initialSnapshot.droppedUpdateCount < 0 ||
+          initialSnapshot.droppedUpdateBytes < 0 ||
+          initialSnapshot.updates.length > _policy.maxHotHistoryEvents) {
+        throw ArgumentError.value(
+          initialSnapshot,
+          'initialSnapshot',
+          'must be a bounded snapshot for the same session',
+        );
+      }
+      for (final update in initialSnapshot.updates) {
+        if (update.sessionId != sessionId) {
+          throw ArgumentError.value(
+            initialSnapshot,
+            'initialSnapshot',
+            'must not contain updates from another session',
+          );
+        }
+        final bytes = _encodedBytes(update);
+        if (bytes > _policy.maxHotHistoryBytes ||
+            _bufferedBytes + bytes > _policy.maxHotHistoryBytes) {
+          throw ArgumentError.value(
+            initialSnapshot,
+            'initialSnapshot',
+            'exceeds the configured history byte limit',
+          );
+        }
+        _updates.addLast(_BufferedUpdate(update: update, bytes: bytes));
+        _bufferedBytes += bytes;
+      }
+      _revision = initialSnapshot.revision;
+      _droppedCount = initialSnapshot.droppedUpdateCount;
+      _droppedBytes = initialSnapshot.droppedUpdateBytes;
+    }
+  }
 
   final String sessionId;
   final AgentEventBackpressurePolicy _policy;
@@ -96,6 +147,35 @@ final class AgentSessionReducer {
       _drainScheduled = true;
       scheduleMicrotask(_drain);
     }
+    return completer.future;
+  }
+
+  /// Accepts a lifecycle update after draining ordinary work so terminal
+  /// connection state cannot be discarded by normal backpressure.
+  Future<void> reducePriority(AgentSessionUpdate update) {
+    if (_closed) {
+      return Future<void>.value();
+    }
+    if (update.sessionId != sessionId) {
+      return Future<void>.error(
+        AgentClientFailure(
+          'session_mismatch',
+          'update belongs to a different session',
+        ),
+      );
+    }
+    _drain();
+    final bytes = _encodedBytes(update);
+    if (bytes > _policy.maxQueuedBytes || bytes > _policy.maxHotHistoryBytes) {
+      _recordDrop(bytes);
+      return Future<void>.value();
+    }
+    final completer = Completer<void>();
+    _pending.addLast(
+      _PendingUpdate(update: update, bytes: bytes, completer: completer),
+    );
+    _queuedBytes += bytes;
+    _drain();
     return completer.future;
   }
 

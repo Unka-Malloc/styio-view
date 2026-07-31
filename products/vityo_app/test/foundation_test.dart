@@ -1049,18 +1049,22 @@ void main() {
       final registry = FoundationDataStoreOwnerRegistry();
 
       // Register a few owners
-      registry.registerOwner(const FoundationDataStoreOwnerDescriptor(
-        ownerId: 'config-settings-owner',
-        layer: 'Configuration',
-        stateFamily: 'settings',
-        allowedNamespaces: {'settings', 'profiles'},
-      ));
-      registry.registerOwner(const FoundationDataStoreOwnerDescriptor(
-        ownerId: 'interaction-editor-owner',
-        layer: 'Interaction',
-        stateFamily: 'editor-session',
-        allowedNamespaces: {'editor-session', 'tabs'},
-      ));
+      registry.registerOwner(
+        const FoundationDataStoreOwnerDescriptor(
+          ownerId: 'config-settings-owner',
+          layer: 'Configuration',
+          stateFamily: 'settings',
+          allowedNamespaces: {'settings', 'profiles'},
+        ),
+      );
+      registry.registerOwner(
+        const FoundationDataStoreOwnerDescriptor(
+          ownerId: 'interaction-editor-owner',
+          layer: 'Interaction',
+          stateFamily: 'editor-session',
+          allowedNamespaces: {'editor-session', 'tabs'},
+        ),
+      );
 
       // Declare one family as ephemeral
       registry.declareEphemeral(
@@ -1084,28 +1088,34 @@ void main() {
 
     test('rejects duplicate owner registration', () {
       final registry = FoundationDataStoreOwnerRegistry();
-      registry.registerOwner(const FoundationDataStoreOwnerDescriptor(
-        ownerId: 'owner-1',
-        layer: 'Configuration',
-        stateFamily: 'settings',
-      ));
-      expect(
-        () => registry.registerOwner(const FoundationDataStoreOwnerDescriptor(
-          ownerId: 'owner-2',
+      registry.registerOwner(
+        const FoundationDataStoreOwnerDescriptor(
+          ownerId: 'owner-1',
           layer: 'Configuration',
           stateFamily: 'settings',
-        )),
+        ),
+      );
+      expect(
+        () => registry.registerOwner(
+          const FoundationDataStoreOwnerDescriptor(
+            ownerId: 'owner-2',
+            layer: 'Configuration',
+            stateFamily: 'settings',
+          ),
+        ),
         throwsStateError,
       );
     });
 
     test('rejects ephemeral declaration when owner exists', () {
       final registry = FoundationDataStoreOwnerRegistry();
-      registry.registerOwner(const FoundationDataStoreOwnerDescriptor(
-        ownerId: 'owner-1',
-        layer: 'Configuration',
-        stateFamily: 'settings',
-      ));
+      registry.registerOwner(
+        const FoundationDataStoreOwnerDescriptor(
+          ownerId: 'owner-1',
+          layer: 'Configuration',
+          stateFamily: 'settings',
+        ),
+      );
       expect(
         () => registry.declareEphemeral(
           'Configuration.settings',
@@ -1117,16 +1127,15 @@ void main() {
 
     test('emits manifest projection without runtime values', () {
       final registry = FoundationDataStoreOwnerRegistry();
-      registry.registerOwner(const FoundationDataStoreOwnerDescriptor(
-        ownerId: 'config-settings-owner',
-        layer: 'Configuration',
-        stateFamily: 'settings',
-        allowedNamespaces: {'settings'},
-      ));
-      registry.declareEphemeral(
-        'service.language-result-cache',
-        'cached only',
+      registry.registerOwner(
+        const FoundationDataStoreOwnerDescriptor(
+          ownerId: 'config-settings-owner',
+          layer: 'Configuration',
+          stateFamily: 'settings',
+          allowedNamespaces: {'settings'},
+        ),
       );
+      registry.declareEphemeral('service.language-result-cache', 'cached only');
 
       final manifest = registry.manifest();
       final json = manifest.toJson();
@@ -1136,8 +1145,9 @@ void main() {
       expect(json['owners'], isA<List<Object?>>());
       expect(json['ephemeralFamilies'], isA<List<Object?>>());
       expect(
-        (json['ephemeralFamilies'] as List<Object?>)
-            .contains('service.language-result-cache'),
+        (json['ephemeralFamilies'] as List<Object?>).contains(
+          'service.language-result-cache',
+        ),
         isTrue,
       );
 
@@ -1151,13 +1161,16 @@ void main() {
       expect(ownerJson['allowedNamespaces'], ['settings']);
     });
 
-    test('all persistent state families have defined layer and description', () {
-      for (final family in vityoPersistentStateFamilies) {
-        expect(family.familyId, isNotEmpty);
-        expect(family.layer, isNotEmpty);
-        expect(family.description, isNotEmpty);
-      }
-    });
+    test(
+      'all persistent state families have defined layer and description',
+      () {
+        for (final family in vityoPersistentStateFamilies) {
+          expect(family.familyId, isNotEmpty);
+          expect(family.layer, isNotEmpty);
+          expect(family.description, isNotEmpty);
+        }
+      },
+    );
   });
 
   group('Registry Manifest Projection', () {
@@ -1183,8 +1196,11 @@ void main() {
       expect(json['kind'], 'command');
       expect(json['owner'], 'test-owner');
       expect(json['state'], 'registered');
-      expect(json.containsKey('value'), isFalse,
-          reason: 'Manifest entry must not leak runtime values');
+      expect(
+        json.containsKey('value'),
+        isFalse,
+        reason: 'Manifest entry must not leak runtime values',
+      );
     });
 
     test('manifest projection handles empty registry', () {
@@ -1207,8 +1223,11 @@ void main() {
 
       final validator = const FoundationRegistryValidator();
       final diagnostics = validator.validateManifestProjection(registry);
-      expect(diagnostics, isEmpty,
-          reason: 'All manifest entries must have complete metadata');
+      expect(
+        diagnostics,
+        isEmpty,
+        reason: 'All manifest entries must have complete metadata',
+      );
     });
 
     test('registry refuses registration after dispose', () {
@@ -1243,36 +1262,7 @@ void main() {
     });
   });
 
-  group('Capability Gap Agent Safety', () {
-    test('agent-safe projector strips runtime values', () {
-      final snapshot = const VityoIdeCapabilityFramework().snapshot();
-      final gate = const IdeCapabilityClosureGate();
-      final report = gate.evaluate(snapshot);
-      final projector = const IdeCapabilityAgentSafeProjector();
-
-      final projection = projector.project(report);
-      final summary = projector.summarize(report);
-
-      // Summary is metadata-only
-      expect(summary['version'], isA<String>());
-      expect(summary['readyCount'], isA<int>());
-      expect(summary['isFrameworkClosed'], isA<bool>());
-      expect(summary['items'], isA<List<Object?>>());
-
-      // Each projected item has no runtime values
-      for (final item in projection) {
-        final json = item.toJson();
-        expect(json.containsKey('capabilityId'), isTrue);
-        expect(json.containsKey('layer'), isTrue);
-        expect(json.containsKey('status'), isTrue);
-        expect(json.containsKey('isBlocking'), isTrue);
-        expect(json.containsKey('ownerPath'), isTrue);
-        // Must not leak raw payloads
-        expect(json.containsKey('reason'), isFalse,
-            reason: 'Agent projection must not leak internal reasons');
-      }
-    });
-
+  group('Capability closure reporting', () {
     test('closure report correctly identifies todo items', () {
       final snapshot = const VityoIdeCapabilityFramework().snapshot();
       final gate = const IdeCapabilityClosureGate();
@@ -1292,19 +1282,21 @@ void main() {
       final coordinator = FoundationLifecycleCoordinator();
       final states = <String, FoundationLifecycleState>{};
 
-      coordinator.register(FoundationLifecycleComponent(
-        id: 'registry-component',
-        onInitialize: () async {
-          states['registry'] = FoundationLifecycleState.initializing;
-          states['registry'] = FoundationLifecycleState.ready;
-        },
-        onStop: () async {
-          states['registry'] = FoundationLifecycleState.stopped;
-        },
-        onDispose: () async {
-          states['registry'] = FoundationLifecycleState.disposed;
-        },
-      ));
+      coordinator.register(
+        FoundationLifecycleComponent(
+          id: 'registry-component',
+          onInitialize: () async {
+            states['registry'] = FoundationLifecycleState.initializing;
+            states['registry'] = FoundationLifecycleState.ready;
+          },
+          onStop: () async {
+            states['registry'] = FoundationLifecycleState.stopped;
+          },
+          onDispose: () async {
+            states['registry'] = FoundationLifecycleState.disposed;
+          },
+        ),
+      );
 
       expect(
         coordinator.stateOf('registry-component'),
@@ -1312,30 +1304,37 @@ void main() {
       );
     });
 
-    test('lifecycle coordinator stop/dispose order is reverse registration', () async {
-      final events = <String>[];
-      final coordinator = FoundationLifecycleCoordinator()
-        ..register(FoundationLifecycleComponent(
-          id: 'first',
-          onStop: () async => events.add('first:stop'),
-          onDispose: () async => events.add('first:dispose'),
-        ))
-        ..register(FoundationLifecycleComponent(
-          id: 'second',
-          onStop: () async => events.add('second:stop'),
-          onDispose: () async => events.add('second:dispose'),
-        ));
+    test(
+      'lifecycle coordinator stop/dispose order is reverse registration',
+      () async {
+        final events = <String>[];
+        final coordinator = FoundationLifecycleCoordinator()
+          ..register(
+            FoundationLifecycleComponent(
+              id: 'first',
+              onStop: () async => events.add('first:stop'),
+              onDispose: () async => events.add('first:dispose'),
+            ),
+          )
+          ..register(
+            FoundationLifecycleComponent(
+              id: 'second',
+              onStop: () async => events.add('second:stop'),
+              onDispose: () async => events.add('second:dispose'),
+            ),
+          );
 
-      await coordinator.stopAll();
-      await coordinator.disposeAll();
+        await coordinator.stopAll();
+        await coordinator.disposeAll();
 
-      // Stop/dispose must be reverse order
-      expect(events, [
-        'second:stop',
-        'first:stop',
-        'second:dispose',
-        'first:dispose',
-      ]);
-    });
+        // Stop/dispose must be reverse order
+        expect(events, [
+          'second:stop',
+          'first:stop',
+          'second:dispose',
+          'first:dispose',
+        ]);
+      },
+    );
   });
 }

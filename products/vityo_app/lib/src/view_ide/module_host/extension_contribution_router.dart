@@ -8,7 +8,7 @@ enum ExtensionContributionRegistryKind {
   debugAdapterRegistry,
   runtimeTaskRegistry,
   viewRegistry,
-  agentProviderRegistry,
+  agentClientRegistry,
   toolchainCatalog,
   themeRegistry,
 }
@@ -24,8 +24,8 @@ extension ExtensionContributionRegistryKindX
     ExtensionContributionRegistryKind.runtimeTaskRegistry =>
       'runtime-task-registry',
     ExtensionContributionRegistryKind.viewRegistry => 'view-registry',
-    ExtensionContributionRegistryKind.agentProviderRegistry =>
-      'agent-provider-registry',
+    ExtensionContributionRegistryKind.agentClientRegistry =>
+      'agent-client-registry',
     ExtensionContributionRegistryKind.toolchainCatalog => 'toolchain-catalog',
     ExtensionContributionRegistryKind.themeRegistry => 'theme-registry',
   };
@@ -151,7 +151,7 @@ class ExtensionContributionRouter {
       ExtensionContributionKind.view =>
         ExtensionContributionRegistryKind.viewRegistry,
       ExtensionContributionKind.agent =>
-        ExtensionContributionRegistryKind.agentProviderRegistry,
+        ExtensionContributionRegistryKind.agentClientRegistry,
       ExtensionContributionKind.toolchain =>
         ExtensionContributionRegistryKind.toolchainCatalog,
       ExtensionContributionKind.theme =>

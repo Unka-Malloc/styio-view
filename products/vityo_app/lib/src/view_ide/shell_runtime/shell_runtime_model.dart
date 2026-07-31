@@ -36,6 +36,7 @@ import 'controllers/execution_controller.dart';
 import 'controllers/editor_workspace_state_controller.dart';
 import 'controllers/editor_navigation_command_controller.dart';
 import 'controllers/editor_quick_fix_command_controller.dart';
+import 'controllers/editor_refactor_command_controller.dart';
 import 'controllers/debug_controller.dart';
 import 'controllers/language_controller.dart';
 import 'controllers/language_refresh_command_controller.dart';
@@ -380,6 +381,16 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       log: appendLog,
       notify: notifyListeners,
     );
+    _editorRefactorCommandController = EditorRefactorCommandController(
+      applySafeDelete: editorController.applySafeDeleteAtSelection,
+      applyInlineVariable: editorController.applyInlineVariableAtSelection,
+      markActiveDocumentDirty: () {
+        _cacheDocument(_activeDocumentPath, editorController.document);
+        _editorWorkspaceStateController.markDirty(_activeDocumentPath);
+      },
+      log: appendLog,
+      notify: notifyListeners,
+    );
     _workspaceFileConfirmationController = WorkspaceFileConfirmationController(
       fileCommands: _workspaceFileCommandController,
       log: appendLog,
@@ -391,6 +402,71 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       executeCommand: executeCommand,
       searchWorkspace: searchWorkspace,
       openWorkspaceFile: openWorkspaceFile,
+      previewWorkspaceReplace:
+          ({required String query, required String replacement}) async {
+            await _workspaceReplaceController.preview(
+              query: query,
+              replacement: replacement,
+            );
+          },
+      renameSymbol: (newName) async {
+        await _workspaceRenameController.renameAtSelection(newName);
+      },
+      previewSourceControlDiff: (path) async {
+        await _sourceControlController.previewDiff(path);
+      },
+      stageSourceControlPaths: (paths) async {
+        await _sourceControlController.runAction(
+          SourceControlActionRequest(
+            kind: SourceControlActionKind.stage,
+            paths: paths,
+          ),
+        );
+      },
+      unstageSourceControlPaths: (paths) async {
+        await _sourceControlController.runAction(
+          SourceControlActionRequest(
+            kind: SourceControlActionKind.unstage,
+            paths: paths,
+          ),
+        );
+      },
+      planSourceControlBranchSwitch: (targetBranch) async {
+        await _sourceControlController.planBranchSwitch(targetBranch);
+      },
+      planSourceControlCommitDraft:
+          ({required String message, List<String>? selectedPaths}) {
+            _sourceControlController.planCommitDraft(
+              message: message,
+              selectedPaths: selectedPaths,
+            );
+          },
+      selectClangCppVersion: (versionId, {String? cppStandard}) async {
+        await _toolchainController.selectClangCppVersion(
+          versionId,
+          cppStandard: cppStandard,
+        );
+      },
+      selectDebugThread: (threadId) async {
+        await _debugController.selectConfiguredThread(threadId);
+      },
+      selectDebugStackFrame: (frameId) async {
+        await _debugController.selectConfiguredStackFrame(frameId);
+      },
+      runTestConfiguration: (configurationId, {required bool debug}) async {
+        final configuration = _testingController.configurationForId(
+          configurationId,
+        );
+        if (configuration == null) {
+          return false;
+        }
+        if (debug) {
+          await _testingController.debugConfiguration(configuration);
+        } else {
+          await _testingController.runConfiguration(configuration);
+        }
+        return true;
+      },
       log: appendLog,
       notify: notifyListeners,
     );
@@ -465,6 +541,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
   late final EditorNavigationCommandController
   _editorNavigationCommandController;
   late final EditorQuickFixCommandController _editorQuickFixCommandController;
+  late final EditorRefactorCommandController _editorRefactorCommandController;
   late final WorkspaceDocumentController _workspaceDocumentController;
   late final WorkspacePersistenceController _workspacePersistenceController;
   late final WorkspaceFileCommandController _workspaceFileCommandController;

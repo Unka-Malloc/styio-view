@@ -2,7 +2,7 @@
 
 **Purpose:** Record local validation evidence, host coverage, and release blockers for the current Vityo checkpoint set.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Evidence Summary
 
@@ -15,8 +15,8 @@ not instructions for validating the current two-track Better Plan workspace.
 Agent provider/controller rows below preserve evidence for the legacy IDE-owned implementation.
 They do not override the current ownership in
 [Vityo Agent-Native IDE Architecture](../design/Vityo-Agent-Native-IDE-Architecture.md) and must not
-be read as proof that the IDE should connect to model providers. The migration remains open in
-[Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
+be read as proof that the IDE should connect to model providers. The migration has since completed;
+these rows remain immutable historical evidence only.
 
 ## Verified Locally
 

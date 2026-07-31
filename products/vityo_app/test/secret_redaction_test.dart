@@ -55,64 +55,73 @@ void main() {
       expect(redacted, isNot(contains('hosted-session-id-abcdef123456')));
     });
 
-    test('redacts nested structured payloads by value and sensitive field name', () {
-      final redacted = LogRedactor().redactJson(<String, Object?>{
-        'headers': <String, Object?>{
-          'Authorization': 'Bearer json-token-123456',
-        },
-        'apiKey': 'plain-json-api-key',
-        'userEmail': 'ada@example.com',
-        'path': '/Users/ada/project/secrets.env',
-        'safe': 'plain setting',
-      });
+    test(
+      'redacts nested structured payloads by value and sensitive field name',
+      () {
+        final redacted = LogRedactor().redactJson(<String, Object?>{
+          'headers': <String, Object?>{
+            'Authorization': 'Bearer json-token-123456',
+          },
+          'apiKey': 'plain-json-api-key',
+          'userEmail': 'ada@example.com',
+          'path': '/Users/ada/project/secrets.env',
+          'safe': 'plain setting',
+        });
 
-      expect(
-        (redacted['headers']! as Map<String, Object?>)['Authorization'],
-        '<redacted>',
-      );
-      expect(redacted['apiKey'], '<redacted>');
-      expect(redacted['userEmail'], '<redacted-email>');
-      expect(redacted['path'], '<redacted-path>');
-      expect(redacted['safe'], 'plain setting');
-    });
+        expect(
+          (redacted['headers']! as Map<String, Object?>)['Authorization'],
+          '<redacted>',
+        );
+        expect(redacted['apiKey'], '<redacted>');
+        expect(redacted['userEmail'], '<redacted-email>');
+        expect(redacted['path'], '<redacted-path>');
+        expect(redacted['safe'], 'plain setting');
+      },
+    );
   });
 
   group('SecretStore', () {
-    test('keeps values readable only through secret APIs and lists metadata', () async {
-      final store = InMemorySecretStore();
-      const key = CredentialDataStoreKey(
-        namespace: 'agent.provider',
-        name: 'openai',
-        scope: CredentialScope.user,
-      );
+    test(
+      'keeps values readable only through secret APIs and lists metadata',
+      () async {
+        final store = InMemorySecretStore();
+        const key = CredentialDataStoreKey(
+          namespace: 'hosted.service',
+          name: 'control-plane',
+          scope: CredentialScope.user,
+        );
 
-      await store.write(
-        CredentialSecretRecord(
-          key: key,
-          kind: CredentialKind.token,
-          secretValue: 'secret-token-value',
-          displayName: 'OpenAI token',
-        ),
-      );
+        await store.write(
+          CredentialSecretRecord(
+            key: key,
+            kind: CredentialKind.token,
+            secretValue: 'secret-token-value',
+            displayName: 'Hosted service token',
+          ),
+        );
 
-      expect(await store.read(key), 'secret-token-value');
-      expect((await store.readRecord(key))!.secretValue, 'secret-token-value');
-      final metadata = await store.listMetadata();
-      final metadataJson = metadata.single.toJson().toString();
-      expect(metadata.single.displayName, 'OpenAI token');
-      expect(metadata.single.redactedValue, startsWith('se****'));
-      expect(metadataJson, isNot(contains('secret-token-value')));
-      expect(store.health.toJson()['backendKind'], 'volatile-memory');
-      expect(await store.delete(key), isTrue);
-      expect(await store.read(key), isNull);
-    });
+        expect(await store.read(key), 'secret-token-value');
+        expect(
+          (await store.readRecord(key))!.secretValue,
+          'secret-token-value',
+        );
+        final metadata = await store.listMetadata();
+        final metadataJson = metadata.single.toJson().toString();
+        expect(metadata.single.displayName, 'Hosted service token');
+        expect(metadata.single.redactedValue, startsWith('se****'));
+        expect(metadataJson, isNot(contains('secret-token-value')));
+        expect(store.health.toJson()['backendKind'], 'volatile-memory');
+        expect(await store.delete(key), isTrue);
+        expect(await store.read(key), isNull);
+      },
+    );
 
     test('write policy blocks long-lived web fallback secrets by default', () {
       const policy = SecretStoreWritePolicy();
       final decision = policy.evaluate(
         record: CredentialSecretRecord(
           key: const CredentialDataStoreKey(
-            namespace: 'agent.provider',
+            namespace: 'hosted.service',
             name: 'hosted',
             scope: CredentialScope.user,
           ),
@@ -140,17 +149,16 @@ void main() {
       );
       addTearDown(() => tempRoot.delete(recursive: true));
       final store = await _configurationStore(tempRoot);
-      const key = ConfigurationSettingKey(
-        namespace: 'agent',
-        name: 'privacy',
-      );
+      const key = ConfigurationSettingKey(namespace: 'agent', name: 'privacy');
 
       await store.write(
         const ConfigurationSettingRecord(
           key: key,
           value: <String, Object?>{
             'shareDiagnostics': false,
-            'credentialReferenceIds': <String>['agent.provider:user:openai'],
+            'credentialReferenceIds': <String>[
+              'hosted.service:user:control-plane',
+            ],
           },
         ),
       );
@@ -182,5 +190,4 @@ void main() {
       );
     });
   });
-
 }

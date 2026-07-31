@@ -75,17 +75,17 @@ void main() {
     final reducedSnapshot = IdeCapabilityFrameworkSnapshot(
       version: 'missing-required-test',
       entries: snapshot.entries
-          .where((entry) => entry.id != 'agent.coding-loop')
+          .where((entry) => entry.id != 'agent.workbench')
           .toList(growable: false),
     );
 
     final report = const IdeCapabilityClosureGate().evaluate(reducedSnapshot);
 
     expect(report.isFrameworkClosed, isFalse);
-    expect(report.missingRequiredCapabilityIds, contains('agent.coding-loop'));
+    expect(report.missingRequiredCapabilityIds, contains('agent.workbench'));
     expect(
       report.failedItems.map((item) => item.capabilityId),
-      contains('agent.coding-loop'),
+      contains('agent.workbench'),
     );
   });
 

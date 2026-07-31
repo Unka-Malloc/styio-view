@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:vityo_agent_protocol/vityo_agent_protocol.dart';
+
 import '../../agent_client/agent_client.dart';
 import '../../workspace/workspace_change_set.dart';
 import '../../workspace/workspace_transaction_service.dart';
@@ -26,6 +28,7 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
         commands: commands,
         transactions: transactions,
         maxTimelineEntriesPerSession: maxTimelineEntriesPerSession,
+        maxSessions: registry.policy.maxSessions,
       ),
     );
     commands.bind(service);
@@ -40,7 +43,24 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
        _workspaceRoot = workspaceRoot {
     _permissions = _registry.permissionRequests.listen(
       _handlePermissionRequest,
-      onError: (Object _) {},
+      onError: (Object _) {
+        _recordFailure(
+          const CollaborationFailure(
+            'permission_stream_failed',
+            'Agent permission stream failed',
+          ),
+        );
+      },
+      onDone: () {
+        if (!_closed) {
+          _recordFailure(
+            const CollaborationFailure(
+              'permission_stream_closed',
+              'Agent permission stream closed unexpectedly',
+            ),
+          );
+        }
+      },
     );
   }
 
@@ -48,12 +68,16 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
   final Uri _workspaceRoot;
   final AgentCollaborationStore store;
   final Map<String, _SessionBinding> _bindings = <String, _SessionBinding>{};
+  final StreamController<CollaborationFailure> _failures =
+      StreamController<CollaborationFailure>.broadcast(sync: true);
   late final StreamSubscription<AgentPermissionRequest> _permissions;
   bool _closed = false;
 
   CollaborationProjection get projection => store.projection;
 
   Stream<CollaborationProjection> get changes => store.changes;
+
+  Stream<CollaborationFailure> get failures => _failures.stream;
 
   /// Opens one supervised Agent session and registers its projection.
   Future<CollaborationSessionProjection> openSession(String agentId) async {
@@ -69,8 +93,17 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
   @override
   Future<void> steer(String sessionId, String prompt) async {
     final binding = _requireBinding(sessionId);
+    final formerPrompt = binding.lastPrompt;
     binding.lastPrompt = prompt;
-    await _prompt(binding, prompt);
+    try {
+      await _prompt(binding, prompt);
+    } on CollaborationFailure catch (failure) {
+      if (failure.code == 'invalid_prompt' ||
+          failure.code == 'message_too_large') {
+        binding.lastPrompt = formerPrompt;
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -94,7 +127,6 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
   @override
   Future<void> reconnect(String sessionId) async {
     final binding = _requireBinding(sessionId);
-    await binding.updates.cancel();
     final session = await _registry.reconnectSession(
       agentId: binding.agentId,
       sessionId: sessionId,
@@ -133,27 +165,80 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
       return const <AgentShutdownReceipt>[];
     }
     _closed = true;
-    await _permissions.cancel();
-    for (final binding in _bindings.values) {
-      await binding.updates.cancel();
-    }
+    final bindings = _bindings.values.toList(growable: false);
+    await Future.wait<void>(
+      bindings.map((binding) => binding.updates.cancel()),
+      eagerError: false,
+    );
+    await Future.wait<void>(
+      bindings
+          .map((binding) => binding.projectionOperation)
+          .whereType<Future<void>>(),
+      eagerError: false,
+    );
     _bindings.clear();
-    final receipts = await _registry.close();
-    await store.close();
-    return receipts;
+    final permissionCancellation = _permissions.cancel();
+    try {
+      return await _registry.close();
+    } finally {
+      await permissionCancellation;
+      await store.close();
+      await _failures.close();
+    }
   }
 
   Future<void> _bind(AgentClientSession session, {String? lastPrompt}) async {
-    final binding = _SessionBinding(
+    final former = _bindings.remove(session.id);
+    if (former != null) {
+      await former.updates.cancel();
+      await former.projectionOperation;
+    }
+    late final _SessionBinding binding;
+    binding = _SessionBinding(
       agentId: session.agentId,
       session: session,
       updates: session.updates.listen(
-        (_) => unawaited(_project(session)),
-        onError: (Object _) {},
+        (_) => _scheduleProjection(binding),
+        onError: (Object _) {
+          _recordFailure(
+            CollaborationFailure(
+              'session_stream_failed',
+              'Agent session ${session.id} update stream failed',
+            ),
+          );
+        },
       ),
     )..lastPrompt = lastPrompt;
     _bindings[session.id] = binding;
     await _project(session);
+  }
+
+  void _scheduleProjection(_SessionBinding binding) {
+    if (_closed || !identical(_bindings[binding.session.id], binding)) {
+      return;
+    }
+    binding.projectionPending = true;
+    if (binding.projectionOperation != null) {
+      return;
+    }
+    final operation = _drainProjection(binding);
+    binding.projectionOperation = operation;
+    unawaited(
+      operation.whenComplete(() {
+        if (identical(binding.projectionOperation, operation)) {
+          binding.projectionOperation = null;
+        }
+      }),
+    );
+  }
+
+  Future<void> _drainProjection(_SessionBinding binding) async {
+    while (binding.projectionPending &&
+        !_closed &&
+        identical(_bindings[binding.session.id], binding)) {
+      binding.projectionPending = false;
+      await _projectSafely(binding.session);
+    }
   }
 
   Future<void> _prompt(_SessionBinding binding, String prompt) async {
@@ -171,9 +256,57 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
       return;
     }
     try {
-      await store.apply(session.snapshot);
-    } on CollaborationFailure {
-      // A stale or replayed snapshot never invalidates the live projection.
+      final snapshot = session.snapshot;
+      await store.apply(snapshot);
+      for (final update in snapshot.updates) {
+        if (update.kind != VityoCapability.workspaceChangeProposal) {
+          continue;
+        }
+        final proposal = VityoWorkspaceChangeProposal.fromNotificationParams(
+          update.payload,
+        );
+        await store.proposeChange(
+          sessionId: session.id,
+          changeSet: WorkspaceChangeSet(
+            id: proposal.id,
+            baseWorkspaceRevision: proposal.baseWorkspaceRevision,
+            resources: proposal.resources.map(
+              (resource) => WorkspaceResourceChange(
+                resourceId: resource.resourceId,
+                baseDocumentRevision: resource.baseDocumentRevision,
+                edits: resource.edits.map(
+                  (edit) => WorkspaceTextChange(
+                    start: edit.start,
+                    end: edit.end,
+                    replacement: edit.replacement,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+    } on CollaborationFailure catch (failure) {
+      if (failure.code != 'stale_snapshot') {
+        rethrow;
+      }
+    } on AgentProtocolException catch (failure) {
+      throw CollaborationFailure(failure.code, failure.message);
+    }
+  }
+
+  Future<void> _projectSafely(AgentClientSession session) async {
+    try {
+      await _project(session);
+    } on CollaborationFailure catch (failure) {
+      _recordFailure(failure);
+    } on Object {
+      _recordFailure(
+        CollaborationFailure(
+          'projection_failed',
+          'Agent session ${session.id} projection failed',
+        ),
+      );
     }
   }
 
@@ -181,11 +314,28 @@ final class AgentCollaborationService implements AgentWorkbenchCommandPort {
     if (_closed || !_bindings.containsKey(request.sessionId)) {
       return;
     }
-    unawaited(
-      store.addPermission(request).catchError(
-        (Object _) => store.projection,
-      ),
-    );
+    unawaited(_addPermissionSafely(request));
+  }
+
+  Future<void> _addPermissionSafely(AgentPermissionRequest request) async {
+    try {
+      await store.addPermission(request);
+    } on CollaborationFailure catch (failure) {
+      _recordFailure(failure);
+    } on Object {
+      _recordFailure(
+        const CollaborationFailure(
+          'permission_projection_failed',
+          'Agent permission could not be projected',
+        ),
+      );
+    }
+  }
+
+  void _recordFailure(CollaborationFailure failure) {
+    if (!_failures.isClosed) {
+      _failures.add(failure);
+    }
   }
 
   _SessionBinding _requireBinding(String sessionId) {
@@ -220,6 +370,8 @@ final class _SessionBinding {
   final AgentClientSession session;
   final StreamSubscription<AgentSessionUpdate> updates;
   String? lastPrompt;
+  bool projectionPending = false;
+  Future<void>? projectionOperation;
 }
 
 /// Breaks the construction cycle between the store and its command owner.

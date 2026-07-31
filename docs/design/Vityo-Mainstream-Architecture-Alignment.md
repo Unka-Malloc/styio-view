@@ -3,7 +3,7 @@
 **Purpose:** Map Vityo's architecture to mainstream IDE/agentic-IDE patterns without cloning any competitor. This document defines where Vityo aligns, where it intentionally diverges, and what governance rules maintain the alignment.
 
 **Owner:** Architecture owner (`CODEOWNERS` → architecture domain)
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ---
 
@@ -35,7 +35,7 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 |-------|-----------|-----------------|
 | `view_render/` | `view_ide/`, Flutter Material/Widgets/Cupertino | Agent runtime/provider core, `module_host/` activation |
 | `view_ide/` | Standard Dart, `backend_toolchain/` (shim only) | Flutter Material, Widgets, Cupertino, `dart:ui` |
-| `view_ide/agent_client/` | `view_ide/` models, shared Agent protocol | `view_render/`, Flutter, model/provider SDKs |
+| `ide/agent_client/` | IDE fact/workspace contracts, shared Agent protocol | Flutter, presentation widgets, model/provider SDKs, Coding Agent implementation |
 | `view_ide/module_host/` | `view_ide/` contracts | `view_render/`, Flutter |
 | `app/` | All layers | Nothing restricted (composition root) |
 | `prototype/` | Self-contained | `products/vityo_app/` (build artifact boundary) |
@@ -95,7 +95,7 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 | Agent Runtime Concept | Vityo Equivalent | Intentional Divergence |
 |--------------|-----------------|----------------------|
 | Independently executable agent | `products/vityo_coding_agent` or another compatible Agent | Vityo remains one IDE product; the runtime is a companion, not a second product identity |
-| Client transport | `packages/vityo_agent_protocol` + `view_ide/agent_client/` | Versioned Agent Client Protocol; no IDE import of Agent implementation |
+| Client transport | `packages/vityo_agent_protocol` + `ide/agent_client/` | Versioned Agent Client Protocol; no IDE import of Agent implementation |
 | Tool approval | Agent runtime policy plus IDE permission-request presentation | Runtime decides/request scopes; the user decides in Vityo |
 | Change application | Agent proposes revision-bound changes | Only IDE-owned workspace transactions mutate source |
 | Provider routing | Agent-runtime implementation | Vityo does not connect directly to model providers |
@@ -106,9 +106,12 @@ Vityo's architecture is organized into seven horizontal layers with strict impor
 ### 3.1 Import Rules
 
 1. `view_ide/` files MUST NOT import from `package:flutter/material.dart`, `package:flutter/widgets.dart`, or `package:flutter/cupertino.dart`.
-2. `view_render/` files MUST NOT import from `view_ide/agent/`, `view_ide/language/service/`, or `view_ide/module_host/`.
-3. Legacy `backend_toolchain/`, `editor/`, and `language/` files MUST NOT add new business logic; only one-line compatibility exports are allowed.
-4. `view_ide/agent_client/` files MUST NOT import from `view_render/`, model/provider SDKs, or
+2. `view_render/` files MUST NOT import from `ide/agent_client/`,
+   `ide/workbench/agent_collaboration/`, `view_ide/language/service/`, or
+   `view_ide/module_host/`; Agent UI imports the presentation-owned Workbench surface.
+3. Removed legacy `backend_toolchain/`, `editor/`, and `language/` import roots MUST NOT be
+   restored.
+4. `ide/agent_client/` files MUST NOT import from presentation widgets, model/provider SDKs, or
    Coding Agent implementation packages.
 5. IDE/Agent messages MUST cross `packages/vityo_agent_protocol`; neither product package may
    import the other's implementation.
@@ -117,7 +120,7 @@ Enforcement:
 
 ```bash
 python3 scripts/check_architecture_boundaries.py
-python3 scripts/check_compat_facades.py
+python3 scripts/import-boundary-gate.py
 ```
 
 ### 3.2 Model Rules

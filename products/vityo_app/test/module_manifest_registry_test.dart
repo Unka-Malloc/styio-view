@@ -79,7 +79,7 @@ void main() {
   });
 
   test(
-    'agent surface module asset declares extension agent tool contribution',
+    'agent surface module asset declares protocol workbench contribution',
     () {
       final manifest = ModuleManifest.parse(
         File(
@@ -91,12 +91,17 @@ void main() {
       expect(manifest.extensionMetadata['isolationMode'], 'in-process');
       expect(
         manifest.extensionContributions.single['id'],
-        'collect-agent-surface-context',
+        'agent-workbench-surface',
       );
       final metadata = Map<String, Object?>.from(
         manifest.extensionContributions.single['metadata'] as Map,
       );
-      expect(metadata['toolId'], 'collectAgentSurfaceContext');
+      expect(metadata['permissionMode'], 'never');
+      expect(metadata['capabilities'], <String>[
+        'agent.client',
+        'agent.workbench',
+        'workspace.transactions',
+      ]);
     },
   );
 

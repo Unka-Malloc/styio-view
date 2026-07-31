@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../ide/workspace/workspace.dart';
+import '../../view_ide/language/service/semantic_snapshot_provider.dart';
 import '../platform/viewport_profile.dart';
 
 class WorkspaceSearchSurface extends StatefulWidget {
@@ -392,11 +393,11 @@ class _WorkspaceSearchSurfaceState extends State<WorkspaceSearchSurface> {
             if (lastSymbolSearch != null) ...[
               const SizedBox(height: 12),
               _WorkspaceSymbolSearchResultView(
-                  result: lastSymbolSearch,
-                  query: widget.lastSearchQuery ?? '',
-                  scannedDocumentCount: widget.lastSearchScannedDocumentCount,
-                  onOpenMatch: widget.onOpenSymbolMatch,
-                ),
+                result: lastSymbolSearch,
+                query: widget.lastSearchQuery ?? '',
+                scannedDocumentCount: widget.lastSearchScannedDocumentCount,
+                onOpenMatch: widget.onOpenSymbolMatch,
+              ),
             ],
           ],
         ),
@@ -488,10 +489,10 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
                     'workspace-symbol-search-match-${match.documentId}-${match.name}-${match.nameRange.start}',
                   ),
                   dense: true,
-                  title: Text('${match.name} · ${match.kind}'),
+                  title: Text('${match.name} · ${match.kind.name}'),
                   subtitle: Text(
                     '${match.documentId} · line ${match.lineNumber}: ${match.lineText}'
-                    ' · semantic ${match.snapshotConfidence}',
+                    ' · semantic ${match.snapshotConfidence.wireValue}',
                   ),
                   trailing: const Icon(Icons.open_in_new_rounded),
                   onTap: onOpenMatch == null

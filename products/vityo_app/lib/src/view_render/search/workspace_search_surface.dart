@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../ide/workspace/workspace.dart';
-import '../../view_ide/language/service/semantic_snapshot_provider.dart';
 import '../platform/viewport_profile.dart';
 
 class WorkspaceSearchSurface extends StatefulWidget {
@@ -492,7 +491,7 @@ class _WorkspaceSymbolSearchResultView extends StatelessWidget {
                   title: Text('${match.name} · ${match.kind.name}'),
                   subtitle: Text(
                     '${match.documentId} · line ${match.lineNumber}: ${match.lineText}'
-                    ' · semantic ${match.snapshotConfidence.wireValue}',
+                    ' · semantic ${match.snapshotConfidenceWireValue}',
                   ),
                   trailing: const Icon(Icons.open_in_new_rounded),
                   onTap: onOpenMatch == null

@@ -65,22 +65,23 @@ void main() {
       final manager = LocalPtyManager(facts: facts);
       final session = await manager.start(_ttyProbeRequest());
       final output = <String>[];
-      final ready = Completer<void>();
-      final done = Completer<void>();
-      final subscription = session.output.listen((chunk) {
-        output.add(chunk);
-        if (Platform.isWindows && !ready.isCompleted) {
-          ready.complete();
-        }
-      }, onDone: done.complete);
-      if (!Platform.isWindows) {
-        ready.complete();
+      if (Platform.isWindows) {
+        final ready = Completer<void>();
+        final done = Completer<void>();
+        final subscription = session.output.listen((chunk) {
+          output.add(chunk);
+          if (!ready.isCompleted) {
+            ready.complete();
+          }
+        }, onDone: done.complete);
+        await ready.future.timeout(_interactivePtyTimeout);
+        await session.write(_ttyProbeCommand());
+        await done.future.timeout(_interactivePtyTimeout);
+        await subscription.cancel();
+      } else {
+        output.add(await session.output.join().timeout(_interactivePtyTimeout));
       }
-      await ready.future.timeout(_interactivePtyTimeout);
-      await session.write(_ttyProbeCommand());
-      await done.future.timeout(_interactivePtyTimeout);
       final exitCode = await session.exitCode.timeout(_interactivePtyTimeout);
-      await subscription.cancel();
       final fullOutput = output.join();
 
       expect(exitCode, 0);
@@ -162,7 +163,10 @@ PtySessionRequest _ttyProbeRequest() {
       arguments: <String>['-NoLogo', '-NoProfile'],
     );
   }
-  return const PtySessionRequest(executablePath: '/bin/sh');
+  return const PtySessionRequest(
+    executablePath: '/bin/sh',
+    arguments: <String>['-c', 'test -t 1 && printf tty-ok || printf no-tty'],
+  );
 }
 
 String _ttyProbeCommand() {

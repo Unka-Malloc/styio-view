@@ -3632,6 +3632,10 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
               id: 'sh',
               executablePath: '/bin/sh',
               family: ShellFamily.sh,
+              arguments: <String>[
+                '-c',
+                r'''test -t 1 && printf "terminal-ok:$STYIO_MODE:$STYIO_CHANNEL:$RUNTIME_FLAG"''',
+              ],
               environment: <String, String>{'STYIO_MODE': 'profile'},
             );
       final terminal = TerminalRuntime(
@@ -3658,28 +3662,26 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
         environment: const <String, String>{'RUNTIME_FLAG': 'runtime'},
       );
       final output = <String>[];
-      final ready = Completer<void>();
-      final done = Completer<void>();
-      final subscription = session.output.listen((chunk) {
-        output.add(chunk);
-        if (Platform.isWindows && !ready.isCompleted) {
-          ready.complete();
-        }
-      }, onDone: done.complete);
-      if (!Platform.isWindows) {
-        ready.complete();
+      if (Platform.isWindows) {
+        final ready = Completer<void>();
+        final done = Completer<void>();
+        final subscription = session.output.listen((chunk) {
+          output.add(chunk);
+          if (!ready.isCompleted) {
+            ready.complete();
+          }
+        }, onDone: done.complete);
+        await ready.future.timeout(_interactivePtyTimeout);
+        await session.write(
+          r'''if ([Console]::IsOutputRedirected) { exit 1 }; Write-Output "terminal-ok:${env:STYIO_MODE}:${env:STYIO_CHANNEL}:${env:RUNTIME_FLAG}"; exit 0'''
+          '\r\n',
+        );
+        await done.future.timeout(_interactivePtyTimeout);
+        await subscription.cancel();
+      } else {
+        output.add(await session.output.join().timeout(_interactivePtyTimeout));
       }
-      await ready.future.timeout(_interactivePtyTimeout);
-      await session.write(
-        Platform.isWindows
-            ? r'''if ([Console]::IsOutputRedirected) { exit 1 }; Write-Output "terminal-ok:${env:STYIO_MODE}:${env:STYIO_CHANNEL}:${env:RUNTIME_FLAG}"; exit 0'''
-                  '\r\n'
-            : r'''test -t 1 && printf "terminal-ok:$STYIO_MODE:$STYIO_CHANNEL:$RUNTIME_FLAG"; exit 0'''
-                  '\r',
-      );
-      await done.future.timeout(_interactivePtyTimeout);
       final exitCode = await session.exitCode.timeout(_interactivePtyTimeout);
-      await subscription.cancel();
 
       expect(exitCode, 0);
       expect(output.join(), contains('terminal-ok:profile:nightly:runtime'));

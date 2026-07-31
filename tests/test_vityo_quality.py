@@ -480,6 +480,98 @@ class VityoQualityTest(unittest.TestCase):
                 for runner in runner_mocks:
                     runner.assert_not_called()
 
+    def test_preflight_executes_all_checks_and_keeps_first_failure(self) -> None:
+        commit = "b" * 40
+        fingerprint = "a" * 64
+        protocol_digest = "d" * 64
+        fixtures_digest = "e" * 64
+
+        def run_preflight(
+            receipt: Path,
+            *,
+            source_paths_error=None,
+            tools_error=None,
+        ):
+            patches = {
+                "_verify_fingerprint_inputs": (
+                    {"side_effect": source_paths_error}
+                    if source_paths_error
+                    else {}
+                ),
+                "_resolve_required_tools": (
+                    {"side_effect": tools_error} if tools_error else {}
+                ),
+                "_host_platform": {"return_value": "linux"},
+                "_head_commit": {"return_value": commit},
+                "_source_tree_dirty": {"return_value": False},
+                "_source_fingerprint": {"return_value": fingerprint},
+                "_protocol_schema_digest": {
+                    "return_value": protocol_digest,
+                },
+                "_acceptance_fixtures_digest": {
+                    "return_value": fixtures_digest,
+                },
+            }
+            with ExitStack() as stack:
+                mocks = {
+                    name: stack.enter_context(
+                        mock.patch.object(self.quality, name, **configuration)
+                    )
+                    for name, configuration in patches.items()
+                }
+                report = self.quality._preflight_ide_full(receipt)
+            return report, mocks
+
+        with tempfile.TemporaryDirectory(prefix="vityo-preflight-") as tmp_name:
+            receipt = Path(tmp_name) / "receipt.json"
+            report, checks = run_preflight(receipt)
+
+            self.assertTrue(report["ready"])
+            self.assertIsNone(report["failure_code"])
+            self.assertEqual(report["commit"], commit)
+            self.assertEqual(report["platform"], "linux")
+            self.assertEqual(report["source_fingerprint"], fingerprint)
+            self.assertEqual(report["protocol_schema_sha256"], protocol_digest)
+            self.assertEqual(
+                report["acceptance_fixtures_sha256"],
+                fixtures_digest,
+            )
+            self.assertEqual(
+                [check["status"] for check in report["checks"]],
+                ["passed"] * 8,
+            )
+            checks["_verify_fingerprint_inputs"].assert_called_once_with()
+            checks["_resolve_required_tools"].assert_called_once_with()
+
+            failed, _ = run_preflight(
+                receipt,
+                source_paths_error=self.quality.ValidationReceiptError(
+                    "source_path_missing",
+                    "synthetic",
+                ),
+                tools_error=self.quality.ValidationReceiptError(
+                    "tool_unavailable",
+                    "synthetic",
+                ),
+            )
+            self.assertFalse(failed["ready"])
+            self.assertEqual(failed["failure_code"], "source_path_missing")
+            failed_checks = {
+                check["name"]: check for check in failed["checks"]
+            }
+            self.assertEqual(
+                failed_checks["source_paths"]["failure_code"],
+                "source_path_missing",
+            )
+            self.assertEqual(
+                failed_checks["tools"]["failure_code"],
+                "tool_unavailable",
+            )
+            self.assertEqual(
+                failed_checks["duplicate_receipt"]["status"],
+                "passed",
+            )
+
     def test_formal_full_refuses_failed_preflight_before_any_suite(self) -> None:
         written: list[dict[str, object]] = []
         runner_mocks = []

@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 Vityo 仓库的 CODEOWNERS 治理策略、nightly 占位 owner 路由和迁移到真实 GitHub owner 的过渡计划。
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-31
 
 **Status:** Nightly advisory owner map - real GitHub team/user owners are not
 yet configured for this repository. Root `CODEOWNERS` uses placeholder routing
@@ -18,7 +18,10 @@ converted to enforceable owners:
 
 | Path Pattern | Owner | Scope |
 |---|---|---|
-| `products/vityo_app/lib/src/view_ide/agent_client/` | agent-owner | Agent runtime, tools, permissions |
+| `products/vityo_app/lib/src/ide/agent_client/` | agent-owner | Agent process/client, MCP/context export, permission transport |
+| `products/vityo_app/lib/src/ide/workbench/agent_collaboration/` | agent-owner | Workbench projection and change review |
+| `products/vityo_app/lib/src/presentation/agent_workbench/` | shell-owner | Agent Workbench presentation |
+| `packages/vityo_agent_protocol/` | agent-owner | Versioned IDE/Agent wire contract |
 | `products/vityo_app/lib/src/view_ide/runtime/` | runtime-owner | Debug/runtime contracts, execution |
 | `products/vityo_app/lib/src/ide/workspace/` | workspace-owner | Workspace model, source control |
 | `products/vityo_app/lib/src/view_ide/language/` | language-owner | Language service, diagnostics |

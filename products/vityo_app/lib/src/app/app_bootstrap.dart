@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import '../view_ide/agent_client/agent.dart';
+import '../ide/agent_client/agent_client.dart';
+import '../ide/workbench/agent_collaboration/agent_collaboration_service.dart';
+import '../ide/workspace/workspace_transaction_service.dart';
 import '../ide/editor/editor_controller.dart';
 import '../view_ide/backend_toolchain/adapter_contracts.dart';
 import '../view_ide/backend_toolchain/backend_provider.dart';
@@ -200,9 +201,8 @@ class AppBootstrap {
     required this.runtimeEventAdapter,
     required this.dependencySourceAdapter,
     required this.deploymentAdapter,
-    required this.agentCodingController,
-    required this.agentProviderConfigurator,
-    this.agentExtensionToolExecutionRegistry,
+    this.agentClientRegistry,
+    this.agentCollaboration,
     this.extensionStartupPlan,
     RuntimeOutputLiveBuffer? runtimeOutputBuffer,
     this.commandPalettePreferencesStore,
@@ -241,10 +241,8 @@ class AppBootstrap {
   final RuntimeEventAdapter runtimeEventAdapter;
   final DependencySourceAdapter dependencySourceAdapter;
   final DeploymentAdapter deploymentAdapter;
-  final AgentCodingSessionController agentCodingController;
-  final AgentProviderConfigurator agentProviderConfigurator;
-  final ExtensionAgentToolExecutionRegistry?
-  agentExtensionToolExecutionRegistry;
+  final AgentClientRegistry? agentClientRegistry;
+  final AgentCollaborationService? agentCollaboration;
   final AppExtensionStartupPlan? extensionStartupPlan;
   final RuntimeOutputLiveBuffer runtimeOutputBuffer;
   final CommandPaletteDisplayPreferencesStore? commandPalettePreferencesStore;
@@ -272,7 +270,15 @@ class AppBootstrap {
     workspaceDiagnosticsController?.dispose();
     testingSessionController?.dispose();
     sourceControlStatusController?.dispose();
-    agentCodingController.dispose();
+    final collaboration = agentCollaboration;
+    if (collaboration != null) {
+      unawaited(collaboration.close());
+    } else {
+      final agentClients = agentClientRegistry;
+      if (agentClients != null) {
+        unawaited(agentClients.close());
+      }
+    }
   }
 
   List<AdapterCapabilitySnapshot> get adapterCapabilities =>
@@ -356,16 +362,6 @@ class AppBootstrap {
           requiredInjection: true,
         ),
         AppBootstrapServiceDescriptor(
-          serviceId: 'agent.coding-controller',
-          ownerLayer: 'agent',
-          requiredInjection: true,
-        ),
-        AppBootstrapServiceDescriptor(
-          serviceId: 'agent.provider-configurator',
-          ownerLayer: 'agent',
-          requiredInjection: true,
-        ),
-        AppBootstrapServiceDescriptor(
           serviceId: 'runtime.output-buffer',
           ownerLayer: 'runtime',
           requiredInjection: true,
@@ -376,11 +372,25 @@ class AppBootstrap {
           requiredInjection: true,
         ),
         AppBootstrapServiceDescriptor(
-          serviceId: 'agent.extension-tool-execution-registry',
-          ownerLayer: 'extension',
+          serviceId: 'agent.client-registry',
+          ownerLayer: 'agent-client',
           requiredInjection: false,
-          capabilityGapCode: 'agent.extension-tools.unavailable',
-          recoveryAction: 'refreshModules',
+          capabilityGapCode: 'agent.client.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'agent.workspace-transactions',
+          ownerLayer: 'workspace',
+          requiredInjection: false,
+          capabilityGapCode: 'agent.workspace-transactions.unavailable',
+          recoveryAction: 'openSettings',
+        ),
+        AppBootstrapServiceDescriptor(
+          serviceId: 'agent.collaboration',
+          ownerLayer: 'agent-client',
+          requiredInjection: false,
+          capabilityGapCode: 'agent.collaboration.unavailable',
+          recoveryAction: 'openSettings',
         ),
         AppBootstrapServiceDescriptor(
           serviceId: 'extension.startup-plan',
@@ -505,12 +515,11 @@ class AppBootstrap {
       'dependency-source.adapter': true,
       'deployment.adapter': true,
       'toolchain.management-adapter': true,
-      'agent.coding-controller': true,
-      'agent.provider-configurator': true,
       'runtime.output-buffer': true,
       'language.status': true,
-      'agent.extension-tool-execution-registry':
-          agentExtensionToolExecutionRegistry != null,
+      'agent.client-registry': agentClientRegistry != null,
+      'agent.workspace-transactions': agentCollaboration != null,
+      'agent.collaboration': agentCollaboration != null,
       'extension.startup-plan': extensionStartupPlan != null,
       'command-palette.preferences-store':
           commandPalettePreferencesStore != null,
@@ -546,7 +555,20 @@ class AppBootstrap {
 
   static Future<AppBootstrap> load({
     BackendProviderRegistry? backendProviders,
+    Map<String, AgentLaunchDescriptor> agentLaunchDescriptors =
+        const <String, AgentLaunchDescriptor>{},
+    AgentClientPolicy agentClientPolicy = const AgentClientPolicy(),
+    WorkspaceTransactionService? agentWorkspaceTransactions,
   }) async {
+    if (agentLaunchDescriptors.isNotEmpty &&
+        agentWorkspaceTransactions == null) {
+      throw ArgumentError.value(
+        agentWorkspaceTransactions,
+        'agentWorkspaceTransactions',
+        'Configured Agents require an IDE-owned workspace transaction '
+            'authority.',
+      );
+    }
     final platformTarget = detectPlatformTarget();
     final backendProvider =
         (backendProviders ?? createDefaultBackendProviderRegistry()).resolve(
@@ -746,82 +768,17 @@ class AppBootstrap {
       );
       unawaited(refreshActiveLanguageService());
     });
-    final agentProfileStore = AgentPromptProfileStore.fromDataStore(
-      dataStore: foundationDataStore,
+    final agentClientRegistry = createAgentClientRegistry(
+      descriptors: agentLaunchDescriptors,
+      policy: agentClientPolicy,
     );
-    final agentSessionHistoryStore =
-        AgentCodingSessionHistoryStore.fromDataStore(
-          dataStore: foundationDataStore,
-        );
-    final agentWorkspaceSnapshotStore =
-        AgentWorkspaceSnapshotStore.fromDataStore(
-          dataStore: foundationDataStore,
-        );
-    final agentProviderFactory = createAgentProviderFactory(
-      configurationStore: configurationStore,
-      transport: createNetworkAgentProviderTransport(
-        networkManager: platformManagers.network,
-      ),
-      localServiceManager: platformManagers.localService,
-      environment: readHostEnvironment(),
-    );
-    final agentProviderRegistry = agentProviderFactory.createRegistry();
-    final builtInExtensionRpcTransports =
-        createBuiltInExtensionAgentToolRpcTransports(
-          platformTarget: platformTarget,
-          agentProviderRegistry: agentProviderRegistry,
-        );
-    final agentCodingController = await createAgentCodingSessionController(
-      platformTarget: platformTarget,
-      loadPersistedProfile: () {
-        return agentProfileStore.readProfile(workspaceId: projectSnapshot.id);
-      },
-      createConfiguredAdapter: agentProviderRegistry.createAdapter,
-      selectConfiguredProvider: agentProviderRegistry.selectionPlan,
-      resolveConfiguredExecution: agentProviderFactory.resolveExecution,
-      sessionHistoryStore: agentSessionHistoryStore,
-      sessionHistoryWorkspaceId: projectSnapshot.id,
-      workspaceSnapshotStore: agentWorkspaceSnapshotStore,
-      workspaceSnapshotWorkspaceId: projectSnapshot.id,
-      workspaceSnapshotService: AgentWorkspaceSnapshotService(
-        editorController: editorController,
-        workspaceDocumentStore: workspaceDocumentStore,
-      ),
-      extensionContributionRoutes: extensionStartupPlan.contributionRoutes,
-      contextProvider: () => AgentSessionContext.fromEditorState(
-        document: editorController.document,
-        selection: editorController.selection,
-        diagnostics: editorController.analysis.diagnostics,
-        hover: editorController.hoverAtSelection,
-        definition: editorController.definitionAtSelection,
-        references: editorController.referencesAtSelection,
-        completions: editorController.completionsAtSelection,
-        codeActions: editorController.contextActionsAtSelection,
-        languageServiceStatus: languageServiceStatus.value,
-        workspaceFiles: workspaceController.files,
-        workspaceDocuments: [editorController.document],
-        workspaceDiagnostics: workspaceDiagnosticsController.snapshot,
-        activeFilePath: workspaceController.activeFilePath,
-        toolchainSnapshot: toolchainStatusReport.value.snapshot,
-        clangCppVersionPreference: clangCppVersionPreference,
+    final agentCollaboration = createAgentCollaboration(
+      registry: agentClientRegistry,
+      transactions: agentWorkspaceTransactions,
+      workspaceRoot: Uri.directory(
+        workspaceController.activeProject.workspaceRoot,
       ),
     );
-    final agentProviderConfigurator = AgentProviderConfigurator.fromStores(
-      workspaceId: projectSnapshot.id,
-      profileStore: agentProfileStore,
-      providerFactory: agentProviderFactory,
-      providerRegistry: agentProviderRegistry,
-      credentialDataStore: credentialDataStore,
-    );
-    final agentExtensionToolExecutionRegistry =
-        createAgentExtensionToolExecutionRegistry(
-          extensionContributionRoutes: extensionStartupPlan.contributionRoutes,
-          extensionHostSupervisorSnapshot:
-              extensionStartupPlan.supervisorSnapshot,
-          runtimeOutputBuffer: runtimeOutputBuffer,
-          extensionManifestRegistry: extensionStartupPlan.manifestRegistry,
-          rpcTransports: builtInExtensionRpcTransports,
-        );
 
     return AppBootstrap(
       platformTarget: platformTarget,
@@ -838,9 +795,8 @@ class AppBootstrap {
       runtimeEventAdapter: runtimeEventAdapter,
       dependencySourceAdapter: dependencySourceAdapter,
       deploymentAdapter: deploymentAdapter,
-      agentCodingController: agentCodingController,
-      agentProviderConfigurator: agentProviderConfigurator,
-      agentExtensionToolExecutionRegistry: agentExtensionToolExecutionRegistry,
+      agentClientRegistry: agentClientRegistry,
+      agentCollaboration: agentCollaboration,
       extensionStartupPlan: extensionStartupPlan,
       runtimeOutputBuffer: runtimeOutputBuffer,
       commandPalettePreferencesStore: commandPalettePreferencesStore,
@@ -883,18 +839,42 @@ class AppBootstrap {
     );
   }
 
+  /// Supervises only the Agent runtimes Vityo was explicitly given.
+  ///
+  /// Vityo never configures a model provider, so an empty descriptor set is
+  /// the normal state and leaves the IDE fully operable without an Agent.
   @visibleForTesting
-  static ConfiguredAgentProviderAdapterFactory createAgentProviderFactory({
-    required ConfigurationStore configurationStore,
-    required AgentProviderTransport transport,
-    LocalServiceManager? localServiceManager,
-    Map<String, String> environment = const <String, String>{},
+  static AgentClientRegistry? createAgentClientRegistry({
+    required Map<String, AgentLaunchDescriptor> descriptors,
+    AgentClientPolicy policy = const AgentClientPolicy(),
   }) {
-    return ConfiguredAgentProviderAdapterFactory(
-      configurationStore: configurationStore,
-      transport: transport,
-      localServiceManager: localServiceManager,
-      environment: environment,
+    if (descriptors.isEmpty) {
+      return null;
+    }
+    return AgentClientRegistry(descriptors: descriptors, policy: policy);
+  }
+
+  @visibleForTesting
+  static AgentCollaborationService? createAgentCollaboration({
+    required AgentClientRegistry? registry,
+    required WorkspaceTransactionService? transactions,
+    required Uri workspaceRoot,
+  }) {
+    if (registry == null) {
+      return null;
+    }
+    if (transactions == null) {
+      throw ArgumentError.value(
+        transactions,
+        'transactions',
+        'A configured Agent Client requires an IDE-owned workspace '
+            'transaction authority.',
+      );
+    }
+    return AgentCollaborationService(
+      registry: registry,
+      transactions: transactions,
+      workspaceRoot: workspaceRoot,
     );
   }
 
@@ -933,88 +913,6 @@ class AppBootstrap {
       activeDocumentId: editorController.document.documentId,
       documents: documentsById.values.toList(growable: false),
     );
-  }
-
-  @visibleForTesting
-  static Future<AgentCodingSessionController>
-  createAgentCodingSessionController({
-    required PlatformTarget platformTarget,
-    required Future<AgentPromptProfile?> Function() loadPersistedProfile,
-    required Future<AgentProviderAdapter> Function(AgentPromptProfile profile)
-    createConfiguredAdapter,
-    AgentProviderSelectionPlan Function(AgentPromptProfile profile)?
-    selectConfiguredProvider,
-    Future<AgentProviderExecutionResolution> Function(
-      AgentPromptProfile profile,
-    )?
-    resolveConfiguredExecution,
-    AgentCodingSessionHistoryStore? sessionHistoryStore,
-    String sessionHistoryWorkspaceId = 'default',
-    AgentWorkspaceSnapshotStore? workspaceSnapshotStore,
-    String? workspaceSnapshotWorkspaceId,
-    AgentWorkspaceSnapshotService? workspaceSnapshotService,
-    AgentToolRegistry? toolRegistry,
-    ExtensionContributionRouteManifest? extensionContributionRoutes,
-    required AgentSessionContextProvider contextProvider,
-  }) async {
-    final persistedProfile = await loadPersistedProfile();
-    final profile =
-        persistedProfile ??
-        AgentPromptProfile.defaultForPlatform(platformTarget);
-    final adapter = persistedProfile == null
-        ? const LocalOnlyAgentProviderAdapter()
-        : await _createConfiguredAgentAdapter(
-            profile: profile,
-            createConfiguredAdapter: createConfiguredAdapter,
-          );
-    var providerSelectionPlan = _selectConfiguredAgentProvider(
-      profile: profile,
-      selectConfiguredProvider: selectConfiguredProvider,
-    );
-    final executionResolution = persistedProfile == null
-        ? null
-        : await _resolveConfiguredAgentExecution(
-            profile: profile,
-            resolveConfiguredExecution: resolveConfiguredExecution,
-          );
-    if (providerSelectionPlan != null && executionResolution != null) {
-      providerSelectionPlan = providerSelectionPlan.withExecutionResolution(
-        executionResolution,
-      );
-    }
-    final controller = AgentCodingSessionController(
-      profile: profile,
-      adapter: adapter,
-      providerSelectionPlan: providerSelectionPlan,
-      providerExecutionResolution: executionResolution,
-      contextProvider: contextProvider,
-      sessionHistoryStore: sessionHistoryStore,
-      sessionHistoryWorkspaceId: sessionHistoryWorkspaceId,
-      workspaceSnapshotStore: workspaceSnapshotStore,
-      workspaceSnapshotWorkspaceId: workspaceSnapshotWorkspaceId,
-      toolRegistry:
-          toolRegistry ??
-          createAgentToolRegistry(
-            extensionContributionRoutes: extensionContributionRoutes,
-          ),
-    );
-    await controller.loadSessionHistory();
-    await controller.loadWorkspaceSnapshot(
-      snapshotService: workspaceSnapshotService,
-    );
-    return controller;
-  }
-
-  @visibleForTesting
-  static AgentToolRegistry createAgentToolRegistry({
-    ExtensionContributionRouteManifest? extensionContributionRoutes,
-  }) {
-    if (extensionContributionRoutes == null) {
-      return AgentToolRegistry();
-    }
-    return ExtensionAgentToolContributionCatalog.fromRoutes(
-      extensionContributionRoutes,
-    ).toRegistry();
   }
 
   @visibleForTesting
@@ -1069,242 +967,6 @@ class AppBootstrap {
       supervisorSnapshot: supervisorSnapshot,
       contributionRoutes: contributionRoutes,
     );
-  }
-
-  @visibleForTesting
-  static ExtensionAgentToolExecutionRegistry?
-  createAgentExtensionToolExecutionRegistry({
-    ExtensionContributionRouteManifest? extensionContributionRoutes,
-    ExtensionAgentToolHostBridge? hostBridge,
-    ExtensionHostSupervisorSnapshot? extensionHostSupervisorSnapshot,
-    RuntimeOutputLiveBuffer? runtimeOutputBuffer,
-    ExtensionManifestRegistry? extensionManifestRegistry,
-    ExtensionHostSupervisorExecutionBridge? extensionHostSupervisorBridge,
-    Map<ExtensionHostSupervisorAction, ExtensionAgentToolHostRpcTransport>
-        rpcTransports =
-        const <
-          ExtensionHostSupervisorAction,
-          ExtensionAgentToolHostRpcTransport
-        >{},
-    Map<ExtensionHostSupervisorAction, String> rpcTransportIds =
-        const <ExtensionHostSupervisorAction, String>{},
-    Map<ExtensionHostSupervisorAction, String> rpcTransportLabels =
-        const <ExtensionHostSupervisorAction, String>{},
-    Map<ExtensionHostSupervisorAction, String> rpcTransportEndpoints =
-        const <ExtensionHostSupervisorAction, String>{},
-    Map<ExtensionHostSupervisorAction, Map<String, Object?>>
-        rpcTransportMetadataByAction =
-        const <ExtensionHostSupervisorAction, Map<String, Object?>>{},
-    DateTime Function()? clock,
-    Map<String, Object?> hostBridgeMetadata = const <String, Object?>{},
-    Map<String, ExtensionAgentToolHandler> handlers =
-        const <String, ExtensionAgentToolHandler>{},
-  }) {
-    if (extensionContributionRoutes == null) {
-      return null;
-    }
-    final catalog = ExtensionAgentToolContributionCatalog.fromRoutes(
-      extensionContributionRoutes,
-    );
-    var resolvedHostBridge = hostBridge;
-    if (resolvedHostBridge == null &&
-        extensionHostSupervisorSnapshot != null &&
-        runtimeOutputBuffer != null) {
-      final transportCatalog = createExtensionAgentToolRpcTransportCatalog(
-        extensionContributionRoutes: extensionContributionRoutes,
-        snapshot: extensionHostSupervisorSnapshot,
-        rpcTransports: rpcTransports,
-        rpcTransportIds: rpcTransportIds,
-        rpcTransportLabels: rpcTransportLabels,
-        rpcTransportEndpoints: rpcTransportEndpoints,
-        rpcTransportMetadataByAction: rpcTransportMetadataByAction,
-      );
-      resolvedHostBridge = createExtensionAgentToolHostBridge(
-        snapshot: extensionHostSupervisorSnapshot,
-        buffer: runtimeOutputBuffer,
-        manifestRegistry: extensionManifestRegistry,
-        supervisorBridge: extensionHostSupervisorBridge,
-        invoker: transportCatalog.toRegistry().invoke,
-        clock: clock,
-        metadata: hostBridgeMetadata,
-      );
-    }
-    if (resolvedHostBridge != null) {
-      return ExtensionAgentToolExecutionRegistry.fromHostBridge(
-        catalog: catalog,
-        hostBridge: resolvedHostBridge,
-        handlers: handlers,
-      );
-    }
-    return ExtensionAgentToolExecutionRegistry(
-      catalog: catalog,
-      handlers: handlers,
-    );
-  }
-
-  @visibleForTesting
-  static Map<ExtensionHostSupervisorAction, ExtensionAgentToolHostRpcTransport>
-  createBuiltInExtensionAgentToolRpcTransports({
-    required PlatformTarget platformTarget,
-    required AgentProviderRegistry agentProviderRegistry,
-  }) {
-    return <ExtensionHostSupervisorAction, ExtensionAgentToolHostRpcTransport>{
-      ExtensionHostSupervisorAction.runInProcess: (request) {
-        return dispatchBuiltInExtensionAgentToolRpc(
-          request: request,
-          platformTarget: platformTarget,
-          agentProviderRegistry: agentProviderRegistry,
-        );
-      },
-    };
-  }
-
-  @visibleForTesting
-  static Future<AgentToolCallDispatchResult>
-  dispatchBuiltInExtensionAgentToolRpc({
-    required ExtensionAgentToolHostRpcRequest request,
-    required PlatformTarget platformTarget,
-    required AgentProviderRegistry agentProviderRegistry,
-  }) async {
-    if (request.handlerId != 'collect-agent-surface-context') {
-      return AgentToolCallDispatchResult.failure(
-        callId: request.toolCall.callId,
-        toolId: request.toolCall.toolId,
-        message:
-            'No built-in in-process extension RPC handler is registered for '
-            '${request.extensionId}/${request.handlerId}.',
-        metadata: <String, Object?>{
-          'source': 'app-bootstrap-in-process-extension-rpc',
-          'missingBuiltInHandler': true,
-          'extensionId': request.extensionId,
-          'handlerId': request.handlerId,
-        },
-      );
-    }
-    final input = _decodeToolInputObject(request.toolCall.inputText);
-    final includeProviderStatus = input['includeProviderStatus'] == true;
-    final output = <String, Object?>{
-      'schema': 'vityo.agent-surface-context.v1',
-      'extensionId': request.extensionId,
-      'contributionId': request.contributionId,
-      'handlerId': request.handlerId,
-      'toolId': request.toolCall.toolId,
-      'platformTarget': platformTarget.wireValue,
-      'transportId': request.transportId,
-      'transportAction': request.action.wireValue,
-      if (includeProviderStatus)
-        'providerRegistry': agentProviderRegistry.manifest().toJson(),
-    };
-    return AgentToolCallDispatchResult.success(
-      callId: request.toolCall.callId,
-      toolId: request.toolCall.toolId,
-      output: jsonEncode(output),
-      metadata: <String, Object?>{
-        'source': 'app-bootstrap-in-process-extension-rpc',
-        'extensionId': request.extensionId,
-        'handlerId': request.handlerId,
-        'includeProviderStatus': includeProviderStatus,
-      },
-    );
-  }
-
-  @visibleForTesting
-  static ExtensionAgentToolHostRpcTransportCatalog
-  createExtensionAgentToolRpcTransportCatalog({
-    required ExtensionContributionRouteManifest extensionContributionRoutes,
-    required ExtensionHostSupervisorSnapshot snapshot,
-    required Map<
-      ExtensionHostSupervisorAction,
-      ExtensionAgentToolHostRpcTransport
-    >
-    rpcTransports,
-    Map<ExtensionHostSupervisorAction, String> rpcTransportIds =
-        const <ExtensionHostSupervisorAction, String>{},
-    Map<ExtensionHostSupervisorAction, String> rpcTransportLabels =
-        const <ExtensionHostSupervisorAction, String>{},
-    Map<ExtensionHostSupervisorAction, String> rpcTransportEndpoints =
-        const <ExtensionHostSupervisorAction, String>{},
-    Map<ExtensionHostSupervisorAction, Map<String, Object?>>
-        rpcTransportMetadataByAction =
-        const <ExtensionHostSupervisorAction, Map<String, Object?>>{},
-  }) {
-    return ExtensionAgentToolHostRpcTransportCatalog.fromContributions(
-      catalog: ExtensionAgentToolContributionCatalog.fromRoutes(
-        extensionContributionRoutes,
-      ),
-      snapshot: snapshot,
-      transports: rpcTransports,
-      transportIds: rpcTransportIds,
-      labels: rpcTransportLabels,
-      endpoints: rpcTransportEndpoints,
-      metadataByAction: rpcTransportMetadataByAction,
-    );
-  }
-
-  @visibleForTesting
-  static ExtensionAgentToolHostBridge createExtensionAgentToolHostBridge({
-    required ExtensionHostSupervisorSnapshot snapshot,
-    required RuntimeOutputLiveBuffer buffer,
-    ExtensionManifestRegistry? manifestRegistry,
-    ExtensionHostSupervisorExecutionBridge? supervisorBridge,
-    ExtensionAgentToolHostInvoker? invoker,
-    DateTime Function()? clock,
-    Map<String, Object?> metadata = const <String, Object?>{},
-  }) {
-    return ExtensionAgentToolActivatedHostBridge(
-      snapshot: snapshot,
-      buffer: buffer,
-      manifestRegistry: manifestRegistry,
-      supervisorBridge: supervisorBridge,
-      invoker: invoker,
-      clock: clock,
-      metadata: metadata,
-    ).call;
-  }
-
-  static Future<AgentProviderAdapter> _createConfiguredAgentAdapter({
-    required AgentPromptProfile profile,
-    required Future<AgentProviderAdapter> Function(AgentPromptProfile profile)
-    createConfiguredAdapter,
-  }) async {
-    try {
-      return await createConfiguredAdapter(profile);
-    } on Object {
-      return const LocalOnlyAgentProviderAdapter();
-    }
-  }
-
-  static AgentProviderSelectionPlan? _selectConfiguredAgentProvider({
-    required AgentPromptProfile profile,
-    required AgentProviderSelectionPlan Function(AgentPromptProfile profile)?
-    selectConfiguredProvider,
-  }) {
-    if (selectConfiguredProvider == null) {
-      return null;
-    }
-    try {
-      return selectConfiguredProvider(profile);
-    } on Object {
-      return null;
-    }
-  }
-
-  static Future<AgentProviderExecutionResolution?>
-  _resolveConfiguredAgentExecution({
-    required AgentPromptProfile profile,
-    required Future<AgentProviderExecutionResolution> Function(
-      AgentPromptProfile profile,
-    )?
-    resolveConfiguredExecution,
-  }) async {
-    if (resolveConfiguredExecution == null) {
-      return null;
-    }
-    try {
-      return await resolveConfiguredExecution(profile);
-    } on Object {
-      return null;
-    }
   }
 
   @visibleForTesting
@@ -1503,21 +1165,4 @@ class AppBootstrap {
       ),
     );
   }
-}
-
-Map<String, Object?> _decodeToolInputObject(String inputText) {
-  if (inputText.trim().isEmpty) {
-    return const <String, Object?>{};
-  }
-  try {
-    final decoded = jsonDecode(inputText);
-    if (decoded is Map) {
-      return decoded.map<String, Object?>(
-        (key, value) => MapEntry(key.toString(), value),
-      );
-    }
-  } on Object {
-    return const <String, Object?>{};
-  }
-  return const <String, Object?>{};
 }

@@ -28,8 +28,6 @@ FORBIDDEN_VIEW_IDE_PRESENTATION_IMPORTS = {
 # view_ide. New view_render -> view_ide imports must be reviewed by updating
 # this list instead of importing arbitrary view_ide implementation modules.
 VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS = {
-    "view_ide/agent_client/agent.dart",
-    "view_ide/agent_client/agent_context.dart",
     "view_ide/backend_toolchain/adapter_contracts.dart",
     "view_ide/backend_toolchain/dependency_source_adapter.dart",
     "view_ide/backend_toolchain/deployment_adapter.dart",

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_context.dart';
 import 'package:vityo_app/src/ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
@@ -15,24 +14,29 @@ void main() {
     tester,
   ) async {
     String? submittedQuery;
-    AgentWorkspaceSearchMatchContext? openedMatch;
-    AgentWorkspaceSymbolMatchContext? openedSymbolMatch;
-    final lastSearch = AgentWorkspaceSearchResultContext.fromDocuments(
-      query: 'needle',
-      documents: const <DocumentState>[
-        DocumentState(
-          documentId: 'src/main.styio',
-          text: 'needle := 1\n',
-          revision: 1,
+    WorkspaceSearchMatch? openedMatch;
+    WorkspaceSymbolMatch? openedSymbolMatch;
+    final searchIndex = WorkspaceSearchIndex(
+      documents: <WorkspaceSearchIndexDocument>[
+        WorkspaceSearchIndexDocument.fromDocument(
+          const DocumentState(
+            documentId: 'src/main.styio',
+            text: 'needle := 1\n',
+            revision: 1,
+          ),
         ),
-        DocumentState(
-          documentId: 'src/lib.styio',
-          text: 'lib := needle\n',
-          revision: 2,
+        WorkspaceSearchIndexDocument.fromDocument(
+          const DocumentState(
+            documentId: 'src/lib.styio',
+            text: 'lib := needle\n',
+            revision: 2,
+          ),
         ),
       ],
+      createdAt: DateTime.utc(2026, 5, 20),
     );
-    const symbolResult = WorkspaceSymbolSearchResult(
+    final lastSearch = searchIndex.search(query: 'needle', maxMatches: 50);
+    const lastSymbolSearch = WorkspaceSymbolSearchResult(
       matches: <WorkspaceSymbolMatch>[
         WorkspaceSymbolMatch(
           documentId: 'src/main.styio',
@@ -49,12 +53,6 @@ void main() {
         ),
       ],
     );
-    final lastSymbolSearch =
-        AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
-          query: 'needle',
-          scannedDocumentCount: 2,
-          result: symbolResult,
-        );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -66,25 +64,9 @@ void main() {
               height: 800,
             ),
             workspaceFileCount: 2,
-            searchIndex: WorkspaceSearchIndex(
-              documents: <WorkspaceSearchIndexDocument>[
-                WorkspaceSearchIndexDocument.fromDocument(
-                  const DocumentState(
-                    documentId: 'src/main.styio',
-                    text: 'needle := 1\n',
-                    revision: 1,
-                  ),
-                ),
-                WorkspaceSearchIndexDocument.fromDocument(
-                  const DocumentState(
-                    documentId: 'src/lib.styio',
-                    text: 'lib := needle\n',
-                    revision: 2,
-                  ),
-                ),
-              ],
-              createdAt: DateTime.utc(2026, 5, 20),
-            ),
+            searchIndex: searchIndex,
+            lastSearchQuery: 'needle',
+            lastSearchScannedDocumentCount: 2,
             searchHistory: WorkspaceSearchHistory(
               workspaceId: 'demo',
               records: <WorkspaceSearchHistoryRecord>[
@@ -159,7 +141,7 @@ void main() {
 
     expect(openedMatch?.documentId, 'src/main.styio');
     expect(openedMatch?.lineNumber, 1);
-    expect(openedMatch?.start, 0);
+    expect(openedMatch?.range.start, 0);
 
     const symbolKey = ValueKey(
       'workspace-symbol-search-match-src/main.styio-needle-0',
@@ -177,7 +159,10 @@ void main() {
 
     expect(openedSymbolMatch?.documentId, 'src/main.styio');
     expect(openedSymbolMatch?.name, 'needle');
-    expect(openedSymbolMatch?.snapshotConfidence, 'local-fallback');
+    expect(
+      openedSymbolMatch?.snapshotConfidence,
+      SemanticSnapshotFeatureConfidence.localFallback,
+    );
   });
 
   testWidgets('workspace search surface filters and opens quick-open files', (

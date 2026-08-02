@@ -14,9 +14,7 @@ Future<void> main() async {
 
 Future<void> _servesConcurrentCorrelatedSessionsAndCancellation() async {
   final host = _ControlledHost();
-  final runtime = AgentRuntime(
-    sessionService: AgentSessionService(host: host),
-  );
+  final runtime = AgentRuntime(sessionService: AgentSessionService(host: host));
   final endpoint = AgentSessionEndpoint(
     runtime: runtime,
     defaultRootId: 'workspace',
@@ -37,10 +35,7 @@ Future<void> _servesConcurrentCorrelatedSessionsAndCancellation() async {
       method: AcpMethod.initialize,
       params: const <String, Object?>{
         'protocolVersion': acpProtocolVersion,
-        'clientInfo': <String, Object?>{
-          'name': 'vityo',
-          'version': '0.1.0',
-        },
+        'clientInfo': <String, Object?>{'name': 'vityo', 'version': '0.1.0'},
         'clientCapabilities': <String, Object?>{},
       },
     ),
@@ -57,9 +52,9 @@ Future<void> _servesConcurrentCorrelatedSessionsAndCancellation() async {
       JsonRpcRequest(
         id: const JsonRpcId.integer(2),
         method: AcpMethod.sessionNew,
-        params: const <String, Object?>{
-          'cwd': 'controlled-workspace',
-          'mcpServers': <Object?>[],
+        params: <String, Object?>{
+          'cwd': Directory.current.path,
+          'mcpServers': const <Object?>[],
         },
       ),
     ),
@@ -69,16 +64,15 @@ Future<void> _servesConcurrentCorrelatedSessionsAndCancellation() async {
       JsonRpcRequest(
         id: const JsonRpcId.integer(3),
         method: AcpMethod.sessionNew,
-        params: const <String, Object?>{
-          'cwd': 'controlled-workspace',
-          'mcpServers': <Object?>[],
+        params: <String, Object?>{
+          'cwd': Directory.current.path,
+          'mcpServers': const <Object?>[],
         },
       ),
     ),
   );
   _expect(
-    first['sessionId'] == 'session-1' &&
-        second['sessionId'] == 'session-2',
+    first['sessionId'] == 'session-1' && second['sessionId'] == 'session-2',
     'session routing must allocate bounded, distinct correlations',
   );
 
@@ -174,9 +168,7 @@ _failsClosedForUnsupportedVersionsAndPublishesCapabilities() async {
     JsonRpcRequest(
       id: const JsonRpcId.string('supported'),
       method: AcpMethod.initialize,
-      params: const <String, Object?>{
-        'protocolVersion': acpProtocolVersion,
-      },
+      params: const <String, Object?>{'protocolVersion': acpProtocolVersion},
     ),
   );
   _expect(
@@ -221,9 +213,7 @@ Future<void> _releaseCorpusIsVersionedDeterministicAndBudgeted() async {
     'memory',
     'unsupported_capability',
   };
-  final ids = <String>{
-    for (final testCase in cases) testCase['id']! as String,
-  };
+  final ids = <String>{for (final testCase in cases) testCase['id']! as String};
   _expect(
     manifest['schemaVersion'] == 1 &&
         manifest['corpusVersion'] == '1.0.0' &&
@@ -253,7 +243,8 @@ Future<void> _releaseCorpusIsVersionedDeterministicAndBudgeted() async {
   }
   final canonicalCases = jsonEncode(cases);
   _expect(
-    manifest['casesDigest'] == sha256.convert(utf8.encode(canonicalCases)).toString(),
+    manifest['casesDigest'] ==
+        sha256.convert(utf8.encode(canonicalCases)).toString(),
     'the corpus digest must bind the exact ordered fixture content',
   );
 }
@@ -288,11 +279,10 @@ final class _MemoryServerTransport implements AgentServerTransport {
     return response;
   }
 
-  Future<JsonRpcMessage> nextWhere(
-    bool Function(JsonRpcMessage) predicate,
-  ) => _outgoing.stream
-      .firstWhere(predicate)
-      .timeout(const Duration(seconds: 2));
+  Future<JsonRpcMessage> nextWhere(bool Function(JsonRpcMessage) predicate) =>
+      _outgoing.stream
+          .firstWhere(predicate)
+          .timeout(const Duration(seconds: 2));
 
   @override
   Future<void> send(JsonRpcMessage message) async {

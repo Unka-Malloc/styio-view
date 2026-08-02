@@ -2,7 +2,7 @@
 
 **Purpose:** Define the required technology-stack, internal-component, open-source-component, and dependency-manifest inventory for `Vityo`.
 
-**Last updated:** 2026-06-29
+**Last updated:** 2026-07-31
 
 This document is the repository-local maintenance rule for the manifest inventory audited by `styio-audit`. The canonical audit module must list the same surfaces in `for-vityo/module.json`; if this document and the audit manifest diverge, the change is not closed.
 
@@ -40,17 +40,23 @@ Missing or stale lists are audit failures. They block license, commercial-risk, 
 
 #### Security, Permission, And Audit Components
 
-- **Agent permission model** (`agent_permission_model.dart`): Agent role definitions, capability enum, permission lattice, context minimizer, and provider capability profiles.
-- **Tool permission system** (`agent_tool_permission.dart`): Permission decision engine, pattern-based rules, three-state action model (allow/ask/deny), audit records, and plan status tracking.
-- **Sandboxed tool router** (`agent_tool_sandbox_router.dart`): Multi-layer tool call validation pipeline — permission plan, execution mode, capability checks, output size limits, and audit logging.
-- **Tool call execution journal** (`agent_tool_call_execution_journal.dart`): Audit journal with replay support and sensitive-data redaction for tool call history.
-- **Agent session permission model** (`agent_session.dart`): Permission request scopes, decision lifecycle, immutable audit events, and tool invocation tracking.
+- **Agent Client registry** (`ide/agent_client/agent_client_registry.dart`): bounded protocol
+  sessions, correlated one-shot permission requests, reconnect, and failure cleanup.
+- **Agent process supervisor** (`ide/agent_client/agent_process_supervisor.dart`): argv-based stdio
+  launch, bounded shutdown, timeout, and orphan cleanup.
+- **IDE MCP server and tool policy** (`ide/agent_client/mcp/`,
+  `ide/agent_client/tools/tool_security_policy.dart`): declared tools, capability grants,
+  workspace-root authorization, payload bounds, sanitization, and receipts.
+- **Context export** (`ide/agent_client/tools/context_export_service.dart`): bounded,
+  revision-bound, paginated, deduplicated, and sanitized IDE facts.
+- **Collaboration projection** (`ide/workbench/agent_collaboration/`): immutable task/session,
+  permission, change-review, error, and verification state.
+- **Workspace transaction authority** (`ide/workspace/workspace_transaction_service.dart`):
+  revision-bound preview, commit, reject, and rollback.
 - **Execution sandbox** (`execution_sandbox.dart`): Local execution policy with workspace containment, path traversal/symlink detection, environment allowlisting, network policy, timeout, and output bounds.
 - **Log redactor** (`log_redactor.dart`): Pattern-based and field-based credential redaction for all log, diagnostic, runtime, and agent-context output.
 - **Secret store** (`secret_store.dart`): Credential reference lookup and local secret resolution.
 - **Module manifest security** (`module_manifest_security.dart`): Module manifest trust validation — schema, signature, checksum, permission allowlist, engine compatibility, quarantine, and rollback.
-- **Tool registry** (`agent_tool_registry.dart`): Tool definition registry with capability and permission-mode declarations.
-- **Permission policy store** (`agent_tool_permission_policy_store.dart`): Permission policy persistence and override loading.
 
 #### Governance And Security Scripts
 

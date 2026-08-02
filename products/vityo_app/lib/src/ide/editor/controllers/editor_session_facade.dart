@@ -136,6 +136,7 @@ class EditorSessionFacade extends ChangeNotifier {
 
   DocumentState get document => _document;
   SelectionState get selection => _selection;
+  EditorSelectionSet get selectionSet => selectionController.selectionSet;
   EditorRenderPlan get renderPlan => _renderPlan;
   bool get glyphSubstitutionEnabled => _renderPlan.glyphSubstitutionEnabled;
   String? get selectedSourceText {
@@ -616,6 +617,19 @@ class EditorSessionFacade extends ChangeNotifier {
     notifyListeners();
   }
 
+  void selectSelections(
+    Iterable<SelectionState> selections, {
+    required int primaryIndex,
+  }) {
+    selectionController.selectSelections(
+      selections,
+      primaryIndex: primaryIndex,
+      documentLength: _document.length,
+    );
+    _refreshAnalysis();
+    notifyListeners();
+  }
+
   void selectRange({required int baseOffset, required int extentOffset}) {
     _structuredSelectionStack.clear();
     _selection = SelectionState(
@@ -631,9 +645,49 @@ class EditorSessionFacade extends ChangeNotifier {
   }
 
   void insertText(String value) {
+    final before = _captureSnapshot();
+    final selectionSetBefore = before.selectionSet;
+    final edits = selectionSetBefore.selections.map(
+      (selection) => WorkspaceTextEdit(
+        documentId: _document.documentId,
+        range: SourceRange(start: selection.start, end: selection.end),
+        newText: value,
+      ),
+    );
+    final result = transactionController.service.applyToDocument(
+      document: _document,
+      edit: WorkspaceEdit.singleDocument(
+        document: _document,
+        source: WorkspaceEditSource.userInput,
+        edits: edits,
+      ),
+    );
+    if (!result.isApplied) {
+      return;
+    }
+
+    final mappedSelections = selectionSetBefore.selections
+        .map(
+          (selection) => SelectionState.collapsed(
+            mapEditorPositionThroughEdits(
+              position: selection.start,
+              editsAscending: result.normalizedEdits,
+              association: EditorPositionAssociation.right,
+            ),
+          ),
+        )
+        .toList(growable: false);
+    final mappedSet = EditorSelectionSet.normalized(
+      selections: mappedSelections,
+      primaryIndex: selectionSetBefore.primaryIndex,
+      documentLength: result.document.length,
+    );
+
     _structuredSelectionStack.clear();
-    _pushUndoSnapshot();
-    _replaceSelection(value);
+    historyController.pushUndo(before);
+    _document = result.document;
+    selectionController.selectSelectionSet(mappedSet);
+    _refreshAnalysis();
     _clearRedoStack();
     notifyListeners();
   }
@@ -1241,6 +1295,7 @@ class EditorSessionFacade extends ChangeNotifier {
   EditorCommandTransactionResult applyCommandTransaction(
     EditorCommandTransaction transaction,
   ) {
+    final selectionSetBefore = selectionSet;
     final result = transactionController.applyCommandTransaction(
       document: _document,
       selectionBefore: _selection,
@@ -1253,7 +1308,11 @@ class EditorSessionFacade extends ChangeNotifier {
     _structuredSelectionStack.clear();
     _pushUndoSnapshot();
     _document = result.result.document;
-    _selection = result.selectionAfter;
+    if (transaction.selectionAfter == null) {
+      selectionController.selectSelectionSet(selectionSetBefore);
+    } else {
+      _selection = result.selectionAfter;
+    }
     _refreshAnalysis();
     _clearRedoStack();
     notifyListeners();
@@ -1492,7 +1551,10 @@ class EditorSessionFacade extends ChangeNotifier {
 
     _structuredSelectionStack.add(_selection);
     final next = candidates.first;
-    _selection = SelectionState(baseOffset: next.start, extentOffset: next.end);
+    selectionController.selectForStructuralNavigation(
+      SelectionState(baseOffset: next.start, extentOffset: next.end),
+      documentLength: _document.length,
+    );
     _refreshAnalysis();
     notifyListeners();
     return true;
@@ -1503,7 +1565,10 @@ class EditorSessionFacade extends ChangeNotifier {
       return false;
     }
 
-    _selection = _structuredSelectionStack.removeLast();
+    selectionController.selectForStructuralNavigation(
+      _structuredSelectionStack.removeLast(),
+      documentLength: _document.length,
+    );
     _refreshAnalysis();
     notifyListeners();
     return true;
@@ -1921,7 +1986,7 @@ class EditorSessionFacade extends ChangeNotifier {
       return;
     }
     _document = snapshot.document;
-    _selection = snapshot.selection;
+    selectionController.selectSelectionSet(snapshot.selectionSet);
     _refreshAnalysis();
     notifyListeners();
   }
@@ -1937,13 +2002,16 @@ class EditorSessionFacade extends ChangeNotifier {
       return;
     }
     _document = snapshot.document;
-    _selection = snapshot.selection;
+    selectionController.selectSelectionSet(snapshot.selectionSet);
     _refreshAnalysis();
     notifyListeners();
   }
 
   EditorHistorySnapshot _captureSnapshot() {
-    return EditorHistorySnapshot(document: _document, selection: _selection);
+    return EditorHistorySnapshot(
+      document: _document,
+      selectionSet: selectionSet,
+    );
   }
 
   void _pushUndoSnapshot() {

@@ -48,10 +48,11 @@
 ### 0.5 文档状态
 
 1. `docs/design/` 是产品、系统、已交付设计基线和活跃缺口登记的 SSOT。
-2. `docs/plan/` is the canonical local Better Plan workspace. It contains exactly two delivery
-   tracks for one Vityo product: `vityo` for the IDE and `vityo-coding-agent` for the first-party
-   companion runtime. Product facts remain grounded in their requirements, evidence, architecture,
-   and validation contracts.
+2. `docs/plan/` is the only authoritative local Better Plan workspace and the only permitted Better
+   Plan root. It contains exactly two delivery tracks for one Vityo product: `vityo` for the IDE and
+   `vityo-coding-agent` for the first-party companion runtime. Nested or parallel Better Plan
+   workspaces are forbidden. Product facts remain grounded in their requirements, evidence,
+   architecture, and validation contracts.
 3. `docs/rollups/` 负责压缩当前状态和活跃缺口，不替代 owner 文档。
 4. `docs/history/` 负责活跃恢复记录；原始历史一旦退役，应迁入 `docs/archive/`。
 5. `docs/archive/` 负责归档 provenance 与 lifecycle 元数据，不用来隐藏仍活跃的 owner 文档。
@@ -98,9 +99,10 @@
 
 1. 设计级文档使用稳定主题名，优先 `Vityo-*.md`。
 2. 规范文件使用稳定全大写或描述性短横线命名。
-3. Keep Better Plan workflow state only in `docs/plan/`, with one IDE delivery track in `vityo`
-   and one first-party companion-runtime track in `vityo-coding-agent`. Product facts remain in
-   owner documents; validate plan state with the current Better Plan manifest tool rather than a
+3. Keep all Better Plan capability and workflow state directly under the single `docs/plan/` root,
+   with one IDE delivery track in `vityo` and one first-party companion-runtime track in
+   `vityo-coding-agent`. Do not create a nested or parallel workspace. Product facts remain in owner
+   documents; validate plan state with the current Better Plan manifest tool rather than a
    repository-local validator copy.
 4. 历史、审计和 rollup 文件使用稳定主题名；日期只能写入 `Date`、`Last updated` 或正文状态说明。
 5. 独立 ADR 文件严格使用 `ADR-XXXX-<slug>.md`；`docs/adr/IMPLEMENTED-DECISIONS.md` 不编号，只作为当前已实现决策的压缩索引。

@@ -4,23 +4,30 @@ import 'dart:io';
 
 import 'package:vityo_agent_protocol/vityo_agent_protocol.dart';
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
+import 'package:vityo_app/src/ide/workbench/agent_collaboration/agent_collaboration_service.dart';
+import 'package:vityo_app/src/ide/workbench/agent_collaboration/collaboration_store.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_revision_service.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
 
 Future<void> main() async {
-  await _canonicalAcpV1ContractReplacesPrivateEnvelope();
+  await _canonicalAcpV1ContractRoundTrips();
+  await _concurrentConnectAndRemoteSessionRoutesRemainUnique();
   await _negotiationConcurrentStreamingPermissionAndCancellation();
+  await _crossAgentIdentifiersRemainIsolated();
+  await _protocolChangeProposalRoutesThroughWorkbenchTransaction();
+  await _processFailureClearsWorkbenchPermissionState();
   await _dynamicCapabilityRevocationAndReconnect();
   await _boundedFailuresAreConnectionLocal();
 }
 
 /// REQ-IDE-005 / both criteria / schema and atomic-cutover seam.
 ///
-/// Precondition: the Vityo-owned shared protocol package and canonical schema are present.
-/// Action: decode one request, notification, success, and error response and
-/// inspect the former private protocol surface.
+/// Precondition: the Vityo-owned shared protocol package and canonical schema
+/// are present.
+/// Action: decode one request, notification, success, and error response.
 /// Oracle: the exact JSON-RPC 2.0 shapes round-trip under ACP wire version 1,
-/// Vityo extensions require a negotiated `vityo/` namespace, and no legacy
-/// envelope or connection abstraction remains.
-Future<void> _canonicalAcpV1ContractReplacesPrivateEnvelope() async {
+/// and Vityo extensions require ACP's reserved `_vityo.dev/` namespace.
+Future<void> _canonicalAcpV1ContractRoundTrips() async {
   _expect(acpProtocolVersion == 1, 'ACP stable wire version must be 1');
   final messages = <JsonRpcMessage>[
     JsonRpcRequest(
@@ -58,8 +65,8 @@ Future<void> _canonicalAcpV1ContractReplacesPrivateEnvelope() async {
     'invalid_extension_namespace',
   );
   _expectThrowsProtocol(
-    () => validateVityoExtensionMethod('vityo/test/write', const <String>{
-      'vityo/test/status',
+    () => validateVityoExtensionMethod('_vityo.dev/test/write', const <String>{
+      '_vityo.dev/test/status',
     }),
     'capability_revoked',
   );
@@ -75,27 +82,41 @@ Future<void> _canonicalAcpV1ContractReplacesPrivateEnvelope() async {
     schemaJson[r'$id'] == 'https://vityo.dev/schema/agent-client-protocol/v1',
     'canonical schema must identify ACP v1',
   );
+}
 
-  final protocolSource = await File.fromUri(
-    Platform.script.resolve(
-      '../../../packages/vityo_agent_protocol/lib/src/protocol.dart',
-    ),
-  ).readAsString();
-  final formerClientSource = await File.fromUri(
-    Platform.script.resolve(
-      '../../../products/vityo_app/lib/src/view_ide/agent_client/'
-      'protocol_agent_client.dart',
-    ),
-  ).readAsString();
-  for (final retiredSymbol in <String>[
-    'AgentSessionEnvelope',
-    'AgentClientConnection',
-  ]) {
-    _expect(
-      !protocolSource.contains(retiredSymbol) &&
-          !formerClientSource.contains(retiredSymbol),
-      '$retiredSymbol must be removed rather than retained as compatibility',
+/// Concurrent callers share one supervised process, while a broken Agent
+/// cannot alias two client sessions onto the same active remote route.
+Future<void> _concurrentConnectAndRemoteSessionRoutesRemainUnique() async {
+  final shared = _registry(<String, String>{'healthy': 'normal'});
+  try {
+    final snapshots = await Future.wait<AgentConnectionSnapshot>(
+      List<Future<AgentConnectionSnapshot>>.generate(
+        8,
+        (_) => shared.connect('healthy'),
+      ),
     );
+    _expect(
+      shared.activeConnectionCount == 1 &&
+          snapshots.map((snapshot) => snapshot.generation).toSet().length == 1,
+      'concurrent first connections must share one process generation',
+    );
+  } finally {
+    final receipts = await shared.close();
+    _expect(
+      receipts.length == 1 && receipts.single.terminated,
+      'coalesced connection must produce exactly one shutdown receipt',
+    );
+  }
+
+  final reused = _registry(<String, String>{'reused': 'reused-session'});
+  try {
+    await reused.newSession(agentId: 'reused', cwd: Directory.current.uri);
+    await _expectClientFailure(
+      () => reused.newSession(agentId: 'reused', cwd: Directory.current.uri),
+      'session_collision',
+    );
+  } finally {
+    await reused.close();
   }
 }
 
@@ -141,6 +162,10 @@ Future<void> _negotiationConcurrentStreamingPermissionAndCancellation() async {
     final firstSubscription = first.updates.listen(firstUpdates.add);
     final secondSubscription = second.updates.listen(secondUpdates.add);
 
+    await _expectClientFailure(
+      () => first.prompt(List<String>.filled(64 * 1024 + 1, 'x').join()),
+      'message_too_large',
+    );
     final firstPrompt = first.prompt('alpha');
     final secondPrompt = second.prompt('bravo');
     final permissions = <AgentPermissionRequest>[
@@ -197,6 +222,34 @@ Future<void> _negotiationConcurrentStreamingPermissionAndCancellation() async {
       'cancelled prompt must terminate with the correlated stop reason',
     );
 
+    final awaitingApproval = await registry.newSession(
+      agentId: 'healthy',
+      cwd: Directory.current.uri,
+    );
+    final approvalPrompt = awaitingApproval.prompt('cancel-permission');
+    final pendingPermission = await _next(registry.permissionRequests);
+    _expect(
+      pendingPermission.sessionId == awaitingApproval.id &&
+          pendingPermission.toolCallId.isNotEmpty,
+      'permission requests must retain their ACP tool-call correlation',
+    );
+    _expect(
+      await awaitingApproval.cancel(),
+      'cancelling a permission-blocked turn must be sent',
+    );
+    final approvalCancelled = await approvalPrompt;
+    _expect(
+      approvalCancelled.stopReason == AcpStopReason.cancelled,
+      'permission-blocked cancellation must complete with cancelled',
+    );
+    await _expectClientFailure(
+      () => registry.resolvePermission(
+        pendingPermission.id,
+        AgentPermissionDecision.allowOnce,
+      ),
+      'unknown_permission',
+    );
+
     await firstSubscription.cancel();
     await secondSubscription.cancel();
   } finally {
@@ -207,6 +260,166 @@ Future<void> _negotiationConcurrentStreamingPermissionAndCancellation() async {
           receipts.single.exitCode != null,
       'shutdown must observe direct child exit and leave no live child',
     );
+  }
+}
+
+/// Two independent Agent processes are allowed to reuse their own remote
+/// session and JSON-RPC request identifiers. Client-facing identifiers must
+/// remain unique so neither projection nor permission resolution can cross
+/// the process boundary.
+Future<void> _crossAgentIdentifiersRemainIsolated() async {
+  final registry = _registry(<String, String>{
+    'first-agent': 'normal',
+    'second-agent': 'normal',
+  });
+  try {
+    final first = await registry.newSession(
+      agentId: 'first-agent',
+      cwd: Directory.current.uri,
+    );
+    final second = await registry.newSession(
+      agentId: 'second-agent',
+      cwd: Directory.current.uri,
+    );
+    _expect(
+      first.id != second.id,
+      'client session identifiers must be unique across Agent processes',
+    );
+
+    final firstPrompt = first.prompt('first-agent-prompt');
+    final secondPrompt = second.prompt('second-agent-prompt');
+    final permissions = <AgentPermissionRequest>[
+      await _next(registry.permissionRequests),
+      await _next(registry.permissionRequests),
+    ];
+    _expect(
+      permissions[0].id != permissions[1].id,
+      'client permission identifiers must not reuse remote JSON-RPC ids',
+    );
+    _expect(
+      permissions.map((request) => request.sessionId).toSet().length == 2,
+      'permissions must retain distinct client session ownership',
+    );
+
+    for (final permission in permissions.reversed) {
+      await registry.resolvePermission(
+        permission.id,
+        AgentPermissionDecision.allowOnce,
+      );
+    }
+    final results = await Future.wait(<Future<AcpPromptResult>>[
+      firstPrompt,
+      secondPrompt,
+    ]);
+    _expect(
+      results.every((result) => result.stopReason == AcpStopReason.endTurn),
+      'each permission decision must return to its owning Agent process',
+    );
+  } finally {
+    await registry.close();
+  }
+}
+
+/// REQ-IDE-004/005/007 / protocol-to-transaction change review.
+///
+/// A supervised Agent emits one negotiated, revision-bound proposal. The
+/// collaboration projection must retain it for explicit review, and only the
+/// IDE-owned transaction service may mutate the document after approval.
+Future<void> _protocolChangeProposalRoutesThroughWorkbenchTransaction() async {
+  final revisions = InMemoryWorkspaceRevisionService(
+    initialDocuments: const <String, String>{'file': 'before'},
+  );
+  final collaboration = AgentCollaborationService(
+    registry: _registry(<String, String>{'healthy': 'normal'}),
+    transactions: RevisionedWorkspaceTransactionService(revisions),
+    workspaceRoot: Directory.current.uri,
+  );
+  try {
+    final opened = await collaboration.openSession('healthy');
+    final prompt = collaboration.steer(opened.sessionId, 'propose-change');
+    await _eventually(
+      () => collaboration.projection
+          .session(opened.sessionId)
+          .pendingPermissions
+          .isNotEmpty,
+      'protocol permission must reach the workbench projection',
+    );
+    final permission = collaboration.projection
+        .session(opened.sessionId)
+        .pendingPermissions
+        .values
+        .single;
+    await permission.resolve(AgentPermissionDecision.allowOnce);
+    await prompt;
+    await _eventually(
+      () => collaboration.projection
+          .session(opened.sessionId)
+          .changeReviews
+          .isNotEmpty,
+      'protocol change proposal must reach the workbench projection',
+    );
+
+    final review = collaboration.projection
+        .session(opened.sessionId)
+        .changeReviews
+        .values
+        .single;
+    _expect(
+      review.outcome == WorkspaceTransactionOutcome.ready &&
+          revisions.snapshot().document('file').text == 'before',
+      'proposal preview must not mutate the IDE-owned workspace',
+    );
+    final committed = await collaboration.resolveChange(
+      sessionId: opened.sessionId,
+      changeSetId: review.changeSet.id,
+      decision: AgentChangeReviewDecision.commit,
+    );
+    _expect(
+      committed.outcome == WorkspaceTransactionOutcome.committed &&
+          revisions.snapshot().document('file').text == 'after',
+      'only explicit review may commit the protocol proposal',
+    );
+  } finally {
+    await collaboration.close();
+  }
+}
+
+/// A child that dies with a permission request outstanding must fail its
+/// session projection and remove the now-unresolvable approval affordance.
+Future<void> _processFailureClearsWorkbenchPermissionState() async {
+  final collaboration = AgentCollaborationService(
+    registry: _registry(<String, String>{'unstable': 'crash-with-permission'}),
+    transactions: RevisionedWorkspaceTransactionService(
+      InMemoryWorkspaceRevisionService(),
+    ),
+    workspaceRoot: Directory.current.uri,
+  );
+  try {
+    final opened = await collaboration.openSession('unstable');
+    final prompt = collaboration.steer(opened.sessionId, 'crash-now');
+    await _eventually(
+      () => collaboration.projection
+          .session(opened.sessionId)
+          .pendingPermissions
+          .isNotEmpty,
+      'permission must be visible before the child exits',
+    );
+    try {
+      await prompt;
+      throw StateError('crashed prompt unexpectedly completed');
+    } on CollaborationFailure catch (failure) {
+      _expect(
+        failure.code == 'process_failed',
+        'child exit must retain the process failure code',
+      );
+    }
+    await _eventually(() {
+      final session = collaboration.projection.session(opened.sessionId);
+      return session.status == CollaborationTaskStatus.failed &&
+          session.pendingPermissions.isEmpty;
+    }, 'failed session must not retain an unresolvable permission');
+  } finally {
+    await collaboration.close();
   }
 }
 
@@ -228,7 +441,7 @@ Future<void> _dynamicCapabilityRevocationAndReconnect() async {
     );
     await registry.invokeExtension(
       agentId: 'healthy',
-      method: 'vityo/test/write',
+      method: '_vityo.dev/test/write',
     );
     final capabilityPrompt = session.prompt('capabilities');
     await capabilityPrompt;
@@ -236,20 +449,20 @@ Future<void> _dynamicCapabilityRevocationAndReconnect() async {
       () => !registry
           .connection('healthy')
           .capabilities
-          .contains('vityo/test/write'),
+          .contains('_vityo.dev/test/write'),
       'dynamic capability removal must reach the connection snapshot',
     );
     await _expectClientFailure(
       () => registry.invokeExtension(
         agentId: 'healthy',
-        method: 'vityo/test/write',
+        method: '_vityo.dev/test/write',
       ),
       'capability_revoked',
     );
     final status =
         await registry.invokeExtension(
               agentId: 'healthy',
-              method: 'vityo/test/status',
+              method: '_vityo.dev/test/status',
             )
             as Map<String, Object?>;
     _expect(
@@ -258,17 +471,38 @@ Future<void> _dynamicCapabilityRevocationAndReconnect() async {
     );
 
     final beforeGeneration = initial.generation;
+    final beforeReconnect = session.snapshot;
     final shutdown = await registry.disconnect('healthy');
     _expect(shutdown.terminated, 'explicit disconnect must reap the child');
-    final loaded = await registry.reconnectSession(
-      agentId: 'healthy',
-      sessionId: session.id,
-      cwd: Directory.current.uri,
+    await _expectClientFailure(
+      () => registry.reconnectSession(
+        agentId: 'healthy',
+        sessionId: session.id,
+        cwd: Directory.systemTemp.uri,
+      ),
+      'session_workspace_mismatch',
     );
+    final loadedSessions = await Future.wait<AgentClientSession>(
+      List<Future<AgentClientSession>>.generate(
+        8,
+        (_) => registry.reconnectSession(
+          agentId: 'healthy',
+          sessionId: session.id,
+          cwd: Directory.current.uri,
+        ),
+      ),
+    );
+    final loaded = loadedSessions.first;
     _expect(
       registry.connection('healthy').generation > beforeGeneration &&
-          loaded.id == session.id,
-      'reconnect must create a new process generation and load exact session',
+          loadedSessions.every((candidate) => identical(candidate, loaded)) &&
+          loaded.id == session.id &&
+          loaded.snapshot.revision > beforeReconnect.revision &&
+          loaded.snapshot.updates.any(
+            (update) => update.text?.contains('capabilities') ?? false,
+          ) &&
+          loaded.snapshot.updates.last.payload['status'] == 'active',
+      'concurrent reconnect must coalesce and load one exact session',
     );
   } finally {
     await registry.close();
@@ -356,7 +590,11 @@ AgentClientRegistry _registry(Map<String, String> modes) {
       maxPendingRequests: 32,
       requestTimeout: Duration(seconds: 3),
       shutdownTimeout: Duration(seconds: 2),
-      allowedExtensions: <String>{'vityo/test/write', 'vityo/test/status'},
+      allowedExtensions: <String>{
+        '_vityo.dev/test/write',
+        '_vityo.dev/test/status',
+        VityoCapability.workspaceChangeProposal,
+      },
     ),
   );
 }

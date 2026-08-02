@@ -34,6 +34,11 @@ void main() {
                 id: 'styio.toolchain',
                 target: 'toolchain.manager',
               ),
+              ExtensionContributionPoint(
+                kind: ExtensionContributionKind.agent,
+                id: 'vityo.agent-client',
+                target: 'agent.client',
+              ),
             ],
           ),
         );
@@ -42,8 +47,8 @@ void main() {
         registry,
       );
 
-      expect(routes.routes, hasLength(4));
-      expect(routes.readyRoutes, hasLength(4));
+      expect(routes.routes, hasLength(5));
+      expect(routes.readyRoutes, hasLength(5));
       expect(
         routes
             .routesFor(ExtensionContributionRegistryKind.commandRegistry)
@@ -74,7 +79,14 @@ void main() {
             .registryTargetId,
         'toolchain.manager',
       );
-      expect(routes.toJson()['readyRouteCount'], 4);
+      expect(
+        routes
+            .routesFor(ExtensionContributionRegistryKind.agentClientRegistry)
+            .single
+            .registryTargetId,
+        'agent.client',
+      );
+      expect(routes.toJson()['readyRouteCount'], 5);
     },
   );
 

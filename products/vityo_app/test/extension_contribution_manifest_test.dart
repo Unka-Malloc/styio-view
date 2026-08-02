@@ -33,17 +33,20 @@ ManifestValidationResult validateManifest(Map<String, dynamic> manifest) {
   }
 
   // id is required
-  if (!manifest.containsKey('id') || (manifest['id'] as String?)?.isEmpty == true) {
+  if (!manifest.containsKey('id') ||
+      (manifest['id'] as String?)?.isEmpty == true) {
     errors.add('Missing required field: id');
   }
 
   // name is required
-  if (!manifest.containsKey('name') || (manifest['name'] as String?)?.isEmpty == true) {
+  if (!manifest.containsKey('name') ||
+      (manifest['name'] as String?)?.isEmpty == true) {
     errors.add('Missing required field: name');
   }
 
   // version is required (SemVer)
-  if (!manifest.containsKey('version') || (manifest['version'] as String?)?.isEmpty == true) {
+  if (!manifest.containsKey('version') ||
+      (manifest['version'] as String?)?.isEmpty == true) {
     errors.add('Missing required field: version');
   }
 
@@ -70,7 +73,8 @@ ManifestValidationResult validateManifest(Map<String, dynamic> manifest) {
         continue;
       }
       final contrib = contributions[i] as Map<String, dynamic>;
-      if (!contrib.containsKey('type') || (contrib['type'] as String?)?.isEmpty == true) {
+      if (!contrib.containsKey('type') ||
+          (contrib['type'] as String?)?.isEmpty == true) {
         errors.add('contribution[$i] missing required field: type');
       }
     }
@@ -84,10 +88,7 @@ ManifestValidationResult validateManifest(Map<String, dynamic> manifest) {
     }
   }
 
-  return ManifestValidationResult(
-    valid: errors.isEmpty,
-    errors: errors,
-  );
+  return ManifestValidationResult(valid: errors.isEmpty, errors: errors);
 }
 
 void main() {
@@ -100,7 +101,12 @@ void main() {
         'version': '1.0.0',
         'activationEvents': ['onStartup'],
         'contributions': [
-          {'type': 'commands', 'commands': [{'id': 'example.hello', 'title': 'Hello'}]},
+          {
+            'type': 'commands',
+            'commands': [
+              {'id': 'example.hello', 'title': 'Hello'},
+            ],
+          },
         ],
       };
       final result = validateManifest(manifest);
@@ -188,7 +194,10 @@ void main() {
         'version': '1.0.0',
         'activationEvents': [],
         'contributions': [],
-        'customMetadata': {'author': 'test', 'tags': ['experimental']},
+        'customMetadata': {
+          'author': 'test',
+          'tags': ['experimental'],
+        },
       };
       final jsonStr = jsonEncode(manifest);
       final reparsed = jsonDecode(jsonStr) as Map<String, dynamic>;
@@ -202,8 +211,7 @@ void main() {
       const validTypes = [
         'commands',
         'languages',
-        'agent_providers',
-        'agent_tools',
+        'agents',
         'debug_adapters',
         'toolchains',
         'themes',
@@ -219,12 +227,15 @@ void main() {
           'version': '1.0.0',
           'activationEvents': ['onStartup'],
           'contributions': [
-            {'type': type}
+            {'type': type},
           ],
         };
         final result = validateManifest(manifest);
-        expect(result.valid, isTrue,
-            reason: 'Contribution type "$type" should be valid');
+        expect(
+          result.valid,
+          isTrue,
+          reason: 'Contribution type "$type" should be valid',
+        );
       }
     });
 
@@ -258,8 +269,11 @@ void main() {
           'isolation': isolation,
         };
         final result = validateManifest(manifest);
-        expect(result.valid, isTrue,
-            reason: 'Isolation "$isolation" should be valid');
+        expect(
+          result.valid,
+          isTrue,
+          reason: 'Isolation "$isolation" should be valid',
+        );
       }
     });
 
@@ -294,15 +308,19 @@ void main() {
       for (final event in events) {
         final manifest = {
           'schemaVersion': 1,
-          'id': 'styio.event-${event.replaceAll(':', '-').replaceAll('*', 'star')}',
+          'id':
+              'styio.event-${event.replaceAll(':', '-').replaceAll('*', 'star')}',
           'name': 'Event $event',
           'version': '1.0.0',
           'activationEvents': [event],
           'contributions': [],
         };
         final result = validateManifest(manifest);
-        expect(result.valid, isTrue,
-            reason: 'Activation event "$event" should be valid');
+        expect(
+          result.valid,
+          isTrue,
+          reason: 'Activation event "$event" should be valid',
+        );
       }
     });
 
@@ -338,7 +356,7 @@ void main() {
           {
             'type': 'commands',
             'commands': [
-              {'id': 'cpp.build', 'title': 'Build C++ Project'}
+              {'id': 'cpp.build', 'title': 'Build C++ Project'},
             ],
           },
         ],

@@ -53,10 +53,7 @@ void main() {
     expect(snapshot.updates.length, lessThanOrEqualTo(5));
     expect(snapshot.bufferedUpdateBytes, lessThanOrEqualTo(1536));
     expect(snapshot.droppedUpdateCount, greaterThan(0));
-    expect(
-      snapshot.acceptedUpdateCount + snapshot.droppedUpdateCount,
-      200,
-    );
+    expect(snapshot.acceptedUpdateCount + snapshot.droppedUpdateCount, 200);
     expect(snapshot.queuedUpdateCount, 0);
     final retainedIds = snapshot.updates
         .map((update) => int.parse(update.payload['id']! as String))
@@ -108,12 +105,14 @@ void main() {
             payload: <String, Object?>{
               'id': 'two',
               'authorization': 'private-value',
+              'clientSecret': 'nested-private-value',
+              'url': 'https://example.invalid/?access_token=url-private-value',
             },
           ),
           const AgentSessionUpdate(
             sessionId: 'recoverable',
             kind: 'receipt',
-            text: 'validation passed',
+            text: 'validation passed with Basic basic-private-value',
             payload: <String, Object?>{'id': 'three'},
           ),
         ],
@@ -122,6 +121,9 @@ void main() {
     final encoded = await storage.read();
     expect(encoded, isNot(contains('fixture-token')));
     expect(encoded, isNot(contains('private-value')));
+    expect(encoded, isNot(contains('nested-private-value')));
+    expect(encoded, isNot(contains('url-private-value')));
+    expect(encoded, isNot(contains('basic-private-value')));
 
     final restarted = AgentSessionRecoveryStore(
       storage: storage,
@@ -243,8 +245,7 @@ void main() {
             ),
         ],
         droppedTimelineCount: 20,
-        pendingPermissions:
-            const <String, CollaborationPermissionProjection>{},
+        pendingPermissions: const <String, CollaborationPermissionProjection>{},
         changeReviews: const <String, AgentChangeReviewProjection>{},
       );
       final projection = CollaborationProjection(
@@ -291,9 +292,7 @@ void main() {
         ),
       );
       expect(find.bySemanticsLabel('Agent task center'), findsOneWidget);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('agent-task-large')),
-      );
+      await tester.tap(find.byKey(const ValueKey<String>('agent-task-large')));
       expect(commands.routedSessionIds.last, 'large');
       semantics.dispose();
     },

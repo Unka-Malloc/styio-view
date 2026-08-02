@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://vityo.dev/schema/agent-client-protocol/v1",
   "title": "Vityo ACP v1 JSON-RPC Message",
-  "description": "Canonical wire contract for ACP v1 core messages and negotiated vityo.* extensions.",
+  "description": "Canonical wire contract for ACP v1 core messages and negotiated _vityo.dev/* extension methods.",
   "oneOf": [
     { "$ref": "#/$defs/request" },
     { "$ref": "#/$defs/notification" },

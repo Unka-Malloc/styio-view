@@ -3,7 +3,7 @@
 **Purpose:** Define the workbench shell surface, layout, focus, command routing, capability, and responsive behavior contract for the current Vityo shell.
 
 **Owner:** `products/vityo_app/lib/src/view_render/shell/` and `products/vityo_app/lib/src/view_ide/workbench/`
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-31
 **Plan traceability:** [Vityo requirements](../plan/vityo/Requirements.md)
 `REQ-IDE-003`, `REQ-IDE-004`, and `REQ-IDE-008`
 
@@ -62,7 +62,7 @@ The following source files define the workbench shell surfaces, their layout, co
 | `products/vityo_app/lib/src/view_render/editor/editor.dart` | Editor groups (central content area). |
 | `products/vityo_app/lib/src/view_render/search/search.dart` | Workspace search/replace surface. |
 | `products/vityo_app/lib/src/view_render/problems/problems.dart` | Diagnostics/problems surface. |
-| `products/vityo_app/lib/src/view_render/agent_workbench/agent.dart` | Agent activity surface. |
+| `products/vityo_app/lib/src/presentation/agent_workbench/agent_workbench.dart` | Agent task, permission, and change-review surface. |
 | `products/vityo_app/lib/src/view_render/source_control/source_control.dart` | Source control changes surface. |
 | `products/vityo_app/lib/src/view_render/testing/testing.dart` | Testing results surface. |
 | `products/vityo_app/lib/src/view_render/extensions/extensions.dart` | Extensions management surface. |

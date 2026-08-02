@@ -2,7 +2,7 @@
 
 **Purpose:** Track current implementation and integration facts that ground the two delivery tracks for one Vityo product without duplicating their workflow state.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 **Latest audit run:** 2026-06-25 02:00–02:30 UTC
 
@@ -32,7 +32,7 @@ Status values:
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
-| Retire IDE direct model-provider/controller ownership | Implementation needed | Vityo IDE + Coding Agent runtime | The current IDE code still contains provider profiles, OpenAI-compatible transport, provider routing, tool-loop policy, and session-controller implementation inherited from the superseded panel-first architecture. Move model/provider, tool-loop, policy, durable-session, and multi-Agent orchestration ownership into `products/vityo_coding_agent` (or another compatible Agent), keep the IDE as a versioned protocol client, then remove the superseded IDE implementation and tests atomically. Preserve IDE-owned revisions, Styio facts, permission presentation, change preview, and workspace transaction application. This documentation convergence does not claim that code migration is complete. |
+| Retire IDE direct model-provider/controller ownership | Closed | Vityo IDE + Coding Agent runtime | Vityo IDE no longer owns model/provider transport, prompt profiles, coding-loop orchestration, tool-loop policy, or durable Agent session controllers. Collaboration goes exclusively through the versioned Agent Client (`lib/src/ide/agent_client`), immutable Workbench projections (`lib/src/ide/workbench/agent_collaboration`), and presentation Workbench UI (`lib/src/presentation/agent_workbench`). Model/provider and durable Agent ownership remain in compatible Agent runtimes. IDE retains revisioned context export, permission presentation, change review, and workspace transactions. |
 | Agent Workbench product closure | Partially implemented | Vityo | Prove a task loop with plan visibility, explicit permission decisions, revision-bound change preview, IDE-owned apply/rollback, and verification receipts through the shared Agent protocol. The IDE must also prove `edit -> analyze -> test -> run -> observe` with no Agent connected. |
 
 ## 2. Language And StyioService Gaps
@@ -91,27 +91,31 @@ Status values:
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
 | Real JIT compiler/backend contract | Upstream blocked | styio-nightly / backend service | Replace route intent and capability gap with published execution contract. |
-| Toolchain route selection | Partially implemented | Vityo | `BackendExecutionRouteSelection` now normalizes workflow/JIT route decisions into `local-cli`, `ffi`, `hosted`, and `blocked` states with adapter kind, allowed/preview flags, detail, and blocked reason for build/run/test surfaces. Shell `run` command gating now consumes this normalized selection instead of raw summary text/preview flags. Native build/test command results now carry top-level `backendRouteSelection` metadata, the Agent provider/profile contract tells coding agents to inspect that metadata before proposing build, run, test, retry, or provider/toolchain reconfiguration, and native-tool result summaries render route state in runtime/agent UI. Runtime/Project Workflow surfaces render the normalized route kind. Remaining closure: extend route policy from metadata reporting into real build/test product workflow fixtures. |
+| Toolchain route selection | Partially implemented | Vityo | `BackendExecutionRouteSelection` normalizes workflow/JIT route decisions into `local-cli`, `ffi`, `hosted`, and `blocked` states with adapter kind, allowed/preview flags, detail, and blocked reason for build/run/test surfaces. Shell `run` command gating consumes this normalized selection instead of raw summary text or preview flags. Native build/test results carry top-level `backendRouteSelection` metadata, and IDE-owned Runtime / Project Workflow surfaces render the normalized route kind. Any future Agent consumption must use a bounded, revisioned protocol fact rather than an IDE provider/profile or command-dispatch compatibility path. Remaining closure: extend route policy from metadata reporting into real build/test product workflow fixtures. |
 | System Styio discovery | Implemented | Styio / Vityo | Styio owns compiler distribution and machine contracts. Vityo resolves the system compiler through `VITYO_STYIO_BIN` or `PATH`, consumes `styio --machine-info=json`, and surfaces a blocked state when the executable or contract is unavailable. Vityo does not install, update, pin, switch, or cache Styio. |
 | Normalized toolchain state snapshots | Partially implemented | Vityo | Generic non-Styio catalog snapshots cover registered descriptors, active state, version, executable path, target id, and workspace id. Styio identity is projected separately from its machine contract. Remaining closure: clearer missing-system-compiler recovery and richer selectors for IDE-owned native tools. |
 | Generic tool installation envelopes | Partially implemented | Vityo | Registration, selection, runtime, health, install planning, provenance checks, rollback status, platform failure envelopes, and recovery actions remain available for non-Styio IDE-owned tools. They are not a Styio distribution path. |
 | Toolchain backend handoff examples | Implementation needed | Vityo | Keep examples non-authoritative and aligned with contracts. |
-| Build/run/test product gate | Partially implemented | Vityo | `backend_route_product_gate_test.dart` validates local-cli, hosted, and blocked backend route states against `BackendExecutionRouteSelection`, Runtime Surface rendering, and build/test native result summaries without invoking real compilers or cloud providers. Shell runtime tests assert that native build/test result metadata exposes normalized backend route facts for agent coding context. Live local/hosted product workflow gates now assert `selectBackendExecutionRoute` when `VITYO_PRODUCT_GATE=1` supplies the external fixtures. Remaining closure: keep adding concrete workflow fixtures as product lanes mature. |
+| Build/run/test product gate | Partially implemented | Vityo | `backend_route_product_gate_test.dart` validates local-cli, hosted, and blocked backend route states against `BackendExecutionRouteSelection`, Runtime Surface rendering, and build/test native result summaries without invoking real compilers or cloud providers. Shell runtime tests assert that native build/test result metadata exposes normalized backend route facts to IDE consumers. Live local/hosted product workflow gates assert `selectBackendExecutionRoute` when `VITYO_PRODUCT_GATE=1` supplies the external fixtures. Remaining closure: keep adding concrete workflow fixtures as product lanes mature. |
 | Package/workflow payload maturity | Implemented baseline | Pafio / Styio Platform | Local project facts consume Pafio metadata v1 and workflow JSON; hosted workspaces consume Platform hosted-workspace v1. |
 
 ## 7. Agent, Theme, Module, And Mobile Gaps
 
-The provider/controller rows below inventory the legacy IDE implementation so the later migration
-can remove it completely. They are not accepted IDE ownership and must not be extended. Provider
-validation and provider credentials belong to the Agent-runtime delivery track; the IDE closure is
-protocol interoperability, Workbench review, and workspace-transaction enforcement.
+Direct IDE model-provider transport, prompt-profile, coding-loop, and durable session-controller
+ownership is retired and closed under §1.1. Vityo IDE does not execute models. Collaboration goes
+exclusively through the versioned Agent Client (`lib/src/ide/agent_client`), immutable Workbench
+projections (`lib/src/ide/workbench/agent_collaboration`), and presentation Workbench UI
+(`lib/src/presentation/agent_workbench`). Provider validation, provider credentials, model HTTP
+transport, route/local-bridge execution planning, and coding-loop orchestration belong to
+compatible Agent runtimes. IDE closure remains protocol interoperability, permission presentation,
+change review, and workspace-transaction enforcement.
 
 | Gap | Status | Owner | Required closure |
 |---|---|---|---|
-| Real AI provider call | Partially implemented | Vityo | Configured provider profiles can route OpenAI-compatible requests through `NetworkAgentProviderTransport`, credential-backed provider factory wiring, and `AgentCodingSessionController`; stale responses after provider switch or user cancel are ignored, provider HTTP failures now surface as structured `AgentProviderTransportException` values for http status, timeout, cancel, and invalid response cases, the controller preserves the latest structured provider failure for recovery UI, retry strategy, and telemetry, Agent Surface renders failure kind/status/recovery hint plus retry and local-fallback actions, Provider Profile renders reconfiguration guidance for base URL/model/token fixes, provider reconfiguration can save/remount after failure, cancellable provider transports can propagate cancel to a `CancellableNetworkManager` token, and live local provider E2E is covered through a loopback OpenAI-compatible HTTP route. Remaining closure: optional live cloud-provider validation with real credentials outside default CI. |
-| Agent IDE command closure | Partially implemented | Vityo | Agent Surface can render pending IDE commands, apply registered commands, block unregistered commands, block missing-input commands and recent retries with the registered `inputLabel`, or block not-ready commands, retry recent command results, and promotes `metadata.requiredCommand` from recent command results into an `Apply Required Command` action with `prerequisiteForCommandId` preserved. Agent Context exposes `settingsCommands` and `toolchainCommands` so agents can use registered settings/profile recovery and Clang/C++ version-selection actions instead of inventing unsupported UI routes, and Shell runtime now accepts `openSettings` agent suggestions with completion metadata while ShellModel switches the product UI to the Settings tab. Agent-origin settings recovery now records and renders a targeted `settingsSection` plus `recoveryForCommandId` for native/toolchain prerequisites, so follow-up requests and recent-command UI can distinguish generic settings recovery from completed prerequisite commands; `openSettings` is treated as a recovery route rather than a completed prerequisite, so Agent Surface does not immediately offer the original blocked command as retryable. A dedicated `cpp-clang-version-handoff` coding skill now activates for native workspaces, including Ninja-only build evidence, steering agents toward registered Clang/C++ candidates and IDE-provided CMake/Ninja handoff facts. A shared command-metadata helper resolves top-level and nested `buildResult`/`staticAnalysisResult`/`testResult` required commands plus `backendRouteSelection` and `toolchainSelectionStatus` facts for UI actions, Shell runtime completion tracking, provider request metadata summaries, and recent-command visible status text. Successful `selectClangCppVersion` command results now preserve the selected Clang/C++ manifest and preferred CMake/Ninja build-engine handoff so the next agent step can reuse IDE-owned build facts instead of inventing compiler paths or flags. Provider metadata now carries `lastPatchApplicationPendingPatchRetained` and the patch application message so agents can repair retained failed patches before proposing unrelated new edits. Agent Surface suppresses direct retry for route-blocked or failed toolchain-selection recent commands and offers the registered `openSettings` recovery action so users and agents do not repeat known blocked routes or missing Clang/C++ selections. It also offers `openSettings` for not-ready native tool suggestions that have no direct prerequisite command, such as missing build tools. The provider/default profile contract tells agents to inspect `commands.recentResults` required-command metadata before retrying blocked recent tool results, include required command inputs from `inputLabel`, propose `openSettings` when the latest backend route is not allowed or the latest toolchain selection status is not `selected`, use `openSettings` for not-ready native tool readiness entries that have no direct prerequisite command, use `preferredBuildEngineHandoff` after Clang/C++ selection, and use registered `selectClangCppVersion` toolchain commands instead of editing Clang/C++ configuration files directly. Remaining closure: broader recovery policy coverage for route/toolchain failures. |
-| Secret injection | Partially implemented | Vityo | Configuration-owned `CredentialSecretInjector` resolves short-lived injected values from `CredentialReference`, returns redacted projections for logs/UI, fails closed for missing/expired/empty/kind-mismatched credentials, and Agent provider bearer-token resolution now consumes the generic injection path. Remaining closure: wire the same injection path into Toolchain execution, remote service connectors, and product credential setup UI. |
-| Local bridge / cloud execution for AI | Partially implemented | Vityo | `AgentProviderRouteExecutor` now normalizes cloud, loopback local-bridge, and blocked execution plans from provider route + endpoint + platform local-service compatibility, and exposes execution resolution reports that include selected endpoint, fallback status, credential readiness, and optional endpoint probe results. `ConfiguredAgentProviderAdapterFactory` consumes the same resolution, marks loopback providers as `localBridge`, can route local bridge requests through a dedicated transport while AppBootstrap supplies `platformManagers.localService`, can fail over from a blocked primary endpoint to serialized profile fallback endpoints, skips endpoints whose configured credential reference cannot be injected, and can consume a pluggable endpoint probe without probing real cloud providers by default. `AgentProviderConfigurator` and persisted-profile AppBootstrap mounting now pass execution resolution into `AgentCodingSessionController`, and Agent Surface Provider Profile can render ready/fallback/blocked state plus endpoint readiness. The profile form now has a minimal fallback cloud endpoint editor for one fallback base URL + model, and can promote the selected fallback into the primary provider fields for recovery. Remaining closure: multi-fallback management, retry-probe controls, and richer failover history. |
+| Real AI provider call | Closed (not applicable to Vityo IDE) | Compatible Agent | Model/provider HTTP transport, credential-backed provider adapters, durable coding-session controllers, structured provider-transport failure handling, cancel/retry of model calls, Provider Profile endpoint/token reconfiguration, and live provider E2E validation are Agent-runtime owned. Vityo IDE does not host OpenAI-compatible provider calls or mount those controllers. Optional live cloud-provider validation with real credentials remains Agent-runtime work outside the Vityo IDE delivery track. |
+| Agent Workbench command closure | Closed (protocol/Workbench) | Vityo | The Workbench command port owns only Agent-session actions: prompt/steer, cancel, retry, reconnect, one-shot permission resolution, and apply/reject/revert of protocol-proposed workspace changes through the injected IDE transaction authority. Ordinary settings, toolchain, build, test, source-control, and editor commands remain IDE-owned shell commands and are not exposed through a hidden Agent command dispatcher. New Agent-triggerable behavior requires an explicit versioned protocol capability, bounded payload, authorization rule, immutable projection, and acceptance oracle. |
+| Secret injection | Partially implemented | Vityo | Configuration-owned `CredentialSecretInjector` resolves short-lived injected values from `CredentialReference`, returns redacted projections for logs/UI, and fails closed for missing/expired/empty/kind-mismatched credentials. Model-provider bearer-token routing and provider-credential injection belong to compatible Agent runtimes, not the IDE. Remaining closure: wire the same injection path into Toolchain execution, remote service connectors, and product credential setup UI. |
+| Local bridge / cloud execution for AI | Closed (not applicable to Vityo IDE) | Compatible Agent | Cloud, loopback local-bridge, and blocked model-execution planning—including endpoint resolution reports, credential readiness, failover across profile endpoints, local-service bridge routing, and endpoint probes—are Agent-runtime owned. Vityo IDE does not mount provider route executors, configured provider adapter factories, provider configurators, or Provider Profile endpoint editors for model execution. AppBootstrap and Workbench retain Agent Client / collaboration wiring only. Multi-fallback management, retry-probe controls, and richer failover history remain Agent-runtime work outside the Vityo IDE delivery track. |
 | Theme editor UI | Implementation needed | Vityo | Visual theme editing panel and live preview. |
 | Theme profile store | Implementation needed | Vityo | Persist user theme overrides and cross-session restore. |
 | Module package staging | Implementation needed | Vityo | Real package download/staging/activation path. |
@@ -150,57 +154,16 @@ Use these destinations:
 | Open risk or conflict before decision | `docs/review/` |
 | Final architecture decision | `docs/adr/` |
 
-## 10. Verified Gate Results (2026-06-25 02:00–02:30 UTC Audit)
+## 10. Current Validation Status
 
-### Gates PASSED
+This register does not preserve command-by-command audit snapshots. Current release evidence is
+produced by the repository-owned quality runner:
 
-| Gate | Result | Notes |
-|---|---|---|
-| `repo-hygiene-gate.py --mode tracked` | ✅ PASS | |
-| `import-boundary-gate.py` (all 6 rules) | ✅ PASS | view_render→backend_toolchain, view_render→integration, view_render→toolchain impls, view_ide→upstream private, integration re-export only, backend_toolchain→Flutter widgets |
-| `architecture_boundary_gate_test.py` (16 tests) | ✅ PASS | Fixed: `setUpClass` self→cls errors in TestAllowlistFileLoading and TestHelperFunctions; `relative_path()` ValueError for temp files outside REPO_ROOT |
-| `dependency-policy-gate.py` | ✅ PASS | 7/7 dependencies registered, 0 unregistered |
-| `docs-gate.sh` | ✅ PASS | team-docs-gate, docs-audit passed |
-| `delivery-gate.sh --mode checkpoint` | ✅ PASS | repo-hygiene staged, docs-gate staged |
-| `public-contract-schema-gate.py` | ✅ PASS | 0 blocking issues, 387 advisory (output-only types). Fixed: AgentProviderAccessRule and AgentProviderAccessControl now have `schemaVersion` + `extraFields` |
-| `vityo-ide-product-gate.py` | ✅ PASS | Command registry, agent context/permission/patch, diagnostic/project graph/runtime surface test anchors, view_ide import hygiene |
-| `prototype/ npm run selftest:editor` | ✅ PASS | 20 selftest steps passed |
-| `flutter analyze` (non-test source) | ✅ PASS | 0 errors in lib/ source (69 errors remain in test/ files — pre-existing API migration residuals) |
+```bash
+python3 scripts/vityo_quality.py --product ide --suite full --preflight --receipt <path>
+python3 scripts/vityo_quality.py --product ide --suite full --receipt <path>
+```
 
-### Repairs Applied This Audit
-
-| # | File(s) | Issue | Fix |
-|---|---|---|---|
-| 1 | `scripts/architecture_boundary_gate_test.py` | `@classmethod setUpClass` used `self` instead of `cls` (4 test errors) | Moved assertion code to instance test methods; `setUpClass` now only sets `cls.gate` |
-| 2 | `scripts/import-boundary-gate.py` | `relative_path()` crashed on temp files outside REPO_ROOT (2 test errors) | Added `try/except ValueError` fallback returning absolute `str(file_path)` |
-| 3 | `lib/.../agent_provider_access_control.dart` | 8 BLOCKING schema issues: `AgentProviderAccessRule` and `AgentProviderAccessControl` missing `schemaVersion`, `extraFields` | Added `schemaVersion` (int, default 1), `extraFields` (Map<String, Object?>), updated `toJson()`/`fromJson()`/`copyWith()` |
-| 4 | `lib/src/platform/file_system_provider.dart`, `browser_virtual_file_system_provider.dart`, `memory_file_system_provider.dart` | `FileSystemCompatibility` undefined; `supportsScheme` missing from implements classes | Added direct import of `file_system_adapter.dart`; implemented `supportsScheme()` in both providers |
-| 5 | `lib/src/platform/file_system_operation_result.dart` | Object pattern + const constructor errors | Rewrote `valueOrThrow`/`valueOrNull`/`failureOrNull` using `is`/`as` type checks; added `const FileSystemOperationResult()` constructor |
-| 6 | `lib/src/view_ide/agent/agent_execution_mode.dart` | `const` on non-const factory calls (4 sites) | Removed `const` prefix from `AgentExecutionModeCheckResult.allowed()` calls |
-| 7 | `lib/src/view_ide/agent/agent_tool_sandbox_router.dart` | `AgentToolDecision` not a type; non-const default; const constructor with non-const field | Fixed type to `AgentToolPermissionDecision`; removed `const` from constructor; fixed `_toolRegistry` initialization |
-| 8 | `lib/src/view_ide/backend_toolchain/graph_hash.dart` | Return type mismatches in hash methods | Fixed `compute()` split into `update`+`finish()`, `fromString()` returns digest, `fromBytes()` instance creation |
-| 9 | `lib/src/view_ide/backend_toolchain/toolchain_provenance_guard.dart` | Static/instance `confirmed` name conflict | Renamed static to `preApproved`, updated call sites |
-| 10 | `lib/src/view_ide/backend_toolchain/workspace_graph_adapter.dart` | `hashString` undefined | Added import of `graph_hash.dart` |
-| 11 | `lib/src/view_render/shell/shell_layout_plan.dart` | Exhaustive switch missing `BottomSurfaceTab.locations` (3 sites) | Added `.locations` case + wildcard `_` fallback |
-| 12 | `lib/src/view_render/shell/shell_model.dart` | Exhaustive switch missing `AppCommandId.runSelectedTarget`; broken brace | Added `runSelectedTarget` case + `default` fallback; fixed switch closing brace |
-| 13 | `lib/src/view_render/shell/vityo_shell_scaffold.dart` | Exhaustive switch missing `BottomSurfaceTab.navigate`, `AppCommandId.reloadFile` | Added missing cases + `default` fallbacks |
-
-### Remaining Upstream-Blocked Items (Unchanged)
-
-All items marked **Upstream blocked** in sections 2–8 remain unchanged. Key items:
-- Rename / Code actions / Formatting / Inlay hints — need StyioService machine contract
-- Embedded parser API — needs styio-nightly stable facade
-- Real JIT compiler/backend contract — needs styio-nightly/backend service
-- Pafio/Platform contract growth — extend only through their published owner contracts
-
-### Remaining Repo-Local Items (Not Addressed This Audit)
-
-Items marked **Implementation needed** or **Partially implemented** that were not addressed:
-- `HostedWorkspaceFileSystemProvider` (vityo-hosted:// scheme) — implemented for hosted document load/save and structured unsupported operations; live hosted product gate remains opt-in
-- `CacheStore<K,V>` generic interface — not yet published
-- Cache Level 2 persistence (DataStore-backed) — not yet implemented
-- Theme editor UI / Theme profile store — still needed
-- Module package staging / Platform file deletion and resource reclaim — still needed
-- Android local-first execution - route and fallback implemented; device/emulator execution evidence still needed
-- Mobile interaction matrix / Device/simulator platform gates — still needed
-- Test file API migration residuals (69 errors in test/) — pre-existing from ongoing refactoring
+The formal run must be bound to a clean source commit and a new receipt destination. Historical
+repair logs belong under `docs/history/` or `docs/release/`; they must not be interpreted as current
+implementation truth here. Remaining work is recorded once in sections 2 through 8 above.

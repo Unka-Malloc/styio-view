@@ -60,14 +60,8 @@ ALLOWED_BRAND_FILES = {
     "docs/design/Vityo-IDE-Capability-Maturity.md",
     "scripts/ide-product-parity-gate.py",
     "toolchain/vityo-ide-capability-baseline.json",
-    # Codex branch agent/provider files contain technical reference comments
-    # that cite competitor architectures — not UI product text.
-    "products/vityo_app/lib/src/view_ide/agent_client/agent_coding_skill.dart",
-    "products/vityo_app/lib/src/view_ide/agent_client/agent_profile.dart",
-    "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_adapter.dart",
-    "products/vityo_app/lib/src/view_ide/agent_client/agent_provider_credential_resolver.dart",
+    # The capability inventory records benchmark references, not UI labels.
     "products/vityo_app/lib/src/view_ide/foundation/ide_capability_framework.dart",
-    "products/vityo_app/lib/src/view_render/agent_workbench/agent_surface.dart",
 }
 
 

@@ -592,85 +592,6 @@ diff --git a/lib/main.styio b/lib/main.styio
     expect(result.toJson()['kind'], 'stage');
   });
 
-  test('source control controller exposes agent context snapshot', () async {
-    final controller = SourceControlStatusController(
-      provider: const StaticSourceControlStatusProvider(
-        SourceControlStatusSnapshot(
-          providerKind: SourceControlProviderKind.git,
-          branchName: 'ai-dev',
-          changes: <SourceControlFileChange>[
-            SourceControlFileChange(
-              path: 'src/staged.styio',
-              stagedStatus: SourceControlFileStatus.added,
-            ),
-            SourceControlFileChange(
-              path: 'src/main.styio',
-              unstagedStatus: SourceControlFileStatus.modified,
-            ),
-            SourceControlFileChange(
-              path: 'src/conflict.styio',
-              unstagedStatus: SourceControlFileStatus.conflicted,
-            ),
-          ],
-        ),
-      ),
-      diffProvider: const StaticSourceControlDiffProvider(
-        SourceControlDiffSnapshot(
-          providerKind: SourceControlProviderKind.git,
-          path: 'src/main.styio',
-          unifiedDiff: '''
-diff --git a/src/main.styio b/src/main.styio
-@@ -1 +1 @@
--old
-+new
-''',
-        ),
-      ),
-      workspaceRoot: '/workspace/vityo',
-    );
-    addTearDown(controller.dispose);
-
-    await controller.refresh();
-    await controller.previewDiff('src/main.styio');
-    controller.planAction(
-      const SourceControlActionRequest(
-        kind: SourceControlActionKind.discard,
-        paths: <String>['src/main.styio'],
-      ),
-    );
-
-    final context = controller.agentContextSnapshot;
-    final json = context.toJson();
-    final diffReview = json['diffReview']! as Map<String, Object?>;
-    final pendingActionPlan =
-        json['pendingActionPlan']! as Map<String, Object?>;
-    final mergeWorkflowPlan =
-        json['mergeWorkflowPlan']! as Map<String, Object?>;
-
-    expect(context.loaded, isTrue);
-    expect(context.providerKind, 'git');
-    expect(context.branchName, 'ai-dev');
-    expect(context.stagedPaths, <String>['src/staged.styio']);
-    expect(context.unstagedPaths, <String>[
-      'src/main.styio',
-      'src/conflict.styio',
-    ]);
-    expect(context.conflictedPaths, <String>['src/conflict.styio']);
-    expect(context.requiresHumanConfirmation, isTrue);
-    expect(context.mergeWorkflowPlan?.conflictCount, 1);
-    expect(context.mergeWorkflowPlan?.canOpenMergeWorkflow, isTrue);
-    expect(json['workspaceRoot'], '/workspace/vityo');
-    expect(json['changeCount'], 3);
-    expect(mergeWorkflowPlan['conflictedPaths'], <String>[
-      'src/conflict.styio',
-    ]);
-    expect(mergeWorkflowPlan['requiresHumanConfirmation'], isTrue);
-    expect(diffReview['additionCount'], 1);
-    expect(diffReview['deletionCount'], 1);
-    expect((json['diffWindow']! as Map<String, Object?>)['lineCount'], 5);
-    expect(pendingActionPlan['risk'], 'destructive');
-  });
-
   test('source control merge workflow plan exposes conflict resolutions', () {
     const snapshot = SourceControlStatusSnapshot(
       providerKind: SourceControlProviderKind.git,
@@ -845,35 +766,20 @@ diff --git a/src/main.styio b/src/main.styio
       final plan = controller.planSelectedHunkAction(
         SourceControlActionKind.discard,
       );
-      final pendingJson = controller.agentContextSnapshot.toJson();
 
       expect(selection?.selectedHunkIndexes, <int>[0]);
       expect(plan?.requiresConfirmation, isTrue);
       expect(controller.pendingHunkDiscardConfirmation?.readyForDialog, isTrue);
-      expect(pendingJson['requiresHumanConfirmation'], isTrue);
-      expect(
-        (pendingJson['hunkSelectionState']!
-            as Map<String, Object?>)['selectedHunkIndexes'],
-        <int>[0],
-      );
-      expect(
-        (pendingJson['pendingHunkDiscardConfirmation']!
-            as Map<String, Object?>)['confirmed'],
-        isFalse,
-      );
+      expect(controller.hunkSelectionState?.selectedHunkIndexes, <int>[0]);
+      expect(controller.pendingHunkDiscardConfirmation?.confirmed, isFalse);
 
       final result = await controller.confirmPendingHunkDiscard();
-      final confirmedJson = controller.agentContextSnapshot.toJson();
 
       expect(result.applied, isTrue);
       expect(result.selectedHunkIndexes, <int>[0]);
       expect(controller.pendingHunkDiscardConfirmation, isNull);
       expect(controller.hunkSelectionState?.hasSelection, isFalse);
-      expect(
-        (confirmedJson['lastPartialPatchResult']!
-            as Map<String, Object?>)['applied'],
-        isTrue,
-      );
+      expect(controller.lastPartialPatchResult?.applied, isTrue);
     },
   );
 
@@ -999,26 +905,15 @@ diff --git a/src/main.styio b/src/main.styio
       final branches = await controller.refreshBranches();
       final plan = controller.planBranchSwitch('feature/scm');
       final history = await controller.refreshHistory(limit: 5);
-      final contextJson = controller.agentContextSnapshot.toJson();
 
       expect(branches.currentBranch, 'ai-dev');
       expect(branches.branches, contains('feature/scm'));
       expect(plan.canRun, isTrue);
       expect(controller.pendingBranchSwitchPlan, same(plan));
       expect(history.entries.single.shortRevision, 'abcdef1');
-      expect(
-        (contextJson['branches']! as Map<String, Object?>)['branchCount'],
-        3,
-      );
-      expect(
-        (contextJson['pendingBranchSwitchPlan']!
-            as Map<String, Object?>)['targetBranch'],
-        'feature/scm',
-      );
-      expect(
-        (contextJson['history']! as Map<String, Object?>)['entryCount'],
-        1,
-      );
+      expect(controller.branchSnapshot, same(branches));
+      expect(controller.pendingBranchSwitchPlan?.targetBranch, 'feature/scm');
+      expect(controller.historySnapshot, same(history));
     },
   );
 

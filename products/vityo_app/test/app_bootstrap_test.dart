@@ -2,11 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_context.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_profile.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_adapter.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_configurator.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
+import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_revision_service.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_controller.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/adapter_contracts.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/dependency_source_adapter.dart';
@@ -14,12 +13,10 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/deployment_adapter.dart
 import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
-import 'package:vityo_app/src/ide/editor/selection_state.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/hosted_control_plane.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_coding_session_controller.dart';
 import 'package:vityo_app/src/ide/editor/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/environment/configuration/configuration.dart';
@@ -50,6 +47,57 @@ void main() {
     expect(context.workingDirectory, '/workspace/scratch');
     expect(context.configPath, isNull);
   });
+
+  test('configured Agent collaboration requires transaction authority', () {
+    final registry = AgentClientRegistry(
+      descriptors: <String, AgentLaunchDescriptor>{
+        'fixture': AgentLaunchDescriptor(
+          id: 'fixture',
+          executable: 'unused',
+          arguments: const <String>[],
+          workingDirectory: '.',
+        ),
+      },
+    );
+    addTearDown(registry.close);
+
+    expect(
+      () => AppBootstrap.createAgentCollaboration(
+        registry: registry,
+        transactions: null,
+        workspaceRoot: Uri.directory('/workspace'),
+      ),
+      throwsArgumentError,
+    );
+  });
+
+  test(
+    'configured Agent collaboration uses injected transaction authority',
+    () {
+      final registry = AgentClientRegistry(
+        descriptors: <String, AgentLaunchDescriptor>{
+          'fixture': AgentLaunchDescriptor(
+            id: 'fixture',
+            executable: 'unused',
+            arguments: const <String>[],
+            workingDirectory: '.',
+          ),
+        },
+      );
+      final revisions = InMemoryWorkspaceRevisionService(
+        initialDocuments: const <String, String>{'file': 'text'},
+      );
+      final collaboration = AppBootstrap.createAgentCollaboration(
+        registry: registry,
+        transactions: RevisionedWorkspaceTransactionService(revisions),
+        workspaceRoot: Uri.directory('/workspace'),
+      );
+      addTearDown(collaboration!.close);
+
+      expect(collaboration, isNotNull);
+      expect(collaboration.projection.sessions, isEmpty);
+    },
+  );
 
   test(
     'app bootstrap binds language result cache to toolchain catalog changes',
@@ -233,6 +281,8 @@ void main() {
     expect(serviceIds, contains('module.registry'));
     expect(serviceIds, contains('toolchain.manager'));
     expect(serviceIds, contains('workspace.diagnostics-controller'));
+    expect(serviceIds, contains('agent.workspace-transactions'));
+    expect(serviceIds, contains('agent.collaboration'));
     expect(manifest.missingRequiredEntries, isEmpty);
     expect(manifest.absentWithoutCapabilityGapEntries, isEmpty);
     expect(manifest.allServicesAccountedFor, isTrue);
@@ -287,13 +337,6 @@ AppBootstrap _createMinimalBootstrap() {
       resultCache: StyioServiceResultCache(),
     ),
   );
-  final agentController = AgentCodingSessionController(
-    profile: AgentPromptProfile.openAICodexSparkForPlatform(
-      PlatformTarget.windows,
-    ),
-    adapter: const LocalOnlyAgentProviderAdapter(),
-    contextProvider: _emptyAgentContext,
-  );
   return AppBootstrap(
     platformTarget: PlatformTarget.windows,
     backendProvider: backendProviderFor(PlatformTarget.windows),
@@ -318,25 +361,6 @@ AppBootstrap _createMinimalBootstrap() {
     ),
     dependencySourceAdapter: _NoopDependencySourceAdapter(),
     deploymentAdapter: _NoopDeploymentAdapter(),
-    agentCodingController: agentController,
-    agentProviderConfigurator: AgentProviderConfigurator(
-      workspaceId: 'bootstrap-fixture',
-      saveProfile:
-          ({required workspaceId, required key, required profile}) async {},
-      createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
-    ),
-  );
-}
-
-AgentSessionContext _emptyAgentContext() {
-  return AgentSessionContext.fromEditorState(
-    document: const DocumentState(
-      documentId: '/workspace/bootstrap/src/main.styio',
-      text: '#main := () => {}',
-      revision: 1,
-    ),
-    selection: const SelectionState.collapsed(0),
-    diagnostics: const <Diagnostic>[],
   );
 }
 

@@ -20,6 +20,7 @@ Future<void> main() async {
         id: 'permission',
         agentId: 'fixture',
         sessionId: 'second',
+        toolCallId: 'tool-permission',
         options: <String>{'allow_once'},
       ),
     );

@@ -387,7 +387,7 @@ void main() {
     test('success: injected service descriptor reports ready wiring', () {
       const entry = AppBootstrapServiceWiringEntry(
         descriptor: AppBootstrapServiceDescriptor(
-          serviceId: 'agent.provider.registry',
+          serviceId: 'agent.client-registry',
           ownerLayer: 'agent',
           requiredInjection: false,
         ),
@@ -396,7 +396,7 @@ void main() {
 
       expect(entry.state, AppBootstrapServiceWiringState.injected);
       expect(entry.descriptor.hasAbsentStateContract, isFalse);
-      expect(entry.descriptor.serviceId, 'agent.provider.registry');
+      expect(entry.descriptor.serviceId, 'agent.client-registry');
     });
 
     test('blocked: absent required service has capability gap', () {

@@ -177,7 +177,8 @@ this launch promise.
 3. Optional modules are governed by manifests, capability matrices, and staged activation.
 4. Module updates do not replace a mounted module until the declared activation boundary.
 5. Login, profile sync, and remote identity are optional services, not prerequisites.
-6. Without `ProfileSyncAdapter`, local profiles remain fully usable.
+6. A future provider-neutral general profile must remain fully usable without
+   `ProfileSyncAdapter`; no general profile runtime is currently claimed.
 7. Child components must preserve container integrity through layout, scrolling, folding, or bounds.
 
 ## 8. Capability Domains

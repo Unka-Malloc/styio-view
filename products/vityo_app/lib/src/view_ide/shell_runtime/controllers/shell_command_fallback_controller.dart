@@ -16,9 +16,6 @@ final class ShellCommandFallbackController {
       case AppCommandId.showAgent:
       case AppCommandId.showDebug:
         return;
-      case AppCommandId.failoverAgentProvider:
-        log('Fail Over Agent Provider requires caller-provided input.');
-        return;
       case AppCommandId.selectDebugThread:
         log('Select Debug Thread requires caller-provided input.');
         return;

@@ -53,8 +53,7 @@ Vityo defines typed contribution points, each owned by a domain:
 |-------------------|-------------|-----------|---------|
 | `commands` | `commands/` | `ExtensionCommandContribution` | Register a command in palette |
 | `languages` | `language/` | `ExtensionLanguageContribution` | Register a language service |
-| `agent_clients` | `agent_client/` | Agent connection contribution | Register a compatible Agent connection/launcher |
-| `agent_workbench_views` | `view_render/agent_workbench/` | Agent Workbench view contribution | Register a view over protocol-projected Agent state |
+| `agents` | `ide/agent_client/` | Agent connection contribution | Register a compatible Agent connection/launcher |
 | `debug_adapters` | `debugger/` | `ExtensionDebugContribution` | Register a debug adapter |
 | `toolchains` | `toolchain/` | `ExtensionToolchainContribution` | Register a toolchain |
 | `themes` | `theme/` | `ExtensionThemeContribution` | Register a theme |
@@ -62,9 +61,8 @@ Vityo defines typed contribution points, each owned by a domain:
 | `runtime_tasks` | `runtime/` | `ExtensionRuntimeTaskContribution` | Register a runtime task |
 
 Model providers and Agent tools are not IDE contribution points. They belong to the connected Agent
-runtime. Existing IDE-side `agent_providers` or `agent_tools` implementation is part of the atomic
-migration recorded in [Vityo Implementation Gaps](./Vityo-Implementation-Gaps.md), not a target
-extension contract.
+runtime. The retired IDE-side provider/tool contribution kinds are not accepted aliases and must
+not be reintroduced.
 
 ### 3.2 Contribution Router
 

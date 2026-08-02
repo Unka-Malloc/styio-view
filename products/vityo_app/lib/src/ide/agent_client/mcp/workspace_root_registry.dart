@@ -1,9 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
-import 'dart:convert';
 import 'dart:io';
-
-import 'package:crypto/crypto.dart';
 
 final class CanonicalPath {
   const CanonicalPath({required this.path, this.traversedLink = false});
@@ -97,14 +94,33 @@ final class RootAuthorization {
 final class WorkspaceRootRegistry {
   WorkspaceRootRegistry({
     CanonicalPathResolver resolver = const IoCanonicalPathResolver(),
-  }) : _resolver = resolver;
+    this.maxSessions = 64,
+    this.maxRootsPerSession = 32,
+    this.maxPathCodeUnits = 32768,
+    this.maxDisplayNameCodeUnits = 256,
+    this.resolutionTimeout = const Duration(seconds: 5),
+  }) : _resolver = resolver {
+    if (maxSessions <= 0 ||
+        maxRootsPerSession <= 0 ||
+        maxPathCodeUnits <= 0 ||
+        maxDisplayNameCodeUnits <= 0 ||
+        resolutionTimeout <= Duration.zero) {
+      throw ArgumentError('workspace root limits must be positive');
+    }
+  }
 
   final CanonicalPathResolver _resolver;
+  final int maxSessions;
+  final int maxRootsPerSession;
+  final int maxPathCodeUnits;
+  final int maxDisplayNameCodeUnits;
+  final Duration resolutionTimeout;
   final Map<String, WorkspaceRootSnapshot> _snapshots =
       <String, WorkspaceRootSnapshot>{};
   final Map<String, Future<void>> _lanes = <String, Future<void>>{};
   final StreamController<WorkspaceRootChange> _changes =
       StreamController<WorkspaceRootChange>.broadcast(sync: true);
+  int _rootSequence = 0;
   bool _closed = false;
 
   Stream<WorkspaceRootChange> get changes => _changes.stream;
@@ -127,6 +143,19 @@ final class WorkspaceRootRegistry {
         StateError('workspace root registry is closed'),
       );
     }
+    _validateReplacement(
+      sessionId: sessionId,
+      proposals: proposals,
+      consentReceiptId: consentReceiptId,
+    );
+    if (!_snapshots.containsKey(sessionId) &&
+        !_lanes.containsKey(sessionId) &&
+        <String>{..._snapshots.keys, ..._lanes.keys}.length >= maxSessions) {
+      return Future<WorkspaceRootSnapshot>.error(
+        StateError('workspace root session limit was reached'),
+      );
+    }
+    final frozenProposals = List<WorkspaceRootProposal>.unmodifiable(proposals);
     final completer = Completer<WorkspaceRootSnapshot>();
     final prior = _lanes[sessionId] ?? Future<void>.value();
     final operation = prior.then((_) async {
@@ -134,7 +163,7 @@ final class WorkspaceRootRegistry {
         completer.complete(
           await _replaceRoots(
             sessionId: sessionId,
-            proposals: proposals,
+            proposals: frozenProposals,
             consentReceiptId: consentReceiptId,
           ),
         );
@@ -142,7 +171,15 @@ final class WorkspaceRootRegistry {
         completer.completeError(error, stackTrace);
       }
     });
-    _lanes[sessionId] = operation.then<void>((_) {}, onError: (_, __) {});
+    final lane = operation.then<void>((_) {}, onError: (_, __) {});
+    _lanes[sessionId] = lane;
+    unawaited(
+      lane.then((_) {
+        if (identical(_lanes[sessionId], lane)) {
+          _lanes.remove(sessionId);
+        }
+      }),
+    );
     return completer.future;
   }
 
@@ -151,29 +188,50 @@ final class WorkspaceRootRegistry {
     required String candidate,
   }) async {
     final current = snapshot(sessionId);
-    if (current.roots.isEmpty) {
+    if (_closed || current.roots.isEmpty) {
       return RootAuthorization(
         allowed: false,
         code: 'root_revoked',
         rootRevision: current.revision,
       );
     }
-    final CanonicalPath resolved;
-    try {
-      resolved = await _resolver.resolve(candidate);
-    } on FileSystemException {
+    if (candidate.trim().isEmpty || candidate.length > maxPathCodeUnits) {
       return RootAuthorization(
         allowed: false,
         code: 'path_unavailable',
         rootRevision: current.revision,
       );
     }
-    for (final root in current.roots) {
+    final CanonicalPath resolved;
+    try {
+      resolved = await _resolve(candidate);
+    } on FileSystemException {
+      return RootAuthorization(
+        allowed: false,
+        code: 'path_unavailable',
+        rootRevision: current.revision,
+      );
+    } on TimeoutException {
+      return RootAuthorization(
+        allowed: false,
+        code: 'path_unavailable',
+        rootRevision: current.revision,
+      );
+    }
+    final latest = snapshot(sessionId);
+    if (_closed || latest.revision != current.revision) {
+      return RootAuthorization(
+        allowed: false,
+        code: latest.roots.isEmpty ? 'root_revoked' : 'root_revision_changed',
+        rootRevision: latest.revision,
+      );
+    }
+    for (final root in latest.roots) {
       if (_contains(root.canonicalPath, resolved.path)) {
         return RootAuthorization(
           allowed: true,
           code: 'allowed',
-          rootRevision: current.revision,
+          rootRevision: latest.revision,
           rootId: root.id,
           canonicalPath: resolved.path,
         );
@@ -184,7 +242,7 @@ final class WorkspaceRootRegistry {
       code: resolved.traversedLink
           ? 'symlink_escape_denied'
           : 'root_escape_denied',
-      rootRevision: current.revision,
+      rootRevision: latest.revision,
     );
   }
 
@@ -193,7 +251,9 @@ final class WorkspaceRootRegistry {
       return;
     }
     _closed = true;
-    await Future.wait<void>(_lanes.values);
+    await Future.wait<void>(_lanes.values.toList(growable: false));
+    _lanes.clear();
+    _snapshots.clear();
     await _changes.close();
   }
 
@@ -202,26 +262,20 @@ final class WorkspaceRootRegistry {
     required List<WorkspaceRootProposal> proposals,
     required String consentReceiptId,
   }) async {
-    if (sessionId.trim().isEmpty || consentReceiptId.trim().isEmpty) {
-      throw ArgumentError(
-        'session and consent receipt identifiers are required',
-      );
-    }
     final rootsByPath = <String, ApprovedWorkspaceRoot>{};
     for (final proposal in proposals) {
-      if (proposal.displayName.trim().isEmpty) {
-        throw ArgumentError.value(
-          proposal.displayName,
-          'displayName',
-          'must not be empty',
+      final canonical = await _resolve(proposal.path);
+      if (canonical.path.trim().isEmpty ||
+          canonical.path.length > maxPathCodeUnits) {
+        throw StateError(
+          'canonical workspace path is outside supported bounds',
         );
       }
-      final canonical = await _resolver.resolve(proposal.path);
       final comparison = _comparisonPath(canonical.path);
       rootsByPath.putIfAbsent(
         comparison,
         () => ApprovedWorkspaceRoot(
-          id: sha256.convert(utf8.encode(comparison)).toString(),
+          id: 'vityo-root-${++_rootSequence}',
           canonicalPath: canonical.path,
           displayName: proposal.displayName,
           consentReceiptId: consentReceiptId,
@@ -239,6 +293,49 @@ final class WorkspaceRootRegistry {
       WorkspaceRootChange(sessionId: sessionId, revision: next.revision),
     );
     return next;
+  }
+
+  Future<CanonicalPath> _resolve(String path) =>
+      _resolver.resolve(path).timeout(resolutionTimeout);
+
+  void _validateReplacement({
+    required String sessionId,
+    required List<WorkspaceRootProposal> proposals,
+    required String consentReceiptId,
+  }) {
+    if (sessionId.trim().isEmpty ||
+        sessionId.length > 256 ||
+        consentReceiptId.trim().isEmpty ||
+        consentReceiptId.length > 256) {
+      throw ArgumentError(
+        'session and consent receipt identifiers must be bounded',
+      );
+    }
+    if (proposals.length > maxRootsPerSession) {
+      throw ArgumentError.value(
+        proposals.length,
+        'proposals',
+        'workspace root limit was exceeded',
+      );
+    }
+    for (final proposal in proposals) {
+      if (proposal.path.trim().isEmpty ||
+          proposal.path.length > maxPathCodeUnits) {
+        throw ArgumentError.value(
+          proposal.path,
+          'path',
+          'must be non-empty and bounded',
+        );
+      }
+      if (proposal.displayName.trim().isEmpty ||
+          proposal.displayName.length > maxDisplayNameCodeUnits) {
+        throw ArgumentError.value(
+          proposal.displayName,
+          'displayName',
+          'must be non-empty and bounded',
+        );
+      }
+    }
   }
 }
 

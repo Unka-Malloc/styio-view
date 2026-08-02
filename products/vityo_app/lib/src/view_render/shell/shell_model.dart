@@ -49,10 +49,9 @@ class ShellModel extends ShellRuntimeModel {
     required super.runtimeEventAdapter,
     required super.dependencySourceAdapter,
     required super.deploymentAdapter,
-    super.agentCodingController,
-    super.agentExtensionToolExecutionRegistry,
+    super.agentClientRegistry,
+    super.agentCollaboration,
     super.runtimeOutputBuffer,
-    super.agentProviderConfigurator,
     super.refreshActiveLanguageService,
     super.styioServiceSubscriptionController,
     super.styioServiceDaemonProcessSupervisor,
@@ -237,11 +236,7 @@ class ShellModel extends ShellRuntimeModel {
       case AppCommandId.unstageSourceControl:
       case AppCommandId.planSourceControlBranchSwitch:
       case AppCommandId.planSourceControlCommitDraft:
-      case AppCommandId.collectAgentCodingCheckpoint:
       case AppCommandId.collectProjectLanguageContext:
-      case AppCommandId.retryAgentProvider:
-      case AppCommandId.failoverAgentProvider:
-      case AppCommandId.replayAgentPrompt:
       case AppCommandId.goToDefinition:
       case AppCommandId.openWorkspaceFile:
       case AppCommandId.createWorkspaceFile:

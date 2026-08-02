@@ -57,7 +57,7 @@ Primary design documents:
 | Project Model | Canonical project graph, workspace members, dependencies, targets, toolchain, lock/vendor/build state, and hosted payload consumption are represented. | Minimum closure |
 | Execution Routing | Scratch single-file route, project build/run/test route, JIT route intent, deploy preflight, command routing, and blocked handoff UI are represented. | Minimum closure |
 | Runtime Surface | Runtime event envelope, event registry, thread lanes, graph summary, and debug console replay are represented. | Minimum closure |
-| Agent Client and Workbench | Protocol/client anchors, permission and change-review surfaces, and workspace transaction integration are represented. Direct IDE provider/controller code remains a migration gap and is not the target architecture. | Minimum closure, not product-complete |
+| Agent Client and Workbench | The protocol-only IDE boundary is implemented through supervised clients, bounded session reducers, immutable collaboration projections, explicit permission decisions, revision-bound change review, and IDE-owned workspace transactions. | Minimum closure, not product-complete |
 | Theme System | Theme preset and user override token round-trip are represented. | Minimum closure, not product-complete |
 | Mobile And Hosted | iOS cloud route, Web hosted workspace route, and hosted project/dependency/deployment/execution payload route are represented. | Minimum closure, not product-complete |
 | Module Runtime | Core/optional lifecycle, staged update flag, and optional uninstall reclamation policy are represented. | Minimum closure, not product-complete |
@@ -70,10 +70,10 @@ These anchors are preserved from the retired planning docs.
 |---|---|---|
 | Editor | `products/vityo_app/lib/src/ide/editor/` | `products/vityo_app/test/editor_controller_editing_test.dart`, `products/vityo_app/test/styio_language_service_smoke_test.dart` |
 | Backend toolchain | `products/vityo_app/lib/src/view_ide/backend_toolchain/` | `products/vityo_app/test/integration_compatibility_exports_test.dart`, `products/vityo_app/test/hosted_control_plane_client_test.dart` |
-| Project model | `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph*` | `products/vityo_app/test/project_graph_adapter_test.dart`, `products/vityo_app/test/toolchain_management_adapter_test.dart` |
+| Project model | `products/vityo_app/lib/src/view_ide/backend_toolchain/project_graph*` | `products/vityo_app/test/project_graph_adapter_test.dart`, `products/vityo_app/test/toolchain_controller_test.dart` |
 | Execution | `products/vityo_app/lib/src/view_ide/backend_toolchain/execution_adapter.dart` | `products/vityo_app/test/execution_adapter_test.dart`, `products/vityo_app/test/execution_route_summary_test.dart`, `products/vityo_app/test/deployment_adapter_test.dart`, `products/vityo_app/test/app_commands_test.dart` |
 | Runtime surface | `products/vityo_app/lib/src/runtime/`, `products/vityo_app/lib/src/view_ide/backend_toolchain/runtime_event_adapter.dart` | `products/vityo_app/test/runtime_surfaces_test.dart` |
-| Agent Client / Workbench | `products/vityo_app/lib/src/view_ide/agent_client/`, `products/vityo_app/lib/src/view_render/agent_workbench/` | `products/vityo_app/test/agent_permission_model_test.dart`, `products/vityo_app/test/agent_patch_transaction_test.dart` |
+| Agent Client / Workbench | `products/vityo_app/lib/src/ide/agent_client/`, `products/vityo_app/lib/src/ide/workbench/agent_collaboration/`, `products/vityo_app/lib/src/presentation/agent_workbench/` | `products/vityo_app/test/agent_client/agent_client_contract_test.dart`, `products/vityo_app/test/agent_workbench/agent_workbench_contract_test.dart`, `tests/acceptance/vityo_app/agent_client_protocol_acceptance_test.dart` |
 | Theme tokens | `products/vityo_app/lib/src/theme/vityo_theme.dart` | `products/vityo_app/test/vityo_theme_test.dart` |
 | Module lifecycle | `products/vityo_app/lib/src/view_ide/module_host/module_lifecycle.dart` | `products/vityo_app/test/module_lifecycle_test.dart` |
 | Hosted control plane | `products/vityo_app/lib/src/view_ide/backend_toolchain/hosted_control_plane*.dart` | `products/vityo_app/test/hosted_control_plane_client_test.dart`, `products/vityo_app/test/hosted_payload_codec_test.dart` |
@@ -134,14 +134,16 @@ Design modules already extracted:
 
 ## 7.1 Optional User Service Baseline
 
-User/account/profile capabilities are optional Service Layer capabilities exposed through the `user-service/` root service.
+User/account capabilities are optional Service Layer capabilities exposed through the
+`user-service/` root service. A general provider-neutral profile store and sync runtime remain a
+future design rather than a delivered implementation.
 
 ```text
 App Shell Surface
   -> local IDE behavior
   -> optional User Service
-      -> local profile store
-      -> optional profile sync adapter
+      -> future local profile store
+      -> future optional profile sync adapter
       -> optional account/session service
 ```
 
@@ -150,8 +152,8 @@ Rules:
 | Rule | Meaning |
 |---|---|
 | No login required | Local editing, settings, themes, toolchain selection, and local projects must work without login. |
-| Local-first profile | Local profile state is available even when sync/account service is missing. |
-| Optional sync | Cross-device profile sync is an optional user service capability. |
+| Future local-first profile | If a general profile is implemented, local state remains available when sync/account service is missing. |
+| Future optional sync | Cross-device profile sync may be added as an optional user service capability. |
 | App shell separation | UI surfaces show account/recovery state but do not own account logic. |
 
 Design document: [service/user-service/README.md](./service/user-service/README.md)

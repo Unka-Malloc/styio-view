@@ -8,18 +8,21 @@ import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
 void main() {
   test('adapter capability models normalize labels and merged snapshots', () {
-    expect(
-      AdapterKind.values.map((kind) => kind.wireValue),
-      <String>['cli', 'ffi', 'cloud'],
-    );
-    expect(
-      AdapterKind.values.map((kind) => kind.label),
-      <String>['CLI Adapter', 'FFI Adapter', 'Cloud Adapter'],
-    );
-    expect(
-      AdapterCapabilityLevel.values.map((level) => level.label),
-      <String>['available', 'partial', 'unavailable'],
-    );
+    expect(AdapterKind.values.map((kind) => kind.wireValue), <String>[
+      'cli',
+      'ffi',
+      'cloud',
+    ]);
+    expect(AdapterKind.values.map((kind) => kind.label), <String>[
+      'CLI Adapter',
+      'FFI Adapter',
+      'Cloud Adapter',
+    ]);
+    expect(AdapterCapabilityLevel.values.map((level) => level.label), <String>[
+      'available',
+      'partial',
+      'unavailable',
+    ]);
 
     const unavailable = AdapterEndpointCapability(
       level: AdapterCapabilityLevel.unavailable,
@@ -31,28 +34,29 @@ void main() {
       detail: 'ready',
       supportedContractVersions: <int>[2],
     );
-    final merged = const AdapterCapabilitySnapshot(
-      adapterKind: AdapterKind.cli,
-      languageService: unavailable,
-      projectGraph: unavailable,
-      execution: unavailable,
-      runtimeEvents: unavailable,
-    ).merge(
-      const AdapterCapabilitySnapshot(
-        adapterKind: AdapterKind.cli,
-        languageService: available,
-        projectGraph: available,
-        execution: available,
-        runtimeEvents: available,
-      ),
-    );
+    final merged =
+        const AdapterCapabilitySnapshot(
+          adapterKind: AdapterKind.cli,
+          languageService: unavailable,
+          projectGraph: unavailable,
+          execution: unavailable,
+          runtimeEvents: unavailable,
+        ).merge(
+          const AdapterCapabilitySnapshot(
+            adapterKind: AdapterKind.cli,
+            languageService: available,
+            projectGraph: available,
+            execution: available,
+            runtimeEvents: available,
+          ),
+        );
 
     expect(merged.languageService.isAvailable, isTrue);
     expect(merged.languageService.supportedContractVersions, <int>[1, 2, 3]);
     expect(
-      mergeCapabilitySnapshots(const <AdapterCapabilitySnapshot>[])
-          .languageService
-          .isAvailable,
+      mergeCapabilitySnapshots(
+        const <AdapterCapabilitySnapshot>[],
+      ).languageService.isAvailable,
       isFalse,
     );
     expect(
@@ -210,10 +214,13 @@ void main() {
   );
 
   test('project graph contract labels and optional flags stay stable', () {
-    expect(
-      ProjectKind.values.map((kind) => kind.label),
-      <String>['scratch', 'package', 'workspace', 'combined-root', 'hosted'],
-    );
+    expect(ProjectKind.values.map((kind) => kind.label), <String>[
+      'scratch',
+      'package',
+      'workspace',
+      'combined-root',
+      'hosted',
+    ]);
     expect(
       ProjectDependencySourceKind.values.map((kind) => kind.label),
       <String>['path', 'git', 'registry', 'unknown'],
@@ -222,16 +229,13 @@ void main() {
       ToolchainResolutionSource.values.map((source) => source.label),
       <String>['environment', 'unavailable', 'unknown'],
     );
-    expect(
-      HostedWorkspaceStatus.values.map((status) => status.label),
-      <String>[
-        'provisioning',
-        'active',
-        'closing',
-        'pending-deletion',
-        'deleted',
-      ],
-    );
+    expect(HostedWorkspaceStatus.values.map((status) => status.label), <String>[
+      'provisioning',
+      'active',
+      'closing',
+      'pending-deletion',
+      'deleted',
+    ]);
     expect(
       HostedWorkspaceExportState.values.map((state) => state.label),
       <String>['not-requested', 'preparing', 'ready', 'expired'],
@@ -273,14 +277,24 @@ void main() {
   });
 
   test('platform targets expose stable labels and host detection', () {
-    expect(
-      PlatformTarget.values.map((target) => target.wireValue),
-      <String>['web', 'windows', 'linux', 'android', 'macos', 'ios', 'unknown'],
-    );
-    expect(
-      PlatformTarget.values.map((target) => target.label),
-      <String>['Web', 'Windows', 'Linux', 'Android', 'macOS', 'iOS', 'Unknown'],
-    );
+    expect(PlatformTarget.values.map((target) => target.wireValue), <String>[
+      'web',
+      'windows',
+      'linux',
+      'android',
+      'macos',
+      'ios',
+      'unknown',
+    ]);
+    expect(PlatformTarget.values.map((target) => target.label), <String>[
+      'Web',
+      'Windows',
+      'Linux',
+      'Android',
+      'macOS',
+      'iOS',
+      'Unknown',
+    ]);
     expect(
       PlatformTarget.values.map(
         (target) => platformTargetFromWireValue(target.wireValue),

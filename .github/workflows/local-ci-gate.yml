@@ -23,7 +23,6 @@ jobs:
       VITYO_PYTHON_VERSION: "3.13.5"
       VITYO_NODE_VERSION: "24.15.0"
       VITYO_FLUTTER_VERSION: "3.41.7"
-      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -199,6 +198,8 @@ jobs:
           VITYO_PRODUCT_PLATFORM: linux
           VITYO_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PRODUCT_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-linux.json
         run: >
           bash scripts/delivery-gate.sh
@@ -206,6 +207,10 @@ jobs:
           --base "${{ steps.ci_refs.outputs.base_ref }}"
           --range "${{ steps.ci_refs.outputs.range }}"
           --skip-audit
+
+      - name: Validate pinned Linux developer-loop report
+        working-directory: vityo-nightly
+        run: dart run tests/acceptance/vityo_app/trusted_desktop_styio_loop_acceptance_test.dart --report build/evidence/product-gate-linux.json --platform linux
 
       - name: Build native Linux release target
         working-directory: vityo-nightly/products/vityo_app
@@ -283,7 +288,6 @@ jobs:
       VITYO_PYTHON_VERSION: "3.13.5"
       VITYO_NODE_VERSION: "24.15.0"
       VITYO_FLUTTER_VERSION: "3.41.7"
-      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -505,6 +509,8 @@ jobs:
           VITYO_PRODUCT_PLATFORM: windows
           VITYO_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PRODUCT_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-windows.json
         run: >
           bash scripts/delivery-gate.sh
@@ -512,6 +518,11 @@ jobs:
           --base "${{ steps.ci_refs.outputs.base_ref }}"
           --range "${{ steps.ci_refs.outputs.range }}"
           --skip-audit
+
+      - name: Validate pinned Windows developer-loop report
+        shell: bash
+        working-directory: vityo-nightly
+        run: dart run tests/acceptance/vityo_app/trusted_desktop_styio_loop_acceptance_test.dart --report build/evidence/product-gate-windows.json --platform windows
 
       - name: Build native Windows release target
         shell: pwsh
@@ -593,7 +604,6 @@ jobs:
       VITYO_PYTHON_VERSION: "3.13.5"
       VITYO_NODE_VERSION: "24.15.0"
       VITYO_FLUTTER_VERSION: "3.41.7"
-      VITYO_PRODUCT_GATE: "1"
 
     steps:
       - name: Checkout Vityo nightly
@@ -764,6 +774,8 @@ jobs:
           VITYO_PRODUCT_PLATFORM: macos
           VITYO_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
           VITYO_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
+          VITYO_PRODUCT_STYIO_BIN: ${{ steps.styio-bin.outputs.path }}
+          VITYO_PRODUCT_PAFIO_BIN: ${{ steps.pafio-bin.outputs.path }}
           VITYO_PRODUCT_GATE_OUTPUT: build/evidence/product-gate-macos.json
         run: >
           bash scripts/delivery-gate.sh
@@ -771,6 +783,10 @@ jobs:
           --base "${{ steps.ci_refs.outputs.base_ref }}"
           --range "${{ steps.ci_refs.outputs.range }}"
           --skip-audit
+
+      - name: Validate pinned macOS developer-loop report
+        working-directory: vityo-nightly
+        run: dart run tests/acceptance/vityo_app/trusted_desktop_styio_loop_acceptance_test.dart --report build/evidence/product-gate-macos.json --platform macos
 
       - name: Build native macOS release target
         working-directory: vityo-nightly/products/vityo_app

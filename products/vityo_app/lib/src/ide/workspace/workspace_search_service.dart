@@ -1125,6 +1125,8 @@ class WorkspaceSymbolMatch {
   final SemanticSnapshotFeatureConfidence snapshotConfidence;
   final String? detail;
 
+  String get snapshotConfidenceWireValue => snapshotConfidence.wireValue;
+
   bool get usedFallback =>
       snapshotSource == SemanticSnapshotProviderSource.localBuilderFallback;
 }

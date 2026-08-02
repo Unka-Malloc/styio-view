@@ -40,7 +40,11 @@ final class AgentChangeReviewView extends StatelessWidget {
                 final resource = review.changeSet.resources[index];
                 return ExpansionTile(
                   initiallyExpanded: true,
-                  title: Text(resource.resourceId),
+                  title: Text(
+                    resource.resourceId,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   subtitle: Text(
                     '${resource.edits.length} '
                     '${resource.edits.length == 1 ? 'hunk' : 'hunks'}',
@@ -50,7 +54,8 @@ final class AgentChangeReviewView extends StatelessWidget {
                       ListTile(
                         dense: true,
                         title: Text(
-                          '${edit.start}–${edit.end}: ${edit.replacement}',
+                          '${edit.start}–${edit.end}: '
+                          '${_boundedReplacementPreview(edit.replacement)}',
                         ),
                       ),
                   ],
@@ -99,4 +104,18 @@ final class AgentChangeReviewView extends StatelessWidget {
       ),
     );
   }
+}
+
+String _boundedReplacementPreview(String replacement) {
+  const maxCodeUnits = 512;
+  if (replacement.length <= maxCodeUnits) {
+    return replacement;
+  }
+  var end = maxCodeUnits;
+  final last = replacement.codeUnitAt(end - 1);
+  if (last >= 0xD800 && last <= 0xDBFF) {
+    end -= 1;
+  }
+  return '${replacement.substring(0, end)}… '
+      '(${replacement.length - end} code units omitted)';
 }

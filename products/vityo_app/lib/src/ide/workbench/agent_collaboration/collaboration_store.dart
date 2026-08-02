@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:vityo_agent_protocol/vityo_agent_protocol.dart';
+
 import '../../agent_client/agent_client.dart';
 import '../../workspace/workspace_change_set.dart';
 import '../../workspace/workspace_transaction_service.dart';
@@ -121,9 +123,11 @@ final class AgentChangeReviewProjection {
     previewId: previewId,
     outcome: receipt.outcome,
     conflicts: conflicts,
-    transactionId: receipt.outcome == WorkspaceTransactionOutcome.committed
-        ? receipt.id
-        : transactionId,
+    transactionId: switch (receipt.outcome) {
+      WorkspaceTransactionOutcome.committed => receipt.id,
+      WorkspaceTransactionOutcome.failed => transactionId,
+      _ => null,
+    },
   );
 }
 
@@ -198,13 +202,27 @@ final class AgentCollaborationStore {
     required AgentWorkbenchCommandPort commands,
     required WorkspaceTransactionService transactions,
     required this.maxTimelineEntriesPerSession,
+    this.maxSessions = 32,
+    this.maxResolvedPermissionIdsPerSession = 256,
+    this.maxPendingPermissionsPerSession = 128,
+    this.maxChangeReviewsPerSession = 64,
+    this.maxResourcesPerChangeSet = 64,
+    this.maxEditsPerChangeSet = 500,
+    this.maxReplacementCharactersPerChangeSet = 200000,
   }) : _commands = commands,
        _transactions = transactions {
-    if (maxTimelineEntriesPerSession <= 0) {
+    if (maxTimelineEntriesPerSession <= 0 ||
+        maxSessions <= 0 ||
+        maxResolvedPermissionIdsPerSession <= 0 ||
+        maxPendingPermissionsPerSession <= 0 ||
+        maxChangeReviewsPerSession <= 0 ||
+        maxResourcesPerChangeSet <= 0 ||
+        maxEditsPerChangeSet <= 0 ||
+        maxReplacementCharactersPerChangeSet <= 0) {
       throw ArgumentError.value(
         maxTimelineEntriesPerSession,
-        'maxTimelineEntriesPerSession',
-        'must be positive',
+        'collaboration limits',
+        'must all be positive',
       );
     }
   }
@@ -212,6 +230,13 @@ final class AgentCollaborationStore {
   final AgentWorkbenchCommandPort _commands;
   final WorkspaceTransactionService _transactions;
   final int maxTimelineEntriesPerSession;
+  final int maxSessions;
+  final int maxResolvedPermissionIdsPerSession;
+  final int maxPendingPermissionsPerSession;
+  final int maxChangeReviewsPerSession;
+  final int maxResourcesPerChangeSet;
+  final int maxEditsPerChangeSet;
+  final int maxReplacementCharactersPerChangeSet;
   final Map<String, _SessionState> _sessions = <String, _SessionState>{};
   final List<String> _orderedSessionIds = <String>[];
   final Map<String, Future<void>> _lanes = <String, Future<void>>{};
@@ -224,75 +249,102 @@ final class AgentCollaborationStore {
 
   CollaborationProjection get projection => _project();
 
-  Future<CollaborationProjection> apply(
-    AgentSessionSnapshot snapshot,
-  ) => _serialize(snapshot.sessionId, () async {
-    final state = _sessions.putIfAbsent(snapshot.sessionId, () {
-      _orderedSessionIds.add(snapshot.sessionId);
-      return _SessionState(snapshot.sessionId);
-    });
-    if (snapshot.revision < state.snapshotRevision) {
-      throw const CollaborationFailure(
-        'stale_snapshot',
-        'Session snapshot revision moved backwards',
-      );
-    }
-    if (snapshot.revision == state.snapshotRevision) {
-      return _project();
-    }
+  Future<CollaborationProjection> apply(AgentSessionSnapshot snapshot) =>
+      _serialize(snapshot.sessionId, () async {
+        var state = _sessions[snapshot.sessionId];
+        if (state == null) {
+          if (_sessions.length >= maxSessions) {
+            throw const CollaborationFailure(
+              'session_limit_exceeded',
+              'Agent collaboration session limit was reached',
+            );
+          }
+          state = _SessionState(snapshot.sessionId);
+          _sessions[snapshot.sessionId] = state;
+          _orderedSessionIds.add(snapshot.sessionId);
+        }
+        if (snapshot.revision < state.snapshotRevision) {
+          throw const CollaborationFailure(
+            'stale_snapshot',
+            'Session snapshot revision moved backwards',
+          );
+        }
+        if (snapshot.revision == state.snapshotRevision) {
+          return _project();
+        }
 
-    final timelineById = <String, CollaborationTimelineEntry>{};
-    final orderedIds = <String>[];
-    var title = state.title;
-    var status = state.status;
-    for (var index = 0; index < snapshot.updates.length; index += 1) {
-      final update = snapshot.updates[index];
-      if (update.sessionId != snapshot.sessionId) {
-        throw const CollaborationFailure(
-          'session_mismatch',
-          'Snapshot contains an update for another session',
-        );
-      }
-      if (update.kind == 'session_state') {
-        title =
-            update.payload['title'] as String? ?? update.text ?? state.title;
-        status = _decodeStatus(update.payload['status']);
-        continue;
-      }
-      final sourceId = update.payload['id']?.toString() ?? '$index';
-      final id = '${snapshot.sessionId}:${update.kind}:$sourceId';
-      if (!timelineById.containsKey(id)) {
-        orderedIds.add(id);
-      }
-      timelineById[id] = CollaborationTimelineEntry(
-        id: id,
-        sessionId: snapshot.sessionId,
-        kind: _decodeTimelineKind(update.kind),
-        label:
-            update.text ?? update.payload['label']?.toString() ?? update.kind,
-        payload: update.payload,
-      );
-    }
-    final dropped = orderedIds.length > maxTimelineEntriesPerSession
-        ? orderedIds.length - maxTimelineEntriesPerSession
-        : 0;
-    final visibleIds = dropped == 0 ? orderedIds : orderedIds.sublist(dropped);
-    state
-      ..snapshotRevision = snapshot.revision
-      ..title = title.isEmpty ? snapshot.sessionId : title
-      ..status = status
-      ..timeline = <CollaborationTimelineEntry>[
-        for (final id in visibleIds) timelineById[id]!,
-      ]
-      ..droppedTimelineCount = dropped;
-    _emit();
-    return _project();
-  });
+        final timelineById = <String, CollaborationTimelineEntry>{};
+        final orderedIds = <String>[];
+        var title = state.title;
+        var status = state.status;
+        for (var index = 0; index < snapshot.updates.length; index += 1) {
+          final update = snapshot.updates[index];
+          if (update.sessionId != snapshot.sessionId) {
+            throw const CollaborationFailure(
+              'session_mismatch',
+              'Snapshot contains an update for another session',
+            );
+          }
+          if (update.kind == 'session_state') {
+            final titleCandidate =
+                update.payload['title'] ?? update.text ?? state.title;
+            if (titleCandidate is! String || titleCandidate.length > 256) {
+              throw const CollaborationFailure(
+                'invalid_session_state',
+                'Agent session title must be a bounded string',
+              );
+            }
+            title = titleCandidate;
+            status = _decodeStatus(update.payload['status']);
+            continue;
+          }
+          if (update.kind == VityoCapability.workspaceChangeProposal) {
+            continue;
+          }
+          final sourceId = update.payload['id']?.toString() ?? '$index';
+          final id = '${snapshot.sessionId}:${update.kind}:$sourceId';
+          if (!timelineById.containsKey(id)) {
+            orderedIds.add(id);
+          }
+          timelineById[id] = CollaborationTimelineEntry(
+            id: id,
+            sessionId: snapshot.sessionId,
+            kind: _decodeTimelineKind(update.kind),
+            label:
+                update.text ??
+                update.payload['label']?.toString() ??
+                update.kind,
+            payload: update.payload,
+          );
+        }
+        final locallyDropped = orderedIds.length > maxTimelineEntriesPerSession
+            ? orderedIds.length - maxTimelineEntriesPerSession
+            : 0;
+        final visibleIds = locallyDropped == 0
+            ? orderedIds
+            : orderedIds.sublist(locallyDropped);
+        if (_isTerminalStatus(status)) {
+          state.permissions.clear();
+        }
+        state
+          ..snapshotRevision = snapshot.revision
+          ..title = title.isEmpty ? snapshot.sessionId : title
+          ..status = status
+          ..timeline = <CollaborationTimelineEntry>[
+            for (final id in visibleIds) timelineById[id]!,
+          ]
+          ..droppedTimelineCount = snapshot.droppedUpdateCount + locallyDropped;
+        _emit();
+        return _project();
+      });
 
   Future<CollaborationProjection> addPermission(
     AgentPermissionRequest request,
   ) => _serialize(request.sessionId, () async {
     final state = _requireSession(request.sessionId);
+    if (_isTerminalStatus(state.status)) {
+      return _project();
+    }
     if (state.resolvedPermissionIds.contains(request.id)) {
       return _project();
     }
@@ -305,6 +357,12 @@ final class AgentCollaborationStore {
         );
       }
       return _project();
+    }
+    if (state.permissions.length >= maxPendingPermissionsPerSession) {
+      throw const CollaborationFailure(
+        'permission_limit_exceeded',
+        'Agent permission projection limit was reached',
+      );
     }
     state.permissions[request.id] = request;
     _emit();
@@ -352,6 +410,10 @@ final class AgentCollaborationStore {
     );
     state.permissions.remove(permissionId);
     state.resolvedPermissionIds.add(permissionId);
+    while (state.resolvedPermissionIds.length >
+        maxResolvedPermissionIdsPerSession) {
+      state.resolvedPermissionIds.remove(state.resolvedPermissionIds.first);
+    }
     _emit();
   });
 
@@ -362,7 +424,20 @@ final class AgentCollaborationStore {
     final state = _requireSession(sessionId);
     final existing = state.changeReviews[changeSet.id];
     if (existing != null) {
+      if (!_sameChangeSet(existing.changeSet, changeSet)) {
+        throw const CollaborationFailure(
+          'change_set_id_collision',
+          'Agent reused a change set identifier with different content',
+        );
+      }
       return existing;
+    }
+    _validateChangeSet(changeSet);
+    if (state.changeReviews.length >= maxChangeReviewsPerSession) {
+      throw const CollaborationFailure(
+        'change_review_limit_exceeded',
+        'Agent change review limit was reached',
+      );
     }
     final preview = await _transactions.preview(changeSet);
     final review = AgentChangeReviewProjection(
@@ -409,7 +484,8 @@ final class AgentCollaborationStore {
         }
         receipt = await _transactions.reject(review.previewId);
       case AgentChangeReviewDecision.revert:
-        if (review.outcome != WorkspaceTransactionOutcome.committed ||
+        if (review.outcome != WorkspaceTransactionOutcome.committed &&
+                review.outcome != WorkspaceTransactionOutcome.failed ||
             review.transactionId == null) {
           throw const CollaborationFailure(
             'change_not_committed',
@@ -429,13 +505,34 @@ final class AgentCollaborationStore {
       return;
     }
     _closed = true;
-    await Future.wait<void>(_lanes.values);
+    await Future.wait<void>(_lanes.values.toList(growable: false));
+    _lanes.clear();
+    _sessions.clear();
+    _orderedSessionIds.clear();
     await _changes.close();
   }
 
   Future<T> _serialize<T>(String sessionId, Future<T> Function() operation) {
     if (_closed) {
       return Future<T>.error(StateError('Agent collaboration store is closed'));
+    }
+    if (sessionId.trim().isEmpty || sessionId.length > 256) {
+      return Future<T>.error(
+        const CollaborationFailure(
+          'invalid_session',
+          'Agent collaboration session identifier must be bounded',
+        ),
+      );
+    }
+    if (!_sessions.containsKey(sessionId) &&
+        !_lanes.containsKey(sessionId) &&
+        <String>{..._sessions.keys, ..._lanes.keys}.length >= maxSessions) {
+      return Future<T>.error(
+        const CollaborationFailure(
+          'session_limit_exceeded',
+          'Agent collaboration session limit was reached',
+        ),
+      );
     }
     final completer = Completer<T>();
     final prior = _lanes[sessionId] ?? Future<void>.value();
@@ -446,8 +543,50 @@ final class AgentCollaborationStore {
         completer.completeError(error, stackTrace);
       }
     });
-    _lanes[sessionId] = next.then<void>((_) {}, onError: (_, __) {});
+    final lane = next.then<void>((_) {}, onError: (_, __) {});
+    _lanes[sessionId] = lane;
+    unawaited(
+      lane.then((_) {
+        if (identical(_lanes[sessionId], lane)) {
+          _lanes.remove(sessionId);
+        }
+      }),
+    );
     return completer.future;
+  }
+
+  void _validateChangeSet(WorkspaceChangeSet changeSet) {
+    if (changeSet.id.length > 256 ||
+        changeSet.resources.isEmpty ||
+        changeSet.resources.length > maxResourcesPerChangeSet) {
+      throw const CollaborationFailure(
+        'invalid_change_set',
+        'Agent change set is empty or exceeds its resource limit',
+      );
+    }
+    var editCount = 0;
+    var replacementCharacters = 0;
+    for (final resource in changeSet.resources) {
+      if (resource.resourceId.length > 4096 ||
+          resource.baseDocumentRevision < 0 ||
+          resource.edits.isEmpty) {
+        throw const CollaborationFailure(
+          'invalid_change_set',
+          'Agent change set contains an invalid resource',
+        );
+      }
+      editCount += resource.edits.length;
+      for (final edit in resource.edits) {
+        replacementCharacters += edit.replacement.length;
+      }
+    }
+    if (editCount > maxEditsPerChangeSet ||
+        replacementCharacters > maxReplacementCharactersPerChangeSet) {
+      throw const CollaborationFailure(
+        'change_set_limit_exceeded',
+        'Agent change set exceeds its edit or replacement limit',
+      );
+    }
   }
 
   _SessionState _requireSession(String sessionId) {
@@ -538,6 +677,11 @@ CollaborationTaskStatus _decodeStatus(Object? value) => switch (value) {
   _ => CollaborationTaskStatus.active,
 };
 
+bool _isTerminalStatus(CollaborationTaskStatus status) =>
+    status == CollaborationTaskStatus.completed ||
+    status == CollaborationTaskStatus.failed ||
+    status == CollaborationTaskStatus.cancelled;
+
 CollaborationTimelineKind _decodeTimelineKind(String value) => switch (value) {
   'turn' || 'message' || 'chunk' => CollaborationTimelineKind.turn,
   'plan' => CollaborationTimelineKind.plan,
@@ -557,3 +701,39 @@ bool _decisionOffered(
   AgentPermissionDecision.allowOnce => request.options.contains('allow_once'),
   AgentPermissionDecision.rejectOnce => request.options.contains('reject_once'),
 };
+
+bool _sameChangeSet(WorkspaceChangeSet left, WorkspaceChangeSet right) {
+  if (left.id != right.id ||
+      left.baseWorkspaceRevision != right.baseWorkspaceRevision ||
+      left.resources.length != right.resources.length) {
+    return false;
+  }
+  for (
+    var resourceIndex = 0;
+    resourceIndex < left.resources.length;
+    resourceIndex += 1
+  ) {
+    final leftResource = left.resources[resourceIndex];
+    final rightResource = right.resources[resourceIndex];
+    if (leftResource.resourceId != rightResource.resourceId ||
+        leftResource.baseDocumentRevision !=
+            rightResource.baseDocumentRevision ||
+        leftResource.edits.length != rightResource.edits.length) {
+      return false;
+    }
+    for (
+      var editIndex = 0;
+      editIndex < leftResource.edits.length;
+      editIndex += 1
+    ) {
+      final leftEdit = leftResource.edits[editIndex];
+      final rightEdit = rightResource.edits[editIndex];
+      if (leftEdit.start != rightEdit.start ||
+          leftEdit.end != rightEdit.end ||
+          leftEdit.replacement != rightEdit.replacement) {
+        return false;
+      }
+    }
+  }
+  return true;
+}

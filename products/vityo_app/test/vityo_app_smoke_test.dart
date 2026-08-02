@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_coding_session_controller.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_context.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_profile.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_adapter.dart';
-import 'package:vityo_app/src/view_ide/agent_client/agent_provider_configurator.dart';
 import 'package:vityo_app/src/frontend_shell/frontend_shell.dart';
 import 'package:vityo_app/src/ide/editor/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document_state.dart';
@@ -313,45 +308,6 @@ void main() {
     );
   }
 
-  AgentCodingSessionController createSmokeAgentController({
-    required PlatformTarget target,
-    required WorkspaceController workspaceController,
-    required EditorSessionController editorController,
-    required ValueNotifier<ToolchainManagerStatusReport> toolchainStatusReport,
-  }) {
-    final controller = AgentCodingSessionController(
-      profile: AgentPromptProfile.defaultForPlatform(target),
-      adapter: const LocalOnlyAgentProviderAdapter(),
-      contextProvider: () => AgentSessionContext.fromEditorState(
-        document: editorController.document,
-        selection: editorController.selection,
-        diagnostics: editorController.analysis.diagnostics,
-        hover: editorController.hoverAtSelection,
-        definition: editorController.definitionAtSelection,
-        references: editorController.referencesAtSelection,
-        completions: editorController.completionsAtSelection,
-        codeActions: editorController.contextActionsAtSelection,
-        workspaceFiles: workspaceController.files,
-        openDocumentIds: workspaceController.openFilePaths,
-        workspaceDocuments: <DocumentState>[editorController.document],
-        workspaceRoot: workspaceController.activeProject.workspaceRoot,
-        activeFilePath: workspaceController.activeFilePath,
-        toolchainSnapshot: toolchainStatusReport.value.snapshot,
-      ),
-    );
-    return controller;
-  }
-
-  AgentProviderConfigurator createSmokeAgentProviderConfigurator() {
-    return AgentProviderConfigurator(
-      workspaceId: 'smoke-workspace',
-      saveProfile: ({required workspaceId, required key, required profile}) {
-        return Future<void>.value();
-      },
-      createAdapter: (_) async => const LocalOnlyAgentProviderAdapter(),
-    );
-  }
-
   Future<AppBootstrap> createBootstrap(
     PlatformTarget target, {
     ProjectGraphSnapshot? projectSnapshot,
@@ -441,13 +397,6 @@ void main() {
       runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: target),
       dependencySourceAdapter: const _FakeDependencySourceAdapter(),
       deploymentAdapter: const _FakeDeploymentAdapter(),
-      agentCodingController: createSmokeAgentController(
-        target: target,
-        workspaceController: workspaceController,
-        editorController: editorController,
-        toolchainStatusReport: toolchainStatusReport,
-      ),
-      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -678,13 +627,6 @@ void main() {
       runtimeEventAdapter: createRuntimeEventAdapter(platformTarget: target),
       dependencySourceAdapter: const _LiveDependencySourceAdapter(),
       deploymentAdapter: const _LiveDeploymentAdapter(),
-      agentCodingController: createSmokeAgentController(
-        target: target,
-        workspaceController: workspaceController,
-        editorController: editorController,
-        toolchainStatusReport: toolchainStatusReport,
-      ),
-      agentProviderConfigurator: createSmokeAgentProviderConfigurator(),
       toolchainStatusReport: toolchainStatusReport,
     );
   }
@@ -768,10 +710,6 @@ fn blend(left: f64, right: f64): f64 {
     expect(find.byKey(const ValueKey('language-pane-desktop')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('editor-language-family-desktop')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('agent-surface-desktop')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('explorer-tree-scroll')), findsOneWidget);
@@ -1118,24 +1056,11 @@ fn blend(left: f64, right: f64): f64 {
 
     shell.selectBottomTab(BottomSurfaceTab.agent);
     await tester.pumpAndSettle();
-    final agentSurfaceScrollable = find.descendant(
-      of: find.byKey(const ValueKey('agent-surface-desktop')),
-      matching: find.byType(Scrollable),
+    expect(
+      find.byKey(const ValueKey('agent-workbench-surface')),
+      findsOneWidget,
     );
-    await tester.scrollUntilVisible(
-      find.text('Mounted Adapters And Slots'),
-      120,
-      scrollable: agentSurfaceScrollable.first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Mounted Adapters And Slots'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Smoke Agent Prompts'),
-      120,
-      scrollable: agentSurfaceScrollable.first,
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Smoke Agent Prompts'), findsWidgets);
+    expect(find.textContaining('No Agent is connected'), findsOneWidget);
   });
 
   testWidgets('renders module sidebar in mobile viewport family', (
@@ -1153,12 +1078,8 @@ fn blend(left: f64, right: f64): f64 {
 
     await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
 
-    expect(
-      find.text('Adapter Routes', skipOffstage: false),
-      findsWidgets,
-    );
+    expect(find.text('Adapter Routes', skipOffstage: false), findsWidgets);
   });
-
 
   testWidgets('renders empty workspace bottom surface states', (tester) async {
     tester.view.physicalSize = const Size(1600, 1400);
@@ -1266,77 +1187,22 @@ fn blend(left: f64, right: f64): f64 {
       expect(shell.activeBottomTab, tab);
     }
 
-    // FIXME: API removed during merge: await shell.collectWorkspaceDocumentLinks(
-    // FIXME: API removed during merge: WorkspaceDocumentLinksQuery(targetFilePath: mainPath),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.documentLinks);
-    // FIXME: API removed during merge: await shell.collectWorkspaceDocumentHighlights(
-    // FIXME: API removed during merge: WorkspaceDocumentHighlightsQuery(
-    // FIXME: API removed during merge: targetFilePath: mainPath,
-    // FIXME: API removed during merge: offset: priceOffset,
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.documentHighlights);
-    // FIXME: API removed during merge: await shell.collectWorkspaceCodeLenses(
-    // FIXME: API removed during merge: WorkspaceCodeLensQuery(targetFilePath: mainPath),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.codeLenses);
-    // FIXME: API removed during merge: await shell.findWorkspaceDeclarations(
-    // FIXME: API removed during merge: const WorkspaceDeclarationQuery(pattern: 'Price'),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.declarations);
-    // FIXME: API removed during merge: await shell.findWorkspaceDefinitions(
-    // FIXME: API removed during merge: const WorkspaceDefinitionQuery(pattern: 'blend'),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.definitions);
-    // FIXME: API removed during merge: await shell.findWorkspaceTypeDefinitions(
-    // FIXME: API removed during merge: const WorkspaceTypeDefinitionQuery(pattern: 'Price'),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.typeDefinitions);
-    // FIXME: API removed during merge: await shell.findWorkspaceImplementations(
-    // FIXME: API removed during merge: const WorkspaceImplementationQuery(pattern: 'Price'),
-    // FIXME: API removed during merge: );
     await renderTab(BottomSurfaceTab.implementations);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceTypeHierarchy(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceTypeHierarchyQuery(pattern: 'OrderBook'),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.typeHierarchy);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceOutline(
-    // FIXME: ShellModel API removed during merge:       WorkspaceOutlineQuery(targetFilePath: mainPath),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.outline);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.previewWorkspaceRename(
-    // FIXME: ShellModel API removed during merge:       WorkspaceRenameQuery(
-    // FIXME: ShellModel API removed during merge:         targetFilePath: mainPath,
-    // FIXME: ShellModel API removed during merge:         targetOffset: calculateOffset,
-    // FIXME: ShellModel API removed during merge:         newName: 'compute',
-    // FIXME: ShellModel API removed during merge:       ),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.rename);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceSymbols(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceSymbolSearchQuery(pattern: 'calculate'),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.symbols);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.findWorkspaceReferences(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceReferenceSearchQuery(pattern: 'calculate'),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.usages);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.buildWorkspaceCallHierarchy(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceCallHierarchyQuery(pattern: 'calculate'),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.calls);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.searchWorkspaceText(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceTextSearchQuery(pattern: 'blend'),
-    // FIXME: ShellModel API removed during merge:     );
     await shell.previewWorkspaceReplace(query: 'blend', replacement: 'mix');
     await renderTab(BottomSurfaceTab.search);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceProblems(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceProblemsQuery(pattern: 'prices'),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.problems);
-    // FIXME: ShellModel API removed during merge:     // FIXME: ShellModel API changed await shell.collectWorkspaceCodeActions(
-    // FIXME: ShellModel API removed during merge:       const WorkspaceCodeActionsQuery(pattern: 'prices'),
-    // FIXME: ShellModel API removed during merge:     );
     await renderTab(BottomSurfaceTab.actions);
   });
 
@@ -2597,9 +2463,7 @@ value -> @stdout
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pumpAndSettle();
 
-    final quickDocPanel = find.byKey(
-      const ValueKey('source-quick-doc-panel'),
-    );
+    final quickDocPanel = find.byKey(const ValueKey('source-quick-doc-panel'));
     expect(quickDocPanel, findsOneWidget);
     expect(
       find.descendant(
@@ -4753,6 +4617,7 @@ blend(left: price, right: tax) -> @stdout
     expect(find.byKey(const ValueKey('language-rename-conflict')), findsOne);
   });
 }
+
 class _FakeProjectGraphAdapter implements ProjectGraphAdapter {
   const _FakeProjectGraphAdapter(this.projectSnapshot);
 
@@ -4784,6 +4649,7 @@ class _FakeProjectGraphAdapter implements ProjectGraphAdapter {
   @override
   Future<ProjectGraphSnapshot> loadProjectGraph() async => projectSnapshot;
 }
+
 class _FakeExecutionAdapter implements ExecutionAdapter {
   const _FakeExecutionAdapter();
 
@@ -4957,7 +4823,6 @@ class _LiveExecutionAdapter implements ExecutionAdapter {
     );
   }
 }
-
 
 class _LiveDependencySourceAdapter implements DependencySourceAdapter {
   const _LiveDependencySourceAdapter();

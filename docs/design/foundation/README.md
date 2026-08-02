@@ -847,7 +847,6 @@ The following artifacts are owned by Foundation and maintained in `products/vity
 | `IdeCapabilityDescriptor` | `ide_capability_framework.dart` | Declarative IDE capability entry with layer, status, owner path, and dependencies. |
 | `IdeCapabilityFrameworkSnapshot` | `ide_capability_framework.dart` | Complete capability inventory with required-id validation. |
 | `IdeCapabilityClosureGate` | `ide_capability_closure_gate.dart` | Closure evaluator that produces a severity-classified report from a framework snapshot. |
-| `IdeCapabilityAgentSafeProjector` | `ide_capability_framework.dart` | Strips runtime values from closure reports and produces metadata-only projections safe for agent context. |
 
 ### 15.2 Product Boundaries
 
@@ -878,7 +877,7 @@ The following invariants are enforced by Foundation code and tests:
 
 4. **Single Implementation Path**: Foundation has exactly one implementation path per module. No debug-only, prototype-only, lab-only, or experimental code paths exist as final deliverables. All Foundation modules compile into the production Dart library without conditional guard flags.
 
-5. **Capability Gap Serialization Safety**: Every capability gap report is serializable to JSON without runtime values, safe for agent context projection through `IdeCapabilityAgentSafeProjector`, and user-visible through the IDE capability matrix.
+5. **Capability Gap Serialization Safety**: Capability gap reports remain user-visible IDE state. Any facts exposed to an Agent must traverse the bounded, sanitized `RevisionedIdeContextExportService`; Foundation does not own a parallel Agent projection.
 
 6. **Resource Coordinator Does Not Write Files**: `FoundationResourceCoordinator` produces `FoundationResourceLocation` records. It never calls file-system write, delete, or directory creation APIs directly.
 
@@ -895,7 +894,6 @@ Cache is not a distinct Foundation module. Cache ownership is distributed across
 | Language result cache (tokens, diagnostics, hover, completion) | Service Layer / Service DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
 | Project graph snapshot cache | Workspace Layer / Workspace DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
 | Workspace file index cache | Workspace Layer / Workspace DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
-| Agent coding loop context cache | Agent Layer / Agent DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
 | Toolchain compiler invocation cache | Toolchain Layer / Toolchain DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
 | Platform capability probe cache | Environment Layer / Environment DataStore Owner | `FoundationDataStore` with `FoundationPersistenceKind.cached` |
 | Workspace cache (temporary build artifacts) | Environment / Resource Manager | `FoundationResourceKind.workspaceCache` locations, cleanup-allowed |

@@ -177,16 +177,19 @@ Workbench, not the product category and not the runtime owner.
 
 Platform transport differences do not move model/provider or Agent execution ownership into the IDE.
 
-## 10. Current Implementation Gap
+## 10. Current Implementation Status
 
-The target boundary above is authoritative. Some current Vityo IDE files still contain direct
-provider transport, provider configuration, prompt contract, and coding-session controller behavior
-that predates the standalone companion runtime. Those files are current implementation evidence,
-not the intended ownership model.
+The IDE-side ownership cutover is complete. Vityo now composes only the canonical supervised
+Agent Client (`products/vityo_app/lib/src/ide/agent_client`), collaboration projection
+(`products/vityo_app/lib/src/ide/workbench/agent_collaboration`), presentation Workbench
+(`products/vityo_app/lib/src/presentation/agent_workbench`), MCP/context export, and IDE-owned
+workspace transactions. Direct provider transport, provider configuration, prompt/tool loops,
+durable Agent-session controllers, and their compatibility UI have been removed from the IDE.
 
-Their retirement or migration into `products/vityo_coding_agent` is tracked in
-[Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md). This documentation convergence does
-not claim that code migration has occurred and does not change public runtime behavior.
+The remaining product-closure work is tracked in
+[Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md): prove richer end-to-end Agent
+Workbench workflows and first-party proposal/receipt behavior without moving Agent-runtime
+ownership back into the IDE.
 
 ## 11. Related Owners
 

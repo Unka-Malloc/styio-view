@@ -2,7 +2,7 @@
 
 **Plan:** `vityo`
 **Purpose:** Define Vityo as the Styio Agent-Native IDE and open Agent Client.
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-01
 
 ## Product definition
 
@@ -25,9 +25,9 @@ Requirements describe the accepted product, not permission to replay historical 
 | State | Lifecycle | Execution rule |
 |---|---|---|
 | Completed | Package cutover, workspace transactions, developer loop, Agent Client foundation, Workbench foundation, MCP/context export, quality hardening, validation runner scaffold, desktop receipt binding, and product-document convergence | Read-only evidence. Never rerun or rewrite these Nodes. |
-| Pending | `014e7fb0-3f51-4033-be71-eca130a4a2ea` — protocol-only Agent boundary | Remove the remaining IDE-owned provider/coding-loop implementation while preserving IDE-owned context, review, permissions, transactions, and receipts. |
-| Pending | `63016713-c527-4428-a87d-2613f8c43ac9` — final-harness readiness | Add side-effect-free preflight and fail-closed receipts without running `ide/full`. |
-| Pending | `c5bfe53f-4094-4771-b323-12a99750c95b` — final validation | Run only after both pending implementation Nodes complete and explicit final-run authority is given. |
+| Completed | `014e7fb0-3f51-4033-be71-eca130a4a2ea` — protocol-only Agent boundary | Preserve the protocol-only ownership boundary; do not reintroduce IDE-owned provider or coding-loop runtime. |
+| Completed | `63016713-c527-4428-a87d-2613f8c43ac9` — final-harness readiness | Preserve side-effect-free preflight and fail-closed receipt behavior. |
+| Completed | `c5bfe53f-4094-4771-b323-12a99750c95b` — final validation | Consume the recorded immutable-candidate evidence; do not rerun the unchanged candidate. |
 
 The mandatory mechanical procedure is
 [the Better Plan execution runbook](../EXECUTION-RUNBOOK.md). A Node goal or eligible status alone

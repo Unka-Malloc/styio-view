@@ -3,7 +3,7 @@
 **Purpose:** Define Vityo's API compatibility rules across public models, adapter contracts, module manifests, and agent tool interfaces. This is the SSOT for what constitutes a breaking change and how compatibility is maintained.
 
 **Owner:** Governance owner (`CODEOWNERS` → governance domain)
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ---
 
@@ -18,8 +18,8 @@ The following are public API surfaces subject to compatibility rules:
 | Adapter contracts | `view_ide/backend_toolchain/`, `view_ide/language/contract/` | External adapters, language services |
 | Module manifest schema | `view_ide/module_host/extension_manifest_contract.dart` | Extension developers |
 | Vityo Agent Protocol | `packages/vityo_agent_protocol/` | Vityo Agent Client, Vityo Coding Agent, compatible Agents |
-| Agent Client interface | `view_ide/agent_client/agent.dart` | IDE Workbench and compatible Agent integrations |
-| Agent permission presentation | `view_ide/agent_client/agent_permission_model.dart` | IDE consent UI and protocol projections |
+| Agent Client interface | `ide/agent_client/` | IDE Workbench and compatible Agent integrations |
+| Agent collaboration projection | `ide/workbench/agent_collaboration/` | IDE consent UI, change review, and protocol projections |
 | Workspace model | `ide/workspace/` | View render surfaces, external tooling |
 | IDE capability registry | `view_ide/workbench/ide_capability_registry.dart` | Product gates, UI surfaces |
 | Configuration schema | `view_ide/environment/configuration/` | Settings UI, bootstrap |

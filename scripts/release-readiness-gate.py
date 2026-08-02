@@ -30,6 +30,7 @@ PRODUCT_MATRIX_WORKFLOW_MARKERS = {
     "linux": (
         "VITYO_PRODUCT_PLATFORM: linux",
         "product-gate-linux.json",
+        "dart run tests/acceptance/vityo_app/trusted_desktop_styio_loop_acceptance_test.dart --report build/evidence/product-gate-linux.json --platform linux",
         "scripts/run-native-pty-matrix.py",
         "--platform linux",
         "--pty-report build/evidence/native-pty-linux.json",
@@ -38,6 +39,7 @@ PRODUCT_MATRIX_WORKFLOW_MARKERS = {
     "windows": (
         "VITYO_PRODUCT_PLATFORM: windows",
         "product-gate-windows.json",
+        "dart run tests/acceptance/vityo_app/trusted_desktop_styio_loop_acceptance_test.dart --report build/evidence/product-gate-windows.json --platform windows",
         "scripts/run-native-pty-matrix.py",
         "--platform windows",
         "--pty-report build/evidence/native-pty-windows.json",
@@ -46,6 +48,7 @@ PRODUCT_MATRIX_WORKFLOW_MARKERS = {
     "macos": (
         "VITYO_PRODUCT_PLATFORM: macos",
         "product-gate-macos.json",
+        "dart run tests/acceptance/vityo_app/trusted_desktop_styio_loop_acceptance_test.dart --report build/evidence/product-gate-macos.json --platform macos",
         "scripts/run-native-pty-matrix.py",
         "--platform macos",
         "--pty-report build/evidence/native-pty-macos.json",
@@ -101,7 +104,7 @@ REQUIRED_IDE_CAPABILITY_TESTS = {
     "runtime and toolchain": (
         Path("products/vityo_app/test/shell_runtime_file_binding_test.dart"),
         Path("products/vityo_app/test/execution_adapter_test.dart"),
-        Path("products/vityo_app/test/toolchain_management_adapter_test.dart"),
+        Path("products/vityo_app/test/toolchain_controller_test.dart"),
         Path("products/vityo_app/test/toolchain_provenance_verifier_test.dart"),
         Path("products/vityo_app/test/toolchain_status_surface_test.dart"),
     ),

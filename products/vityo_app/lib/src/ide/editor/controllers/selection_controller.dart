@@ -5,16 +5,53 @@ class SelectionController extends EditorOwnedController {
   SelectionController(
     SelectionState initialSelection, {
     required int documentLength,
-  }) : _selection = _clampSelection(initialSelection, documentLength);
+  }) : _selectionSet = EditorSelectionSet.single(
+         initialSelection,
+         documentLength: documentLength,
+       );
 
-  SelectionState _selection;
+  EditorSelectionSet _selectionSet;
   final List<SelectionState> structuredSelectionStack = <SelectionState>[];
 
-  SelectionState get selection => _selection;
+  EditorSelectionSet get selectionSet => _selectionSet;
+  SelectionState get selection => _selectionSet.primarySelection;
 
   void select(SelectionState selection, {required int documentLength}) {
+    selectSelectionSet(
+      EditorSelectionSet.single(selection, documentLength: documentLength),
+    );
+  }
+
+  void selectSelections(
+    Iterable<SelectionState> selections, {
+    required int primaryIndex,
+    required int documentLength,
+  }) {
+    selectSelectionSet(
+      EditorSelectionSet.normalized(
+        selections: selections,
+        primaryIndex: primaryIndex,
+        documentLength: documentLength,
+      ),
+    );
+  }
+
+  void selectSelectionSet(EditorSelectionSet selectionSet) {
     ensureNotDisposed();
-    _selection = _clampSelection(selection, documentLength);
+    _selectionSet = selectionSet;
+    structuredSelectionStack.clear();
+    notifyControllerListeners();
+  }
+
+  void selectForStructuralNavigation(
+    SelectionState selection, {
+    required int documentLength,
+  }) {
+    ensureNotDisposed();
+    _selectionSet = EditorSelectionSet.single(
+      selection,
+      documentLength: documentLength,
+    );
     notifyControllerListeners();
   }
 
@@ -36,15 +73,5 @@ class SelectionController extends EditorOwnedController {
   void clearStructuredSelectionStack() {
     ensureNotDisposed();
     structuredSelectionStack.clear();
-  }
-
-  static SelectionState _clampSelection(
-    SelectionState selection,
-    int documentLength,
-  ) {
-    return SelectionState(
-      baseOffset: selection.baseOffset.clamp(0, documentLength),
-      extentOffset: selection.extentOffset.clamp(0, documentLength),
-    );
   }
 }

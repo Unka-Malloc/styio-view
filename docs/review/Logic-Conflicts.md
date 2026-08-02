@@ -30,7 +30,7 @@
 | ID | Topic | Status | Risk | Next Step |
 |----|-------|--------|------|-----------|
 | LC-007 | Local model size and licensing boundary | Resolved | Vityo does not embed a model or own a model provider. Local or hosted model selection belongs to Vityo Coding Agent or another compatible Agent connected through the versioned protocol. | Governed by ADR-0019 and the Agent-Native IDE architecture. |
-| LC-008 | Privacy boundary for profile, prompt, and provider configuration | Resolved | Optional Vityo ProfileSync remains pluggable and local-only when absent. Model/provider credentials and prompt-runtime configuration belong to the Agent runtime and must not be synchronized as IDE-owned provider state. | ADR-0019 supersedes only the IDE-provider portion of ADR-0013; the ProfileSync/local-only decision remains current. |
+| LC-008 | Privacy boundary for profile, prompt, and provider configuration | Resolved | A future provider-neutral Vityo ProfileSync remains optional and local-first when absent. Model/provider credentials and prompt-runtime configuration belong to the Agent runtime and must not be synchronized as IDE-owned state. No general IDE profile runtime is currently claimed. | ADR-0019 supersedes the IDE-provider portion of ADR-0013; only the future provider-neutral ProfileSync schema remains. |
 | LC-009 | 模块热更新的分发与平台合规边界未定 | Resolved | 已接受“iOS 为唯一受 App Store 审核限制且最后上线的平台；其它平台自分发；任何不满足 iOS 边界的模块通过 capability matrix 排除在 iOS 外” | 由 ADR-0014、M8、M9 执行。 |
 | LC-010 | 模块卸载后的工作区配置、菜单和依赖回收未定 | Resolved | 已接受“移动端卸载全量回收、桌面端卸载由用户选保留或清除、Web 托管工作区关闭前警告并提供核心文件导出、默认保留 7 天后删除” | 由 ADR-0015、M8、M9 执行。 |
 

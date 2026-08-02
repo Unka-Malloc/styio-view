@@ -1076,6 +1076,11 @@ path = "scratch/main.styio"
           );
       expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
 
+      debugOverridePafioDiscoveryEnvironment(<String, String>{
+        'PATH': tempRoot.path,
+        'Path': tempRoot.path,
+      });
+      addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
       final missingPafioGraph = _projectGraph(
         workspaceRoot: tempRoot.path,
         manifestPath: manifestPath,

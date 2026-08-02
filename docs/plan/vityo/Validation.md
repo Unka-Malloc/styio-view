@@ -66,6 +66,28 @@ tests. It must never run the real full suite. It proves:
 3. Every harness/suite/fingerprint failure writes a bounded receipt without raw exceptions.
 4. The receipt binds the executed acceptance fixtures and protocol schema inputs.
 
+#### Acceptance freeze mapping (criteria 0..3)
+
+Executable oracles live in `tests/acceptance/vityo_app/full_runner_acceptance_test.py` plus injectable
+unit seams in `tests/test_vityo_quality.py` and `tests/test_vityo_validation_receipt.py`. Matrix detail
+is owned by [EXECUTION-RUNBOOK §8.3](../EXECUTION-RUNBOOK.md).
+
+| Criterion | Observation | Executable case | Oracle |
+|---|---|---|---|
+| 0 | success, boundary | `--plan-only` / `--preflight` CLI | `mode` set; REQ-IDE-001..008 once; eight unique suites; default receipt unchanged; runners untouched |
+| 1 | success, negative, fingerprint | synthetic `build_ide_receipt` / formal full with injected runners | eight slots; `protocol_schema_sha256` + `acceptance_fixtures_sha256`; stable `failure_code`; atomic write; no raw exception text |
+| 2 | privacy, boundary | static scan of `scripts/vityo_quality.py` | no sibling/home Better Plan path; `_run_plan_validation` absent; `ide_full` never invokes lifecycle tools |
+| 3 | replay | declared focused commands only | unit + acceptance + plan-only + preflight; bare `ide/full` never spawned |
+
+Declared focused regression (never bare `ide/full`):
+
+```text
+python3 -m unittest tests.test_vityo_quality tests.test_vityo_validation_receipt
+python3 tests/acceptance/vityo_app/full_runner_acceptance_test.py
+python3 scripts/vityo_quality.py --product ide --suite full --plan-only
+python3 scripts/vityo_quality.py --product ide --suite full --preflight
+```
+
 ## One-time cutover checks
 
 The cutover suite performs the removal proof once:

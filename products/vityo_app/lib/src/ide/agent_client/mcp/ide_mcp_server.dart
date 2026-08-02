@@ -21,9 +21,16 @@ final class IdeMcpServer {
     required WorkspaceRootRegistry roots,
     required IdeToolCatalog tools,
     required ToolSecurityPolicy security,
+    this.maxSessions = 64,
+    this.maxConcurrentToolCallsPerSession = 16,
   }) : _roots = roots,
        _tools = tools,
        _security = security {
+    if (maxSessions <= 0 || maxConcurrentToolCallsPerSession <= 0) {
+      throw ArgumentError(
+        'MCP session and tool concurrency limits must be positive',
+      );
+    }
     _rootSubscription = roots.changes.listen(_onRootChange);
     _toolSubscription = tools.changes.listen(_onToolChange);
   }
@@ -31,7 +38,10 @@ final class IdeMcpServer {
   final WorkspaceRootRegistry _roots;
   final IdeToolCatalog _tools;
   final ToolSecurityPolicy _security;
+  final int maxSessions;
+  final int maxConcurrentToolCallsPerSession;
   final Map<String, _McpSessionState> _sessions = <String, _McpSessionState>{};
+  final Map<String, int> _activeToolCalls = <String, int>{};
   final Map<String, StreamController<JsonRpcNotification>> _notifications =
       <String, StreamController<JsonRpcNotification>>{};
   late final StreamSubscription<WorkspaceRootChange> _rootSubscription;
@@ -39,8 +49,13 @@ final class IdeMcpServer {
   int _callSequence = 0;
   bool _closed = false;
 
-  Stream<JsonRpcNotification> notificationsFor(String sessionId) =>
-      _notificationController(sessionId).stream;
+  Stream<JsonRpcNotification> notificationsFor(String sessionId) {
+    _validateSessionId(sessionId);
+    if (!_sessions.containsKey(sessionId)) {
+      throw StateError('MCP session is not initialized');
+    }
+    return _notificationController(sessionId).stream;
+  }
 
   Future<JsonRpcMessage?> handle({
     required String sessionId,
@@ -49,22 +64,26 @@ final class IdeMcpServer {
     if (_closed) {
       throw StateError('IDE MCP server is closed');
     }
-    if (message is JsonRpcNotification) {
-      if (message.method == 'notifications/initialized') {
-        final session = _sessions[sessionId];
-        if (session != null) {
-          session.ready = true;
-        }
-      }
-      return null;
-    }
-    if (message is! JsonRpcRequest) {
-      return null;
-    }
     try {
+      _validateSessionId(sessionId);
+      if (message is JsonRpcNotification) {
+        if (message.method == 'notifications/initialized') {
+          final session = _sessions[sessionId];
+          if (session != null) {
+            session.ready = true;
+          }
+        }
+        return null;
+      }
+      if (message is! JsonRpcRequest) {
+        return null;
+      }
       final result = await _routeRequest(sessionId, message);
       return JsonRpcSuccessResponse(id: message.id, result: result);
     } on _McpFailure catch (error) {
+      if (message is! JsonRpcRequest) {
+        return null;
+      }
       return JsonRpcErrorResponse(
         id: message.id,
         error: JsonRpcError(
@@ -74,12 +93,27 @@ final class IdeMcpServer {
         ),
       );
     } on AgentProtocolException catch (error) {
+      if (message is! JsonRpcRequest) {
+        return null;
+      }
       return JsonRpcErrorResponse(
         id: message.id,
         error: JsonRpcError(
           code: -32602,
           message: 'invalid MCP request',
           data: <String, Object?>{'code': error.code},
+        ),
+      );
+    } on Object {
+      if (message is! JsonRpcRequest) {
+        return null;
+      }
+      return JsonRpcErrorResponse(
+        id: message.id,
+        error: const JsonRpcError(
+          code: -32603,
+          message: 'internal MCP server error',
+          data: <String, Object?>{'code': 'internal_error'},
         ),
       );
     }
@@ -95,7 +129,12 @@ final class IdeMcpServer {
     for (final controller in _notifications.values) {
       await controller.close();
     }
+    for (final sessionId in _sessions.keys) {
+      _security.grants.revokeSession(sessionId);
+    }
+    _sessions.clear();
     _notifications.clear();
+    _activeToolCalls.clear();
   }
 
   Future<Map<String, Object?>> _routeRequest(
@@ -106,7 +145,17 @@ final class IdeMcpServer {
       return _initialize(sessionId, request.params);
     }
     final session = _sessions[sessionId];
-    if (session == null || !session.ready) {
+    if (session == null) {
+      throw const _McpFailure(
+        rpcCode: -32002,
+        code: 'not_initialized',
+        message: 'MCP session is not initialized',
+      );
+    }
+    if (request.method == 'ping') {
+      return const <String, Object?>{};
+    }
+    if (!session.ready) {
       throw const _McpFailure(
         rpcCode: -32002,
         code: 'not_initialized',
@@ -132,15 +181,31 @@ final class IdeMcpServer {
     String sessionId,
     Map<String, Object?> params,
   ) {
-    final requested = params['protocolVersion'];
-    if (requested is! String ||
-        !mcpCompatibleProtocolVersions.contains(requested)) {
+    if (_sessions.containsKey(sessionId)) {
       throw const _McpFailure(
-        rpcCode: -32602,
-        code: 'unsupported_version',
-        message: 'MCP protocol version is not supported',
+        rpcCode: -32600,
+        code: 'already_initialized',
+        message: 'MCP session is already initialized',
       );
     }
+    if (_sessions.length >= maxSessions) {
+      throw const _McpFailure(
+        rpcCode: -32000,
+        code: 'session_limit_exceeded',
+        message: 'MCP session limit was reached',
+      );
+    }
+    final requested = params['protocolVersion'];
+    if (requested is! String || requested.isEmpty || requested.length > 64) {
+      throw const _McpFailure(
+        rpcCode: -32602,
+        code: 'invalid_version',
+        message: 'MCP protocol version must be a bounded string',
+      );
+    }
+    final negotiated = mcpCompatibleProtocolVersions.contains(requested)
+        ? requested
+        : mcpProtocolVersion;
     final capabilities = params['capabilities'];
     if (capabilities is! Map<String, Object?>) {
       throw const _McpFailure(
@@ -150,12 +215,12 @@ final class IdeMcpServer {
       );
     }
     _sessions[sessionId] = _McpSessionState(
-      protocolVersion: requested,
+      protocolVersion: negotiated,
       clientCapabilities: Map<String, Object?>.unmodifiable(capabilities),
     );
     _notificationController(sessionId);
     return <String, Object?>{
-      'protocolVersion': requested,
+      'protocolVersion': negotiated,
       'capabilities': const <String, Object?>{
         'tools': <String, Object?>{'listChanged': true},
         'resources': <String, Object?>{'subscribe': false, 'listChanged': true},
@@ -279,10 +344,32 @@ final class IdeMcpServer {
       }
     }
 
+    final invocationArguments = rootAuthorization == null
+        ? arguments
+        : Map<String, Object?>.unmodifiable(<String, Object?>{
+            ...arguments,
+            'path': rootAuthorization.canonicalPath,
+          });
+    final activeToolCalls = _activeToolCalls[sessionId] ?? 0;
+    if (activeToolCalls >= maxConcurrentToolCallsPerSession) {
+      final receipt = _record(
+        sessionId: sessionId,
+        toolName: name,
+        outcome: ToolAuditOutcome.denied,
+        code: 'tool_concurrency_limit',
+        risks: descriptor.risks,
+        rootRevision: rootAuthorization?.rootRevision ?? rootSnapshot.revision,
+      );
+      return _toolError(
+        'tool_concurrency_limit',
+        'tool concurrency limit was reached',
+        receipt,
+      );
+    }
     final authorization = _security.authorize(
       sessionId: sessionId,
       descriptor: descriptor,
-      arguments: arguments,
+      arguments: invocationArguments,
       rootId: rootAuthorization?.rootId,
     );
     if (!authorization.allowed) {
@@ -301,15 +388,18 @@ final class IdeMcpServer {
       );
     }
 
+    _activeToolCalls[sessionId] = activeToolCalls + 1;
     _callSequence += 1;
     try {
       final result = await adapter.invoke(
         IdeToolInvocation(
           callId: 'mcp-tool-$_callSequence',
           sessionId: sessionId,
-          arguments: arguments,
+          arguments: invocationArguments,
           expectedWorkspaceRevision:
-              arguments['expectedWorkspaceRevision'] as int?,
+              invocationArguments['expectedWorkspaceRevision'] is int
+              ? invocationArguments['expectedWorkspaceRevision'] as int
+              : null,
         ),
       );
       final sanitized =
@@ -430,6 +520,13 @@ final class IdeMcpServer {
         rootRevision: rootAuthorization?.rootRevision ?? rootSnapshot.revision,
       );
       return _toolError('tool_failed', 'tool execution failed', receipt);
+    } finally {
+      final remaining = (_activeToolCalls[sessionId] ?? 1) - 1;
+      if (remaining <= 0) {
+        _activeToolCalls.remove(sessionId);
+      } else {
+        _activeToolCalls[sessionId] = remaining;
+      }
     }
   }
 
@@ -572,10 +669,18 @@ final class IdeMcpServer {
       );
     }
     final arguments = params['arguments'];
-    final focus =
+    final rawFocus =
         arguments is Map<String, Object?> && arguments['focus'] is String
         ? arguments['focus'] as String
         : 'current changes';
+    if (rawFocus.length > 512) {
+      throw const _McpFailure(
+        rpcCode: -32602,
+        code: 'schema_validation_failed',
+        message: 'prompt focus exceeds its character limit',
+      );
+    }
+    final focus = _security.sanitizer.sanitize(rawFocus) as String;
     return <String, Object?>{
       'description': 'Review only user-consented workspace evidence.',
       'messages': <Map<String, Object?>>[
@@ -679,10 +784,31 @@ final class IdeMcpServer {
 
   StreamController<JsonRpcNotification> _notificationController(
     String sessionId,
-  ) => _notifications.putIfAbsent(
-    sessionId,
-    () => StreamController<JsonRpcNotification>.broadcast(sync: true),
-  );
+  ) {
+    final existing = _notifications[sessionId];
+    if (existing != null) {
+      return existing;
+    }
+    if (_closed) {
+      throw StateError('IDE MCP server is closed');
+    }
+    if (_notifications.length >= maxSessions) {
+      throw StateError('MCP notification session limit was reached');
+    }
+    final created = StreamController<JsonRpcNotification>.broadcast(sync: true);
+    _notifications[sessionId] = created;
+    return created;
+  }
+
+  void _validateSessionId(String sessionId) {
+    if (sessionId.trim().isEmpty || sessionId.length > 256) {
+      throw const _McpFailure(
+        rpcCode: -32602,
+        code: 'invalid_session',
+        message: 'MCP session identifier must be non-empty and bounded',
+      );
+    }
+  }
 }
 
 final class _McpSessionState {

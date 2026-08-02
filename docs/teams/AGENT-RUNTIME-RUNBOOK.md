@@ -2,7 +2,7 @@
 
 **Purpose:** Define the Coding Agent runtime owner's responsibilities, owned paths, review checklist, and required gates. Enforce credential safety, permission audit, patch workflow, and journal/audit compliance.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Mission
 
@@ -22,8 +22,9 @@ Primary paths:
 
 IDE Agent Client and Workbench paths are review dependencies, not Agent-runtime-owned surfaces:
 
-1. `products/vityo_app/lib/src/view_ide/agent_client/`
-2. `products/vityo_app/lib/src/view_render/agent_workbench/`
+1. `products/vityo_app/lib/src/ide/agent_client/`
+2. `products/vityo_app/lib/src/ide/workbench/agent_collaboration/`
+3. `products/vityo_app/lib/src/presentation/agent_workbench/`
 
 Key SSOTs:
 1. `Agent architecture -> ../design/Vityo-Agent-Native-IDE-Architecture.md`

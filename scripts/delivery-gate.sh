@@ -177,8 +177,6 @@ if is_true "${CI:-}" || is_true "${GITHUB_ACTIONS:-}" || is_true "${VITYO_PRODUC
   PRODUCT_GATE_CMD=(
     "$PYTHON_BIN"
     scripts/ecosystem-product-gate.py
-    --require-real-matrix
-    --json
   )
   if [[ -n "${VITYO_PRODUCT_PLATFORM:-}" ]]; then
     PRODUCT_GATE_CMD+=(--platform "$VITYO_PRODUCT_PLATFORM")
@@ -189,12 +187,10 @@ if is_true "${CI:-}" || is_true "${GITHUB_ACTIONS:-}" || is_true "${VITYO_PRODUC
   if [[ -n "${VITYO_PRODUCT_PAFIO_BIN:-}" ]]; then
     PRODUCT_GATE_CMD+=(--pafio-bin "$VITYO_PRODUCT_PAFIO_BIN")
   fi
-  if [[ -n "${VITYO_PAFIO_ROOT:-}" ]]; then
-    PRODUCT_GATE_CMD+=(--pafio-root "$VITYO_PAFIO_ROOT")
-  fi
   if [[ -n "${VITYO_PRODUCT_GATE_OUTPUT:-}" ]]; then
     PRODUCT_GATE_CMD+=(--output "$VITYO_PRODUCT_GATE_OUTPUT")
   fi
+  PRODUCT_GATE_CMD+=(--require-real-matrix --json)
   if PRODUCT_GATE_OUTPUT="$("${PRODUCT_GATE_CMD[@]}" 2>&1)"; then
     PRODUCT_GATE_STATUS="proven"
     log "$PRODUCT_GATE_OUTPUT"

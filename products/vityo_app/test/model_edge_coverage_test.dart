@@ -220,13 +220,7 @@ void main() {
     );
     expect(
       ToolchainResolutionSource.values.map((source) => source.label),
-      <String>[
-        'project-pin',
-        'managed-current',
-        'environment',
-        'unavailable',
-        'unknown',
-      ],
+      <String>['environment', 'unavailable', 'unknown'],
     );
     expect(
       HostedWorkspaceStatus.values.map((status) => status.label),

@@ -46,7 +46,7 @@ These gates are **not** executed by default CI. They require explicit activation
 
 | Gate Script | What It Proves | Trigger |
 |-------------|----------------|---------|
-| `ecosystem-product-gate.py` | Desktop owner-adapter matrix: real `pafio metadata --json`, system `styio --machine-info=json`, and stable local project composition | `VITYO_PRODUCT_GATE=1` + fixed Pafio/Styio fixtures |
+| `ecosystem-product-gate.py` | Desktop owner-adapter matrix: public `pafio new` and `pafio metadata --json`, system `styio --machine-info=json`, and stable local project composition | fixed Pafio/Styio executables |
 | Cross-repository owner matrix | Fixed-revision Pafio metadata/workflow, Styio compiler contracts, Platform hosted/registry/worker contracts, and Vityo adapters | coordinated nightly matrix |
 | Product coverage gate (within `delivery-gate.sh`) | Product-matrix coverage beyond default CI unit/widget test scope | `VITYO_PRODUCT_GATE=1` + external fixtures |
 

@@ -278,12 +278,13 @@ Full checkpoint delivery floor:
 
 ### Ecosystem product-gate environment
 
-The product gate expects sibling checkouts named `styio-nightly` and
-`pafio-nightly` beside this repository. CI and scheduled matrix runs fail closed
-when the canonical `pafio-nightly/scripts/ecosystem-product-gate.py` entrypoint is
-missing. Local runs may omit the siblings, but the result is reported as
-`ok=false`, `skipped=true`; set `VITYO_PRODUCT_GATE=1` to make the same condition
-fatal locally.
+The product gate consumes fixed Pafio and Styio executables through
+`VITYO_PAFIO_BIN` and `VITYO_STYIO_BIN` (or the matching command-line options).
+It creates the project through public `pafio new`, then composes
+`pafio metadata --json` with `styio --machine-info=json`. It does not import a
+Pafio repository script or fixture factory. Missing binaries are reported as
+`ok=false`, `skipped=true` locally and fail closed with
+`--require-real-matrix`.
 
 The scheduled Linux, Windows, and macOS jobs run independently and publish a
 platform-specific matrix evidence JSON containing the exact Vityo, Styio, and

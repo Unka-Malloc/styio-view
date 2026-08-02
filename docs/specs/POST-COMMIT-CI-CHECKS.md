@@ -30,8 +30,9 @@ Cross-repository contract or product changes must also run the matching ecosyste
 
 ```bash
 cd <styio-workspace>
-python3 scripts/ecosystem-cli-doc-gate.py --workspace-root <workspace-root>
-python3 scripts/ecosystem-product-gate.py --workspace-root <workspace-root>
+python3 scripts/ecosystem-cli-doc-gate.py --require-workspace --workspace-root <workspace-root>
+cd <vityo-workspace>
+python3 scripts/ecosystem-product-gate.py --require-real-matrix --platform <platform> --pafio-bin <pafio> --styio-bin <styio>
 ```
 
 The commit message body should record the checks that were actually run.

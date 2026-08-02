@@ -568,7 +568,7 @@ class VityoIdeCapabilityFramework {
           status: IdeCapabilityStatus.scaffolded,
           ownerPath: 'lib/src/view_ide/toolchain',
           summary:
-              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, generic bootstrap summaries, install execution recovery actions, settings controls, Clang/C++ selection, and extension toolchain route consumption are wired. Styio compiler identity is consumed through its machine contract and is not installed, pinned, or switched by Pafio.',
+              'Toolchain catalog, resolver, install policy, health checks, configuration persistence, generic bootstrap summaries, install execution recovery action rendering, installer recovery route handling, ToolchainBootstrapExecutionPlan settings/installer/project action steps, ToolchainBootstrapActionRouter dispatch contracts, ToolchainBootstrapExecutionBridge sequential step execution, ShellRuntimeModel bootstrap action dispatch, SettingsSurface bootstrap dispatch result rendering, settings controls, Clang/C++ selection, and extension toolchain route consumption are wired. Styio compiler identity is consumed through its machine contract and is not installed, pinned, or switched by Pafio.',
           todo:
               'TODO: bind generic installer UX and project validation runners to ToolchainBootstrapExecutionBridge handlers.',
           runtimeMaturityBlocking: false,

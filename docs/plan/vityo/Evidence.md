@@ -1,8 +1,8 @@
 # Vityo — Evidence
 
 **Plan:** `vityo`
-**Purpose:** Record current repository facts that determine the remaining Vityo execution order and stop conditions.
-**Last updated:** 2026-07-31
+**Purpose:** Record current repository facts that determine Vityo's sealed delivery state and stop conditions.
+**Last updated:** 2026-08-01
 
 ## Current repository facts
 
@@ -33,5 +33,5 @@ None. Final validation has completed for the recorded commit and fingerprint.
 
 ## Authoritative execution reference
 
-Use [the Better Plan execution runbook](../EXECUTION-RUNBOOK.md) for exact lifecycle transitions,
-remaining Node order, per-Node work phases, failure routing, and final-run semantics.
+Use [the Better Plan execution runbook](../EXECUTION-RUNBOOK.md) for current lifecycle transitions,
+historical playbooks, failure routing, and the rule that completed Nodes are never replayed.

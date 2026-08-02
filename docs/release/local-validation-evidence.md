@@ -2,7 +2,7 @@
 
 **Purpose:** Record local validation evidence, host coverage, and release blockers for the current Vityo checkpoint set.
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-01
 
 ## Evidence Summary
 
@@ -22,7 +22,7 @@ these rows remain immutable historical evidence only.
 
 | Area | Evidence |
 |------|----------|
-| Better Plan state | `python scripts/manifest_tool.py validate docs/plan/better-plan` passed for 32 state files and 146 items. |
+| Better Plan state | The legacy nested workspace validator passed 32 state files and 146 items in the original 2026-06-29 snapshot. That workspace was later consolidated into the authoritative `docs/plan` root; this row is historical evidence, not a current validation command. |
 | Documentation governance | `python scripts/docs-audit.py` passed after generated docs indexes were refreshed. |
 | Static release readiness | `python scripts/release-readiness-gate.py --skip-build` passed for required release gate files, maintenance tooling metadata, and static release markers. |
 | Linux packaging metadata | `python scripts/check-linux-packaging-gate.py` passed for `packaging/linux/io.vityo.desktop`, `packaging/linux/io.vityo.metainfo.xml`, `packaging/linux/DEBIAN/control`, and `packaging/linux/README.md`. |

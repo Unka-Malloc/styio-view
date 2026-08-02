@@ -2,13 +2,13 @@
 
 **Purpose:** 定义 `docs/` 树的范围、入口和维护规则；具体主题分别由各目录下的 `README.md`、`INDEX.md` 和权威文档负责。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-01
 
 ## Tree Contract
 
 1. 产品、系统级 SSOT、已交付设计基线和活跃缺口登记放在 `docs/design/`。
 2. 协作规则、仓库边界、依赖与文档策略放在 `docs/specs/`。
-3. 冻结里程碑与任务清单放在 `docs/plan/`。
+3. 冻结里程碑、能力目录、任务清单与门禁只放在唯一权威 Better Plan 根 `docs/plan/`；不得建立嵌套或平行工作区。
 4. 架构决策记录放在 `docs/adr/`。
 5. 风险、冲突和待裁决问题放在 `docs/review/`。
 6. 可复用测试/交付资产放在 `docs/assets/`。

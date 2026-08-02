@@ -1,11 +1,51 @@
 [
   {
+    "id": "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
+    "status": "completed",
+    "role": "group_design",
+    "prerequisites": [],
+    "platform": "any",
+    "difficulty": "critical",
+    "verification_profile": "code",
+    "goal": "Freeze the cross-node Vityo IDE design and acceptance seams before implementation delivery.",
+    "description": "Scope: the complete Vityo IDE delivery group. Context: the architecture and validation sources governed the completed implementation sequence. Target: preserve that source-grounded design authority as immutable historical state in the current grouped lifecycle format. Design Considerations: retain original implementation ownership and dependency edges while adding only the current group boundary. Design Value: the sealed plan remains readable and valid without claiming new delivery work. Constraints & Risks: do not replay implementation, manufacture agent receipts, or change product evidence.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Requirements, Architecture, Validation, and Evidence define one coherent delivery boundary without reopening completed implementation."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "docs(plan): freeze Vityo IDE group design",
+      "target": "historical delivery record"
+    },
+    "next": [
+      "3d7617da-83cb-4c41-a2e9-6c89ba60352f",
+      "5e6eb860-75f9-425f-8a2a-5ad83436647d",
+      "97657f5e-760d-449e-909a-a79a3fb83fb7",
+      "43c675a0-ec3c-4fc4-9bb9-c9aad362bf66",
+      "2a37d539-ce52-49e0-8ba6-4643bfbbb0d3",
+      "05f2306e-4431-426b-8933-3f64caecce75",
+      "d06a4a2e-2661-4885-93d9-f84a4042330d",
+      "0a18cc12-6328-4d4e-8c44-af3b273529d5",
+      "256b6d4a-2acf-412c-b392-57a09962fdea",
+      "853f4ec9-1c3d-44b8-b97b-123004d7da01",
+      "014e7fb0-3f51-4033-be71-eca130a4a2ea",
+      "63016713-c527-4428-a87d-2613f8c43ac9",
+      "4948f541-f2fc-4bd9-a715-bf0fcf746956"
+    ]
+  },
+  {
     "id": "3d7617da-83cb-4c41-a2e9-6c89ba60352f",
     "status": "completed",
     "role": "implementation",
-    "prerequisites": [],
+    "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed"
+    ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Atomically cut the repository over to the Vityo and Coding Agent product roots with no legacy source or compatibility layer left behind.",
     "description": "Scope: repository product roots, package metadata, imports, scripts, CI, packaging, current product documentation, and the one-time removal proof. Context: one Flutter package currently owns IDE and Agent implementation while duplicate export facades preserve older layouts; splitting this over several green commits would require the compatibility implementation that the target architecture forbids. Target: products/vityo_app and products/vityo_coding_agent are independently analyzable packages, packages/vityo_agent_protocol is a pure typed boundary, Vityo launches without an Agent, repository tooling points only at final roots, and frontend/vityo_app plus duplicate facades are deleted in the same closure. Design Considerations: use one mechanical import/package rewrite followed by compile-guided fixes; keep current behavior while separating ownership; create the permanent resolved-dependency boundary gate and a temporary removal report. Design Value: every later lifecycle starts from an honest two-line repository instead of adding another organizational layer. Constraints & Risks: this is the only cross-line implementation lifecycle; do not retain deprecated exports, dual reads, copied implementations, or a second cleanup phase.",
     "requirements": [
@@ -186,11 +226,6 @@
       "phase": "accepted",
       "attempt": 4,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T00:58:52Z",
-        "contract_digest": "c7e3fa1c822d1adedb709d3b90f385f0c5326264c11251b8f22d0ac39b3cda1a",
-        "content_fingerprint": "5a056bee7ee2cfa3beb8e23521d1ec9f1ea2b631e6200c6d62dd76a8e069d8b2"
-      },
       "design_digest": "d5f1a9e9d583144fae9298407d22e31b7db75ae8a57f2344300b71b0b28f0747",
       "acceptance_fingerprint": "4f02024b35f9b77bff5d37efd64a4c16ef82a53ca3880ecc49956ff027a8b1dd"
     }
@@ -200,10 +235,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "3d7617da-83cb-4c41-a2e9-6c89ba60352f"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Make Vityo independently useful and establish revisioned workspace transactions as the only authority for Agent-originated edits.",
     "description": "Scope: products/vityo_app IDE editor/workspace domain, standalone composition, transaction previews, conflict detection, and focused tests. Context: current Agent context and patch application reach concrete editor/workspace types, so the future process boundary needs a narrow revisioned host contract rather than serialized copies of controllers. Target: the IDE opens and edits without an Agent; document and workspace revisions are monotonic; snapshots carry provenance; proposed edits bind to base revisions and can be previewed, accepted, rejected, conflicted, rolled back, and receipted; no Agent-facing path writes files directly. Design Considerations: preserve the existing source-buffer and transaction engine where correct, use immutable change sets and a serialized commit lane, and expose only host DTOs. Design Value: truthful collaboration depends on a single edit authority and deterministic conflict semantics. Constraints & Risks: do not redesign the editor rendering engine or add an Agent dependency; stale edits must fail without partial mutation.",
     "requirements": [
@@ -354,11 +391,6 @@
       "phase": "accepted",
       "attempt": 3,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T02:03:25Z",
-        "contract_digest": "4fd2c2ebc99f279c43a3c25e1ef55e47cfde3329870af3c455f2799ce39af98f",
-        "content_fingerprint": "ffc6ccb2afe794e01a77ccb1f42a0667d53210b00fdbd059cee1741ad96edf5c"
-      },
       "design_digest": "ac170febeffe95501af0c76383c03fac4a5803fb045740fa44e16dbf2459fc71",
       "acceptance_fingerprint": "45722b199804f41c6d31fad123944455d2bc0acb21190495f0f3255b6040922f"
     }
@@ -368,10 +400,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "5e6eb860-75f9-425f-8a2a-5ad83436647d"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Close the truthful Vityo developer loop and expose the same revision-bound facts to users and Agent clients.",
     "description": "Scope: IDE language, execution, testing, debugging, source control, terminal, toolchain, package, capability, and receipt services plus one representative product fixture. Context: many current surfaces and adapters exist, but partial or unavailable routes are mixed with large context snapshots and the old plan treats AI as a separate provider feature. Target: every developer operation returns versioned facts or a structured available/degraded/blocked result; a real fixture completes edit-save-analyze-test-run; Agent-facing fact providers reuse these sources and carry revision/provenance rather than copying presentation state. Design Considerations: retain adapter boundaries for compiler/process/SCM seams, normalize capability and receipt envelopes, and invalidate facts by revision/event rather than polling full state. Design Value: an Agent can only be trustworthy when it observes the same factual developer loop the user sees. Constraints & Risks: do not reimplement compiler semantics, infer success, or make upstream availability a hidden skip.",
     "requirements": [
@@ -528,11 +562,6 @@
       "phase": "accepted",
       "attempt": 4,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T02:37:00Z",
-        "contract_digest": "d7eb90f9d555463d2cd5dd7ccf126e14ab5a9b2a3dc6ac941a115b6a28c65315",
-        "content_fingerprint": "9febbfeaf6598cc6cfc947989bdd3eeef44dbe45b8a1e3e5b00c20228076069b"
-      },
       "design_digest": "1c396d15d5a0a18a22989d9c9680ed66105956b935fa8082c2514797cc9af5b4",
       "acceptance_fingerprint": "5778262a6756a0344cd2991e976732ae1322dca7d1861ec229e5a90322371c89"
     }
@@ -542,10 +571,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "5e6eb860-75f9-425f-8a2a-5ad83436647d"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Implement Vityo as a supervised, concurrent, ACP-compatible Agent Client with a versioned Vityo-owned protocol.",
     "description": "Scope: shared protocol schemas/DTOs, IDE Agent Client registry, stdio transport, process supervisor, session reducers, capability negotiation, permissions, cancellation, reconnect, and conformance fixtures. Context: the current app constructs and calls Agent controllers in process; a true Agent Client must host independent runtimes and remain stable when they fail. Target: Vityo launches or attaches compatible Agents, serves several correlated sessions, streams bounded events, performs bidirectional requests, handles dynamic capabilities, and fails closed on invalid versions/messages; Styio extensions are negotiated and namespaced. Design Considerations: model ACP core semantics directly, keep transport separate from session state, use one serialized reducer per session, and generate/validate DTOs from canonical schema. Design Value: an open process boundary makes Vityo Coding Agent independently testable and lets other compatible Agents participate. Constraints & Risks: never serialize editor controllers or credentials; cap message/event sizes; process termination must verify no orphan.",
     "requirements": [
@@ -706,11 +737,6 @@
       "phase": "accepted",
       "attempt": 3,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T03:15:02Z",
-        "contract_digest": "ccc4d54fae07bc6dd0fa0db11b10b948e67b59a85a22c643800af6dc3879856b",
-        "content_fingerprint": "2f3ab9b84aa88cdd8e57f373029260b07bae39bab2cd21c93b247b8037aa00fe"
-      },
       "design_digest": "ac0ed6e8df8c95de9ea17e377b10cf1fe36f3e2011ccef128bbe143a7aba1dd9",
       "acceptance_fingerprint": "2470e1956711aad89e3c1714004d47c1a21d37e808d08df5332043444e95f98e"
     }
@@ -720,11 +746,13 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "97657f5e-760d-449e-909a-a79a3fb83fb7",
       "43c675a0-ec3c-4fc4-9bb9-c9aad362bf66"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Deliver the AI-native Vityo collaboration workbench for concurrent tasks, visible control, and reviewable changes.",
     "description": "Scope: IDE collaboration store and presentation surfaces for task/thread lists, turns, plans, steps, tool activity, permissions, artifacts, diagnostics, diffs, receipts, steering, cancellation, retry, and reconnect. Context: the current Agent surface is a bottom-panel singleton wired to one concrete controller, so work disappears into UI state and cannot represent independent sessions. Target: users can run and inspect at least two sessions, route input/permissions to the right session, leave the panel without losing pending work, review change sets against base revisions, and apply or reject through the workspace transaction service. Design Considerations: normalize protocol events into immutable ID-keyed state, virtualize long lists, retain bounded hot windows, and keep pending attention visible in the workbench/task center. Design Value: this is the user-visible collaboration model that distinguishes an Agent-native IDE from a chat feature. Constraints & Risks: no hidden auto-apply, no widget-owned durable truth, and no cross-session mutable list.",
     "requirements": [
@@ -870,11 +898,6 @@
       "phase": "accepted",
       "attempt": 1,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T03:53:27Z",
-        "contract_digest": "838517e5ff1800973bbadba938ccea5682fcee55e335b28f8aebd7d6a9ce6d99",
-        "content_fingerprint": "4c5712613d67a1f0d390402be3c0f414bee331f90ce76383fb3642c202ce9c2a"
-      },
       "design_digest": "6da76661fd3bf20b02173518decf233c4ebff333e7a193081461b82cbceeedb3",
       "acceptance_fingerprint": "ff5a26faf60fd222f7d45735811207dbc8007afde2659564b4f93bea7eeae487"
     }
@@ -884,11 +907,13 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "97657f5e-760d-449e-909a-a79a3fb83fb7",
       "43c675a0-ec3c-4fc4-9bb9-c9aad362bf66"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Expose bounded IDE context and tools through narrow native interfaces and an MCP-compatible, root-safe host.",
     "description": "Scope: IDE native tool adapters, MCP server, resource/prompt providers, root registry, capability discovery, revision/provenance envelopes, extension contributions, redaction, limits, and conformance tests. Context: publishing every command or serializing the current giant Agent context would create an unsafe, expensive API; official IDE/MCP designs distinguish deep native tools from reusable external tools. Target: compatible Agents discover only task-relevant tools/resources/prompts and approved roots; roots and capabilities can change during a session; every result is revisioned, bounded, redacted, and typed; removed access is denied immediately. Design Considerations: wrap existing IDE services with narrow host adapters, use lazy providers and stable digests, canonicalize paths before root checks, and keep schemas versioned. Design Value: Agents gain real IDE leverage without importing implementation or receiving ambient machine access. Constraints & Risks: tool annotations are never enforcement; prevent traversal, symlink escape, secret/token passthrough, output flooding, and stale capability caches.",
     "requirements": [
@@ -1052,11 +1077,6 @@
       "phase": "accepted",
       "attempt": 1,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T03:39:36Z",
-        "contract_digest": "62032df19b19cc7ddca93a88e40c837fb1009c460f34bff464fe8e9becc23abc",
-        "content_fingerprint": "3876db2df5368ab95cd824f2628391065dc7a7d73e962328df4dea14e9f7b2f4"
-      },
       "design_digest": "881f5d0b4272c89d4f6d5195ee30242160657ed8f57e3d83d46ea15611845993",
       "acceptance_fingerprint": "31892bad8bdc0b9b8cf33fa09c200d8e5e5168c8550a1806dd0e37794c892b12"
     }
@@ -1066,11 +1086,13 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "2a37d539-ce52-49e0-8ba6-4643bfbbb0d3",
       "05f2306e-4431-426b-8933-3f64caecce75"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Harden Vityo collaboration for bounded performance, accessibility, recovery, failure isolation, and truthful desktop delivery.",
     "description": "Scope: IDE performance budgets, virtualized Agent surfaces, protocol/event backpressure, accessibility, session/process recovery, crash isolation, packaging, update metadata, and three desktop smoke lanes. Context: concurrent long-running Agents add event, diff, context, process, and notification pressure that a chat-oriented shell does not exercise. Target: large histories and diffs remain responsive and bounded; keyboard/screen-reader users can operate collaboration; IDE restarts recover task projections; a failed Agent affects neither editor nor siblings; Windows/macOS/Linux artifacts launch and report capabilities honestly. Design Considerations: measure before tuning, bound every hot buffer, virtualize by visible ranges, persist compact projections, and keep per-platform adapters behind one product contract. Design Value: AI-native collaboration is only credible if it remains controllable during long or failed tasks. Constraints & Risks: no dropped event may be silent; missing signing/host tooling is a failed or explicitly blocked platform result, not a green skip.",
     "requirements": [
@@ -1221,11 +1243,6 @@
       "phase": "accepted",
       "attempt": 3,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T04:27:05Z",
-        "contract_digest": "342a1dfdcc400d4e26a98cc76a0d532b8934d1b441cdcfb36d402787fa35513c",
-        "content_fingerprint": "432db14282380a23400fbaf073d3ee4aeed620f63f45b15dee61f0c92ace73ad"
-      },
       "design_digest": "c05401971a43100a44ff644908311e5e6a7388637caa9bdc86bf3bcb96999f94",
       "acceptance_fingerprint": "61f74a3adb4c69bdd41f099a4593b3989190fdb58ef2662870aacc907bdf0245"
     }
@@ -1235,10 +1252,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "d06a4a2e-2661-4885-93d9-f84a4042330d"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Deliver a deterministic IDE full-suite orchestrator and fail-closed evidence receipt contract without executing the one-time full regression.",
     "description": "Closure: capability - platform-independent IDE final-validation orchestration and evidence receipts. Context: Validation.md and the final-validation Node require ide/full, but scripts/vityo_quality.py initially rejected that suite and could not record one outcome per REQ-IDE label. Target: provide a plan-only inspectable full-suite graph, atomic bounded JSON receipts, and current-source fingerprints while preserving the single later execution of the actual full suite. Design Considerations: compose existing focused commands without invoking Coding Agent full regression or consuming native package artifacts, reject duplicate or missing requirement mappings, and write receipts atomically. Design Value: the only full IDE run is executable and auditable while platform release lanes remain independent. Constraints & Risks: this Node must never execute ide/full; it validates the runner through plan-only and synthetic receipt fixtures, and the final-validation Node remains the sole authority to perform the real full run.",
     "requirements": [
@@ -1369,11 +1388,6 @@
       "phase": "accepted",
       "attempt": 3,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T04:41:31Z",
-        "contract_digest": "5def460a72e2413df79e38a501f076d4034befdf597b7f6af93c186a882b7e49",
-        "content_fingerprint": "3fdf1796fd236ee10d9bd5d7b2f88b02f54e7a1eff3ffa10b6de6e1028eaecc5"
-      },
       "design_digest": "273942cb4f78da376d092ef791fbb94e7a1c8f8c98d1e4cb931468da68f9e381",
       "acceptance_fingerprint": "d178fe188109aa960470b91933f55cdceb03f3e0b5eb3e8e1297db0875861c36"
     }
@@ -1383,10 +1397,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "0a18cc12-6328-4d4e-8c44-af3b273529d5"
     ],
     "platform": "any",
-    "difficulty": "medium",
+    "difficulty": "standard",
+    "verification_profile": "code",
     "goal": "Bind each native Vityo release receipt to its own source commit and fingerprint while keeping Windows, macOS, and Linux publication independent.",
     "description": "Closure: module - independent native desktop release lanes. Context: native packages can only be truthfully built and smoked on their matching hosts, so a shared three-platform commit gate is invalid. Target: retain bounded commit/fingerprint fields in each platform's smoke report, publish each artifact from its own matching-host lane, and keep ide/full platform-independent. Design Considerations: derive identity from the lane checkout, carry it as immutable input through the launched artifact, validate one lane at a time, and remove all cross-platform collection and join logic. Design Value: each platform can be submitted and released on its own truthful evidence. Constraints & Risks: no synthetic platform success, no environment or secret capture, no compatibility payload, no cross-platform collector, and no full IDE regression in this lifecycle.",
     "requirements": [
@@ -1517,11 +1533,6 @@
       "phase": "accepted",
       "attempt": 1,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T09:42:58Z",
-        "contract_digest": "f486bae907982e17ec1ef38f1d5d633af6334af3f9894354e574733e6107a228",
-        "content_fingerprint": "b82b061289ba59ffb3b465f7598a279771315ce96f37c1731b36bef6c773d9aa"
-      },
       "design_digest": "73e9c1536443342eaaa4384de015657ce6a4a9f713d5e65c3530b413be4903cb",
       "acceptance_fingerprint": "3e710318f92ca8b2030ec8bc13faedadcdc8da02fbc9b4dd2607819acde8782a"
     }
@@ -1531,10 +1542,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "256b6d4a-2acf-412c-b392-57a09962fdea"
     ],
     "platform": "any",
-    "difficulty": "medium",
+    "difficulty": "standard",
+    "verification_profile": "code",
     "goal": "Converge Vityo product documentation and metadata on the Styio agent-native IDE positioning.",
     "description": "Scope: Closure: capability - atomically align the active product SSOT, Agent architecture, Better Plan summaries, governance, rollups, and non-behavioral metadata on one Styio agent-native IDE identity. Context: current active documents mix panel-first, embedded-provider, and two-product narratives after the IDE, companion Coding Agent, and shared protocol were separated. Target: Vityo is the sole user-facing product, the IDE remains complete without an Agent, Vityo Coding Agent is the first-party independently executable companion, and compatible Agents connect only through the versioned protocol. Design Considerations: retain sealed Coding Agent evidence, move superseded reports out of the active tree, record remaining IDE direct-provider code as an implementation gap, and update exact metadata checks without changing runtime behavior. Design Value: one authoritative positioning gives product, architecture, delivery, and release evidence the same decision boundary. Constraints & Risks: documentation and non-behavioral metadata only; no Dart API, protocol schema, runtime behavior, completed Coding Agent fingerprint, or one-time full regression change.",
     "requirements": [
@@ -1892,11 +1905,6 @@
       "phase": "accepted",
       "attempt": 5,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-30T13:35:49Z",
-        "contract_digest": "32e03195a63c6fa046a1a2e9aaf7134842e5c5d7700f6ddf9970a81a5a5d0211",
-        "content_fingerprint": "81b9ff25f6938e8feffc63cff35fa3409b8a58b6ae4b65d3bce050dbd99db387"
-      },
       "design_digest": "043145e04fdf440e9d9500af5c4b7de18fe45a9e872bd08adb03640996707ff7",
       "acceptance_fingerprint": "6b591caeec5337fd82f5d0f8a867ccff1fdd1d2d4008e81be325be6d2f62db52"
     }
@@ -1906,10 +1914,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "853f4ec9-1c3d-44b8-b97b-123004d7da01"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Remove IDE-owned model/provider and coding-loop runtime surfaces so Vityo collaborates exclusively through the versioned Agent Client boundary.",
     "description": "Closure: capability - protocol-only Agent collaboration in the Vityo IDE. Context: the canonical IDE Agent Client, collaboration store, and Workbench exist, but app composition and view_ide still construct provider transports, provider profiles, coding loops, tool-loop policy, durable histories, and a monolithic AgentCodingSessionController; final validation would otherwise certify a known ownership violation. Target: Vityo constructs only supervised Agent process/protocol clients, bounded context export, immutable Workbench projections, permission presentation, revision-bound change review, and IDE workspace transactions; model/provider, coding-loop, policy, durable-session, and multi-Agent ownership remains exclusively in compatible Agent runtimes. Execution Method: first classify every legacy agent_client file as keep/migrate/remove; then converge kept IDE behavior onto lib/src/ide/agent_client and lib/src/ide/workbench; update app and shell composition; update Workbench projections; delete provider/coding-loop implementation, exports, UI, metadata, and compatibility tests atomically; finally close the registered gap and run only focused regression. Design Considerations: preserve protocol messages and IDE transaction authority; reuse existing AgentClientRegistry, reducers, context/MCP host, and CollaborationStore; no parallel facade, fallback controller, or direct file mutation. Design Value: product code matches the accepted Agent-Native IDE architecture instead of documenting a future boundary. Constraints & Risks: do not edit the completed Coding Agent plan, do not import Coding Agent implementation, do not run ide/full, and stop as a design blocker if the versioned protocol cannot carry a required plan, permission, proposal, artifact, or receipt.",
     "requirements": [
@@ -2338,11 +2348,6 @@
       "phase": "accepted",
       "attempt": 7,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-30T16:57:51Z",
-        "contract_digest": "8752f894645e03f054a27be5364b832d8132e40942a680eb3c752fd75cb18e30",
-        "content_fingerprint": "fee0bd75e82a18e439710de2cb9ea17452304cd1265647d983774669039e00d5"
-      },
       "design_digest": "111a7b57957a2e64873e25791ccb67f8521bca8cdbc6b72027413732b70bb11c",
       "acceptance_fingerprint": "3b29fbb0ea57219240bb2bd2cd85d3c3ae8389c6cf6a9cb77981e0a1693e97ad"
     }
@@ -2352,10 +2357,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "014e7fb0-3f51-4033-be71-eca130a4a2ea"
     ],
     "platform": "any",
-    "difficulty": "medium",
+    "difficulty": "standard",
+    "verification_profile": "code",
     "goal": "Make the IDE final-validation harness preflightable, portable, and receipt-complete without consuming the one-time full regression.",
     "description": "Closure: capability - deterministic readiness and diagnostics for Vityo final validation. Enabling work: this validation-only repair supports the final REQ-IDE evidence Node without claiming a product requirement. Context: ide/full and a bounded receipt exist, but the runner assumes Better Plan is in an unavailable sibling checkout, lacks a side-effect-free preflight, omits acceptance fixtures from its own evidence digest, and can fail before writing a receipt. Target: plan-only and preflight prove the complete eight-requirement graph and all external prerequisites without running suites; every formal full invocation emits one bounded receipt on success or failure; Better Plan validation stays owned by the lifecycle rather than a hard-coded machine path. Execution Method: define preflight inputs and stable failure codes; remove sibling-path lookup; wrap the entire IDE full harness in one fail-closed receipt boundary; include protocol schema and acceptance fixtures in digests; update unit and synthetic acceptance tests; run plan-only and preflight only. Design Considerations: fixed-order requirement descriptors, atomic receipt replacement, injectable runners, explicit side-effect-free modes, and no raw exception serialization. Design Value: a simple final executor can detect blockers before consuming the full-run authority and can diagnose a failed run without blind retries. Constraints & Risks: never execute ide/full in this Node, never depend on a personal path or external checkout layout, never record machine identity/secrets/raw logs, and do not modify product runtime behavior.",
     "design": {
@@ -2641,11 +2648,6 @@
       "phase": "accepted",
       "attempt": 3,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-30T17:14:06Z",
-        "contract_digest": "48a8e8d815fb93e54c2f549bce0e90808c057e07bbe6904d0cfcdfeb018f982d",
-        "content_fingerprint": "7ef03e2bda0aeacc0b8c5446451a63e29960e40d6c5c935f1ba8e3646c9d4a7b"
-      },
       "design_digest": "e2b7ba12d21a0628cd5bb35005f4cf4c7883195d52ae656bf89b4ca3cf0d60f5",
       "acceptance_fingerprint": "1a1d8ee1f94248f60386c33aba638555fc1948cecf4543a1e4550dfa233b5a9e"
     }
@@ -2655,10 +2657,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "8d353e29-fd7c-41cb-b5ce-2016ef0627ed",
       "63016713-c527-4428-a87d-2613f8c43ac9"
     ],
     "platform": "any",
-    "difficulty": "low",
+    "difficulty": "routine",
+    "verification_profile": "code",
     "goal": "Repair MCP host acceptance fixture so extension tools use the styio. namespace required by McpExtensionContribution.",
     "description": "Closure: scenario - REQ-IDE-006 mcp-host final-validation repair. Context: ide/full failed because mcp_host_security_acceptance_test registered a vityo.extension.inspect tool while McpExtensionContribution requires non-empty styio.-prefixed tool names. Target: update the acceptance fixture to styio.extension.inspect and prove mcp_host passes without restoring IDE provider ownership. Design Considerations: keep production namespace invariant; change only the fixture oracle. Design Value: final validation can re-run on a new clean fingerprint. Constraints & Risks: do not weaken styio. enforcement; do not run ide/full inside this repair.",
     "requirements": [
@@ -2756,11 +2760,6 @@
       "phase": "accepted",
       "attempt": 1,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-30T17:30:37Z",
-        "contract_digest": "120ded2d66cc1d70364cc825d1a112932d0011dab17dbf9c80a590dc8cc935f6",
-        "content_fingerprint": "646d80f65e9695ce4cb2ec1dc76794e1a6102456e994a24220a581a852d842ac"
-      },
       "design_digest": "778691a436f2f44e8de2cde76a0e46ea72e44ed5ea70ff4854eaa116809b7c87",
       "acceptance_fingerprint": "a33ddb814a2914ad8791ce7ae200e3d1cb51c5efada6d75de63e53de39c77893"
     }
@@ -2778,10 +2777,15 @@
       "05f2306e-4431-426b-8933-3f64caecce75",
       "0a18cc12-6328-4d4e-8c44-af3b273529d5",
       "63016713-c527-4428-a87d-2613f8c43ac9",
-      "4948f541-f2fc-4bd9-a715-bf0fcf746956"
+      "4948f541-f2fc-4bd9-a715-bf0fcf746956",
+      "d06a4a2e-2661-4885-93d9-f84a4042330d",
+      "256b6d4a-2acf-412c-b392-57a09962fdea",
+      "853f4ec9-1c3d-44b8-b97b-123004d7da01",
+      "014e7fb0-3f51-4033-be71-eca130a4a2ea"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Run the Vityo full regression exactly once and record independent evidence for REQ-IDE-001 through REQ-IDE-008.",
     "description": "Scope: final platform-independent validation and evidence recording only; this Node never implements or repairs product code. Preconditions: protocol-only Agent convergence Node 014e7fb0-3f51-4033-be71-eca130a4a2ea and harness-readiness Node 63016713-c527-4428-a87d-2613f8c43ac9 are completed; every other implementation prerequisite is completed; the candidate is committed and source-bearing paths are clean; plan-only and preflight pass; no receipt already covers the same commit/fingerprint; and the current user explicitly authorizes the full run. Target: execute the fixed eight-suite IDE graph for one immutable candidate, write artifacts/validation/vityo-full.json with one canonical outcome per REQ-IDE-001 through REQ-IDE-008 plus commit/platform/source/protocol/fixture digests, then complete the lifecycle only after read-only audit. Execution Method: use next-action; freeze final acceptance; invoke regression-requested once through manifest_tool; never launch the full command manually or in parallel; inspect the receipt; run Better Plan validation and label checking; dispatch the single auditor only after a passing receipt. Failure Routing: preserve a failed receipt, never rerun the unchanged commit/fingerprint, map failed requirement seams to one bounded implementation repair, use focused tests there, and re-freeze this Node before one run of a changed candidate. Design Considerations: no native package evidence, no Coding Agent full rerun, no target lowering, no skipped blocker reported as pass, and no source mutation during validation. Design Value: a simple executor follows one deterministic path and cannot certify known ownership or harness gaps. Constraints & Risks: missing tools/fixtures/compatible Agent are blocked or failed; native host/signing availability is outside this platform-independent gate; raw logs, secrets, personal paths, and machine identity never enter the receipt.",
     "requirements": [
@@ -2942,19 +2946,6 @@
         "content_fingerprint": "0e234d231a640ad68cd952868765b9a6bff70b8996ee61dffa4c0bbd35ef5e4a"
       }
     },
-    "next": [],
-    "acceptance": {
-      "phase": "accepted",
-      "attempt": 0,
-      "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-30T18:45:58Z",
-        "contract_digest": "646d30c957538b7e3cda2eb1c04579d9005e66797ef7bc72b0d8173d272a6621",
-        "content_fingerprint": "0e234d231a640ad68cd952868765b9a6bff70b8996ee61dffa4c0bbd35ef5e4a"
-      },
-      "design_digest": "2a83cb6f2fddf8dc05f330370cd2da90a25df9bcb3ab842093b7cdd8e0005377",
-      "scaffold_fingerprint": "91e1ebfcd1c61cd313ced9c1dad148abb49eca52254be18ccf125f5b1ccde622",
-      "acceptance_fingerprint": "de4999861958113824fc028997b5bc5ba5fc25315602ba93847539d214806308"
-    }
+    "next": []
   }
 ]

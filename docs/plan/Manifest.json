@@ -12,7 +12,13 @@
     ],
     "goal": "Deliver Vityo as the agent-native IDE for Styio, complete without an Agent and reviewable with compatible Agents.",
     "description": "The IDE delivery track owns editing, the Styio developer loop, Agent Client and Workbench, workspace revisions and transactions, and desktop delivery; it never owns model/provider, tool-loop, durable-session, or multi-Agent runtime implementation.",
-    "checkpoints": "vityo/Checkpoints.json"
+    "checkpoints": "vityo/Checkpoints.json",
+    "purpose": "Preserve the completed IDE delivery history and its independently reviewable product evidence.",
+    "kind": "group",
+    "capability_key": "vityo/ide",
+    "tree_mode": "show",
+    "node_status": "hide",
+    "decision_issues": []
   },
   {
     "id": "fbc92d9a-cb7e-47fc-a48f-e00bdd4de5d6",
@@ -27,6 +33,12 @@
     ],
     "goal": "Deliver Vityo Coding Agent as the independent, secure, model-neutral first-party companion runtime for Vityo and other compatible clients.",
     "description": "The companion-runtime delivery track owns model orchestration, context selection, tools, policy, coding loops, durable sessions, and multi-Agent execution; it never imports Vityo or Flutter implementation and is not a second product identity.",
-    "checkpoints": "vityo-coding-agent/Checkpoints.json"
+    "checkpoints": "vityo-coding-agent/Checkpoints.json",
+    "purpose": "Preserve the completed companion-runtime delivery history and its independently reviewable evidence.",
+    "kind": "group",
+    "capability_key": "vityo/coding-agent",
+    "tree_mode": "show",
+    "node_status": "hide",
+    "decision_issues": []
   }
 ]

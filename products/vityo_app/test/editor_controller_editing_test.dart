@@ -563,6 +563,11 @@ void main() {
     expect(controller.selection.isCollapsed, isTrue);
     expect(controller.selection.end, text.indexOf('value') + 2);
     expect(controller.document.text, text);
+
+    expect(controller.extendSelectionStructurally(), isTrue);
+    controller.selectCollapsed(text.indexOf('user'));
+    expect(controller.shrinkSelectionStructurally(), isFalse);
+    expect(controller.canUndo, isFalse);
   });
 
   test('surrounds the current statement with a Styio task block', () {

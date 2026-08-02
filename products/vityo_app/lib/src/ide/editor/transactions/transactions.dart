@@ -58,6 +58,8 @@ enum WorkspaceEditValidationCode {
   overlappingRanges,
 }
 
+enum EditorPositionAssociation { left, right }
+
 class DocumentContentHash {
   const DocumentContentHash._();
 
@@ -157,10 +159,7 @@ class WorkspaceEdit {
 }
 
 class WorkspaceEditValidation {
-  const WorkspaceEditValidation({
-    required this.code,
-    required this.message,
-  });
+  const WorkspaceEditValidation({required this.code, required this.message});
 
   final WorkspaceEditValidationCode code;
   final String message;
@@ -174,10 +173,7 @@ class WorkspaceEditValidation {
 }
 
 class EditorTransaction {
-  const EditorTransaction({
-    required this.id,
-    required this.edit,
-  });
+  const EditorTransaction({required this.id, required this.edit});
 
   final String id;
   final WorkspaceEdit edit;
@@ -205,12 +201,14 @@ class EditorTransactionResult {
     required this.validation,
     required this.appliedEditCount,
     required this.contentHash,
+    this.normalizedEdits = const <WorkspaceTextEdit>[],
   });
 
   final DocumentState document;
   final WorkspaceEditValidation validation;
   final int appliedEditCount;
   final String contentHash;
+  final List<WorkspaceTextEdit> normalizedEdits;
 
   bool get isApplied => validation.isValid;
 }
@@ -238,89 +236,25 @@ class EditorTransactionService {
     required DocumentState document,
     required WorkspaceEdit edit,
   }) {
-    final precondition = edit.precondition;
-    if (precondition != null) {
-      if (precondition.documentId != document.documentId) {
-        return WorkspaceEditValidation(
-          code: WorkspaceEditValidationCode.documentMismatch,
-          message:
-              'Workspace edit targets `${precondition.documentId}`, not `${document.documentId}`.',
-        );
-      }
-      if (precondition.expectedRevision != null &&
-          precondition.expectedRevision != document.revision) {
-        return WorkspaceEditValidation(
-          code: WorkspaceEditValidationCode.staleRevision,
-          message: 'Workspace edit expected revision '
-              '${precondition.expectedRevision}, found ${document.revision}.',
-        );
-      }
-      if (precondition.expectedContentHash != null &&
-          precondition.expectedContentHash !=
-              DocumentContentHash.compute(document.text)) {
-        return const WorkspaceEditValidation(
-          code: WorkspaceEditValidationCode.staleContentHash,
-          message: 'Workspace edit expected a different document content hash.',
-        );
-      }
-    }
-
-    if (edit.edits.isEmpty) {
-      return const WorkspaceEditValidation(
-        code: WorkspaceEditValidationCode.empty,
-        message: 'Workspace edit contains no text edits.',
-      );
-    }
-
-    final sortedEdits = _sortedEdits(edit.edits);
-    var previousEnd = -1;
-    for (final textEdit in sortedEdits) {
-      if (textEdit.documentId != document.documentId) {
-        return WorkspaceEditValidation(
-          code: WorkspaceEditValidationCode.documentMismatch,
-          message:
-              'Text edit targets `${textEdit.documentId}`, not `${document.documentId}`.',
-        );
-      }
-      if (!_isRangeValid(document.length, textEdit.range)) {
-        return WorkspaceEditValidation(
-          code: WorkspaceEditValidationCode.invalidRange,
-          message: 'Text edit range '
-              '${textEdit.range.start}:${textEdit.range.end} is invalid for '
-              '`${document.documentId}`.',
-        );
-      }
-      if (textEdit.range.start < previousEnd) {
-        return WorkspaceEditValidation(
-          code: WorkspaceEditValidationCode.overlappingRanges,
-          message: 'Text edit range '
-              '${textEdit.range.start}:${textEdit.range.end} overlaps a '
-              'previous edit.',
-        );
-      }
-      previousEnd = textEdit.range.end;
-    }
-
-    return WorkspaceEditValidation.ok;
+    return _normalizeForDocument(document: document, edit: edit).validation;
   }
 
   EditorTransactionResult applyToDocument({
     required DocumentState document,
     required WorkspaceEdit edit,
   }) {
-    final validation = validateForDocument(document: document, edit: edit);
-    if (!validation.isValid) {
+    final normalized = _normalizeForDocument(document: document, edit: edit);
+    if (!normalized.validation.isValid) {
       return EditorTransactionResult(
         document: document,
-        validation: validation,
+        validation: normalized.validation,
         appliedEditCount: 0,
         contentHash: DocumentContentHash.compute(document.text),
       );
     }
 
     var nextBuffer = document.textBuffer;
-    final descendingEdits = _sortedEdits(edit.edits).reversed;
-    for (final textEdit in descendingEdits) {
+    for (final textEdit in normalized.edits.reversed) {
       nextBuffer = nextBuffer.replace(
         TextRange(start: textEdit.range.start, end: textEdit.range.end),
         textEdit.newText,
@@ -336,20 +270,135 @@ class EditorTransactionService {
     return EditorTransactionResult(
       document: nextDocument,
       validation: WorkspaceEditValidation.ok,
-      appliedEditCount: edit.edits.length,
+      appliedEditCount: normalized.edits.length,
       contentHash: DocumentContentHash.compute(nextSnapshot.text),
+      normalizedEdits: normalized.edits,
     );
   }
 
-  List<WorkspaceTextEdit> _sortedEdits(Iterable<WorkspaceTextEdit> edits) {
-    return edits.toList(growable: false)
-      ..sort((left, right) {
-        final startCompare = left.range.start.compareTo(right.range.start);
-        if (startCompare != 0) {
-          return startCompare;
+  _NormalizedWorkspaceEdit _normalizeForDocument({
+    required DocumentState document,
+    required WorkspaceEdit edit,
+  }) {
+    final precondition = edit.precondition;
+    if (precondition != null) {
+      if (precondition.documentId != document.documentId) {
+        return _NormalizedWorkspaceEdit.invalid(
+          WorkspaceEditValidation(
+            code: WorkspaceEditValidationCode.documentMismatch,
+            message:
+                'Workspace edit targets `${precondition.documentId}`, not `${document.documentId}`.',
+          ),
+        );
+      }
+      if (precondition.expectedRevision != null &&
+          precondition.expectedRevision != document.revision) {
+        return _NormalizedWorkspaceEdit.invalid(
+          WorkspaceEditValidation(
+            code: WorkspaceEditValidationCode.staleRevision,
+            message:
+                'Workspace edit expected revision '
+                '${precondition.expectedRevision}, found ${document.revision}.',
+          ),
+        );
+      }
+      if (precondition.expectedContentHash != null &&
+          precondition.expectedContentHash !=
+              DocumentContentHash.compute(document.text)) {
+        return _NormalizedWorkspaceEdit.invalid(
+          const WorkspaceEditValidation(
+            code: WorkspaceEditValidationCode.staleContentHash,
+            message:
+                'Workspace edit expected a different document content hash.',
+          ),
+        );
+      }
+    }
+
+    final sortedEdits = edit.edits.toList(growable: false);
+    if (sortedEdits.isEmpty) {
+      return _NormalizedWorkspaceEdit.invalid(
+        const WorkspaceEditValidation(
+          code: WorkspaceEditValidationCode.empty,
+          message: 'Workspace edit contains no text edits.',
+        ),
+      );
+    }
+
+    for (final textEdit in sortedEdits) {
+      if (textEdit.documentId != document.documentId) {
+        return _NormalizedWorkspaceEdit.invalid(
+          WorkspaceEditValidation(
+            code: WorkspaceEditValidationCode.documentMismatch,
+            message:
+                'Text edit targets `${textEdit.documentId}`, not `${document.documentId}`.',
+          ),
+        );
+      }
+      if (!_isRangeValid(document.length, textEdit.range)) {
+        return _NormalizedWorkspaceEdit.invalid(
+          WorkspaceEditValidation(
+            code: WorkspaceEditValidationCode.invalidRange,
+            message:
+                'Text edit range '
+                '${textEdit.range.start}:${textEdit.range.end} is invalid for '
+                '`${document.documentId}`.',
+          ),
+        );
+      }
+    }
+
+    sortedEdits.sort(_compareEdits);
+    final normalizedEdits = <WorkspaceTextEdit>[];
+    for (final textEdit in sortedEdits) {
+      if (normalizedEdits.isNotEmpty) {
+        final previous = normalizedEdits.last;
+        if (_areExactDuplicates(previous, textEdit)) {
+          continue;
         }
-        return left.range.end.compareTo(right.range.end);
-      });
+        final conflictingInsertions =
+            previous.range.start == previous.range.end &&
+            textEdit.range.start == textEdit.range.end &&
+            previous.range.start == textEdit.range.start;
+        final overlapsPrevious = textEdit.range.start < previous.range.end;
+        if (conflictingInsertions || overlapsPrevious) {
+          return _NormalizedWorkspaceEdit.invalid(
+            WorkspaceEditValidation(
+              code: WorkspaceEditValidationCode.overlappingRanges,
+              message:
+                  'Text edit range '
+                  '${textEdit.range.start}:${textEdit.range.end} conflicts '
+                  'with a previous edit.',
+            ),
+          );
+        }
+      }
+      normalizedEdits.add(textEdit);
+    }
+
+    return _NormalizedWorkspaceEdit(
+      validation: WorkspaceEditValidation.ok,
+      edits: List<WorkspaceTextEdit>.unmodifiable(normalizedEdits),
+    );
+  }
+
+  bool _areExactDuplicates(WorkspaceTextEdit left, WorkspaceTextEdit right) {
+    return left.documentId == right.documentId &&
+        left.range.start == right.range.start &&
+        left.range.end == right.range.end &&
+        left.newText == right.newText;
+  }
+
+  int _compareEdits(WorkspaceTextEdit left, WorkspaceTextEdit right) {
+    var comparison = left.range.start.compareTo(right.range.start);
+    if (comparison != 0) {
+      return comparison;
+    }
+    comparison = left.range.end.compareTo(right.range.end);
+    if (comparison != 0) {
+      return comparison;
+    }
+    return left.newText.compareTo(right.newText);
   }
 
   bool _isRangeValid(int documentLength, SourceRange range) {
@@ -357,4 +406,79 @@ class EditorTransactionService {
         range.end >= range.start &&
         range.end <= documentLength;
   }
+}
+
+int mapEditorPositionThroughEdits({
+  required int position,
+  required List<WorkspaceTextEdit> editsAscending,
+  required EditorPositionAssociation association,
+}) {
+  var delta = 0;
+  for (var index = 0; index < editsAscending.length; index += 1) {
+    final edit = editsAscending[index];
+    final start = edit.range.start;
+    final end = edit.range.end;
+    final replacementEnd = start + delta + edit.newText.length;
+
+    if (position < start) {
+      return position + delta;
+    }
+
+    if (start == end) {
+      if (position == start) {
+        if (association == EditorPositionAssociation.left) {
+          return start + delta;
+        }
+        delta += edit.newText.length;
+        final nextSharesBoundary =
+            index + 1 < editsAscending.length &&
+            editsAscending[index + 1].range.start == position;
+        if (nextSharesBoundary) {
+          continue;
+        }
+        return position + delta;
+      }
+      delta += edit.newText.length;
+      continue;
+    }
+
+    if (position < end) {
+      return association == EditorPositionAssociation.left
+          ? start + delta
+          : replacementEnd;
+    }
+
+    if (position == end) {
+      delta += edit.newText.length - (end - start);
+      final nextSharesBoundary =
+          index + 1 < editsAscending.length &&
+          editsAscending[index + 1].range.start == position;
+      if (association == EditorPositionAssociation.right &&
+          nextSharesBoundary) {
+        continue;
+      }
+      return replacementEnd;
+    }
+
+    delta += edit.newText.length - (end - start);
+  }
+
+  return position + delta;
+}
+
+class _NormalizedWorkspaceEdit {
+  const _NormalizedWorkspaceEdit({
+    required this.validation,
+    required this.edits,
+  });
+
+  factory _NormalizedWorkspaceEdit.invalid(WorkspaceEditValidation validation) {
+    return _NormalizedWorkspaceEdit(
+      validation: validation,
+      edits: const <WorkspaceTextEdit>[],
+    );
+  }
+
+  final WorkspaceEditValidation validation;
+  final List<WorkspaceTextEdit> edits;
 }

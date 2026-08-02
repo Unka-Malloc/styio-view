@@ -5,11 +5,13 @@ import 'editor_owned_controller.dart';
 class EditorHistorySnapshot {
   const EditorHistorySnapshot({
     required this.document,
-    required this.selection,
+    required this.selectionSet,
   });
 
   final DocumentState document;
-  final SelectionState selection;
+  final EditorSelectionSet selectionSet;
+
+  SelectionState get selection => selectionSet.primarySelection;
 }
 
 class HistoryController extends EditorOwnedController {

@@ -42,7 +42,7 @@ flowchart TB
 | Team | Primary runbook | Main surface | Required review trigger |
 |------|-----------------|--------------|-------------------------|
 | Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | app shell, editor core, language UI 外壳, 手写 Web Editor 主线 | 编辑语义、源码保真、focused editor workflow、editor layout change |
-| Runtime / Agent Client | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | runtime/debug surfaces, Agent Client/Workbench, ProfileSync UX, execution-state UI | runtime semantics, Agent Workbench behavior, permission/change projection, execution summary, ProfileSync change |
+| Runtime / Agent Client | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | runtime/debug surfaces, Agent Client/Workbench, execution-state UI | runtime semantics, Agent Workbench behavior, permission/change projection, execution summary |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | module host, capability matrix, platform runners, distribution path | manifest/lifecycle、platform gating、runner config、distribution route change |
 | Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | integration layer, adapter contracts, `external/for-styio/`, `external/for-pafio/` handoff | contract/schema、handoff payload、upstream responsibility boundary change |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | theme system, visual tokens, style layers, UX guardrails | palette/font/theme preset、layout system、overflow rule、visual hierarchy change |

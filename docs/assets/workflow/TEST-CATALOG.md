@@ -39,11 +39,11 @@
 | EVT-001 | `RuntimeEvent.sequence` 在同一 `RunSession` 中单调递增 | integration | desktop / mobile | `gap` | planned |
 | EVT-002 | 未识别 `eventKind` 会退化为日志或未支持提示，不导致崩溃 | integration | desktop / mobile | `gap` | planned |
 | AI-001 | Agent Workbench exports only user-approved, redacted, revision-bound IDE context through the versioned protocol | integration | desktop | `gap` | planned |
-| AI-002 | Optional ProfileSync remains local-only when no sync component is attached | unit / integration | all | `gap` | planned |
+| AI-002 | A future provider-neutral IDE profile remains local-only when no ProfileSync component is attached | unit / integration | all | `gap` | planned |
 | AI-003 | Vityo interoperates with Vityo Coding Agent and a compatible protocol fixture without importing either runtime implementation | integration | desktop / mobile | `gap` | planned |
 | AI-004 | With no Agent connected, Vityo still completes edit, analyze, test, run, and observe without forced configuration | integration | all | `gap` | planned |
 | AI-005 | An Agent task exposes plan, permission request, revision-bound change preview, IDE transaction result, and verification receipt | integration | desktop | `gap` | planned |
-| PROF-001 | `ProfileSyncAdapter` 未挂载时，profile 仍完整保存在本地 | integration | desktop / mobile | `gap` | planned |
+| PROF-001 | 实现 provider-neutral profile 后，未挂载 `ProfileSyncAdapter` 时仍完整保存在本地 | integration | desktop / mobile | `gap` | planned |
 | PROF-002 | 挂载 profile sync 组件后，local store 与 cloud mirror 不冲突 | integration | desktop / mobile | `gap` | planned |
 | THEME-001 | 主题预设切换不破坏编辑器层级配色 | golden | desktop | `gap` | planned |
 | THEME-002 | 用户局部覆写可持久化 | integration | desktop | `gap` | planned |

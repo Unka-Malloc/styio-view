@@ -4,6 +4,9 @@ import '../../../products/vityo_app/lib/src/ide/execution/developer_loop_service
 import '../../../products/vityo_app/lib/src/ide/execution/developer_operation_adapter.dart';
 import '../../../products/vityo_app/lib/src/ide/execution/execution_receipt.dart';
 import '../../../products/vityo_app/lib/src/ide/execution/process_developer_operation_adapter.dart';
+import '../../../products/vityo_app/lib/src/ide/agent_client/tools/context_export_service.dart';
+import '../../../products/vityo_app/lib/src/ide/agent_client/tools/ide_tool_catalog.dart';
+import '../../../products/vityo_app/lib/src/ide/agent_client/tools/tool_security_policy.dart';
 import '../../../products/vityo_app/lib/src/ide/language/dart_analyze_diagnostic_decoder.dart';
 import '../../../products/vityo_app/lib/src/ide/workbench/capability_snapshot.dart';
 import '../../../products/vityo_app/lib/src/ide/workbench/ide_fact_consumers.dart';
@@ -190,20 +193,35 @@ Future<void> main() async {
 
     final provider = service as IdeFactProvider;
     final userReader = UserFacingIdeFactReader(provider);
-    final agentReader = AgentFacingIdeFactReader(provider);
     final userFacts = await userReader.read(
       const IdeFactQuery(),
       editedRevision,
     );
-    final agentFacts = await agentReader.read(
-      const IdeFactQuery(),
-      editedRevision,
-    );
+    final agentPage =
+        await RevisionedIdeContextExportService(
+          provider: provider,
+          currentWorkspaceRevision: () =>
+              revisions.snapshot().workspaceRevision,
+          sanitizer: const McpPayloadSanitizer(),
+        ).read(
+          ContextQuery(expectedWorkspaceRevision: editedRevision),
+          const ContextBudget(
+            maxItems: 256,
+            maxUtf8Bytes: 1024 * 1024,
+            maxCodeUnitsPerItem: 256 * 1024,
+          ),
+        );
     _expect(
-      userFacts == agentFacts &&
-          userFacts.workspaceRevision == editedRevision &&
-          userFacts.capabilities.capabilities.length == capabilities.length,
-      'user and Agent consumers must observe the same immutable fact snapshot',
+      userFacts.workspaceRevision == editedRevision &&
+          userFacts.capabilities.capabilities.length == capabilities.length &&
+          agentPage.workspaceRevision == editedRevision &&
+          !agentPage.truncated &&
+          agentPage.items.length ==
+              capabilities.length + userFacts.receipts.length + 1 &&
+          agentPage.items.every(
+            (item) => item.sensitivity == ContextSensitivity.internal,
+          ),
+      'Agent context must use the bounded, sanitized, revision-bound export',
     );
     _expect(
       userFacts.diagnostics.workspaceRevision == editedRevision &&
@@ -405,7 +423,7 @@ void _expect(bool condition, String message) {
   }
 }
 
-Future<void> _expectThrows<T>(
+Future<void> _expectThrows<T extends Object>(
   Future<void> Function() action,
   String message,
 ) async {

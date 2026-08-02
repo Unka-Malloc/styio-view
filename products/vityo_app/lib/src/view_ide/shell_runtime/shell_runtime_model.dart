@@ -5,7 +5,6 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../backend_toolchain/backend_toolchain.dart';
-import '../agent_client/agent.dart';
 import '../commands/commands.dart';
 import '../debugger/debug_adapter_launcher.dart';
 import '../debugger/debug_launch_telemetry_store.dart';
@@ -28,25 +27,8 @@ import '../toolchain/toolchain_install_policy.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../testing/testing.dart';
 import '../../ide/workspace/workspace.dart';
-import 'controllers/agent_controller.dart';
-import 'controllers/agent_context_command_controller.dart';
-import 'controllers/agent_command_receipt_controller.dart';
-import 'controllers/agent_debug_command_controller.dart';
-import 'controllers/agent_execution_command_controller.dart';
-import 'controllers/agent_native_tool_command_controller.dart';
-import 'controllers/agent_patch_lifecycle_controller.dart';
-import 'controllers/agent_provider_configuration_controller.dart';
-import 'controllers/agent_provider_recovery_command_controller.dart';
-import 'controllers/agent_project_lifecycle_command_controller.dart';
-import 'controllers/agent_quick_fix_command_controller.dart';
-import 'controllers/agent_refactor_command_controller.dart';
-import 'controllers/agent_session_context_controller.dart';
-import 'controllers/agent_source_control_command_controller.dart';
-import 'controllers/agent_surface_command_controller.dart';
-import 'controllers/agent_testing_command_controller.dart';
-import 'controllers/agent_toolchain_command_controller.dart';
-import 'controllers/agent_workspace_command_controller.dart';
-import 'controllers/agent_workspace_replace_command_controller.dart';
+import '../../ide/agent_client/agent_client.dart';
+import '../../ide/workbench/agent_collaboration/agent_collaboration_service.dart';
 import 'controllers/backend_command_policy_controller.dart';
 import 'controllers/deployment_controller.dart';
 import 'controllers/dependency_source_controller.dart';
@@ -54,6 +36,7 @@ import 'controllers/execution_controller.dart';
 import 'controllers/editor_workspace_state_controller.dart';
 import 'controllers/editor_navigation_command_controller.dart';
 import 'controllers/editor_quick_fix_command_controller.dart';
+import 'controllers/editor_refactor_command_controller.dart';
 import 'controllers/debug_controller.dart';
 import 'controllers/language_controller.dart';
 import 'controllers/language_refresh_command_controller.dart';
@@ -85,8 +68,6 @@ part 'facades/facade_host.dart';
 part 'facades/testing_facade.dart';
 part 'facades/debug_facade.dart';
 part 'facades/command_dispatch_facade.dart';
-part 'facades/agent_command_dispatch_facade.dart';
-part 'facades/agent_session_facade.dart';
 part 'facades/language_facade.dart';
 part 'facades/project_runtime_facade.dart';
 part 'facades/shell_lifecycle_facade.dart';
@@ -101,7 +82,6 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
         ShellRuntimeSourceControlFacade,
         ShellRuntimeTestingFacade,
         ShellRuntimeDebugFacade,
-        ShellRuntimeAgentSessionFacade,
         ShellRuntimeLanguageFacade,
         ShellRuntimeProjectRuntimeFacade,
         ShellRuntimeToolchainFacade,
@@ -109,7 +89,6 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
         ShellRuntimeSemanticTelemetryFacade,
         ShellRuntimeWorkspaceDocumentFacade,
         ShellRuntimeWorkspaceIntelligenceFacade,
-        ShellRuntimeAgentCommandDispatchFacade,
         ShellRuntimeCommandDispatchFacade,
         ShellRuntimeLifecycleFacade {
   ShellRuntimeModel({
@@ -135,9 +114,8 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     CommandPaletteDisplayPreferences? commandPalettePreferences,
     CommandPaletteLivePreferenceController? commandPalettePreferenceController,
     ClangCppVersionPreference? clangCppVersionPreference,
-    AgentCodingSessionController? agentCodingController,
-    this.agentExtensionToolExecutionRegistry,
-    this.agentProviderConfigurator,
+    this.agentClientRegistry,
+    this.agentCollaboration,
     Future<void> Function()? refreshActiveLanguageService,
     StyioServiceSubscriptionController? styioServiceSubscriptionController,
     StyioServiceDaemonProcessSupervisor? styioServiceDaemonProcessSupervisor,
@@ -171,7 +149,6 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
              LanguageServiceStatusSurface.unavailable(),
            ),
        _ownsLanguageServiceStatus = languageServiceStatus == null,
-       _ownsAgentCodingController = agentCodingController == null,
        _editorFileBinding =
            editorFileBinding ??
            EditorDocumentResourceBinding(
@@ -194,14 +171,14 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     _workspaceFileCommandController = WorkspaceFileCommandController(
       workspaceController: workspaceController,
       documentStore: workspaceDocumentStore,
-      openWorkspaceFile: openWorkspaceFileForAgent,
+      openWorkspaceFile: openWorkspaceFile,
       reloadActiveDocument: _workspaceDocumentController.loadActiveDocument,
     );
     _workspaceDiagnosticsRuntimeController =
         WorkspaceDiagnosticsRuntimeController(
           controller: workspaceDiagnosticsController,
           activeDocument: () => editorController.document,
-          workspaceDocuments: () => _agentWorkspaceDocumentSamples,
+          workspaceDocuments: () => _workspaceDocumentSamples,
           openFilePaths: () => workspaceController.openFilePaths,
           log: appendLog,
         )..addListener(_handleWorkspaceDiagnosticsChanged);
@@ -217,8 +194,8 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       documentStore: workspaceDocumentStore,
       editorController: editorController,
       languageService: this.projectLanguageService,
-      documentSamples: () => _agentWorkspaceDocumentSamples,
-      openWorkspaceFile: openWorkspaceFileForAgent,
+      documentSamples: () => _workspaceDocumentSamples,
+      openWorkspaceFile: openWorkspaceFile,
       log: appendLog,
     )..addListener(_handleWorkspaceNavigationChanged);
     _editorNavigationCommandController = EditorNavigationCommandController(
@@ -237,7 +214,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     _projectLanguageContextController = ProjectLanguageContextController(
       languageService: this.projectLanguageService,
       editorController: editorController,
-      documentSamples: () => _agentWorkspaceDocumentSamples,
+      documentSamples: () => _workspaceDocumentSamples,
       loadDocuments: _workspaceNavigationController.loadDocuments,
       cacheDocument: _cacheDocument,
       languageServiceStatus: () => this.languageServiceStatus.value,
@@ -270,7 +247,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     _workspaceQuickFixController = WorkspaceQuickFixController(
       languageService: this.projectLanguageService,
       loadDocuments: _workspaceNavigationController.loadDocuments,
-      documentSamples: () => _agentWorkspaceDocumentSamples,
+      documentSamples: () => _workspaceDocumentSamples,
       documentStore: workspaceDocumentStore,
       editorController: editorController,
       editorWorkspaceState: _editorWorkspaceStateController,
@@ -381,22 +358,11 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       log: appendLog,
     );
     _debugController.addListener(_handleDebugChanged);
-    _agentController = AgentController()
-      ..addListener(_handleAgentControllerChanged);
     _shellCommandFallbackController = ShellCommandFallbackController(
       log: appendLog,
       notify: notifyListeners,
     );
-    _agentCommandReceiptController = AgentCommandReceiptController(
-      agentController: _agentController,
-      dirtyDocumentIds: () => dirtyDocumentPaths,
-      activeDocumentPath: () => _activeDocumentPath,
-      saveActive: saveActiveWorkspaceFileChanges,
-      saveAll: saveAllWorkspaceFileChanges,
-      log: appendLog,
-    );
     _editorQuickFixCommandController = EditorQuickFixCommandController(
-      agentController: _agentController,
       previewProjectQuickFix: previewFirstProjectWorkspaceQuickFix,
       applyLocalQuickFix: editorController.applyFirstQuickFixAtSelection,
       applyProjectQuickFix: applyFirstProjectWorkspaceQuickFix,
@@ -415,128 +381,107 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       log: appendLog,
       notify: notifyListeners,
     );
+    _editorRefactorCommandController = EditorRefactorCommandController(
+      applySafeDelete: editorController.applySafeDeleteAtSelection,
+      applyInlineVariable: editorController.applyInlineVariableAtSelection,
+      markActiveDocumentDirty: () {
+        _cacheDocument(_activeDocumentPath, editorController.document);
+        _editorWorkspaceStateController.markDirty(_activeDocumentPath);
+      },
+      log: appendLog,
+      notify: notifyListeners,
+    );
     _workspaceFileConfirmationController = WorkspaceFileConfirmationController(
       fileCommands: _workspaceFileCommandController,
-      agentController: _agentController,
       log: appendLog,
       notify: notifyListeners,
     );
     _shellInputCommandController = ShellInputCommandController(
-      agentController: _agentController,
       workspaceFileCommands: _workspaceFileCommandController,
       blockedReasonForCommand: blockedReasonForCommand,
-      applyAgentSuggestion: applyAgentIdeCommandSuggestion,
-      failoverAgentProviderProfile: failoverAgentProviderProfile,
       executeCommand: executeCommand,
+      searchWorkspace: searchWorkspace,
+      openWorkspaceFile: openWorkspaceFile,
+      previewWorkspaceReplace:
+          ({required String query, required String replacement}) async {
+            await _workspaceReplaceController.preview(
+              query: query,
+              replacement: replacement,
+            );
+          },
+      renameSymbol: (newName) async {
+        await _workspaceRenameController.renameAtSelection(newName);
+      },
+      previewSourceControlDiff: (path) async {
+        await _sourceControlController.previewDiff(path);
+      },
+      stageSourceControlPaths: (paths) async {
+        await _sourceControlController.runAction(
+          SourceControlActionRequest(
+            kind: SourceControlActionKind.stage,
+            paths: paths,
+          ),
+        );
+      },
+      unstageSourceControlPaths: (paths) async {
+        await _sourceControlController.runAction(
+          SourceControlActionRequest(
+            kind: SourceControlActionKind.unstage,
+            paths: paths,
+          ),
+        );
+      },
+      planSourceControlBranchSwitch: (targetBranch) async {
+        await _sourceControlController.planBranchSwitch(targetBranch);
+      },
+      planSourceControlCommitDraft:
+          ({required String message, List<String>? selectedPaths}) {
+            _sourceControlController.planCommitDraft(
+              message: message,
+              selectedPaths: selectedPaths,
+            );
+          },
+      selectClangCppVersion: (versionId, {String? cppStandard}) async {
+        await _toolchainController.selectClangCppVersion(
+          versionId,
+          cppStandard: cppStandard,
+        );
+      },
+      selectDebugThread: (threadId) async {
+        await _debugController.selectConfiguredThread(threadId);
+      },
+      selectDebugStackFrame: (frameId) async {
+        await _debugController.selectConfiguredStackFrame(frameId);
+      },
+      runTestConfiguration: (configurationId, {required bool debug}) async {
+        final configuration = _testingController.configurationForId(
+          configurationId,
+        );
+        if (configuration == null) {
+          return false;
+        }
+        if (debug) {
+          await _testingController.debugConfiguration(configuration);
+        } else {
+          await _testingController.runConfiguration(configuration);
+        }
+        return true;
+      },
       log: appendLog,
       notify: notifyListeners,
     );
     _languageRefreshCommandController = LanguageRefreshCommandController(
-      agentController: _agentController,
       refreshAvailable: () => _languageController.refreshAvailable,
       refresh: _languageController.refresh,
       status: () => this.languageServiceStatus.value,
       log: appendLog,
     );
-    _agentDebugCommandController = AgentDebugCommandController(
-      agentController: _agentController,
-      toggleBreakpoint: toggleBreakpointAtSelection,
-      start: startDebugging,
-      stop: stopDebugging,
-      resume: continueDebugging,
-      stepOver: stepOver,
-      selectThread: selectDebugThread,
-      selectStackFrame: selectDebugStackFrame,
-      debugStatus: () => _debugController.session.status.name,
-      blockWhenDirty: _blockAgentDiskBackedCommandWhenDirty,
-      log: appendLog,
-    );
-    _agentExecutionCommandController = AgentExecutionCommandController(
-      agentController: _agentController,
-      executeCommand: executeCommand,
-      executionSession: () => lastExecutionSession,
-      runtimeEvents: () => lastRuntimeEvents,
-      blockWhenDirty: _blockAgentDiskBackedCommandWhenDirty,
-    );
-    _agentSurfaceCommandController = AgentSurfaceCommandController(
-      agentController: _agentController,
-      executeCommand: executeCommand,
-    );
-    _agentContextCommandController = AgentContextCommandController(
-      agentController: _agentController,
-      collectCodingCheckpoint: collectAgentCodingCheckpoint,
-      collectProjectLanguageContext: collectProjectLanguageContext,
-      executeCommand: executeCommand,
-      collectModuleRefreshMetadata: _moduleController.agentRefreshMetadata,
-    );
-    _agentRefactorCommandController = AgentRefactorCommandController(
-      editorController: editorController,
-      editorWorkspaceState: _editorWorkspaceStateController,
-      agentController: _agentController,
-      activeDocumentPath: () => _activeDocumentPath,
-      cacheDocument: _cacheDocument,
-      log: appendLog,
-      notify: notifyListeners,
-    );
-    _agentProjectLifecycleCommandController =
-        AgentProjectLifecycleCommandController(
-          agentController: _agentController,
-          syncDependencies: syncDependencies,
-          vendorDependencies: vendorDependencies,
-          packProject: packProject,
-          preparePublish: preparePublish,
-          blockWhenDirty: _blockAgentDiskBackedCommandWhenDirty,
-        );
-    _agentToolchainCommandController = AgentToolchainCommandController(
-      agentController: _agentController,
-      toolchainController: _toolchainController,
-      selectClangCppVersion: selectClangCppVersion,
-      executeLastInstallPlan: executeLastToolchainInstallPlan,
-      notify: notifyListeners,
-    );
-    _agentNativeToolCommandController = AgentNativeToolCommandController(
-      agentController: _agentController,
-      runNativeToolCommand: _runNativeToolCommand,
-      blockWhenDirty: _blockAgentDiskBackedCommandWhenDirty,
-    );
-    _agentQuickFixCommandController = AgentQuickFixCommandController(
-      editorController: editorController,
-      workspaceQuickFixController: _workspaceQuickFixController,
-      editorWorkspaceState: _editorWorkspaceStateController,
-      semanticTelemetry: _semanticTelemetryController,
-      agentController: _agentController,
-      activeDocumentPath: () => _activeDocumentPath,
-      cacheDocument: _cacheDocument,
-      log: appendLog,
-      notify: notifyListeners,
-    );
-    _agentWorkspaceReplaceCommandController =
-        AgentWorkspaceReplaceCommandController(
-          workspaceReplaceController: _workspaceReplaceController,
-          agentController: _agentController,
-          log: appendLog,
-        );
     _workspaceSearchController = WorkspaceSearchController(
       workspaceController: workspaceController,
       documentStore: workspaceDocumentStore,
       languageService: this.projectLanguageService,
-      documentSamples: () => _agentWorkspaceDocumentSamples,
-      publishResults: (text, symbols) {
-        _agentController.replaceWorkspaceSearch(text: text, symbols: symbols);
-      },
+      documentSamples: () => _workspaceDocumentSamples,
       log: appendLog,
-    );
-    _agentWorkspaceCommandController = AgentWorkspaceCommandController(
-      agentController: _agentController,
-      fileCommands: _workspaceFileCommandController,
-      searchController: _workspaceSearchController,
-      openWorkspaceFile: openWorkspaceFileForAgent,
-      renameSymbol: renameSymbolAtSelection,
-      editorController: editorController,
-      goToProjectDefinition: goToProjectDefinitionAtSelection,
-      selectProjectReference: selectProjectReferenceAtSelection,
-      log: appendLog,
-      notify: notifyListeners,
     );
     _backendCommandPolicyController = BackendCommandPolicyController(
       platformTarget: platformTarget,
@@ -547,12 +492,6 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       dirtyDocumentPaths: () => dirtyDocumentPaths,
       log: appendLog,
     )..addListener(_handleSourceControlChanged);
-    _agentSourceControlCommandController = AgentSourceControlCommandController(
-      sourceControlController: _sourceControlController,
-      agentController: _agentController,
-      activeFilePath: () => workspaceController.activeFilePath,
-      log: appendLog,
-    );
     _testingController = ShellTestingController(
       sessionController: testingSessionController,
       workspaceRoot: () => workspaceController.activeProject.workspaceRoot,
@@ -575,80 +514,6 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       log: appendLog,
       notify: notifyListeners,
     );
-    _agentTestingCommandController = AgentTestingCommandController(
-      testingController: _testingController,
-      agentController: _agentController,
-      blockWhenDirty: _blockAgentDiskBackedCommandWhenDirty,
-    );
-    _agentSessionContextController = AgentSessionContextController(
-      editorController: editorController,
-      projectLanguageContext: _projectLanguageContextController,
-      agentController: _agentController,
-      workspaceQuickFixController: _workspaceQuickFixController,
-      debugController: _debugController,
-      executionController: _executionController,
-      workspaceController: workspaceController,
-      editorWorkspaceState: _editorWorkspaceStateController,
-      workspaceDocuments: () => _agentWorkspaceDocumentSamples,
-      workspaceDiagnostics: _workspaceDiagnosticsRuntimeController,
-      sourceControlController: _sourceControlController,
-      testingController: _testingController,
-      toolchainController: _toolchainController,
-      semanticTelemetryController: _semanticTelemetryController,
-      languageServiceStatus: this.languageServiceStatus,
-      toolchainStatusReport: toolchainStatusReport,
-      agentCodingController: () => this.agentCodingController,
-      refreshProviderProfiles: refreshAgentProviderProfileManifest,
-      log: appendLog,
-      notify: notifyListeners,
-    );
-    this.agentCodingController =
-        agentCodingController ??
-        AgentCodingSessionController(
-          profile: AgentPromptProfile.defaultForPlatform(platformTarget),
-          adapter: const LocalOnlyAgentProviderAdapter(),
-          contextProvider: () => agentSessionContext,
-          runtimeOutputBuffer: this.runtimeOutputBuffer,
-        );
-    _workspaceRevisionService = InMemoryWorkspaceRevisionService(
-      initialDocuments: <String, String>{
-        editorController.document.documentId: editorController.document.text,
-      },
-    );
-    _workspaceTransactionService = RevisionedWorkspaceTransactionService(
-      _workspaceRevisionService,
-    );
-    _agentProviderConfigurationController =
-        AgentProviderConfigurationController(
-          configurator: agentProviderConfigurator,
-          sessionController: () => this.agentCodingController,
-          agentController: _agentController,
-          runtimeOutputBuffer: this.runtimeOutputBuffer,
-          log: appendLog,
-          notify: notifyListeners,
-        );
-    _agentPatchLifecycleController = AgentPatchLifecycleController(
-      sessionController: this.agentCodingController,
-      transactionService: _workspaceTransactionService,
-      revisionService: _workspaceRevisionService,
-      workspaceController: workspaceController,
-      editorWorkspaceState: _editorWorkspaceStateController,
-      activeDocumentPath: () => _activeDocumentPath,
-      log: appendLog,
-    );
-    _agentProviderRecoveryCommandController =
-        AgentProviderRecoveryCommandController(
-          sessionController: this.agentCodingController,
-          agentController: _agentController,
-          failoverProviderProfile: failoverAgentProviderProfile,
-          log: appendLog,
-          notify: notifyListeners,
-        );
-    this.agentCodingController.contextProvider = () => agentSessionContext;
-    this.agentCodingController.addListener(_handleAgentCodingSessionChanged);
-    if (agentProviderConfigurator != null) {
-      unawaited(refreshAgentProviderProfileManifest());
-    }
     workspaceController.addListener(_handleWorkspaceChanged);
     editorController.addListener(_handleDocumentChanged);
     this.languageServiceStatus.addListener(_handleLanguageServiceStatusChanged);
@@ -676,6 +541,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
   late final EditorNavigationCommandController
   _editorNavigationCommandController;
   late final EditorQuickFixCommandController _editorQuickFixCommandController;
+  late final EditorRefactorCommandController _editorRefactorCommandController;
   late final WorkspaceDocumentController _workspaceDocumentController;
   late final WorkspacePersistenceController _workspacePersistenceController;
   late final WorkspaceFileCommandController _workspaceFileCommandController;
@@ -701,48 +567,19 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
   late final ModuleController _moduleController;
   late final NativeToolRuntimeController _nativeToolRuntimeController;
   late final DebugController _debugController;
-  late final AgentController _agentController;
-  late final AgentCommandReceiptController _agentCommandReceiptController;
-  late final AgentQuickFixCommandController _agentQuickFixCommandController;
-  late final AgentDebugCommandController _agentDebugCommandController;
-  late final AgentContextCommandController _agentContextCommandController;
-  late final AgentExecutionCommandController _agentExecutionCommandController;
-  late final AgentRefactorCommandController _agentRefactorCommandController;
-  late final AgentProjectLifecycleCommandController
-  _agentProjectLifecycleCommandController;
-  late final AgentNativeToolCommandController _agentNativeToolCommandController;
-  late final AgentPatchLifecycleController _agentPatchLifecycleController;
-  late final InMemoryWorkspaceRevisionService _workspaceRevisionService;
-  late final WorkspaceTransactionService _workspaceTransactionService;
-  late final AgentProviderConfigurationController
-  _agentProviderConfigurationController;
-  late final AgentProviderRecoveryCommandController
-  _agentProviderRecoveryCommandController;
-  late final AgentSourceControlCommandController
-  _agentSourceControlCommandController;
-  late final AgentSurfaceCommandController _agentSurfaceCommandController;
-  late final AgentTestingCommandController _agentTestingCommandController;
-  late final AgentToolchainCommandController _agentToolchainCommandController;
-  late final AgentSessionContextController _agentSessionContextController;
-  late final AgentWorkspaceCommandController _agentWorkspaceCommandController;
-  late final AgentWorkspaceReplaceCommandController
-  _agentWorkspaceReplaceCommandController;
   late final BackendCommandPolicyController _backendCommandPolicyController;
   late final SourceControlController _sourceControlController;
   late final ShellTestingController _testingController;
   late final SemanticTelemetryController _semanticTelemetryController;
   late final ToolchainController _toolchainController;
-  late final AgentCodingSessionController agentCodingController;
-  final ExtensionAgentToolExecutionRegistry?
-  agentExtensionToolExecutionRegistry;
-  final AgentProviderConfigurator? agentProviderConfigurator;
   final EditorDocumentResourceBinding _editorFileBinding;
   final ValueListenable<LanguageServiceStatusSurface> languageServiceStatus;
   final ValueListenable<ToolchainManagerStatusReport>? toolchainStatusReport;
   final ProjectStyioLanguageService projectLanguageService;
   final RuntimeOutputLiveBuffer runtimeOutputBuffer;
+  final AgentClientRegistry? agentClientRegistry;
+  final AgentCollaborationService? agentCollaboration;
   final bool _ownsLanguageServiceStatus;
-  final bool _ownsAgentCodingController;
   final bool _ownsRuntimeOutputBuffer;
   StreamSubscription<DocumentResourceBindingSnapshot>?
   _editorFileBindingSubscription;
@@ -755,6 +592,20 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
   void _cacheDocument(String documentId, DocumentState document) {
     _workspaceDocumentController.cacheDocument(documentId, document);
   }
+
+  List<DocumentState> get _workspaceDocumentSamples => <DocumentState>[
+    editorController.document,
+    for (final entry in _editorWorkspaceStateController.cachedDocumentEntries)
+      if (entry.key != editorController.document.documentId) entry.value,
+  ];
+
+  WorkspaceSearchResult? get lastWorkspaceSearch =>
+      _workspaceSearchController.lastTextSearch;
+  WorkspaceSymbolSearchResult? get lastWorkspaceSymbolSearch =>
+      _workspaceSearchController.lastSymbolSearch;
+  String? get lastWorkspaceSearchQuery => _workspaceSearchController.lastQuery;
+  int get lastWorkspaceSearchScannedCount =>
+      _workspaceSearchController.lastScannedDocumentCount;
 
   void appendLog(String message) {
     final timestamp = DateTime.now().toIso8601String().substring(11, 19);

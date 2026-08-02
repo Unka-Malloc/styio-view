@@ -37,11 +37,13 @@ def patched_architecture_roots(gate, tmp_root: Path):
         gate.APP_LIB_ROOT,
         gate.SRC_ROOT,
         gate.VIEW_IDE_ROOT,
+        gate.IDE_ROOT,
         gate.VIEW_RENDER_ROOT,
     )
     gate.APP_LIB_ROOT = app_lib_root
     gate.SRC_ROOT = src_root
     gate.VIEW_IDE_ROOT = src_root / "view_ide"
+    gate.IDE_ROOT = src_root / "ide"
     gate.VIEW_RENDER_ROOT = src_root / "view_render"
     try:
         yield src_root
@@ -50,6 +52,7 @@ def patched_architecture_roots(gate, tmp_root: Path):
             gate.APP_LIB_ROOT,
             gate.SRC_ROOT,
             gate.VIEW_IDE_ROOT,
+            gate.IDE_ROOT,
             gate.VIEW_RENDER_ROOT,
         ) = originals
 
@@ -119,12 +122,16 @@ class ArchitectureBoundaryGateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="arch-boundary-") as tmp_name:
             with patched_architecture_roots(self.gate, Path(tmp_name)) as src_root:
                 write(
-                    src_root / "view_render" / "agent_workbench" / "surface.dart",
-                    "import '../../view_ide/agent_client/agent_provider_registry.dart';\n",
+                    src_root / "view_render" / "sample" / "surface.dart",
+                    "import '../../view_ide/shell_runtime/controllers/execution_controller.dart';\n",
                 )
                 write(
-                    src_root / "view_ide" / "agent_client" / "agent_provider_registry.dart",
-                    "class AgentProviderRegistry {}\n",
+                    src_root
+                    / "view_ide"
+                    / "shell_runtime"
+                    / "controllers"
+                    / "execution_controller.dart",
+                    "class ExecutionController {}\n",
                 )
 
                 errors = self.gate.check_view_render_registered_view_ide_contracts()

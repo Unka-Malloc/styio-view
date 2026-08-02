@@ -2,7 +2,7 @@
 
 **Purpose:** Record local validation evidence, host coverage, and release blockers for the current Vityo checkpoint set.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-01
 
 ## Evidence Summary
 
@@ -15,14 +15,14 @@ not instructions for validating the current two-track Better Plan workspace.
 Agent provider/controller rows below preserve evidence for the legacy IDE-owned implementation.
 They do not override the current ownership in
 [Vityo Agent-Native IDE Architecture](../design/Vityo-Agent-Native-IDE-Architecture.md) and must not
-be read as proof that the IDE should connect to model providers. The migration remains open in
-[Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
+be read as proof that the IDE should connect to model providers. The migration has since completed;
+these rows remain immutable historical evidence only.
 
 ## Verified Locally
 
 | Area | Evidence |
 |------|----------|
-| Better Plan state | `python scripts/manifest_tool.py validate docs/plan/better-plan` passed for 32 state files and 146 items. |
+| Better Plan state | The legacy nested workspace validator passed 32 state files and 146 items in the original 2026-06-29 snapshot. That workspace was later consolidated into the authoritative `docs/plan` root; this row is historical evidence, not a current validation command. |
 | Documentation governance | `python scripts/docs-audit.py` passed after generated docs indexes were refreshed. |
 | Static release readiness | `python scripts/release-readiness-gate.py --skip-build` passed for required release gate files, maintenance tooling metadata, and static release markers. |
 | Linux packaging metadata | `python scripts/check-linux-packaging-gate.py` passed for `packaging/linux/io.vityo.desktop`, `packaging/linux/io.vityo.metainfo.xml`, `packaging/linux/DEBIAN/control`, and `packaging/linux/README.md`. |
@@ -31,7 +31,7 @@ be read as proof that the IDE should connect to model providers. The migration r
 | Foundation registry and DataStore | WSL Debian targeted app/foundation validation passed for DataStore owner scoping, migration, atomic updates, scoped registry lifecycle, manifest projection without runtime values, capability-gap agent-safe projection, and context key evaluation. |
 | End-to-end foundation convergence | WSL Debian targeted `dart analyze` passed for foundation, workbench registry, app commands, command palette, and command palette model tests. WSL Debian targeted `flutter test --no-pub test/foundation_test.dart test/workbench_registry_test.dart test/app_commands_test.dart test/command_palette_test.dart test/command_palette_model_test.dart --reporter compact` passed 55 tests. `python scripts/import-boundary-gate.py` and `python scripts/check_compat_facades.py` passed. |
 | Module package store | WSL Debian `flutter test --no-pub test/module_package_store_test.dart test/module_lifecycle_test.dart test/module_manifest_registry_test.dart test/module_manifest_security_test.dart test/module_registry_manifest_test.dart --reporter compact` passed. |
-| Project graph and toolchain contracts | WSL Debian `dart analyze` and `flutter test --no-pub test/toolchain_management_adapter_test.dart --reporter compact` passed for the updated contract and adapter tests. |
+| Project graph and toolchain contracts | WSL Debian `dart analyze` and `flutter test --no-pub test/toolchain_controller_test.dart --reporter compact` passed for the current controller boundary. |
 | Editor source buffer and workspace edits | WSL Debian targeted `dart analyze` passed for document encoding, document state, filesystem document store, and new editor/search tests. WSL Debian targeted `flutter test --no-pub` passed for editor encoding, text buffer, transactions, controller editing, patch transaction, session store, performance budget, range index, render snapshot, workspace edit applier, file binding status widget, and navigation history. |
 | Editor file binding reconnect | WSL Debian `dart analyze test/editor_file_binding_reconnect_test.dart test/editor_file_binding_status_widget_test.dart` passed, and `flutter test --no-pub test/editor_file_binding_reconnect_test.dart --reporter compact` passed for provider-unavailable-to-clean UI recovery. |
 | Editor performance baseline | Windows native `python scripts/performance-gate.py --save-baseline --json` passed with the configured Flutter SDK, running 10/10 benchmarks with no skipped benchmarks, no errors, and no regressions. `docs/review/performance-baseline.md` and `docs/review/performance-baseline.json` record measured editor-sensitive baseline values. |

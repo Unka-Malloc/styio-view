@@ -443,9 +443,11 @@
       "runbook": "docs/teams/RUNTIME-AGENT-RUNBOOK.md",
       "owned_paths": [
         "products/vityo_app/lib/src/view_ide/runtime/",
-        "products/vityo_app/lib/src/view_ide/agent_client/",
+        "products/vityo_app/lib/src/ide/agent_client/",
+        "products/vityo_app/lib/src/ide/workbench/agent_collaboration/",
         "products/vityo_app/lib/src/view_render/runtime/",
-        "products/vityo_app/lib/src/view_render/agent_workbench/"
+        "products/vityo_app/lib/src/presentation/agent_workbench/",
+        "packages/vityo_agent_protocol/"
       ],
       "maintenance_tools": ["flutter-analyze", "flutter-test", "checkpoint-health"],
       "skills": ["frontend-shell-maintenance", "release-operations"]

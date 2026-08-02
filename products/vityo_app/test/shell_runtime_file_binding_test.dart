@@ -13,6 +13,7 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.d
 import 'package:vityo_app/src/view_ide/commands/app_commands.dart';
 import 'package:vityo_app/src/ide/editor/controller/editor_controller.dart';
 import 'package:vityo_app/src/ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/view_ide/interaction/language_service_status_surface.dart';
 import 'package:vityo_app/src/view_ide/interaction/toolchain_status_surface.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
@@ -20,6 +21,7 @@ import 'package:vityo_app/src/view_ide/language/service/styio_language_service.d
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
 import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/shell_runtime/controllers/debug_controller.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime_model.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_breadcrumbs.dart';
@@ -222,7 +224,7 @@ void main() {
     expect(result.status, WorkspaceTextSearchStatus.completed);
     expect(result.matches.single.filePath, 'src/worker.styio');
     final match = result.matches.single;
-    expect(await shell.openWorkspaceFileForAgent(match.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(match.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: match.range.start,
       extentOffset: match.range.end,
@@ -240,7 +242,7 @@ void main() {
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/worker.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/worker.styio'),
       ),
       isTrue,
     );
@@ -378,7 +380,7 @@ void main() {
     expect(result.status, WorkspaceSymbolSearchStatus.completed);
     expect(result.items.single.name, 'workerJob');
     final symbol = result.items.single;
-    expect(await shell.openWorkspaceFileForAgent(symbol.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(symbol.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: symbol.nameRange.start,
       extentOffset: symbol.nameRange.end,
@@ -396,7 +398,7 @@ void main() {
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/worker.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/worker.styio'),
       ),
       isTrue,
     );
@@ -466,9 +468,7 @@ value = blend()
     expect(result.links.single.resolvedFilePath, 'lib/runtime.styio');
 
     expect(
-      await shell.openWorkspaceFileForAgent(
-        result.links.single.resolvedFilePath!,
-      ),
+      await shell.openWorkspaceFile(result.links.single.resolvedFilePath!),
       isTrue,
     );
     shell.editorController.selectCollapsed(0);
@@ -479,7 +479,8 @@ value = blend()
     expect(shell.editorController.selection.end, 0);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/runtime.styio'),
+        (entry) =>
+            entry.contains('Workspace openFile opened lib/runtime.styio'),
       ),
       isTrue,
     );
@@ -552,7 +553,7 @@ next -> @prices
     final write = result.highlights.singleWhere(
       (item) => item.kind == WorkspaceDocumentHighlightKind.write,
     );
-    expect(await shell.openWorkspaceFileForAgent(write.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(write.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: write.range.start,
       extentOffset: write.range.end,
@@ -563,7 +564,7 @@ next -> @prices
     expect(shell.editorController.selection.end, write.range.end);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened resources.styio'),
+        (entry) => entry.contains('Workspace openFile opened resources.styio'),
       ),
       isTrue,
     );
@@ -634,7 +635,7 @@ value = blend(1.0, 2.0)
     expect(result.lensCount, 1);
     expect(result.lenses.single.usageCount, 1);
     final lens = result.lenses.single;
-    expect(await shell.openWorkspaceFileForAgent(lens.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(lens.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: lens.range.start,
       extentOffset: lens.range.end,
@@ -645,7 +646,8 @@ value = blend(1.0, 2.0)
     expect(shell.editorController.selection.end, lens.range.end);
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/runtime.styio'),
+        (entry) =>
+            entry.contains('Workspace openFile opened lib/runtime.styio'),
       ),
       isTrue,
     );
@@ -724,7 +726,7 @@ book: OrderBook
     expect(result.declarations.first.kind, WorkspaceDeclarationKind.schema);
 
     final declaration = result.declarations.first;
-    expect(await shell.openWorkspaceFileForAgent(declaration.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(declaration.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: declaration.range.start,
       extentOffset: declaration.range.end,
@@ -740,7 +742,7 @@ book: OrderBook
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -816,7 +818,7 @@ value = blend(1.0, 2.0)
     expect(result.definitions.first.filePath, 'lib/runtime.styio');
 
     final definition = result.definitions.first;
-    expect(await shell.openWorkspaceFileForAgent(definition.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(definition.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: definition.range.start,
       extentOffset: definition.range.end,
@@ -834,7 +836,8 @@ value = blend(1.0, 2.0)
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/runtime.styio'),
+        (entry) =>
+            entry.contains('Workspace openFile opened lib/runtime.styio'),
       ),
       isTrue,
     );
@@ -913,10 +916,7 @@ book: OrderBook
     expect(result.types.first.kind, WorkspaceTypeDefinitionKind.schema);
 
     final typeDefinition = result.types.first;
-    expect(
-      await shell.openWorkspaceFileForAgent(typeDefinition.filePath),
-      isTrue,
-    );
+    expect(await shell.openWorkspaceFile(typeDefinition.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: typeDefinition.range.start,
       extentOffset: typeDefinition.range.end,
@@ -932,7 +932,7 @@ book: OrderBook
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -1012,10 +1012,7 @@ target: Price
     expect(result.implementations.single.name, 'OrderBook');
 
     final implementation = result.implementations.single;
-    expect(
-      await shell.openWorkspaceFileForAgent(implementation.filePath),
-      isTrue,
-    );
+    expect(await shell.openWorkspaceFile(implementation.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: implementation.range.start,
       extentOffset: implementation.range.end,
@@ -1031,7 +1028,7 @@ target: Price
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -1109,7 +1106,7 @@ book: OrderBook
     expect(result.status, WorkspaceTypeHierarchyStatus.completed);
     expect(result.relations.single.symbol.name, 'Price');
     final symbol = result.relations.single.symbol;
-    expect(await shell.openWorkspaceFileForAgent(symbol.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(symbol.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: symbol.range.start,
       extentOffset: symbol.range.end,
@@ -1125,7 +1122,7 @@ book: OrderBook
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened lib/types.styio'),
+        (entry) => entry.contains('Workspace openFile opened lib/types.styio'),
       ),
       isTrue,
     );
@@ -1283,7 +1280,7 @@ entry = 1
     final item = result.items.firstWhere(
       (item) => item.name == 'calculate' && item.kind == SymbolKind.function,
     );
-    expect(await shell.openWorkspaceFileForAgent(item.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(item.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: item.nameRange.start,
       extentOffset: item.nameRange.end,
@@ -1300,7 +1297,7 @@ entry = 1
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/main.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/main.styio'),
       ),
       isTrue,
     );
@@ -1454,7 +1451,7 @@ value = blend(1.0, 2.0)
     expect(result.status, WorkspaceReferenceSearchStatus.completed);
     expect(result.references.single.filePath, 'main.styio');
     final reference = result.references.single;
-    expect(await shell.openWorkspaceFileForAgent(reference.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(reference.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: reference.range.start,
       extentOffset: reference.range.end,
@@ -1472,7 +1469,7 @@ value = blend(1.0, 2.0)
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened main.styio'),
+        (entry) => entry.contains('Workspace openFile opened main.styio'),
       ),
       isTrue,
     );
@@ -1544,7 +1541,7 @@ fn run(): f64 {
     expect(result.status, WorkspaceCallHierarchyStatus.completed);
     expect(result.calls.single.symbol.name, 'run');
     final location = result.calls.single.firstLocation;
-    expect(await shell.openWorkspaceFileForAgent(location.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(location.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: location.range.start,
       extentOffset: location.range.end,
@@ -1562,7 +1559,7 @@ fn run(): f64 {
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened main.styio'),
+        (entry) => entry.contains('Workspace openFile opened main.styio'),
       ),
       isTrue,
     );
@@ -1619,7 +1616,7 @@ price -> @prices
     final problem = result.problems.singleWhere(
       (problem) => problem.diagnostic.code == 'unresolved-resource',
     );
-    expect(await shell.openWorkspaceFileForAgent(problem.filePath), isTrue);
+    expect(await shell.openWorkspaceFile(problem.filePath), isTrue);
     shell.editorController.selectRange(
       baseOffset: problem.diagnostic.range.start,
       extentOffset: problem.diagnostic.range.end,
@@ -1641,7 +1638,7 @@ price -> @prices
     );
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/main.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/main.styio'),
       ),
       isTrue,
     );
@@ -1779,7 +1776,7 @@ value = 1
       expect(result.items.single.filePath, 'src/worker.styio');
 
       expect(
-        await shell.openWorkspaceFileForAgent(result.items.single.filePath),
+        await shell.openWorkspaceFile(result.items.single.filePath),
         isTrue,
       );
       shell.editorController.selectCollapsed(0);
@@ -1791,7 +1788,7 @@ value = 1
       expect(
         shell.debugLog.any(
           (entry) =>
-              entry.contains('openWorkspaceFile opened src/worker.styio'),
+              entry.contains('Workspace openFile opened src/worker.styio'),
         ),
         isTrue,
       );
@@ -1803,7 +1800,7 @@ value = 1
       );
       expect(recentResult.items.first.filePath, 'src/worker.styio');
 
-      expect(await shell.openWorkspaceFileForAgent('src/main.styio'), isTrue);
+      expect(await shell.openWorkspaceFile('src/main.styio'), isTrue);
       shell.editorController.selectCollapsed(0);
       expect(shell.workspaceController.activeFilePath, 'src/main.styio');
       expect(shell.editorController.document.documentId, 'src/main.styio');
@@ -2091,231 +2088,7 @@ value = 1
     );
     addTearDown(shell.dispose);
 
-    // FIXME: API removed during merge: await shell.navigateWorkspaceHistory(forward: false);
-    // FIXME: API removed during merge: await shell.navigateWorkspaceHistory(forward: true);
-    // FIXME: API removed during merge: await shell.openWorkspaceNavigationLocation(
-    // FIXME: API removed during merge: const WorkspaceNavigationLocation(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 0),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: '',
-    // FIXME: API removed during merge: label: 'Missing',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceQuickOpenItem(
-    // FIXME: API removed during merge: const WorkspaceQuickOpenItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: fileName: 'missing.styio',
-    // FIXME: API removed during merge: parentPath: '',
-    // FIXME: API removed during merge: score: 1,
-    // FIXME: API removed during merge: matches: <WorkspaceQuickOpenMatch>[],
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceSearchMatch(
-    // FIXME: API removed during merge: const WorkspaceTextSearchMatch(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: range: WorkspaceTextRange(start: 0, end: 5),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'missing',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceSymbol(
-    // FIXME: API removed during merge: const WorkspaceSymbolSearchItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'missingSymbol',
-    // FIXME: API removed during merge: kind: SymbolKind.function,
-    // FIXME: API removed during merge: detail: 'missing',
-    // FIXME: API removed during merge: nameRange: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: declarationRange: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'missingSymbol',
-    // FIXME: API removed during merge: score: 1,
-    // FIXME: API removed during merge: matches: <WorkspaceSymbolSearchMatch>[],
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceOutlineItem(
-    // FIXME: API removed during merge: const WorkspaceOutlineItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'missingOutline',
-    // FIXME: API removed during merge: kind: SymbolKind.function,
-    // FIXME: API removed during merge: detail: 'missing',
-    // FIXME: API removed during merge: nameRange: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: declarationRange: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'missingOutline',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceBreadcrumbItem(
-    // FIXME: API removed during merge: const WorkspaceBreadcrumbItem(
-    // FIXME: API removed during merge: label: 'src',
-    // FIXME: API removed during merge: kind: WorkspaceBreadcrumbItemKind.folder,
-    // FIXME: API removed during merge: filePath: 'src',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceBreadcrumbItem(
-    // FIXME: API removed during merge: const WorkspaceBreadcrumbItem(
-    // FIXME: API removed during merge: label: 'missing.styio',
-    // FIXME: API removed during merge: kind: WorkspaceBreadcrumbItemKind.file,
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceDefinition(
-    // FIXME: API removed during merge: const WorkspaceDefinitionItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'missingDefinition',
-    // FIXME: API removed during merge: kind: StyioProjectSymbolKind.function,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'missingDefinition',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceDocumentLink(
-    // FIXME: API removed during merge: const WorkspaceDocumentLinkItem(
-    // FIXME: API removed during merge: sourceFilePath: 'src/main.styio',
-    // FIXME: API removed during merge: target: 'pkg/external',
-    // FIXME: API removed during merge: kind: WorkspaceDocumentLinkKind.externalImport,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 12),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: '@import { pkg/external }',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceDocumentLink(
-    // FIXME: API removed during merge: const WorkspaceDocumentLinkItem(
-    // FIXME: API removed during merge: sourceFilePath: 'src/main.styio',
-    // FIXME: API removed during merge: target: 'missing',
-    // FIXME: API removed during merge: kind: WorkspaceDocumentLinkKind.workspaceImport,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: '@import { missing }',
-    // FIXME: API removed during merge: resolvedFilePath: 'missing.styio',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceDocumentHighlight(
-    // FIXME: API removed during merge: const WorkspaceDocumentHighlightItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'value',
-    // FIXME: API removed during merge: kind: WorkspaceDocumentHighlightKind.text,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 5),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'value',
-    // FIXME: API removed during merge: isActive: false,
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceCodeLens(
-    // FIXME: API removed during merge: const WorkspaceCodeLensItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: symbolName: 'value',
-    // FIXME: API removed during merge: symbolKind: StyioProjectSymbolKind.function,
-    // FIXME: API removed during merge: kind: WorkspaceCodeLensKind.references,
-    // FIXME: API removed during merge: commandTitle: '1 reference',
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 5),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'value',
-    // FIXME: API removed during merge: referenceCount: 1,
-    // FIXME: API removed during merge: usageCount: 1,
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceDeclaration(
-    // FIXME: API removed during merge: const WorkspaceDeclarationItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'missingDeclaration',
-    // FIXME: API removed during merge: kind: WorkspaceDeclarationKind.function,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 7),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'missingDeclaration',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceTypeDefinition(
-    // FIXME: API removed during merge: const WorkspaceTypeDefinitionItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'MissingType',
-    // FIXME: API removed during merge: kind: WorkspaceTypeDefinitionKind.schema,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 11),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'schema MissingType {}',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceTypeHierarchySymbol(
-    // FIXME: API removed during merge: const WorkspaceTypeHierarchySymbol(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'MissingType',
-    // FIXME: API removed during merge: kind: WorkspaceTypeDefinitionKind.schema,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 11),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'schema MissingType {}',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceImplementation(
-    // FIXME: API removed during merge: const WorkspaceImplementationItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'MissingType',
-    // FIXME: API removed during merge: kind: WorkspaceTypeDefinitionKind.schema,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 11),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'schema MissingType {}',
-    // FIXME: API removed during merge: references: <WorkspaceTypeHierarchyLocation>[],
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceReference(
-    // FIXME: API removed during merge: const WorkspaceReferenceSearchItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: name: 'value',
-    // FIXME: API removed during merge: kind: StyioProjectSymbolKind.function,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 5),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'value',
-    // FIXME: API removed during merge: isDefinition: false,
-    // FIXME: API removed during merge: access: ReferenceAccess.read,
-    // FIXME: API removed during merge: definition: WorkspaceReferenceDefinition(
-    // FIXME: API removed during merge: filePath: 'src/main.styio',
-    // FIXME: API removed during merge: name: 'value',
-    // FIXME: API removed during merge: kind: StyioProjectSymbolKind.function,
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 5),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: referenceCount: 1,
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceCallHierarchyLocation(
-    // FIXME: API removed during merge: const WorkspaceCallHierarchyLocation(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 5),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'value',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-    // FIXME: API removed during merge: await shell.openWorkspaceProblem(
-    // FIXME: API removed during merge: const WorkspaceProblemItem(
-    // FIXME: API removed during merge: filePath: 'missing.styio',
-    // FIXME: API removed during merge: diagnostic: Diagnostic(
-    // FIXME: API removed during merge: severity: DiagnosticSeverity.error,
-    // FIXME: API removed during merge: code: 'missing-file',
-    // FIXME: API removed during merge: message: 'missing',
-    // FIXME: API removed during merge: range: SourceRange(start: 0, end: 5),
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: line: 0,
-    // FIXME: API removed during merge: column: 0,
-    // FIXME: API removed during merge: previewText: 'missing',
-    // FIXME: API removed during merge: ),
-    // FIXME: API removed during merge: );
-
-    expect(await shell.openWorkspaceFileForAgent('missing.styio'), isFalse);
+    expect(await shell.openWorkspaceFile('missing.styio'), isFalse);
     expect(
       shell.debugLog.any(
         (entry) => entry.contains('missing.styio is not in the workspace'),
@@ -2363,7 +2136,7 @@ value = 1
         'sync requires a resolved pafio manifest path.',
       );
       for (final fragment in const <String>[
-        'Fetch blocked: sync requires a resolved pafio manifest path',
+        'Sync blocked: sync requires a resolved pafio manifest path',
         'Module host refresh requested',
         'Native bridge local.runtime.desktop',
         'Settings route is reserved',
@@ -2461,7 +2234,7 @@ value = 1
       );
       addTearDown(shell.dispose);
 
-      expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+      expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
       await shell.executeCommand(AppCommandId.navigateBack);
       await shell.executeCommand(AppCommandId.navigateForward);
       await shell.executeCommand(AppCommandId.run);
@@ -2512,38 +2285,38 @@ value = 1
       if (shell.workspaceController.activeFilePath == 'src/main.styio') {
         return;
       }
-      expect(await shell.openWorkspaceFileForAgent('src/main.styio'), isTrue);
+      expect(await shell.openWorkspaceFile('src/main.styio'), isTrue);
       shell.editorController.selectCollapsed(0);
     }
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 5, extentOffset: 11);
     expect(shell.workspaceController.activeFilePath, 'src/worker.styio');
     expect(shell.editorController.selection.start, 5);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectCollapsed(0);
     expect(shell.editorController.selection.start, 0);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 16, extentOffset: 21);
     expect(shell.editorController.selection.start, 16);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 5, extentOffset: 11);
     expect(shell.editorController.selection.start, 5);
     await resetToMain();
 
-    expect(await shell.openWorkspaceFileForAgent('src/worker.styio'), isTrue);
+    expect(await shell.openWorkspaceFile('src/worker.styio'), isTrue);
     shell.editorController.selectRange(baseOffset: 16, extentOffset: 21);
     expect(shell.editorController.selection.start, 16);
 
     expect(
       shell.debugLog.any(
-        (entry) => entry.contains('openWorkspaceFile opened src/worker.styio'),
+        (entry) => entry.contains('Workspace openFile opened src/worker.styio'),
       ),
       isTrue,
     );
@@ -2602,7 +2375,7 @@ value = 1
     }
 
     expect(
-      shell.debugLog.any((entry) => entry.contains('Fetch blocked')),
+      shell.debugLog.any((entry) => entry.contains('Sync blocked')),
       isTrue,
     );
     for (var index = 0; index < 60; index += 1) {
@@ -2674,7 +2447,7 @@ value = 1
   );
 
   test(
-    'shell runtime handles toolchain recovery actions without manager',
+    'shell runtime handles generic toolchain recovery actions without manager',
     () async {
       const initialDocument = DocumentState(
         documentId: 'src/main.styio',
@@ -2721,16 +2494,6 @@ value = 1
           description: 'Create the expected directory',
         ),
         ToolchainRecoveryAction(
-          id: 'retry-tool-use',
-          label: 'Retry use',
-          description: 'Retry tool use',
-        ),
-        ToolchainRecoveryAction(
-          id: 'retry-tool-pin',
-          label: 'Retry pin',
-          description: 'Retry tool pin',
-        ),
-        ToolchainRecoveryAction(
           id: 'unknown-recovery',
           label: 'Unknown',
           description: 'Unknown action',
@@ -2745,7 +2508,6 @@ value = 1
         'Toolchain install planning unavailable',
         'Toolchain degraded mode requested',
         'Toolchain precondition recovery',
-        'Toolchain retry blocked',
         'Toolchain recovery action is not wired',
       ]) {
         expect(
@@ -2757,7 +2519,7 @@ value = 1
     },
   );
 
-  test('shell agent session context composes current typed domain facts', () {
+  test('shell runtime composes current typed domain facts for binding', () {
     final projectGraph = ProjectGraphSnapshot.scratch(
       workspaceRoot: '/workspace/context',
       activeFilePath: 'src/main.styio',
@@ -2780,15 +2542,18 @@ value = 1
     );
     addTearDown(shell.dispose);
 
-    final context = shell.agentSessionContext;
-
-    expect(context.document.documentId, document.documentId);
-    expect(context.document.revision, document.revision);
-    expect(context.workspace.workspaceRoot, projectGraph.workspaceRoot);
-    expect(context.workspace.activeFilePath, 'src/main.styio');
-    expect(context.debug.status, 'idle');
-    expect(context.language.serviceStatus?.severity, 'unavailable');
-    expect(context.agent.savedProviderProfiles, isEmpty);
+    expect(shell.editorController.document.documentId, document.documentId);
+    expect(shell.editorController.document.revision, document.revision);
+    expect(
+      shell.workspaceController.activeProject.workspaceRoot,
+      projectGraph.workspaceRoot,
+    );
+    expect(shell.workspaceController.activeFilePath, 'src/main.styio');
+    expect(shell.debugSession.status, DebugSessionStatus.idle);
+    expect(
+      shell.languageServiceStatus.value.severity,
+      LanguageServiceStatusSeverity.unavailable,
+    );
   });
 }
 
@@ -3194,7 +2959,6 @@ class _NoopDeploymentAdapter implements DeploymentAdapter {
     );
   }
 }
-
 
 class _NoopStyioLanguageService implements StyioLanguageService {
   const _NoopStyioLanguageService();

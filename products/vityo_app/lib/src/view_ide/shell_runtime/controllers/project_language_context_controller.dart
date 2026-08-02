@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import '../../agent_client/agent.dart';
 import '../../commands/commands.dart';
 import '../../../ide/editor/editor.dart';
 import '../../interaction/interaction.dart';
@@ -12,7 +11,7 @@ import '../../language/syntax_validation/syntax_validation.dart';
 typedef SemanticTokensTelemetryRecorder =
     void Function({required String documentId});
 
-/// Owns the project language facts exposed to the editor and coding agent.
+/// Owns the project language facts exposed to the editor and Workbench.
 final class ProjectLanguageContextController extends ChangeNotifier {
   ProjectLanguageContextController({
     required this.languageService,
@@ -135,9 +134,8 @@ final class ProjectLanguageContextController extends ChangeNotifier {
       analysis: analysis,
     );
     final status = languageServiceStatus();
-    final semanticFeatureMatrix = AgentSemanticFeatureMatrixContext.fromMatrix(
-      editorController.semanticFeatureMatrix,
-    ).toJson();
+    final semanticFeatureMatrix =
+        editorController.semanticFeatureMatrix.toJson();
     final syntaxValidationAuthority = <String, Object?>{
       'preferredSource': status.syntaxValidationReady
           ? 'styio-service'

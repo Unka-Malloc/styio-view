@@ -67,22 +67,6 @@ class SourceControlStatusController extends ChangeNotifier {
   SourceControlDiffSessionState? get diffSessionState => _diffSessionState;
   bool get hasSnapshot => _snapshot != null;
   bool get hasDiffPreview => _diffPreview != null;
-  SourceControlAgentContextSnapshot get agentContextSnapshot {
-    return SourceControlAgentContextSnapshot.fromState(
-      workspaceRoot: workspaceRoot,
-      status: _snapshot,
-      diffPreview: _diffPreview,
-      pendingActionPlan: _pendingActionPlan,
-      lastActionResult: _lastActionResult,
-      hunkSelectionState: _hunkSelectionState,
-      pendingHunkDiscardConfirmation: _pendingHunkDiscardConfirmation,
-      lastPartialPatchResult: _lastPartialPatchResult,
-      branchSnapshot: _branchSnapshot,
-      pendingBranchSwitchPlan: _pendingBranchSwitchPlan,
-      lastBranchSwitchResult: _lastBranchSwitchResult,
-      historySnapshot: _historySnapshot,
-    );
-  }
 
   SourceControlActionPlan planAction(SourceControlActionRequest request) {
     final plan = SourceControlActionPlan.fromRequest(request);

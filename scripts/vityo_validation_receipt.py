@@ -52,6 +52,35 @@ def validate_full_suite_plan(plan: Sequence[Mapping[str, object]]) -> None:
         )
 
 
+def _validate_outcomes(
+    outcomes: Mapping[str, Mapping[str, object]],
+) -> None:
+    if tuple(outcomes) != REQUIRED_IDE_REQUIREMENTS:
+        raise ValidationReceiptError(
+            "missing_requirement_outcome",
+            "receipt must contain every IDE requirement in canonical order",
+        )
+    for requirement, outcome in outcomes.items():
+        if outcome.get("status") not in {"passed", "failed", "blocked"}:
+            raise ValidationReceiptError(
+                "invalid_requirement_outcome",
+                f"{requirement} has no truthful terminal status",
+            )
+        if not isinstance(outcome.get("suite"), str):
+            raise ValidationReceiptError(
+                "invalid_requirement_outcome",
+                f"{requirement} has no suite reference",
+            )
+
+
+def _validate_digest(value: str, field: str) -> None:
+    if not _SHA256.fullmatch(value):
+        raise ValidationReceiptError(
+            "invalid_evidence_digest",
+            f"{field} must be lowercase SHA-256",
+        )
+
+
 def build_ide_receipt(
     *,
     start_fingerprint: str,
@@ -59,6 +88,9 @@ def build_ide_receipt(
     commit: str,
     platform: str,
     outcomes: Mapping[str, Mapping[str, object]],
+    protocol_schema_sha256: str,
+    acceptance_fixtures_sha256: str,
+    failure_code: str | None = None,
 ) -> dict[str, object]:
     if not _SHA256.fullmatch(start_fingerprint):
         raise ValidationReceiptError(
@@ -80,22 +112,12 @@ def build_ide_receipt(
             "invalid_platform",
             "validation platform is unsupported",
         )
-    if tuple(outcomes) != REQUIRED_IDE_REQUIREMENTS:
-        raise ValidationReceiptError(
-            "missing_requirement_outcome",
-            "receipt must contain every IDE requirement in canonical order",
-        )
-    for requirement, outcome in outcomes.items():
-        if outcome.get("status") not in {"passed", "failed", "blocked"}:
-            raise ValidationReceiptError(
-                "invalid_requirement_outcome",
-                f"{requirement} has no truthful terminal status",
-            )
-        if not isinstance(outcome.get("suite"), str):
-            raise ValidationReceiptError(
-                "invalid_requirement_outcome",
-                f"{requirement} has no suite reference",
-            )
+    _validate_digest(protocol_schema_sha256, "protocol_schema_sha256")
+    _validate_digest(
+        acceptance_fixtures_sha256,
+        "acceptance_fixtures_sha256",
+    )
+    _validate_outcomes(outcomes)
     overall_status = (
         "passed"
         if all(outcome["status"] == "passed" for outcome in outcomes.values())
@@ -106,9 +128,63 @@ def build_ide_receipt(
         "product": "vityo",
         "suite": "full",
         "status": overall_status,
+        "failure_code": None if overall_status == "passed" else failure_code,
         "commit": commit,
         "platform": platform,
         "source_fingerprint": start_fingerprint,
+        "protocol_schema_sha256": protocol_schema_sha256,
+        "acceptance_fixtures_sha256": acceptance_fixtures_sha256,
+        "requirements": {
+            requirement: dict(outcome)
+            for requirement, outcome in outcomes.items()
+        },
+    }
+
+
+def build_ide_failure_receipt(
+    *,
+    failure_code: str,
+    commit: str | None,
+    platform: str | None,
+    source_fingerprint: str | None,
+    protocol_schema_sha256: str | None,
+    acceptance_fixtures_sha256: str | None,
+    outcomes: Mapping[str, Mapping[str, object]],
+) -> dict[str, object]:
+    _validate_outcomes(outcomes)
+    if commit is not None and not _COMMIT.fullmatch(commit):
+        commit = None
+    if (
+        platform is not None
+        and platform not in SUPPORTED_HOST_PLATFORMS
+    ):
+        platform = None
+    if (
+        source_fingerprint is not None
+        and not _SHA256.fullmatch(source_fingerprint)
+    ):
+        source_fingerprint = None
+    if (
+        protocol_schema_sha256 is not None
+        and not _SHA256.fullmatch(protocol_schema_sha256)
+    ):
+        protocol_schema_sha256 = None
+    if (
+        acceptance_fixtures_sha256 is not None
+        and not _SHA256.fullmatch(acceptance_fixtures_sha256)
+    ):
+        acceptance_fixtures_sha256 = None
+    return {
+        "schema_version": 1,
+        "product": "vityo",
+        "suite": "full",
+        "status": "failed",
+        "failure_code": failure_code,
+        "commit": commit,
+        "platform": platform,
+        "source_fingerprint": source_fingerprint,
+        "protocol_schema_sha256": protocol_schema_sha256,
+        "acceptance_fixtures_sha256": acceptance_fixtures_sha256,
         "requirements": {
             requirement: dict(outcome)
             for requirement, outcome in outcomes.items()

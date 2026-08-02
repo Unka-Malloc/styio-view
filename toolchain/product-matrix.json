@@ -2,7 +2,7 @@
   "schema_version": 1,
   "capability": "trusted-desktop-ide-loop",
   "repositories": {
-    "styio": "ca631c831b0e93d242183b0f2b5401530e125e93",
-    "pafio": "52e578376667896d00ad619329e381addf9ab465"
+    "styio": "3a6a25def4b48d9bea07501170d7449af57d60d5",
+    "pafio": "ec1a6ae9eb35a0ce54cdc6966944bfa4b0b98df3"
   }
 }

@@ -46,11 +46,6 @@ enum AppCommandId {
   showAgent,
   showDebug,
 
-  openAgentPanelWithContext,
-  previewAgentPatch,
-  applyAgentPatch,
-  rollbackLastWorkspaceEdit,
-
   toggleBreakpoint,
   startDebugging,
   stopDebugging,
@@ -71,11 +66,7 @@ enum AppCommandId {
   unstageSourceControl,
   planSourceControlBranchSwitch,
   planSourceControlCommitDraft,
-  collectAgentCodingCheckpoint,
   collectProjectLanguageContext,
-  retryAgentProvider,
-  failoverAgentProvider,
-  replayAgentPrompt,
   openWorkspaceFile,
   createWorkspaceFile,
   renameWorkspaceFile,
@@ -191,7 +182,6 @@ enum AppCommandCategory {
   diagnostics,
   languageService,
   sourceControl,
-  agentCoding,
   navigation,
   workspace,
   refactor,
@@ -213,7 +203,6 @@ extension AppCommandCategoryX on AppCommandCategory {
       AppCommandCategory.diagnostics => 'diagnostics',
       AppCommandCategory.languageService => 'language-service',
       AppCommandCategory.sourceControl => 'source-control',
-      AppCommandCategory.agentCoding => 'agent-coding',
       AppCommandCategory.navigation => 'navigation',
       AppCommandCategory.workspace => 'workspace',
       AppCommandCategory.refactor => 'refactor',
@@ -268,15 +257,8 @@ extension AppCommandIdX on AppCommandId {
       AppCommandId.planSourceControlBranchSwitch ||
       AppCommandId.planSourceControlCommitDraft =>
         AppCommandCategory.sourceControl,
-      AppCommandId.collectAgentCodingCheckpoint ||
-      AppCommandId.collectProjectLanguageContext ||
-      AppCommandId.retryAgentProvider ||
-      AppCommandId.failoverAgentProvider ||
-      AppCommandId.replayAgentPrompt ||
-      AppCommandId.openAgentPanelWithContext ||
-      AppCommandId.previewAgentPatch ||
-      AppCommandId.applyAgentPatch ||
-      AppCommandId.rollbackLastWorkspaceEdit => AppCommandCategory.agentCoding,
+      AppCommandId.collectProjectLanguageContext =>
+        AppCommandCategory.languageService,
       AppCommandId.openWorkspaceFile ||
       AppCommandId.searchWorkspace ||
       AppCommandId.previewWorkspaceReplace ||
@@ -549,7 +531,6 @@ AppCommandTargetSurface _defaultTargetSurfaceFor(AppCommandCategory category) {
     AppCommandCategory.debug ||
     AppCommandCategory.module => AppCommandTargetSurface.bottomPanel,
     AppCommandCategory.surface => AppCommandTargetSurface.commandOverlay,
-    AppCommandCategory.agentCoding ||
     AppCommandCategory.workspace => AppCommandTargetSurface.workspaceSidebar,
     AppCommandCategory.navigation ||
     AppCommandCategory.refactor => AppCommandTargetSurface.editor,
@@ -1055,43 +1036,11 @@ class VityoCommandRegistry {
       ],
     ),
     AppCommandDescriptor(
-      id: AppCommandId.collectAgentCodingCheckpoint,
-      label: 'Collect Coding Checkpoint',
-      shortcutHint: 'Route',
-      description:
-          'Refresh diagnostics, source-control status, and first diff preview for the Agent coding loop.',
-    ),
-    AppCommandDescriptor(
       id: AppCommandId.collectProjectLanguageContext,
       label: 'Collect Project Language Context',
       shortcutHint: 'Route',
       description:
-          'Collect project-level Styio definitions, references, hover, and completion facts for the Agent coding loop.',
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.retryAgentProvider,
-      label: 'Retry Agent Provider',
-      shortcutHint: 'Route',
-      description:
-          'Retry the failed Agent coding request with the same provider profile.',
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.failoverAgentProvider,
-      label: 'Fail Over Agent Provider',
-      shortcutHint: 'Route',
-      description:
-          'Replay the failed Agent coding request through another configured provider profile key.',
-      requiresInput: true,
-      inputLabel: 'Agent provider profile key',
-      inputContract: 'Use a key from agent.savedProviderProfiles.',
-      inputExamples: <String>['codex-spark', 'local-fallback'],
-    ),
-    AppCommandDescriptor(
-      id: AppCommandId.replayAgentPrompt,
-      label: 'Replay Agent Prompt',
-      shortcutHint: 'Route',
-      description:
-          'Replay the last failed or cancelled Agent coding prompt after the user confirms the recovered context.',
+          'Collect project-level Styio definitions, references, hover, and completion facts.',
     ),
     AppCommandDescriptor(
       id: AppCommandId.goToDefinition,
@@ -1340,13 +1289,6 @@ class VityoCommandRegistry {
 
   static Iterable<AppCommandDescriptor> get sourceControlCommands =>
       commandsForCategory(AppCommandCategory.sourceControl);
-
-  static Iterable<AppCommandDescriptor> get agentCodingCommands =>
-      commands.where(
-        (command) =>
-            command.category == AppCommandCategory.agentCoding ||
-            command.id == AppCommandId.previewQuickFix,
-      );
 
   static Iterable<AppCommandDescriptor> get debugCommands => commands.where(
     (command) => switch (command.id) {

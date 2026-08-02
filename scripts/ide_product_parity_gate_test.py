@@ -132,7 +132,7 @@ class TestTestAnchorDetection(unittest.TestCase):
 
     def test_test_anchor_pattern_matches_valid_paths(self) -> None:
         valid_test_paths = [
-            "products/vityo_app/test/agent_context_test.dart",
+            "products/vityo_app/test/agent_client/agent_client_contract_test.dart",
             "products/vityo_app/test/ide_capability_registry_test.dart",
             "products/vityo_app/test/debug_workbench_contract_test.dart",
             "tests/test_repo_hygiene_gate.py",
@@ -150,8 +150,8 @@ class TestTestAnchorDetection(unittest.TestCase):
              "debug_workbench_contract_test.dart"),
             ("products/vityo_app/lib/src/ide/workspace/source_control_adapter.dart",
              "source_control_adapter_test.dart"),
-            ("products/vityo_app/lib/src/view_ide/agent_client/agent_context.dart",
-             "agent_context_test.dart"),
+            ("products/vityo_app/lib/src/ide/agent_client/agent_client.dart",
+             "agent_client_contract_test.dart"),
             ("products/vityo_app/lib/src/view_ide/workbench/ide_capability_registry.dart",
              "ide_capability_registry_test.dart"),
         ]

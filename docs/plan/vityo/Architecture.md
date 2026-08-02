@@ -167,7 +167,7 @@ hot windows backed by durable storage.
 | Final-harness readiness | side-effect-free full-suite preflight, portable lifecycle boundary, complete bounded failure receipts; no real full run |
 | Final validation | one immutable-candidate IDE full run and one per-requirement receipt |
 
-## 9. Remaining execution sequence
+## 9. Completed execution sequence
 
 ```text
 protocol-only Agent convergence
@@ -175,10 +175,9 @@ protocol-only Agent convergence
   -> final platform-independent IDE validation
 ```
 
-The exact UUIDs, phase-by-phase methods, failure routing, and stop rules are defined in
-[the execution runbook](../EXECUTION-RUNBOOK.md). This sequence is serialized so a simple executor
-cannot validate the product before removing the known ownership violation or repair the harness
-during the final run.
+The exact historical UUIDs, failure routing, and stop rules are retained in
+[the execution runbook](../EXECUTION-RUNBOOK.md). All three lifecycles are completed and must not be
+replayed. Future work uses a distinct capability-bound task group.
 
 ## 10. Deliberate exclusions
 

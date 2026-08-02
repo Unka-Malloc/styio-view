@@ -29,6 +29,7 @@ final class AgentEndpointPolicy {
     required this.maxSessions,
     required this.maxPromptCharacters,
     this.maxMcpServersPerSession = 8,
+    this.maxReplayUpdatesPerSession = 128,
     this.permissionResponseTimeout = const Duration(seconds: 30),
   }) : _validation =
            1 ~/
@@ -36,7 +37,8 @@ final class AgentEndpointPolicy {
                    maxPendingRequests > 0 &&
                    maxSessions > 0 &&
                    maxPromptCharacters > 0 &&
-                   maxMcpServersPerSession > 0)
+                   maxMcpServersPerSession > 0 &&
+                   maxReplayUpdatesPerSession > 0)
                ? 1
                : 0);
 
@@ -45,6 +47,7 @@ final class AgentEndpointPolicy {
   final int maxSessions;
   final int maxPromptCharacters;
   final int maxMcpServersPerSession;
+  final int maxReplayUpdatesPerSession;
   final Duration permissionResponseTimeout;
   final int _validation;
 
@@ -55,6 +58,7 @@ final class AgentEndpointPolicy {
       maxSessions > 0 &&
       maxPromptCharacters > 0 &&
       maxMcpServersPerSession > 0 &&
+      maxReplayUpdatesPerSession > 0 &&
       permissionResponseTimeout > Duration.zero;
 }
 
@@ -132,20 +136,29 @@ final class AgentSessionEndpoint {
 
   Future<String> requestPermission({
     required String sessionId,
+    required String toolCallId,
     required Set<String> options,
   }) async {
     if (!_sessions.containsKey(sessionId) ||
+        toolCallId.trim().isEmpty ||
+        toolCallId.length > 256 ||
         options.isEmpty ||
-        options.any((option) => option.trim().isEmpty) ||
+        options.any(
+          (option) => option != 'allow_once' && option != 'reject_once',
+        ) ||
         _permissions.length >= policy.maxPendingRequests) {
       throw StateError('Permission request is invalid or over budget.');
     }
     final id = JsonRpcId.string('agent-permission-${++_requestSequence}');
+    final optionIds = <String, String>{
+      for (final option in options) '$option-${id.value}': option,
+    };
     final pending = _PendingPermission(
-      options: Set<String>.unmodifiable(options),
+      optionKindsById: Map<String, String>.unmodifiable(optionIds),
     );
     _permissions[id] = pending;
-    final ordered = options.toList(growable: false)..sort();
+    final ordered = optionIds.entries.toList(growable: false)
+      ..sort((left, right) => left.value.compareTo(right.value));
     try {
       await _sendMessage(
         JsonRpcRequest(
@@ -153,12 +166,13 @@ final class AgentSessionEndpoint {
           method: AcpMethod.sessionRequestPermission,
           params: <String, Object?>{
             'sessionId': sessionId,
+            'toolCall': <String, Object?>{'toolCallId': toolCallId},
             'options': <Map<String, Object?>>[
               for (final option in ordered)
                 <String, Object?>{
-                  'optionId': option,
-                  'name': option,
-                  'kind': option.startsWith('allow')
+                  'optionId': option.key,
+                  'name': option.value,
+                  'kind': option.value.startsWith('allow')
                       ? 'allow_once'
                       : 'reject_once',
                 },
@@ -178,7 +192,7 @@ final class AgentSessionEndpoint {
     if (capabilities.any(
       (capability) =>
           capability != AcpCapability.loadSession &&
-          !capability.startsWith('vityo/'),
+          !capability.startsWith(vityoAcpExtensionPrefix),
     )) {
       throw ArgumentError('Agent capability is not namespaced.');
     }
@@ -217,6 +231,10 @@ final class AgentSessionEndpoint {
   }
 
   Future<void> _initialize(JsonRpcRequest request) async {
+    if (_initialized) {
+      await _sendError(request.id, -32600, 'already initialized');
+      return;
+    }
     final version = request.params['protocolVersion'];
     if (version != acpProtocolVersion) {
       await _sendError(request.id, -32001, 'unsupported protocol version');
@@ -225,7 +243,9 @@ final class AgentSessionEndpoint {
     _initialized = true;
     final extensions =
         _capabilities
-            .where((capability) => capability.startsWith('vityo/'))
+            .where(
+              (capability) => capability.startsWith(vityoAcpExtensionPrefix),
+            )
             .toList(growable: false)
           ..sort();
     await _sendSuccess(request.id, <String, Object?>{
@@ -236,9 +256,13 @@ final class AgentSessionEndpoint {
       },
       'agentCapabilities': <String, Object?>{
         'loadSession': _capabilities.contains(AcpCapability.loadSession),
-        'vityoExtensions': extensions,
+        '_meta': <String, Object?>{
+          vityoAcpMetadataKey: <String, Object?>{'extensions': extensions},
+        },
       },
-      '_meta': const <String, Object?>{'transport': 'acp-jsonrpc'},
+      '_meta': const <String, Object?>{
+        vityoAcpMetadataKey: <String, Object?>{'transport': 'acp-jsonrpc'},
+      },
     });
   }
 
@@ -252,10 +276,10 @@ final class AgentSessionEndpoint {
       return;
     }
     final cwd = requireJsonString(request.params, 'cwd');
-    if (cwd.length > 4096) {
+    if (!_isAbsoluteLocalPath(cwd) || cwd.length > 32768) {
       throw const AgentProtocolException(
         'invalid_identifier',
-        'cwd is too long',
+        'cwd must be an absolute bounded local path',
       );
     }
     final id = _sessionIdFactory(++_sessionSequence);
@@ -282,21 +306,60 @@ final class AgentSessionEndpoint {
       }
       await handler.attach(sessionId: id, servers: servers);
     }
-    _sessions[id] = _ProtocolSession(id: id, rootId: defaultRootId);
+    _sessions[id] = _ProtocolSession(id: id, rootId: defaultRootId, cwd: cwd);
     await _sendSuccess(request.id, <String, Object?>{'sessionId': id});
   }
 
   Future<void> _loadSession(JsonRpcRequest request) async {
+    if (!_initialized) {
+      await _sendError(request.id, -32002, 'initialize required');
+      return;
+    }
     if (!_capabilities.contains(AcpCapability.loadSession)) {
       await _sendError(request.id, -32003, 'capability unavailable');
       return;
     }
     final id = requireJsonString(request.params, 'sessionId');
-    if (!_sessions.containsKey(id)) {
+    final session = _sessions[id];
+    if (session == null) {
       await _sendError(request.id, -32602, 'unknown session');
       return;
     }
-    await _sendSuccess(request.id, <String, Object?>{'sessionId': id});
+    final cwd = requireJsonString(request.params, 'cwd');
+    if (!_isAbsoluteLocalPath(cwd) ||
+        cwd.length > 32768 ||
+        cwd != session.cwd) {
+      await _sendError(request.id, -32602, 'session workspace mismatch');
+      return;
+    }
+    final rawServers = request.params['mcpServers'];
+    if (rawServers is! List<Object?> ||
+        rawServers.length > policy.maxMcpServersPerSession ||
+        rawServers.any((server) => server is! Map<String, Object?>)) {
+      await _sendError(request.id, -32602, 'invalid MCP attachments');
+      return;
+    }
+    final servers = <Map<String, Object?>>[
+      for (final server in rawServers)
+        Map<String, Object?>.unmodifiable(server! as Map<String, Object?>),
+    ];
+    if (servers.isNotEmpty) {
+      final handler = mcpAttachments;
+      if (handler == null) {
+        await _sendError(request.id, -32003, 'MCP capability unavailable');
+        return;
+      }
+      await handler.attach(sessionId: id, servers: servers);
+    }
+    for (final update in session.replayUpdates) {
+      await _sendMessage(
+        JsonRpcNotification(
+          method: AcpMethod.sessionUpdate,
+          params: <String, Object?>{'sessionId': id, 'update': update},
+        ),
+      );
+    }
+    await _sendSuccess(request.id, null);
   }
 
   Future<void> _prompt(JsonRpcRequest request) async {
@@ -314,6 +377,10 @@ final class AgentSessionEndpoint {
       await _sendError(request.id, -32000, 'session concurrency exceeded');
       return;
     }
+    if (session.replayUpdates.length >= policy.maxReplayUpdatesPerSession) {
+      await _sendError(request.id, -32000, 'session replay limit exceeded');
+      return;
+    }
     final prompt = _decodePrompt(request.params['prompt']);
     session.promptActive = true;
     _activePrompts += 1;
@@ -325,20 +392,19 @@ final class AgentSessionEndpoint {
           rootId: session.rootId,
         ),
       );
+      final update = <String, Object?>{
+        'sessionUpdate': 'terminal',
+        'content': <String, Object?>{
+          'type': 'text',
+          'text': receipt.state.name,
+        },
+        'receipt': receipt.toJson(),
+      };
+      session.replayUpdates.add(Map<String, Object?>.unmodifiable(update));
       await _sendMessage(
         JsonRpcNotification(
           method: AcpMethod.sessionUpdate,
-          params: <String, Object?>{
-            'sessionId': session.id,
-            'update': <String, Object?>{
-              'sessionUpdate': 'terminal',
-              'content': <String, Object?>{
-                'type': 'text',
-                'text': receipt.state.name,
-              },
-              'receipt': receipt.toJson(),
-            },
-          },
+          params: <String, Object?>{'sessionId': session.id, 'update': update},
         ),
       );
       final stopReason = switch (receipt.state) {
@@ -401,15 +467,25 @@ final class AgentSessionEndpoint {
     if (pending == null || pending.completer.isCompleted) return;
     try {
       final result = requireJsonObject(response.result, 'permission result');
-      final option = requireJsonString(result, 'optionId');
-      if (result['outcome'] != 'selected' ||
-          !pending.options.contains(option)) {
+      final outcome = requireJsonObject(
+        result['outcome'],
+        'permission outcome',
+      );
+      if (outcome['outcome'] == 'cancelled') {
+        throw const AgentProtocolException(
+          'permission_cancelled',
+          'permission request was cancelled',
+        );
+      }
+      final option = requireJsonString(outcome, 'optionId');
+      final kind = pending.optionKindsById[option];
+      if (outcome['outcome'] != 'selected' || kind == null) {
         throw const AgentProtocolException(
           'malformed_message',
           'invalid permission decision',
         );
       }
-      pending.completer.complete(option);
+      pending.completer.complete(kind);
     } on Object catch (error, stackTrace) {
       pending.completer.completeError(error, stackTrace);
     }
@@ -447,16 +523,23 @@ final class AgentSessionEndpoint {
 }
 
 final class _ProtocolSession {
-  _ProtocolSession({required this.id, required this.rootId});
+  _ProtocolSession({required this.id, required this.rootId, required this.cwd});
 
   final String id;
   final String rootId;
+  final String cwd;
+  final List<Map<String, Object?>> replayUpdates = <Map<String, Object?>>[];
   bool promptActive = false;
 }
 
 final class _PendingPermission {
-  _PendingPermission({required this.options});
+  _PendingPermission({required this.optionKindsById});
 
-  final Set<String> options;
+  final Map<String, String> optionKindsById;
   final Completer<String> completer = Completer<String>();
 }
+
+bool _isAbsoluteLocalPath(String path) =>
+    path.startsWith('/') ||
+    path.startsWith(r'\\') ||
+    RegExp(r'^[A-Za-z]:[\\/]').hasMatch(path);

@@ -2,7 +2,7 @@
 
 **Purpose:** Define an opt-in validation path for cloud providers owned by a compatible Agent runtime, without storing raw credentials or treating live-provider evidence as default CI evidence.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Scope
 
@@ -11,10 +11,8 @@ that a configured provider can be reached through the Coding Agent provider rout
 receives only the resulting structured Agent protocol state. It is not evidence that the IDE
 connects to a provider.
 
-The Flutter test command below is preserved only as legacy migration evidence. New live-provider
-validation belongs under `products/vityo_coding_agent`; the IDE-side route must be removed by the
-atomic migration recorded in
-[Vityo Implementation Gaps](../design/Vityo-Implementation-Gaps.md).
+Live-provider validation belongs under `products/vityo_coding_agent`. The removed IDE provider
+route is not a fallback or compatibility lane.
 
 This lane is not part of default local CI, pull request CI, or checkpoint health. Default CI must continue to use deterministic loopback, mocked transport, and credential-store tests.
 
@@ -42,17 +40,10 @@ Do not record a live provider as release evidence when the opt-in flag is absent
 
 ## Recommended Local Command Shape
 
-Legacy IDE-route deterministic tests remain useful only until migration:
-
-```bash
-cd products/vityo_app
-flutter test --no-pub \
-  test/agent_provider_route_executor_test.dart \
-  test/agent_provider_credential_resolver_test.dart \
-  test/agent_provider_live_local_e2e_test.dart
-```
-
-An eventual live test or workflow must require the opt-in flag and must exit as skipped or blocked when the flag or credential is missing. It must not fail default CI because a developer lacks cloud credentials.
+No live-provider command is currently declared. A future live test or workflow must live under
+`products/vityo_coding_agent`, require the opt-in flag, and exit as skipped or blocked when the flag
+or credential is missing. It must not fail default CI because a developer lacks cloud credentials,
+and it must not restore an IDE-side provider route.
 
 ## Release Checklist
 

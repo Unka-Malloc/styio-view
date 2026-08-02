@@ -86,25 +86,25 @@ mixin ShellRuntimeWorkspaceIntelligenceFacade on ShellRuntimeFacadeHost {
     ),
   );
 
-  Future<bool> openWorkspaceFileForAgent(String filePath) async {
+  Future<bool> openWorkspaceFile(String filePath) async {
     final normalizedPath = filePath.trim();
     if (normalizedPath.isEmpty) {
-      appendLog('Agent command openWorkspaceFile skipped: missing input.');
+      appendLog('Workspace openFile skipped: missing input.');
       return false;
     }
     if (!workspaceController.files.contains(normalizedPath)) {
       appendLog(
-        'Agent command openWorkspaceFile skipped: $normalizedPath is not in the workspace file list.',
+        'Workspace openFile skipped: $normalizedPath is not in the workspace file list.',
       );
       _notifyShellListeners();
       return false;
     }
     if (await _workspaceDocumentController.openWorkspaceFile(normalizedPath)) {
-      appendLog('Agent command openWorkspaceFile opened $normalizedPath.');
+      appendLog('Workspace openFile opened $normalizedPath.');
       _notifyShellListeners();
       return true;
     }
-    appendLog('Agent command openWorkspaceFile failed for $normalizedPath.');
+    appendLog('Workspace openFile failed for $normalizedPath.');
     _notifyShellListeners();
     return false;
   }
@@ -115,7 +115,7 @@ mixin ShellRuntimeWorkspaceIntelligenceFacade on ShellRuntimeFacadeHost {
       _workspaceNavigationController.goToDefinition();
   Future<bool> selectProjectReferenceAtSelection({required bool forward}) =>
       _workspaceNavigationController.selectReference(forward: forward);
-  Future<bool> searchWorkspaceForAgent(String query) =>
+  Future<bool> searchWorkspace(String query) =>
       _workspaceSearchController.search(query);
 
   Future<WorkspaceReplacePreview?> previewWorkspaceReplace({

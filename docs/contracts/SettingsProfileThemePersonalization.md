@@ -1,16 +1,15 @@
 # Settings Profile Theme Personalization Contract
 
-**Purpose:** Define ownership, product boundaries, invariants, data flow, capability gaps, downstream consumers, and validation targets for Vityo settings, profile, theme, personalization, and agent-context redaction.
+**Purpose:** Define ownership, product boundaries, invariants, data flow, capability gaps, downstream consumers, and validation targets for Vityo settings, domain-specific profiles, theme, personalization, and cross-boundary redaction.
 
 **Owner:** Better Plan -- Settings Profile Theme Personalization  
 **File:** `docs/contracts/SettingsProfileThemePersonalization.md`  
 **Status:** Current  
-**Last updated:** 2026-07-26
+**Last updated:** 2026-07-31
 
 This owner contract supplies current facts to [Vityo requirements](../plan/vityo/Requirements.md)
-`REQ-IDE-006` through `REQ-IDE-008` and [Vityo Coding Agent requirements](../plan/vityo-coding-agent/Requirements.md)
-`REQ-AGENT-003` through `REQ-AGENT-005`; workflow state stays in two delivery tracks for the one
-Vityo product.
+`REQ-IDE-006` through `REQ-IDE-008`. Agent-runtime settings and model-provider configuration belong
+to the separate Vityo Coding Agent delivery track.
 
 ---
 
@@ -62,19 +61,13 @@ Vityo product.
 | `CommandKeybindingProfile` | `.../commands/command_keybinding_profile.dart` | Per-workspace keybinding overrides. |
 | `CommandKeybindingProfileStore` | same file | DataStore owner `interaction.command-palette.keybindings`. |
 
-### 5. Legacy IDE Agent Profile And Provider Endpoint
+### 5. Profile Boundary
 
-The artifacts below describe current code inherited from the superseded IDE-owned-provider
-architecture. They are migration inputs, not the target product contract. Model/provider
-configuration belongs to Vityo Coding Agent or another compatible Agent; Vityo retains only its
-optional local profile and ProfileSync contract.
-
-| Artifact | File | Description |
-|----------|------|-------------|
-| `AgentPromptProfile` | `products/vityo_app/lib/.../agent/agent_profile.dart` | Profile with `AgentProviderEndpoint`. |
-| `AgentProviderEndpoint` | same file | Route, base URL, model, credential policy. |
-| `AgentProviderCredentialPolicy` | same file | `explicitUserCredential`, `hostedSessionCredential`, `noClientCredential`. |
-| `AgentPromptProfileStore` | `.../agent_prompt_profile_store.dart` | DataStore owner `agent.prompt-profile`. |
+Vityo currently implements only domain-specific profiles such as shell, keybinding, launch, and
+test-run configuration. It has no general user/prompt profile store and no model-provider profile.
+`ProfileSyncAdapter` remains a design schema, not an implemented runtime service. Any future
+general profile must be provider-neutral and local-first; Agent prompt/model profiles remain
+Agent-runtime owned.
 
 ### 6. Settings UI Surface
 
@@ -83,11 +76,11 @@ optional local profile and ProfileSync contract.
 | `SettingsSurface` | `products/vityo_app/.../settings_surface.dart` | Product settings entry with toolchain, command palette, and theme cards. |
 | `ViewportProfile` | `.../platform/viewport_profile.dart` | Desktop/mobile dimensions, drives compact layout. |
 
-### 7. Log Redaction and Agent Context
+### 7. Log Redaction And Cross-Boundary Output
 
 | Artifact | File | Description |
 |----------|------|-------------|
-| `LogRedactor` | `products/vityo_app/.../log_redactor.dart` | Regex-based redactor with 11 default rules. |
+| `LogRedactor` | `products/vityo_app/.../log_redactor.dart` | Regex-based redactor for log, diagnostic, and cross-boundary output. |
 | `ConfigurationStore._assertNoSecretLikeValues` | `configuration_store.dart` | Validate-before-write guard rejecting raw secrets. |
 
 ### 8. Import / Export Paths
@@ -110,7 +103,6 @@ optional local profile and ProfileSync contract.
 | `interaction.command-palette.keybindings` | `interaction` | `interaction.command-palette.keybindings` |
 | `interaction.testing.run-configurations` | `interaction` | `interaction.testing.run-configurations` |
 | `interaction.testing.run-history` | `interaction` | `interaction.testing.run-history` |
-| `agent.prompt-profile` | `service` | `agent.profile` |
 
 ---
 
@@ -120,9 +112,7 @@ optional local profile and ProfileSync contract.
 
 - User-configurable settings: toolchain selection, shell profile, command palette display, keybinding overrides, theme colors.
 - Theme presets and per-workspace color overrides.
-- Optional Vityo profile state and ProfileSync.
-- Legacy IDE provider profiles/endpoints only as migration inventory; no new model/provider
-  ownership may be added to the IDE.
+- Domain-specific shell, keybinding, launch, and test-run profiles.
 - Credential and secret storage (via `FoundationCredentialDataStore` and `SecretStore`).
 - Log redaction of secrets, tokens, and PII.
 - Viewport-driven adaptive layout of settings surfaces.
@@ -140,6 +130,9 @@ optional local profile and ProfileSync contract.
 ### What This Contract Explicitly Does NOT Own
 
 - Cloud sync of settings/profile/theme (no sync service exists yet).
+- General user/prompt profile persistence and a runtime `ProfileSyncAdapter`.
+- Model-provider profiles, endpoints, credentials, prompt profiles, or fallback routes; those belong
+  exclusively to the connected Agent runtime.
 - OS-native secure credential storage (TODO for Keychain/libsecret migration).
 - User authentication or identity management.
 - Debug console or runtime terminal settings.
@@ -172,10 +165,10 @@ No global/user-scoped theme override exists.
 
 All command palette stores use `FoundationResourceScope.workspace`.
 
-### I5: Agent Profiles Are Per-Workspace With a Manifest
+### I5: IDE Settings Never Own Agent Provider Configuration
 
-`AgentPromptProfileStore` stores profiles under workspace scope with a
-`__manifest__` key for discovery.
+No IDE configuration record or settings surface may contain a model endpoint, model id, Agent
+prompt profile, provider credential policy, or provider fallback route.
 
 ### I6: Settings UI Is a Consumer, Not a Store
 
@@ -237,7 +230,6 @@ LogRedactor (redacts secret-like patterns in all output paths)
 |----------|-----------------|------|
 | `SettingsSurface` | All settings, preferences, theme overrides | `view_render/settings/settings_surface.dart` |
 | `VityoTheme` | `VityoThemePreset` + `VityoThemeOverride` | `view_render/theme/vityo_theme.dart` |
-| Agent surface | `AgentPromptProfile`, `CredentialReference` | `view_ide/agent/` |
 | `CommandPaletteOverlayState` | Display preferences, recent history | `view_ide/commands/command_palette_model.dart` |
 | IDE capability framework | Capability snapshot | `view_ide/foundation/ide_capability_framework.dart` |
 | Shell integration | `ShellConfiguration`, environment overlays | `view_ide/environment/configuration/` |
@@ -274,7 +266,6 @@ LogRedactor (redacts secret-like patterns in all output paths)
 - `VityoTheme` construction with overrides and preset selection.
 - `CommandPaletteDisplayPreferences` copyWith, toQueryState, JSON round-trip.
 - `CommandKeybindingProfile` overrides and conflict detection.
-- `AgentPromptProfile` JSON round-trip and credential policy resolution.
 - `ShellConfiguration` fromFacts and JSON round-trip.
 
 ### Integration Tests
@@ -302,7 +293,7 @@ LogRedactor (redacts secret-like patterns in all output paths)
 | Credential storage | `FoundationCredentialDataStore` | `InMemorySecretStore` (test only) | Production path only |
 | Command palette prefs | `CommandPaletteDisplayPreferencesStore` | None | Single store |
 | Keybinding profiles | `CommandKeybindingProfileStore` | None | Single store |
-| Agent profiles | `AgentPromptProfileStore` | None | Single store |
+| Provider/model profiles | Agent runtime-owned | Removed IDE store | No IDE compatibility path |
 | Theme rendering | `VityoTheme.light()` | None | Single builder |
 | Log redaction | `LogRedactor` | None | Single redactor |
 | Settings surface | `SettingsSurface` | None | Single surface |

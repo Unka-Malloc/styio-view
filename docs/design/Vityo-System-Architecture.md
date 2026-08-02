@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 `Vityo` 的系统层次、adapter 边界、平台执行后端与主线实现策略；具体产品语义以 [Vityo-Product-Spec.md](./Vityo-Product-Spec.md) 为准。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 **Status:** Current system architecture
 
@@ -67,19 +67,14 @@ Agent policy, durable sessions, and multi-Agent orchestration.
 2. `products/vityo_app/lib/src/view_render/`：Flutter presentation 层，承载 shell、editor/runtime/agent/debug surfaces、theme 和 viewport profile。该层只能依赖已登记的 `view_ide/` contract/model surface。
 3. `products/vityo_app/lib/src/app/`：composition root，负责把 `view_ide` 对象接到 `view_render` widgets。
 
-Legacy roots 只保留迁移兼容：
-
-1. `products/vityo_app/lib/src/view_ide/backend_toolchain/` -> `view_ide/backend_toolchain/`
-2. `products/vityo_app/lib/src/ide/editor/` -> `ide/editor/` 或 `view_render/editor/`
-3. `products/vityo_app/lib/src/view_ide/language/` -> `view_ide/language/`
-
-这些 legacy 文件只能是一行 `export` façade，不得继续承载 parser、adapter、fallback、security policy 或 UI 逻辑。
+当前 canonical roots 是 `view_ide/backend_toolchain/`、`ide/editor/`、`view_render/editor/` 和
+`view_ide/language/`。旧 import roots 已移除，不是兼容面，也不得恢复。
 
 本边界由以下命令守住：
 
 ```bash
 python3 scripts/check_architecture_boundaries.py
-python3 scripts/check_compat_facades.py
+python3 scripts/import-boundary-gate.py
 ```
 
 ## 2. 主要层次
@@ -235,11 +230,12 @@ python3 scripts/check_compat_facades.py
 
 Vityo is an open Agent Client, not a model host:
 
-1. `view_ide/agent_client/` owns protocol connectivity, capability projection, IDE-side consent
-   presentation, revision checks, and the conversion of accepted proposals into workspace
-   transactions.
-2. `view_render/agent_workbench/` owns task, plan, permission, change-preview, and verification
-   receipt presentation. `Agent Panel` may remain the name of one view inside this workbench.
+1. `ide/agent_client/` owns process supervision, protocol connectivity, capability projection,
+   correlated sessions and permissions, and bounded MCP/context export.
+2. `ide/workbench/agent_collaboration/` owns immutable task, permission, proposal, and transaction
+   projection; `presentation/agent_workbench/` owns task, plan, permission, change-preview, and
+   verification receipt presentation. `Agent Panel` may remain the name of one view inside this
+   workbench.
 3. `products/vityo_coding_agent/` or another compatible Agent owns provider credentials,
    model/provider routing, context selection, tool execution loops, Agent policy, durable sessions,
    and multi-Agent orchestration.
@@ -251,9 +247,10 @@ Execution sandboxing, IDE secret storage, log redaction, and module trust remain
 IDE-owned operations. Agent-runtime secrets and tool policy remain Agent-runtime concerns. Protocol
 messages and all UI projections must be redacted and must never contain raw credentials.
 
-The current IDE tree still contains direct provider/controller implementation from the superseded
-architecture. It is a migration gap, not the target ownership model; see
-[Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md).
+The IDE-side migration is complete. Agent collaboration is implemented only through the supervised
+Agent Client, immutable collaboration projection, presentation Workbench, bounded context/MCP
+export, and IDE-owned workspace transactions; see
+[Vityo-Implementation-Gaps.md](./Vityo-Implementation-Gaps.md) for remaining product closure.
 
 ## 3. 平台执行矩阵
 
@@ -280,7 +277,7 @@ architecture. It is a migration gap, not the target ownership model; see
 3. `products/vityo_app/lib/src/ide/editor/`
 4. `products/vityo_app/lib/src/view_ide/language/`
 5. `products/vityo_app/lib/src/ide/workspace/`
-6. `products/vityo_app/lib/src/view_ide/agent_client/`
+6. `products/vityo_app/lib/src/ide/agent_client/`
 7. `products/vityo_app/lib/src/view_ide/module_host/`
 8. `products/vityo_app/lib/src/view_ide/environment/`
 9. `products/vityo_app/lib/src/view_render/`

@@ -20,17 +20,3 @@ final class UserFacingIdeFactReader implements RevisionBoundIdeFactReader {
     return _provider.read(query, expectedWorkspaceRevision);
   }
 }
-
-final class AgentFacingIdeFactReader implements RevisionBoundIdeFactReader {
-  const AgentFacingIdeFactReader(this._provider);
-
-  final IdeFactProvider _provider;
-
-  @override
-  Future<RevisionedIdeFacts> read(
-    IdeFactQuery query,
-    int expectedWorkspaceRevision,
-  ) {
-    return _provider.read(query, expectedWorkspaceRevision);
-  }
-}

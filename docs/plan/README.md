@@ -1,10 +1,15 @@
 # Vityo — Better Plan Workspace
 
 **Purpose:** Coordinate two independently acceptable delivery tracks for one Vityo product.
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-01
 
-`docs/plan` is the only current Better Plan root. **Vityo is the agent-native IDE for Styio** and
-the sole product identity. The workspace has exactly two delivery tracks:
+`docs/plan` is the repository's only authoritative Better Plan workspace and the only permitted
+Better Plan root. Nested or parallel planning workspaces are forbidden. The retired nested
+workspace has been consolidated into this root's capability catalog, historical task groups,
+and their requirements, architecture, validation, and evidence projections.
+
+**Vityo is the agent-native IDE for Styio** and the sole product identity. The workspace has exactly
+two delivery tracks:
 
 - `vityo`: the IDE, workbench, developer services, Agent Client, collaboration surfaces, and
   desktop product.
@@ -37,18 +42,24 @@ focused regression. Each delivery track has exactly one full final regression af
 implementation lifecycles close. Ordinary defects stay in their owning lifecycle; removed source
 trees are verified once during the atomic cutover and are not kept as permanent compatibility gates.
 
+`Capabilities.json` is the durable repository-capability catalog. It records the observed Vityo
+foundation, the two delivery modules, progressively disclosed IDE capabilities, and the known
+shared protocol interface separately from historical delivery state. `Manifest.json` binds each completed task group to its stable
+capability key; their `Checkpoints.json` files preserve immutable Node histories.
+
 Planning requests update these artifacts only. They do not select or dispatch implementation work.
 Validate the workspace with the current Better Plan manifest validator and label checker.
 
 ## Execution Contract
 
 [EXECUTION-RUNBOOK.md](./EXECUTION-RUNBOOK.md) is the mandatory operating procedure for every future
-Node. It defines exact role transitions, evidence rules, failure routing, the remaining Node order,
-and the special one-run semantics of final validation.
+task group. It defines the current Designer, Worker, Verifier, and Reviewer transitions, evidence
+rules, failure routing, and full-regression boundary.
 
 Current planning state is intentionally explicit:
 
-1. completed Nodes are historical evidence and must not be replayed;
-2. the IDE-owned provider/coding-loop surface must be removed before product validation;
-3. the final harness must pass side-effect-free readiness checks before the one-time full run;
-4. only then may the final-validation Node execute.
+1. all recorded task groups and delivery Nodes are completed historical evidence;
+2. no current Node is eligible or authorized for replay;
+3. later delivery must use a distinct, capability-bound task group with one `group_design`, one or
+   more `implementation`, and one trailing `final_validation` Node;
+4. a planning request may update Plan state but never authorizes implementation or regression.

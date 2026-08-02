@@ -1,13 +1,50 @@
 [
   {
+    "id": "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
+    "status": "completed",
+    "role": "group_design",
+    "prerequisites": [],
+    "platform": "any",
+    "difficulty": "critical",
+    "verification_profile": "code",
+    "goal": "Freeze the cross-node Coding Agent design and acceptance seams before implementation delivery.",
+    "description": "Scope: the complete Vityo Coding Agent delivery group. Context: the architecture and validation sources governed the completed implementation sequence. Target: preserve that source-grounded design authority as immutable historical state in the current grouped lifecycle format. Design Considerations: retain original implementation ownership and dependency edges while adding only the current group boundary. Design Value: the sealed plan remains readable and valid without claiming new delivery work. Constraints & Risks: do not replay implementation, manufacture agent receipts, or change product evidence.",
+    "acceptance_criteria": [
+      {
+        "checked": true,
+        "text": "Requirements, Architecture, Validation, and Evidence define one coherent delivery boundary without reopening completed implementation."
+      }
+    ],
+    "commit": {
+      "repository": ".git",
+      "message": "docs(plan): freeze Coding Agent group design",
+      "target": "historical delivery record"
+    },
+    "next": [
+      "8b7f2b18-3b7d-410e-832e-af8d194e6be0",
+      "cbe0a1d8-c5bc-4407-ba6d-22102e858c78",
+      "2decf14b-572c-449a-ad2a-55f63aa0b613",
+      "ec25a7ca-b81f-4b3c-8cf3-534a7fdfa503",
+      "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
+      "9d4a37d5-11d1-41cd-a897-dd011b91c90d",
+      "2bdb5c59-52b9-4b3c-ac0a-9bf9b100d8a4",
+      "c7e4604a-632d-43a3-957d-fddad7048c8e",
+      "ce76d8ea-74fc-4daa-a04a-1cce356ff711",
+      "f3a9a2a9-faf0-49cb-8707-26a2028bae66",
+      "cc1ee369-751d-4b74-87a4-a13a86f28777"
+    ]
+  },
+  {
     "id": "8b7f2b18-3b7d-410e-832e-af8d194e6be0",
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "3d7617da-83cb-4c41-a2e9-6c89ba60352f"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Turn the structurally separated Agent package into a headless runtime with pure host ports and no Flutter or Vityo dependencies.",
     "description": "Scope: products/vityo_coding_agent entrypoint, application/session boundary, host ports, controlled headless host, package exports, and smoke tests; removal of moved monolithic controller/context facades owned by this closure. Context: the atomic cutover establishes final roots but preserves behavior; current controller extends Flutter ChangeNotifier and context imports concrete IDE services. Target: the Agent library and CLI initialize, run, cancel, complete, and fail deterministically against an in-memory host without Vityo; UI notification becomes an outer projection concern; every host interaction crosses a typed port. Design Considerations: decompose by state owner, keep pure application code inward of adapters, use explicit cancellation/deadline objects, and delete old concrete-controller forwarding APIs after call sites migrate. Design Value: every provider, context, tool, recovery, and multi-agent capability can now be tested independently of the IDE. Constraints & Risks: no temporary Flutter dependency, service locator, direct filesystem access, or compatibility facade may remain.",
     "requirements": [
@@ -162,11 +199,6 @@
       "phase": "accepted",
       "attempt": 2,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T01:16:55Z",
-        "contract_digest": "9894a23b17f632abb9b4bff89381801bea6d97f9b23fd99c3d27864961ee9007",
-        "content_fingerprint": "cb0425ae3a2aefac8fd93cf372b063d5ad71457dbd51b9679cdb945b6d9fbab2"
-      },
       "design_digest": "38f513b350ab1d4858f55746d292a86ccf9ec7f5cef38621d088903fe9b565ec",
       "acceptance_fingerprint": "b23963a3a98d2624f2f23c5c70770bc09f95b7d1596e5e978c639c910b238db9"
     }
@@ -176,10 +208,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "8b7f2b18-3b7d-410e-832e-af8d194e6be0"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Deliver a provider-neutral streamed model runtime with explicit capabilities, budgets, cancellation, retry safety, and usage receipts.",
     "description": "Scope: Agent provider ports/adapters, message and tool-call streaming, routing, budgets, cancellation, timeouts, retry/idempotency classification, usage receipts, and deterministic provider fixtures. Context: existing provider behavior is concentrated in a multi-thousand-line adapter/controller path and provider fallback can be unsafe if it cannot distinguish pre-effect generation from post-effect continuation. Target: one vendor-neutral contract normalizes capabilities, chunks, tool calls, structured failures, and usage; routing chooses only compatible providers; cancellation and budgets terminate promptly; fallback never replays a committed mutation. Design Considerations: parse streams incrementally, use a bounded state machine per request, classify failures before retry, and keep vendor DTOs in adapters. Design Value: model choice becomes configuration rather than architecture and cost/latency remain observable. Constraints & Risks: no raw credentials in config/events, no unbounded chunk accumulation, and no automatic retry after an uncertain effect boundary.",
     "requirements": [
@@ -323,11 +357,6 @@
       "phase": "accepted",
       "attempt": 8,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T05:08:17Z",
-        "contract_digest": "748e3506b9201bfb7a57c0e6ea953dc0046021184bc856adba3dc0d2f1842cdc",
-        "content_fingerprint": "cc7f58ea3f0b5b5ceb96029473ad7974ea7058f15d364f5d0d706f3c8eb6c072"
-      },
       "design_digest": "69264ad6be1d54afdc406c3dae9d0b686f9c54fcfc1716060cfc137710cb9ed5",
       "acceptance_fingerprint": "be62a9bc1df80a5ac8dbf8d1b1ba248372715e45ea2a9e051556d7986c87ba48"
     }
@@ -337,10 +366,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "8b7f2b18-3b7d-410e-832e-af8d194e6be0"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Build a revisioned, provenance-bearing, incremental context engine with deterministic relevance and bounded memory/token cost.",
     "description": "Scope: context evidence model, source adapters, candidate retrieval, scoring, deduplication, budget packing, conversation compaction, revision invalidation, redaction, caches, metrics, fixtures, and benchmarks. Context: the current Agent session context is roughly 7,600 lines and eagerly couples many IDE domains into one snapshot; this makes another client impossible and encourages repeated serialization. Target: context is requested from host sources, selected per task/step, tied to revisions and provenance, and packed deterministically under explicit byte/token/sensitivity budgets; updates invalidate only affected entries; hot memory remains bounded. Design Considerations: maps and stable digests handle dedupe, bounded LRU caches materialized content, interval indexes handle ranges, and a stable scoring/tie-break policy keeps tests reproducible. Design Value: relevant evidence improves coding accuracy while incremental selection reduces latency and memory. Constraints & Risks: never trust stale facts, include excluded/secrets by accident, rescan the whole workspace on each turn, or hide truncation.",
     "requirements": [
@@ -486,11 +517,6 @@
       "phase": "accepted",
       "attempt": 6,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T05:29:46Z",
-        "contract_digest": "6a0c1083514feba0019efcd1941d0172557df92306a0a385425d937fd347200e",
-        "content_fingerprint": "b5b5504ce347d15484418fba7012e902f383f8d3b4f5c31a1c76a9f0f83d6d99"
-      },
       "design_digest": "b6b35e3ef39b66f8b3bc5760317c4f752dfd28d4186c5a4a2ba4d1615f6d9125",
       "acceptance_fingerprint": "8fe64198a9748a3d945a1e8f6c38f57ec260af53c364446cbf9b236a15f00f0f"
     }
@@ -500,10 +526,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "8b7f2b18-3b7d-410e-832e-af8d194e6be0"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Deliver the schema-first built-in/MCP tool runtime and enforce roots, permissions, hooks, network, secrets, and effect receipts outside model control.",
     "description": "Scope: tool descriptors/registry/discovery, MCP client, executor, schema and result validation, task relevance filter, risk/effect classifier, roots, permissions, grants/revocation, hooks, network and secret policy, audit receipts, cancellation, and security/conformance fixtures. Context: existing tool and permission models are useful but run inside the IDE controller and do not implement MCP roots, dynamic removal, audience-bound secrets, or a single enforceable effect pipeline. Target: built-in and MCP tools follow one bounded typed lifecycle; only relevant/current tools reach the provider; every effect is policy checked at execution time; denied/revoked actions fail closed; outputs are bounded, redacted, scanned, and treated as untrusted evidence. Design Considerations: immutable versioned catalogs, exact-ID maps plus compiled path/network matchers, idempotency keys, pre/post hooks, and explicit permission scope. Design Value: safe autonomy depends more on the effect boundary than model instructions. Constraints & Risks: read-only annotations cannot authorize; prevent traversal, symlink escape, token passthrough, confused-deputy credentials, output flooding, and hook bypass.",
     "requirements": [
@@ -668,11 +696,6 @@
       "phase": "accepted",
       "attempt": 5,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T05:57:49Z",
-        "contract_digest": "18f22c3ba6c455a7995d53faa7f6138b11f7e4fd780fc71367fe053b18d4a48b",
-        "content_fingerprint": "630cb389204c5caaf5db97e4727ad027514b9d22b20e4c4a361f8ec28ebbf83d"
-      },
       "design_digest": "fb4282980c8bd40847ecd5f07082d4a0d26ddf2248f4cfa90e7bb2324006f6d3",
       "acceptance_fingerprint": "65c41823a18d4bc99056d58b3cd952485933ce9bc07e56781606852dde43e754"
     }
@@ -682,12 +705,14 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "cbe0a1d8-c5bc-4407-ba6d-22102e858c78",
       "2decf14b-572c-449a-ad2a-55f63aa0b613",
       "ec25a7ca-b81f-4b3c-8cf3-534a7fdfa503"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Implement the bounded evidence-driven coding loop that plans, edits through host transactions, verifies facts, repairs safely, and reports blockers.",
     "description": "Scope: task understanding, plan/step model, prerequisite readiness, plan-act-observe-verify-repair state machine, change-set proposals, focused validation selection, post-edit fact refresh, repair/duplicate-failure guards, user steering, and reference coding fixtures. Context: current code has plan and tool-loop types but orchestration is embedded in a large controller and can treat provider prose as progress; a real Coding Agent needs explicit acceptance and effect boundaries. Target: representative bug-fix and refactor tasks produce scoped plans, approved revisioned change sets, refreshed diagnostics/tests, and evidence-backed completion; cancellation/steering works between transitions; repeated failures stop with a truthful blocker. Design Considerations: immutable plans with a ready queue, explicit budgets, effect receipts, deterministic guard keys, and host facts as the source of verification. Design Value: this is the independently acceptable coding capability, while providers/context/tools remain replaceable services. Constraints & Risks: no direct file writes through the IDE host, no self-reported validation, no unbounded repair, and no unrelated task expansion.",
     "requirements": [
@@ -840,11 +865,6 @@
       "phase": "accepted",
       "attempt": 4,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T06:19:10Z",
-        "contract_digest": "f2890669fc449271f188c8fe14d7491d81bcc7b515a2aa8bf9109b397a2bed4d",
-        "content_fingerprint": "be1464f523973e26e8a7f16168a71e1f430991ebc8ad86ae35d07e9fef1b4406"
-      },
       "design_digest": "7543a8f25aa0527d8851c193cb438fd35fed96f855523b6aefb7465514bdeb71",
       "acceptance_fingerprint": "807df29b168ad4d16756b6b3ebb143e0af315452bfb49c5f034132c7e367f181"
     }
@@ -854,10 +874,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "d7ed35c5-304f-4436-963b-7aec0a7c67a1"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "complex",
+    "verification_profile": "code",
     "goal": "Make Coding Agent sessions durable, crash-recoverable, correlated, redacted, and idempotent at every effect boundary.",
     "description": "Scope: append-only session events, compact projections, checkpoints, idempotency/effect receipts, recovery, corruption handling, bounded hot windows, observability correlation, redaction, migration from mixed history/snapshot stores, and crash fixtures. Context: current history, checkpoint, workspace snapshot, tool journal, and controller state are separate large structures; a process boundary and asynchronous work require one durable ordering model. Target: goals, turns, plans, steps, tool calls, permissions, changes, validations, budgets, and outcomes survive restart; recovery replays from the last committed sequence; an effect already receipted is never repeated; corrupted tails preserve and expose the valid prefix. Design Considerations: append immutable events with monotonic per-session sequence and idempotency keys, checkpoint compact projections, and keep raw content outside operational logs. Design Value: users can trust long tasks and audit what happened even after failure. Constraints & Risks: no raw secrets, unbounded event replay, partial checkpoint overwrite, or best-effort duplicate mutation.",
     "requirements": [
@@ -1005,11 +1027,6 @@
       "phase": "accepted",
       "attempt": 5,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T06:44:01Z",
-        "contract_digest": "9fbafca1006a3fcc8ad32609dec76988eefda407102e5c4f4af6df3a6a5f02af",
-        "content_fingerprint": "2f2598843c26af810d93524e21eade65a3dacfe14d5e98bbdbc1a700a278717b"
-      },
       "design_digest": "cb4742bd43dc5336972049121643ef1d0008547711262d8c9debd27cc653c000",
       "acceptance_fingerprint": "194edf7c942e92c94630cd2969136b59b27229c98cd4e0678241ce7bdc631fc3"
     }
@@ -1019,11 +1036,13 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
       "9d4a37d5-11d1-41cd-a897-dd011b91c90d"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Deliver real multi-agent delegation with dependency-aware scheduling, isolated worktrees, scoped policy/context, resource leases, and reviewed integration.",
     "description": "Scope: task DAG, role/scoped Agent descriptors, ready scheduler, concurrency limits, cancellation tree, worktree provider, resource leases, worker sessions, result collection, conflict detection, reviewed integration, cleanup, and parallel fixtures. Context: current primary/subagent registry metadata does not execute delegated work or prevent ownership collisions. Target: a coordinator delegates independently acceptable steps to isolated worker sessions, runs only ready non-conflicting work within budgets, propagates cancellation, collects evidence/change sets deterministically, and presents integration/conflicts instead of silently merging. Design Considerations: adjacency lists plus indegree counts and a deterministic priority queue make readiness efficient; a normalized resource lease map prevents conflicting mutation; one worktree per mutating worker isolates files. Design Value: parallelism reduces latency only when independence and integration are explicit. Constraints & Risks: no shared mutable context, ambient branch mutation, hidden merge, orphaned worktree, unlimited fan-out, or worker permission widening.",
     "requirements": [
@@ -1170,11 +1189,6 @@
       "phase": "accepted",
       "attempt": 7,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T07:20:28Z",
-        "contract_digest": "05a12b10f84073ee5b59d59af64717fb5b25fbc4d2c45eede2ccaf5910680270",
-        "content_fingerprint": "ceee728a01df0f0af8eafb3b852cad322901d13879add257326c19615ade6633"
-      },
       "design_digest": "0556a1d8457eae68cc118d5544b57c28d96aa96a08cf31caeb7d5c10a58c254e",
       "acceptance_fingerprint": "be7696954e2b66afa7e5ddf40e7b85f5637059082bad526ef85ff210439c59be"
     }
@@ -1184,12 +1198,14 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "43c675a0-ec3c-4fc4-9bb9-c9aad362bf66",
       "d7ed35c5-304f-4436-963b-7aec0a7c67a1",
       "9d4a37d5-11d1-41cd-a897-dd011b91c90d"
     ],
     "platform": "any",
-    "difficulty": "deep",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Ship the interoperable Agent-side protocol endpoint and freeze a reproducible release evaluation corpus against Vityo.",
     "description": "Scope: Agent-side shared-protocol adapter, stdio endpoint, initialization/capability negotiation, concurrent session routing, permission/elicitation/cancellation, dynamic capabilities, MCP attachment, unsupported-version behavior, real Vityo integration fixture, deterministic evaluation corpus, and quality budgets. Context: independent modules do not prove that a user can launch the real Agent from the IDE or that quality/security remain measurable across releases. Target: Vityo Coding Agent interoperates through the neutral ACP-compatible boundary without object sharing, serves two sessions, completes a reviewed coding fixture, and exposes reproducible task/security/latency/memory/cancellation evaluation inputs for final validation. Design Considerations: keep protocol translation at the edge, correlate every event, version fixtures/schema digests, and assert final repository facts rather than model prose. Design Value: the Agent becomes a real attachable product with an objective release contract. Constraints & Risks: no private IDE imports, hidden fallback protocol, live credential dependency, nondeterministic acceptance, or green result when a required capability is absent.",
     "requirements": [
@@ -1337,11 +1353,6 @@
       "phase": "accepted",
       "attempt": 3,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T07:47:34Z",
-        "contract_digest": "8dddd630a46a97295392ecdfd7c0266130769f335a7e2fd04dbb3ae8168542e6",
-        "content_fingerprint": "fc089d1c79359ce25a95f6e7c8cccd60bc6eed61f0ba6d396dc1fe268f1e7f26"
-      },
       "design_digest": "8a084d45e1e340747b51f97246592e21168f9aa4f03c51d14d941be682c3ffbd",
       "acceptance_fingerprint": "7cb2206aba5fac907cba0f3b23d92ef6b1af55fe633a416d7e39dbc826be3bdd"
     }
@@ -1351,10 +1362,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "c7e4604a-632d-43a3-957d-fddad7048c8e"
     ],
     "platform": "any",
-    "difficulty": "medium",
+    "difficulty": "standard",
+    "verification_profile": "code",
     "goal": "Make the Coding Agent full validation harness always emit a bounded diagnostic receipt before product suites can be accepted.",
     "description": "Closure: capability - Coding Agent full validation receipt reliability; Enabling work: this validation-only repair supports the final REQ-AGENT evidence node without claiming a product requirement. Context: the first formal full entry returned before any suite and emitted no receipt. Target: the harness records stable per-requirement outcomes and a bounded failure code on every exit path without executing suites in its own focused tests. Design Considerations: inject runner callables in acceptance, atomically write receipts, and never expose captured runtime output. Design Value: final validation failures become attributable without rerunning blindly. Constraints & Risks: no product implementation changes, no full-suite execution, and no raw exception or machine data in receipts.",
     "requirements": [],
@@ -1429,11 +1442,6 @@
       "phase": "accepted",
       "attempt": 1,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T08:09:43Z",
-        "contract_digest": "41b5570c10121d539a5f9b45db25a5d4d6fb5c71dd2fff408b5536e4da67b2af",
-        "content_fingerprint": "3ac2e0b9320648b9f5910a767b25b83c91413438914b64ed864705dbc2f505fb"
-      },
       "design_digest": "96afb8cda046f88d85f8c0522bf5a9d729c696edea2e12eee46604f829eb99bd",
       "acceptance_fingerprint": "a4e286366be0eabac378a00285c07c05cb4d6b09887007ec7928ffb25f60f558"
     }
@@ -1443,10 +1451,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "ce76d8ea-74fc-4daa-a04a-1cce356ff711"
     ],
     "platform": "any",
-    "difficulty": "low",
+    "difficulty": "routine",
+    "verification_profile": "code",
     "goal": "Bind Coding Agent final regression only to immutable source and validation documents.",
     "description": "Closure: capability - immutable final regression fingerprint binding; Enabling work: this plan-only repair removes mutable Better Plan state from the full regression content contract. Context: the gate rejected the full command before launch because a declared directory contained Checkpoints.json. Target: final regression paths include product, protocol, scripts, and stable requirement/architecture/validation documents only. Design Considerations: mutable workflow state remains outside content fingerprints. Design Value: the full command can start while evidence state remains independently managed. Constraints & Risks: no product code or full suite execution.",
     "requirements": [],
@@ -1523,11 +1533,6 @@
       "phase": "accepted",
       "attempt": 1,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T08:16:09Z",
-        "contract_digest": "59dc1a9f9a81511d67402fbbf02d90ecfcf375fb45ef1001bfd260f249918ff4",
-        "content_fingerprint": "c0f11e1b01ec1d4d640a92a04792bc290a77da97c756a1947e0c0be831270367"
-      },
       "design_digest": "d5df4b302dcdda1207856cece898d4a58e104bde433e4b7268b6bad9d9cb2cfd",
       "acceptance_fingerprint": "d255b3f35847ca495e9d830e21eb2d63a3720c8edd018462729b7b362b16ceef"
     }
@@ -1537,10 +1542,12 @@
     "status": "completed",
     "role": "implementation",
     "prerequisites": [
+      "4fa1b1d0-7f5d-4f82-b59a-5002abb8970b",
       "c7e4604a-632d-43a3-957d-fddad7048c8e"
     ],
     "platform": "any",
-    "difficulty": "low",
+    "difficulty": "routine",
+    "verification_profile": "code",
     "goal": "Restore the pure Dart runtime boundary while retaining executable release evaluation.",
     "description": "Closure: module - pure release evaluation core and IO benchmark adapter; Context: final REQ-AGENT-001 evidence found dart:io in the exported protocol evaluation library. Target: the library evaluates an already-decoded immutable manifest while the benchmark adapter alone reads files. Design Considerations: dependency inversion keeps filesystem IO at the executable edge. Design Value: the standalone runtime remains host-neutral without losing REQ-AGENT-009 release evidence. Constraints & Risks: no compatibility facade or duplicate evaluator.",
     "requirements": [
@@ -1628,11 +1635,6 @@
       "phase": "accepted",
       "attempt": 2,
       "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T08:31:51Z",
-        "contract_digest": "4b4f34f972e73c0dbc8d5c56a3a3a1a6faa0fcef67b63465d9cdc8882964b92f",
-        "content_fingerprint": "3699639404fbf8aead7c5a97993145d1f70b87dc59b80723a23499373cd7b56e"
-      },
       "design_digest": "8e4507a37e9bf35869d1bd62d4f5f1ecf774bcaf2cccc95a5ba61d6985f9aa47",
       "acceptance_fingerprint": "3a62acf1854dda3d302091bbe75f80f0ae9b9b8b134d57ce91c656517ea8928a"
     }
@@ -1655,7 +1657,8 @@
       "cc1ee369-751d-4b74-87a4-a13a86f28777"
     ],
     "platform": "any",
-    "difficulty": "high",
+    "difficulty": "critical",
+    "verification_profile": "code",
     "goal": "Run the Vityo Coding Agent full regression exactly once and record independent evidence for REQ-AGENT-001 through REQ-AGENT-009.",
     "description": "Scope: validation and evidence recording only; source defects return to their owning implementation lifecycle. Context: focused suites prove modules, while release acceptance must prove one standalone and IDE-attached product across providers, context, tools/policy, coding-loop tasks, crash recovery, parallel worktrees, security, and budgets on one commit. Target: execute Validation.md's coding-agent/full suite once, record schema/fixture/platform/content digests and one outcome per requirement, then sync and validate Better Plan state. Design Considerations: use deterministic fake providers and controlled hosts for the release floor; exercise the real IDE/Agent process boundary without rerunning the IDE full suite. Design Value: objective task/effect facts replace accumulated unit claims or natural-language self-assessment. Constraints & Risks: missing fixtures, skipped adversarial cases, unavailable protocol integration, or exceeded budgets are blocked/failing outcomes; final validation does not implement repairs.",
     "requirements": [
@@ -1784,19 +1787,6 @@
         "content_fingerprint": "23e7423099944e34a77d42e2b15ee24e901cce28182e0c5e1fb545a2268e6d55"
       }
     },
-    "next": [],
-    "acceptance": {
-      "phase": "accepted",
-      "attempt": 0,
-      "outcome": "accepted",
-      "audit": {
-        "recorded_at": "2026-07-26T08:45:04Z",
-        "contract_digest": "d787f09382b3b6d21296ccc0799e3bcd50153d9aeb6c4bbf7d2eb14d741fad3c",
-        "content_fingerprint": "23e7423099944e34a77d42e2b15ee24e901cce28182e0c5e1fb545a2268e6d55"
-      },
-      "design_digest": "b33314d56fe650a12d6ffb732ca92c7a5885785eeb660e3e5cc2cae044b3f9f1",
-      "scaffold_fingerprint": "8fcb3228a8f2fb9221aafb575e76502810c41ea83b04bb1a4bc4c7c61869128f",
-      "acceptance_fingerprint": "34fbc526c66783d7e964f8e2305dfa3f9c2029e98187a614708fc0c82ba6df8b"
-    }
+    "next": []
   }
 ]

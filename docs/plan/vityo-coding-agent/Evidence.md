@@ -1,20 +1,20 @@
 # Vityo Coding Agent — Evidence
 
 **Plan:** `vityo-coding-agent`
-**Purpose:** Ground the Coding Agent plan in current implementation evidence and first-party sources.
-**Last updated:** 2026-07-26
+**Purpose:** Ground the sealed Coding Agent plan in current implementation evidence and first-party sources.
+**Last updated:** 2026-08-01
 
 ## Current repository findings
 
 | Finding | Repository evidence | Consequence |
 |---|---|---|
-| Agent runtime is an IDE subdirectory. | About 50 Dart files live in `frontend/vityo_app/lib/src/view_ide/agent`; another 28 files in `lib/src/agent` re-export them. | The Agent cannot be built, versioned, or tested as an independent product. |
-| Core control state depends on Flutter. | `agent_coding_session_controller.dart` extends `ChangeNotifier` and imports Flutter foundation. | Headless execution still depends on an IDE/UI framework. |
-| Context is coupled to concrete IDE modules. | `agent_session_context.dart` imports editor, workspace, language, debugger, testing, toolchain, command, foundation, and execution implementations. | Context collection is not a host port and cannot work with another client. |
-| Three files concentrate most behavior. | The current context, provider adapter, and session controller files are roughly 7,600, 2,900, and 2,900 lines. | Provider, orchestration, context, policy, and persistence ownership are mixed, increasing repeated work and memory risk. |
-| “Subagent” is presently a registry role. | `agent_registry.dart` exposes primary/subagent metadata, but no production worktree scheduler, resource leases, or parallel execution path is present. | Multi-agent collaboration must be implemented as execution, not naming. |
-| Open protocol support is absent from production code. | Current Agent source has no MCP/ACP session implementation or workspace-root protocol. | External tools and IDE clients cannot interoperate through a standard boundary. |
-| Useful foundations already exist. | Provider adapters/streaming/retry, tool schemas, permission models, patch preview/apply, snapshots, history, recovery structures, and roughly 68 Agent-prefixed tests exist. | Preserve validated behavior while decomposing it behind independent ports. |
+| The runtime is an independent pure-Dart product. | `products/vityo_coding_agent/bin`, `lib`, `test`, `integration_test`, `benchmark`, and its own `pubspec.yaml` exist; the product boundary gate forbids Flutter and Vityo implementation imports. | The old in-process Agent implementation is historical only and must not return as a compatibility layer. |
+| Runtime responsibilities have explicit owners. | `lib/src/providers`, `context`, `tools`, `policy`, `orchestration`, `sessions`, `multi_agent`, `protocol`, and `hosts` contain narrow runtime modules and ports. | Extend the owning module rather than recreating a monolithic session controller. |
+| Headless and provider-neutral execution are testable. | `bin/vityo_coding_agent.dart`, `test/headless`, provider tests, and provider-stream benchmarks exercise runtime startup and bounded provider behavior without Flutter. | Deterministic local validation does not require live credentials. |
+| Context, tools, and policy are bounded runtime seams. | Context-engine tests, MCP tool-source tests, tool-runtime tests, and policy-runtime tests cover revision-aware selection, schema validation, output bounds, roots, permissions, and denial behavior. | Models and tool metadata remain untrusted inputs; policy is enforced at the effect boundary. |
+| Durable recovery is implemented through session stores. | `SessionEventStore`, `JournalSessionEventStore`, session recovery tests, and the recovery integration fixture preserve correlated append-only state and effect receipts. | New effects must retain idempotent commit boundaries and redacted evidence. |
+| Multi-Agent execution has concrete isolation. | The worktree coordinator, resource-lease registry, unit tests, and `integration_test/multi_agent_worktree_test.dart` cover DAG scheduling, worktree lifecycle, ownership overlap, and cleanup. | Delegation remains resource-bounded and merge/review oriented. |
+| The Agent-side protocol and release corpus are executable. | `AgentSessionEndpoint`, protocol integration tests, `release_evaluation.dart`, and the release-evaluation benchmark use the shared versioned protocol. | Protocol changes must remain negotiated and independently consumable by Vityo and compatible clients. |
 
 ## Official architecture research
 
@@ -32,7 +32,7 @@
 ## Resulting design decisions
 
 1. Coding Agent is a pure runtime with host/provider/tool/policy ports and a headless executable.
-2. The current monolithic context and controller are decomposed by state ownership, not wrapped.
+2. The former monolithic context and controller were decomposed by state ownership, not wrapped.
 3. Session events are append-only; compact projections and bounded caches serve hot reads.
 4. Context selection is incremental, revision-keyed, scored, deduplicated, and budgeted.
 5. Tool discovery is dynamic; policy is enforced outside model output.
@@ -40,11 +40,9 @@
    resource leases.
 7. IDE collaboration uses the shared protocol; headless mode substitutes a controlled host adapter.
 
-## Evidence gaps to close during delivery
+## Delivery closure
 
-- No independent package/CLI smoke test exists.
-- No provider-independent usage/budget contract exists across every path.
-- No MCP conformance, roots, auth, or capability-revocation suite exists.
-- No durable event-log crash recovery proves exactly-once mutation boundaries.
-- No parallel worktree execution or resource-collision fixture exists.
-- Current large controllers need one-time decomposition with old implementations deleted.
+All Coding Agent Nodes, including the immutable-source final validation, are completed. The
+requirements, architecture, validation matrix, checkpoint receipts, and shared-protocol fingerprint
+are sealed historical evidence. A later request must create a distinct capability-bound task group;
+it must not reopen this plan or infer execution authority from the completed nodes.

@@ -19,6 +19,7 @@ final class AgentClientPolicy {
     this.maxBufferedUpdateBytesPerSession = 1024 * 1024,
     this.maxQueuedUpdatesPerSession = 64,
     this.maxQueuedUpdateBytesPerSession = 512 * 1024,
+    this.maxSessions = 64,
     this.maxPendingRequests = 128,
     this.requestTimeout = const Duration(seconds: 30),
     this.shutdownTimeout = const Duration(seconds: 3),
@@ -28,6 +29,7 @@ final class AgentClientPolicy {
        assert(maxBufferedUpdateBytesPerSession > 0),
        assert(maxQueuedUpdatesPerSession > 0),
        assert(maxQueuedUpdateBytesPerSession > 0),
+       assert(maxSessions > 0),
        assert(maxPendingRequests > 0);
 
   final int maxMessageBytes;
@@ -35,6 +37,7 @@ final class AgentClientPolicy {
   final int maxBufferedUpdateBytesPerSession;
   final int maxQueuedUpdatesPerSession;
   final int maxQueuedUpdateBytesPerSession;
+  final int maxSessions;
   final int maxPendingRequests;
   final Duration requestTimeout;
   final Duration shutdownTimeout;
@@ -81,12 +84,20 @@ final class AgentPermissionRequest {
     required this.id,
     required this.agentId,
     required this.sessionId,
+    required this.toolCallId,
     required this.options,
+    this.toolCallTitle,
+    this.toolCallKind,
   });
 
   final String id;
   final String agentId;
   final String sessionId;
+  final String toolCallId;
+  final String? toolCallTitle;
+  final String? toolCallKind;
+
+  /// Supported ACP permission option kinds, never opaque wire option IDs.
   final Set<String> options;
 }
 
@@ -105,38 +116,103 @@ final class AgentSessionUpdate {
 }
 
 final class PermissionRequestQueue {
+  PermissionRequestQueue({required this.maxItems}) {
+    if (maxItems <= 0) {
+      throw ArgumentError.value(maxItems, 'maxItems', 'must be positive');
+    }
+  }
+
+  final int maxItems;
   final ListQueue<AgentPermissionRequest> _items =
       ListQueue<AgentPermissionRequest>();
-  final ListQueue<Completer<AgentPermissionRequest>> _waiters =
-      ListQueue<Completer<AgentPermissionRequest>>();
+  final ListQueue<_PermissionWaiter> _waiters = ListQueue<_PermissionWaiter>();
   bool _closed = false;
 
-  void add(AgentPermissionRequest request) {
+  bool add(AgentPermissionRequest request) {
     if (_closed) {
-      return;
+      return false;
     }
-    if (_waiters.isNotEmpty) {
-      _waiters.removeFirst().complete(request);
-    } else {
-      _items.add(request);
-    }
-  }
-
-  Stream<AgentPermissionRequest> stream() async* {
-    while (!_closed) {
-      if (_items.isNotEmpty) {
-        yield _items.removeFirst();
+    while (_waiters.isNotEmpty) {
+      final waiter = _waiters.removeFirst();
+      if (waiter.cancelled) {
         continue;
       }
-      final waiter = Completer<AgentPermissionRequest>();
-      _waiters.add(waiter);
-      try {
-        yield await waiter.future;
-      } on StateError {
-        return;
-      }
+      waiter.completer.complete(request);
+      return true;
     }
+    if (_items.length >= maxItems) {
+      return false;
+    }
+    _items.add(request);
+    return true;
   }
+
+  void removeWhere(bool Function(AgentPermissionRequest request) predicate) {
+    final retained = _items
+        .where((request) => !predicate(request))
+        .toList(growable: false);
+    _items
+      ..clear()
+      ..addAll(retained);
+  }
+
+  Stream<AgentPermissionRequest> stream() =>
+      Stream<AgentPermissionRequest>.multi((controller) {
+        _PermissionWaiter? activeWaiter;
+        var cancelled = false;
+
+        Future<void> pump() async {
+          while (!cancelled && !_closed) {
+            if (_items.isNotEmpty) {
+              controller.add(_items.removeFirst());
+              await Future<void>.delayed(Duration.zero);
+              continue;
+            }
+            if (_waiters.length >= maxItems) {
+              controller.addError(
+                StateError('permission consumer limit exceeded'),
+              );
+              controller.close();
+              return;
+            }
+            final waiter = _PermissionWaiter();
+            activeWaiter = waiter;
+            _waiters.add(waiter);
+            try {
+              final request = await waiter.completer.future;
+              if (!cancelled) {
+                controller.add(request);
+              }
+            } on StateError {
+              if (!cancelled) {
+                controller.close();
+              }
+              return;
+            } finally {
+              _waiters.remove(waiter);
+              if (identical(activeWaiter, waiter)) {
+                activeWaiter = null;
+              }
+            }
+          }
+          if (!cancelled) {
+            controller.close();
+          }
+        }
+
+        controller.onCancel = () {
+          cancelled = true;
+          final waiter = activeWaiter;
+          if (waiter != null && !waiter.completer.isCompleted) {
+            waiter.cancelled = true;
+            _waiters.remove(waiter);
+            waiter.completer.completeError(
+              StateError('permission consumer cancelled'),
+            );
+          }
+        };
+        unawaited(pump());
+      });
 
   void close() {
     if (_closed) {
@@ -145,10 +221,16 @@ final class PermissionRequestQueue {
     _closed = true;
     _items.clear();
     for (final waiter in _waiters) {
-      if (!waiter.isCompleted) {
-        waiter.completeError(StateError('permission queue closed'));
+      if (!waiter.completer.isCompleted) {
+        waiter.completer.completeError(StateError('permission queue closed'));
       }
     }
     _waiters.clear();
   }
+}
+
+final class _PermissionWaiter {
+  final Completer<AgentPermissionRequest> completer =
+      Completer<AgentPermissionRequest>();
+  bool cancelled = false;
 }

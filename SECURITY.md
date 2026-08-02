@@ -2,7 +2,7 @@
 
 **Purpose:** Provide the public security entry point for Vityo nightly and route maintainers to the detailed governance policy.
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-07-31
 
 ## Supported Branch
 
@@ -40,7 +40,11 @@ The baseline tracks these security-critical files:
 2. `products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
 3. `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
 4. `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
-5. `products/vityo_app/lib/src/view_ide/agent/agent_permission_model.dart`
+5. `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart`
+6. `products/vityo_app/lib/src/ide/agent_client/agent_process_supervisor.dart`
+7. `products/vityo_app/lib/src/ide/agent_client/mcp/ide_mcp_server.dart`
+8. `products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart`
+9. `packages/vityo_agent_protocol/lib/src/protocol.dart`
 
 ## Detailed Policy
 

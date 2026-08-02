@@ -1,19 +1,15 @@
-import '../../agent_client/agent.dart';
 import '../../../ide/workspace/workspace.dart';
-import 'agent_controller.dart';
 import 'workspace_file_command_controller.dart';
 
-/// Owns confirmation and cancellation receipts for staged workspace file commands.
+/// Owns confirmation and cancellation for staged workspace file commands.
 final class WorkspaceFileConfirmationController {
   const WorkspaceFileConfirmationController({
     required this.fileCommands,
-    required this.agentController,
     required this.log,
     required this.notify,
   });
 
   final WorkspaceFileCommandController fileCommands;
-  final AgentController agentController;
   final void Function(String message) log;
   final void Function() notify;
 
@@ -23,14 +19,8 @@ final class WorkspaceFileConfirmationController {
     if (result == null || operationResult == null) {
       return null;
     }
-    _record(
-      result,
-      applied: operationResult.applied,
-      metadata: <String, Object?>{
-        ...result.toJson(),
-        'confirmationAccepted': true,
-      },
-    );
+    log(result.message);
+    notify();
     return result;
   }
 
@@ -39,33 +29,8 @@ final class WorkspaceFileConfirmationController {
     if (result == null) {
       return null;
     }
-    _record(
-      result,
-      applied: false,
-      metadata: <String, Object?>{
-        ...result.toJson(),
-        'confirmationAccepted': false,
-      },
-    );
-    return result;
-  }
-
-  void _record(
-    WorkspaceFileCommandRouteResult result, {
-    required bool applied,
-    required Map<String, Object?> metadata,
-  }) {
-    agentController.recordCommandResult(
-      AgentCommandResultContext(
-        commandId: result.commandId.name,
-        input: result.input,
-        applied: applied,
-        message: result.message,
-        metadata: metadata,
-        completedAt: DateTime.now().toUtc(),
-      ),
-    );
     log(result.message);
     notify();
+    return result;
   }
 }

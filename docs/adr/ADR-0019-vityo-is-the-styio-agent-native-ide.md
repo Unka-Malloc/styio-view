@@ -2,7 +2,7 @@
 
 **Purpose:** Freeze Vityo's product category, product hierarchy, and protocol-only Agent ownership boundary.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 **Status:** Accepted
 
@@ -58,8 +58,8 @@ without an Agent.
 1. Product, architecture, governance, release, and planning documents use the same product hierarchy
    and Agent ownership boundary.
 2. The old embedded/panel-first Agent architecture is removed from the active design tree.
-3. Existing IDE direct-provider/controller code is recorded as a migration gap. This ADR does not
-   claim that code migration has already happened.
+3. The IDE direct-provider/controller migration is complete. Removed model/provider, prompt/tool
+   loop, policy, durable-session, and provider-profile UI surfaces are not compatibility APIs.
 4. Vityo's public Agent protocol remains compatible with first-party and third-party Agents.
 5. The completed Vityo Coding Agent plan and its evidence remain valid because the runtime stays
    independently executable and protocol-driven.
@@ -75,7 +75,8 @@ without an Agent.
 2. This decision supersedes the IDE-owned `AgentProviderAdapter` and direct
    OpenAI-compatible-provider portions of
    [ADR-0013](./ADR-0013-agent-and-profile-provider-adapters.md).
-3. ADR-0013's `ProfileSyncAdapter` and local-only profile behavior remain active.
+3. ADR-0013's provider-neutral `ProfileSyncAdapter` schema remains a future design input; it is not
+   evidence of an implemented profile runtime.
 4. [ADR-0018](./ADR-0018-vityo-is-the-sole-product-identity.md) remains active and is clarified by
    the one-product hierarchy in this decision.
 

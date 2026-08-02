@@ -273,6 +273,11 @@ def workspace_snapshot() -> dict:
 
 def resolve_browser_path(raw_path: str | None) -> Path:
     if raw_path and raw_path.strip():
+        unresolved = Path(raw_path.strip()).expanduser()
+        if not unresolved.is_absolute():
+            unresolved = ROOT / unresolved
+        if unresolved.is_symlink() and not unresolved.exists():
+            raise ValueError("browser path must point to an existing file or directory")
         candidate = resolve_existing_path_case_sensitive(raw_path, base=ROOT)
     else:
         candidate = current_workspace().resolve()

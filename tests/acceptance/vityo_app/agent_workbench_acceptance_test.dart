@@ -64,6 +64,7 @@ void main() {
           id: 'permission-beta',
           agentId: 'fixture-agent',
           sessionId: 'beta',
+          toolCallId: 'tool-permission-beta',
           options: <String>{'allow_once', 'reject_once'},
         ),
       );
@@ -309,6 +310,7 @@ void main() {
         id: 'permission-alpha',
         agentId: 'fixture-agent',
         sessionId: 'alpha',
+        toolCallId: 'tool-permission-alpha',
         options: <String>{'allow_once'},
       ),
     );

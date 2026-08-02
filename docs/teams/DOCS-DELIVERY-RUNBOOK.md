@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-01
 
 ## Mission
 
@@ -51,6 +51,7 @@ Primary paths:
 37. `SECURITY.md`
 38. `.github/pull_request_template.md`
 39. `docs/governance/`
+40. `scripts/ecosystem-product-gate.py`
 
 Key SSOTs:
 
@@ -106,11 +107,20 @@ claims.
 25. Platform-native CI changes must keep `README.md`, `docs/BUILD-AND-DEV-ENV.md`, `.github/workflows/local-ci-gate.yml`, and bootstrap script comments aligned. The PowerShell workspace bootstrap may create Flutter plugin junctions on Windows to avoid Developer Mode or admin symlink requirements, but it must restore tracked `.metadata` and `pubspec.lock` after runner generation and dependency restore.
 26. Better Plan workflow state lives under `docs/plan/` as exactly two delivery tracks for one
     Vityo product: the `vityo` IDE track and the `vityo-coding-agent` first-party companion-runtime
-    track. Validate the root manifest and both state files with the current Better Plan manifest
-    tool; keep shared protocol work inside both tracks instead of creating a third track.
+    track. Keep `Capabilities.json` separate from lifecycle state, bind task groups to stable
+    capability keys, and use one `group_design`, one or more `implementation`, and one trailing
+    `final_validation` Node per executable group. Validate the capability catalog, root manifest,
+    and both state files with the current Better Plan manifest tool. `docs/plan/` is the only
+    authoritative Better Plan root; never create a nested or parallel workspace. Keep shared
+    protocol work inside both tracks instead of creating a third product track.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
+30. The ecosystem product gate must create its fixture through public `pafio new` and consume only fixed Pafio and Styio executables. It must not import sibling-repository scripts, read private package-manager home state, or depend on a Pafio source checkout.
+31. After an atomic refactor, current owner, contract, architecture, security, release, and runbook
+    documents must reference only canonical implementation paths. Removed paths and symbols may
+    remain only in clearly marked immutable archive or completed-plan provenance; they must not be
+    described as compatibility anchors, future work, or active security gates.
 
 ## Change Classes
 
@@ -154,7 +164,9 @@ Record:
 
 2026-06-28: Windows native compatibility gate repair updated PowerShell bootstrap behavior, Windows validation docs, coverage-gate thresholds, and hosted `windows-latest` evidence expectations. Refresh DOC-STATS.md whenever this runbook changes.
 
-2026-06-28: Better Plan workspace added under `docs/plan/better-plan/` to index existing planning, milestone, gap, rollup, audit, and governance sources without reviving `docs/plan/` as an implementation-plan SSOT. Added `scripts/manifest_tool.py`; validate with `python3 scripts/manifest_tool.py validate docs/plan/better-plan`, then run docs index/audit gates.
+2026-06-28: A legacy nested Better Plan workspace was introduced to index planning, milestone, gap,
+rollup, audit, and governance sources. Its useful authority has since been consolidated into the
+single `docs/plan/` root; the nested workspace and repository-local validator are retired.
 
 2026-06-28: Added `docs/adr/IMPLEMENTED-DECISIONS.md` as the current-code compressed index for implemented architecture decisions. ADR policy now keeps standalone ADRs for decisions still needing direct review, while implemented decisions must carry current implementation or verification anchors.
 
@@ -181,5 +193,32 @@ implementation gaps, foundation ownership, post-commit checks, lifecycle
 records, generated indexes, and team document statistics. Removed the obsolete
 ecosystem sample-workflow gate after the Pafio metadata and Platform hosted
 contracts became the authoritative validation surfaces.
+
+2026-07-30: Closed the remaining product-gate source coupling. The gate now
+creates its test project through public `pafio new`, consumes fixed Pafio and
+Styio executables, and no longer imports a private fixture factory from a sibling
+checkout. CI variables and release/development documentation use the same public
+boundary.
+
+2026-07-31: Converged current Agent architecture, contracts, security policy, release inventory,
+CODEOWNERS guidance, and team routing on the canonical protocol-only IDE paths. Completed-plan and
+archive references remain historical provenance rather than compatibility promises.
+
+2026-07-31: Replaced the stale release-readiness evidence anchor for the removed toolchain
+management adapter test with the current toolchain controller boundary. Updated the delivered
+baseline and local validation evidence together, then verified that no active documentation or gate
+still names the removed test.
+
+2026-08-01: Migrated the sealed Vityo Better Plan workspace to the current capability-aware grouped
+lifecycle format. Added the observed capability catalog, explicit Plan Purpose and capability
+bindings, historical group-design boundaries, current difficulty classes, and the
+Designer/Worker/Verifier/Reviewer runbook. Preserved every prior delivery Node and accepted
+regression receipt, updated stale IDE and Coding Agent status projections, removed the one-time migration helper, and
+validated both readable Plan projections without authorizing implementation or full regression.
+
+2026-08-01: Consolidated all remaining legacy nested-workspace authority and historical evidence
+into the single `docs/plan/` Better Plan root. Removed the final stale nested-path instructions,
+declared nested and parallel workspaces invalid, and retained only the two capability-bound delivery
+tracks plus their shared protocol fact.
 
 <!-- codex merge: docs/build/scripts assets imported -->

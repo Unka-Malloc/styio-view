@@ -158,6 +158,7 @@ final class _StdioAgentClientTransport implements AgentClientTransport {
   late final StreamSubscription<List<int>> _stderrSubscription;
   Future<void> _writeLane = Future<void>.value();
   Future<AgentShutdownReceipt>? _shutdown;
+  Future<void>? _streamFinish;
   bool _closing = false;
   bool _protocolFailurePending = false;
 
@@ -195,6 +196,9 @@ final class _StdioAgentClientTransport implements AgentClientTransport {
   Future<AgentShutdownReceipt> close() => _shutdown ??= _closeProcess();
 
   void _decodeLine(String line) {
+    if (_incoming.isClosed) {
+      return;
+    }
     try {
       _incoming.add(
         JsonRpcCodec.decode(line, maxMessageBytes: _policy.maxMessageBytes),
@@ -229,7 +233,9 @@ final class _StdioAgentClientTransport implements AgentClientTransport {
             'malformed_message',
             'Agent stdout framing failed',
           );
-    _incoming.addError(failure, stackTrace);
+    if (!_incoming.isClosed) {
+      _incoming.addError(failure, stackTrace);
+    }
     unawaited(close());
   }
 
@@ -243,18 +249,14 @@ final class _StdioAgentClientTransport implements AgentClientTransport {
 
   Future<AgentShutdownReceipt> _closeProcess() async {
     _closing = true;
-    await _writeLane;
-    try {
-      await _process.stdin.close();
-    } on Object {
-      // The child may have already closed stdin.
-    }
     var forced = false;
     int? code;
     try {
-      code = await exitCode.timeout(_policy.shutdownTimeout);
+      code = await _gracefulExit().timeout(_policy.shutdownTimeout);
     } on TimeoutException {
-      forced = _process.kill();
+      forced = Platform.isWindows
+          ? _process.kill()
+          : _process.kill(ProcessSignal.sigkill);
       try {
         code = await exitCode.timeout(_policy.shutdownTimeout);
       } on TimeoutException {
@@ -270,7 +272,23 @@ final class _StdioAgentClientTransport implements AgentClientTransport {
     );
   }
 
-  Future<void> _finishStreams() async {
+  Future<int> _gracefulExit() async {
+    try {
+      await _writeLane;
+    } on Object {
+      // A failed write is already visible to its caller.
+    }
+    try {
+      await _process.stdin.close();
+    } on Object {
+      // The child may have already closed stdin.
+    }
+    return exitCode;
+  }
+
+  Future<void> _finishStreams() => _streamFinish ??= _finishStreamsOnce();
+
+  Future<void> _finishStreamsOnce() async {
     await _stdoutSubscription.cancel();
     await _stderrSubscription.cancel();
     if (!_incoming.isClosed) {

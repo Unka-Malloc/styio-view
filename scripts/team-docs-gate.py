@@ -39,8 +39,11 @@ TEAM_RULES: tuple[TeamRule, ...] = (
         "Runtime / Agent",
         Path("docs/teams/RUNTIME-AGENT-RUNBOOK.md"),
         (
-            "products/vityo_app/lib/src/runtime/",
-            "products/vityo_app/lib/src/view_ide/agent_client/",
+            "products/vityo_app/lib/src/view_ide/runtime/",
+            "products/vityo_app/lib/src/ide/agent_client/",
+            "products/vityo_app/lib/src/ide/workbench/agent_collaboration/",
+            "products/vityo_app/lib/src/presentation/agent_workbench/",
+            "packages/vityo_agent_protocol/",
         ),
     ),
     TeamRule(

@@ -46,7 +46,7 @@ These gates are **not** executed by default CI. They require explicit activation
 
 | Gate Script | What It Proves | Trigger |
 |-------------|----------------|---------|
-| `ecosystem-product-gate.py` | Desktop owner-adapter matrix: real `pafio metadata --json`, system `styio --machine-info=json`, and stable local project composition | `VITYO_PRODUCT_GATE=1` + fixed Pafio/Styio fixtures |
+| `ecosystem-product-gate.py` | Desktop owner-adapter matrix: public `pafio new` and `pafio metadata --json`, system `styio --machine-info=json`, and stable local project composition | fixed Pafio/Styio executables |
 | Cross-repository owner matrix | Fixed-revision Pafio metadata/workflow, Styio compiler contracts, Platform hosted/registry/worker contracts, and Vityo adapters | coordinated nightly matrix |
 | Product coverage gate (within `delivery-gate.sh`) | Product-matrix coverage beyond default CI unit/widget test scope | `VITYO_PRODUCT_GATE=1` + external fixtures |
 
@@ -174,7 +174,11 @@ The baseline currently requires these files to exist and stay free of known-dang
 2. `products/vityo_app/lib/src/view_ide/environment/configuration/log_redactor.dart`
 3. `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
 4. `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
-5. `products/vityo_app/lib/src/view_ide/agent_client/agent_permission_model.dart`
+5. `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart`
+6. `products/vityo_app/lib/src/ide/agent_client/agent_process_supervisor.dart`
+7. `products/vityo_app/lib/src/ide/agent_client/mcp/ide_mcp_server.dart`
+8. `products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart`
+9. `packages/vityo_agent_protocol/lib/src/protocol.dart`
 
 Security review is required when a change alters permission elevation, subprocess execution, secret storage, log redaction, manifest trust, or network access.
 

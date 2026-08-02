@@ -3,7 +3,7 @@
 **Purpose:** Provide the compact entry point for Vityo's product identity,
 governance, and ecosystem-owner boundaries.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-07-31
 
 ## Summary
 
@@ -32,9 +32,10 @@ governance, and ecosystem-owner boundaries.
 9. The opt-in desktop product gate composes real Pafio metadata with a real
    system Styio machine contract. The coordinated ecosystem matrix additionally
    verifies Platform hosted and registry ownership at fixed revisions.
-10. Direct IDE-side provider/controller artifacts from the superseded Agent
-    architecture remain migration inventory in
-    `Vityo-Implementation-Gaps.md`; they are not accepted extension points.
+10. The direct IDE-side provider/controller implementation has been removed.
+    Agent collaboration uses only the versioned Agent Client, collaboration
+    projection, presentation Workbench, bounded MCP/context export, and
+    workspace transactions.
 11. Documentation indexes, lifecycle checks, repository hygiene, security, and
     release evidence remain mandatory governance surfaces.
 

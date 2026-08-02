@@ -400,12 +400,12 @@ Future<void> _secretsAreAudienceBoundAndNeverPassThroughReceipts() async {
     'raw credential passthrough must be rejected',
   );
   final wrongAudience = await executor.execute(
-    const ToolCall(
+    ToolCall(
       callId: 'wrong-audience',
       toolId: 'cloud.call',
       catalogVersion: 'secret-1',
       arguments: <String, Object?>{
-        'credential': 'secret://cloud-token?audience=other-api',
+        'credential': _secretReference('cloud-token', 'other-api'),
       },
     ),
     context,
@@ -415,12 +415,12 @@ Future<void> _secretsAreAudienceBoundAndNeverPassThroughReceipts() async {
     'secret references must be bound to the descriptor audience',
   );
   final allowed = await executor.execute(
-    const ToolCall(
+    ToolCall(
       callId: 'secret',
       toolId: 'cloud.call',
       catalogVersion: 'secret-1',
       arguments: <String, Object?>{
-        'credential': 'secret://cloud-token?audience=cloud-api',
+        'credential': _secretReference('cloud-token', 'cloud-api'),
       },
     ),
     context,
@@ -433,6 +433,12 @@ Future<void> _secretsAreAudienceBoundAndNeverPassThroughReceipts() async {
     'resolved secrets may reach only the intended adapter and never the receipt',
   );
 }
+
+String _secretReference(String id, String audience) => Uri(
+  scheme: 'secret',
+  host: id,
+  queryParameters: <String, String>{'audience': audience},
+).toString();
 
 Future<void> _cancellationTimeoutAndServerLossRemainTyped() async {
   final descriptor = _descriptor(id: 'slow.read', risk: ToolRisk.read);

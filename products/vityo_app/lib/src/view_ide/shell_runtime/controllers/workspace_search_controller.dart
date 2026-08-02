@@ -1,7 +1,6 @@
-import '../../agent_client/agent.dart';
 import '../../../ide/editor/editor.dart';
-import '../../language/service/service.dart';
 import '../../../ide/workspace/workspace.dart';
+import '../../language/service/service.dart';
 
 /// Owns the shared document scan used for workspace text and symbol search.
 final class WorkspaceSearchController {
@@ -10,7 +9,6 @@ final class WorkspaceSearchController {
     required this.documentStore,
     required this.languageService,
     required this.documentSamples,
-    required this.publishResults,
     required this.log,
   });
 
@@ -18,17 +16,22 @@ final class WorkspaceSearchController {
   final WorkspaceDocumentStore documentStore;
   final ProjectStyioLanguageService languageService;
   final List<DocumentState> Function() documentSamples;
-  final void Function(
-    AgentWorkspaceSearchResultContext text,
-    AgentWorkspaceSymbolSearchResultContext symbols,
-  )
-  publishResults;
   final void Function(String message) log;
+
+  WorkspaceSearchResult? _lastTextSearch;
+  WorkspaceSymbolSearchResult? _lastSymbolSearch;
+  String? _lastQuery;
+  int _lastScannedDocumentCount = 0;
+
+  WorkspaceSearchResult? get lastTextSearch => _lastTextSearch;
+  WorkspaceSymbolSearchResult? get lastSymbolSearch => _lastSymbolSearch;
+  String? get lastQuery => _lastQuery;
+  int get lastScannedDocumentCount => _lastScannedDocumentCount;
 
   Future<bool> search(String query) async {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) {
-      log('Agent command searchWorkspace skipped: missing input.');
+      log('Workspace search skipped: missing input.');
       return false;
     }
     final documents = <DocumentState>[];
@@ -48,13 +51,17 @@ final class WorkspaceSearchController {
       try {
         documents.add(await documentStore.loadDocument(filePath));
       } on Object catch (error) {
-        log('Agent command searchWorkspace skipped $filePath: $error');
+        log('Workspace search skipped $filePath: $error');
       }
     }
-    final textSearch = AgentWorkspaceSearchResultContext.fromDocuments(
-      query: normalizedQuery,
-      documents: documents,
+    final index = WorkspaceSearchIndex(
+      documents: <WorkspaceSearchIndexDocument>[
+        for (final document in documents)
+          WorkspaceSearchIndexDocument.fromDocument(document),
+      ],
+      createdAt: DateTime.now().toUtc(),
     );
+    final textSearch = index.search(query: normalizedQuery, maxMatches: 50);
     final symbolResult =
         await WorkspaceSymbolSearchService(
           documentStore: InMemoryWorkspaceDocumentStore(
@@ -69,17 +76,14 @@ final class WorkspaceSearchController {
           documentIds: documents.map((document) => document.documentId),
           query: normalizedQuery,
         );
-    final symbolSearch =
-        AgentWorkspaceSymbolSearchResultContext.fromWorkspaceResult(
-          query: normalizedQuery,
-          scannedDocumentCount: documents.length,
-          result: symbolResult,
-        );
-    publishResults(textSearch, symbolSearch);
+    _lastQuery = normalizedQuery;
+    _lastScannedDocumentCount = documents.length;
+    _lastTextSearch = textSearch;
+    _lastSymbolSearch = symbolResult;
     log(
-      'Agent command searchWorkspace found '
-      '${textSearch.matchCount} text match(es) and '
-      '${symbolSearch.matchCount} symbol match(es) for "$normalizedQuery".',
+      'Workspace search found '
+      '${textSearch.matches.length} text match(es) and '
+      '${symbolResult.matches.length} symbol match(es) for "$normalizedQuery".',
     );
     return true;
   }

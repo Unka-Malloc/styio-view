@@ -71,20 +71,19 @@
 
 ### 1.7 Agent Review
 
-The target workflow is protocol-backed Agent Workbench review. The IDE owns context export,
-permission presentation, revision-bound change preview, and workspace transactions. The connected
-Agent owns provider/model access, tool loops, policy, and durable sessions. Provider/controller
-artifacts listed below are current migration inventory only; they are not accepted IDE ownership.
+The Agent workflow is protocol-backed Workbench review. The IDE owns process supervision, bounded
+context export, permission presentation, revision-bound change preview, and workspace transactions.
+The connected Agent owns provider/model access, tool loops, policy, and durable sessions.
 
 | Artifact | File | Role |
 |----------|------|------|
-| `AgentSurface` | `products/vityo_app/lib/src/view_render/agent_workbench/agent_surface.dart` | Agent Workbench view for task state, permission, change preview, and receipts. |
-| `ProtocolAgentClient` | `products/vityo_app/lib/src/view_ide/agent_client/protocol_agent_client.dart` | Versioned connection to Vityo Coding Agent or another compatible Agent. |
-| `AgentCodingSessionController` | `products/vityo_app/lib/src/view_ide/agent_client/agent_coding_session_controller.dart` | Legacy IDE controller retained only as migration inventory. |
-| `AgentCodePatchApplier` | `products/vityo_app/lib/src/view_ide/agent_client/agent_code_patch_applier.dart` | Patch application: `WorkspaceEditPlan` from patch text. |
-| `AgentWorkspaceSnapshot` | `products/vityo_app/lib/src/view_ide/agent_client/agent_workspace_snapshot.dart` | Workspace snapshot for agent context. |
-| `AgentToolCallDispatcher` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_call_dispatcher.dart` | Legacy IDE tool dispatcher retained only until Agent-runtime migration. |
-| `AgentToolPermissionPolicyStore` | `products/vityo_app/lib/src/view_ide/agent_client/agent_tool_permission_policy_store.dart` | Legacy IDE policy store retained only until Agent-runtime migration. |
+| `AgentClientRegistry` | `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart` | Supervises compatible Agent processes, negotiation, requests, sessions, permissions, and reconnect. |
+| `AgentCollaborationService` | `products/vityo_app/lib/src/ide/workbench/agent_collaboration/agent_collaboration_service.dart` | Binds protocol sessions to immutable Workbench state and revisioned proposals. |
+| `AgentCollaborationStore` | `products/vityo_app/lib/src/ide/workbench/agent_collaboration/collaboration_store.dart` | Bounded task, timeline, permission, and change-review projection. |
+| `AgentWorkbenchSurface` | `products/vityo_app/lib/src/presentation/agent_workbench/agent_workbench_surface.dart` | Agent Workbench view for task state, permission, change preview, and receipts. |
+| `ContextExportService` | `products/vityo_app/lib/src/ide/agent_client/tools/context_export_service.dart` | Revisioned, redacted, bounded IDE fact export. |
+| `IdeMcpServer` | `products/vityo_app/lib/src/ide/agent_client/mcp/ide_mcp_server.dart` | Root-scoped IDE tool and resource host with grants and audit receipts. |
+| `WorkspaceTransactionService` | `products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart` | Authoritative preview, commit, reject, and rollback boundary for proposed changes. |
 
 ### 1.8 Settings
 
@@ -301,7 +300,8 @@ artifacts listed below are current migration inventory only; they are not accept
 2. Problems panel: scrollable list; no row limit.
 3. File explorer: no depth limit.
 4. Runtime output channels: capped per channel; oldest evicted.
-5. Agent contexts: 6 caps in `AgentCodingSessionController` (12/6/20/12/10/12).
+5. Agent context pages: at most 256 items, 1 MiB UTF-8 total, and 256 Ki code units per item;
+   callers may request smaller budgets.
 6. Editor undo: `HistoryController.maxEntries` configurable.
 7. Search results: `maxResults` per query.
 

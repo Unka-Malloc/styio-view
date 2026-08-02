@@ -56,13 +56,12 @@ void main() {
 
       expect(breakpoint.applied, isTrue);
       expect(controller.breakpoints.single.line, 2);
-      expect(controller.agentContext.status, 'blocked');
-      expect(controller.agentContext.breakpointCount, 1);
+      expect(controller.session.status, DebugSessionStatus.blocked);
+      expect(controller.breakpoints, hasLength(1));
       expect(
-        controller.agentContext.breakpoints.single.filePath,
+        controller.breakpoints.single.filePath,
         '/workspace/demo/main.styio',
       );
-      expect(controller.agentContext.breakpoints.single.line, 2);
       expect(start.applied, isFalse);
       expect(start.message, contains('no toolchain manager'));
       expect(logs.first, contains('Added breakpoint'));

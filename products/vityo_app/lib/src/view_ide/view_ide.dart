@@ -1,9 +1,3 @@
-export 'agent_client/agent.dart'
-    hide
-        HostedBackendRetryActionExecutor,
-        HostedBackendRetryEndpointPlan,
-        HostedBackendRetryRuntimeOutputBinding,
-        HostedControlPlaneRetryTransport;
 export 'backend_toolchain/backend_toolchain.dart';
 export 'commands/commands.dart';
 export 'debugger/debugger.dart';

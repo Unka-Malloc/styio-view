@@ -27,7 +27,7 @@ void main() {
           'slot': 'agentSurface',
           'description': 'Agent host',
           'enabledByDefault': true,
-          'entrypoint': 'lib/src/view_render/agent_workbench/agent_surface.dart',
+          'entrypoint': 'lib/src/presentation/agent_workbench/agent_workbench_surface.dart',
           'distributionPolicyRef': 'signed-marketplace',
           'extension': <String, Object?>{
             'activationEvents': <Object?>['onStartup', 'bad event'],
@@ -169,7 +169,7 @@ Map<String, Object?> _baseManifest() {
     'permissions': <String>['file.read', 'network'],
     'platforms': <String>['macos', 'web'],
     'channel': 'stable',
-    'entrypoint': 'lib/src/view_render/agent_workbench/agent_surface.dart',
+    'entrypoint': 'lib/src/presentation/agent_workbench/agent_workbench_surface.dart',
     'distributionPolicyRef': 'signed-marketplace',
   };
 }

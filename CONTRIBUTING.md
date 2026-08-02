@@ -33,16 +33,16 @@ Root [CODEOWNERS](CODEOWNERS) is the current nightly owner map. Placeholder owne
 
 Vityo separates domain/application code from Flutter presentation:
 
-1. `products/vityo_app/lib/src/view_ide/` owns domain models, editor state, workspace state, agent permissions, module host contracts, backend toolchain contracts, and other non-Flutter application logic.
+1. `products/vityo_app/lib/src/view_ide/` and `products/vityo_app/lib/src/ide/` own non-Flutter domain/application logic and explicit Agent Client boundaries.
 2. `products/vityo_app/lib/src/view_render/` owns Flutter widgets, surfaces, themes, responsive layout, and visual bindings.
 3. `products/vityo_app/lib/src/app/` wires the layers together.
-4. Legacy roots such as `backend_toolchain/`, `editor/`, and `language/` are compatibility facades only.
+4. Removed legacy roots are not compatibility surfaces and must not be restored.
 
 Run:
 
 ```bash
 python3 scripts/check_architecture_boundaries.py
-python3 scripts/check_compat_facades.py
+python3 scripts/import-boundary-gate.py
 ```
 
 ## Compatibility And Deprecation

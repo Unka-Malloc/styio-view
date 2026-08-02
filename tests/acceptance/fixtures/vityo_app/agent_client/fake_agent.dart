@@ -53,7 +53,15 @@ Future<void> main(List<String> arguments) async {
             'audio': false,
             'embeddedContext': true,
           },
-          'vityoExtensions': <String>['vityo/test/write', 'vityo/test/status'],
+          '_meta': <String, Object?>{
+            'vityo.dev': <String, Object?>{
+              'extensions': <String>[
+                '_vityo.dev/test/write',
+                '_vityo.dev/test/status',
+                '_vityo.dev/workspace-change-proposal',
+              ],
+            },
+          },
         },
         'authMethods': const <Object?>[],
         '_meta': <String, Object?>{
@@ -65,18 +73,32 @@ Future<void> main(List<String> arguments) async {
     }
     if (method == 'session/new') {
       _sessionSequence += 1;
-      _success(id, <String, Object?>{'sessionId': 'session-$_sessionSequence'});
+      _success(id, <String, Object?>{
+        'sessionId': mode == 'reused-session'
+            ? 'session-1'
+            : 'session-$_sessionSequence',
+      });
       continue;
     }
     if (method == 'session/load') {
       final params =
           decoded['params'] as Map<String, Object?>? ??
           const <String, Object?>{};
-      _success(id, <String, Object?>{'sessionId': params['sessionId']});
+      _notification('session/update', <String, Object?>{
+        'sessionId': params['sessionId'],
+        'update': <String, Object?>{
+          'sessionUpdate': 'agent_message_chunk',
+          'content': <String, Object?>{
+            'type': 'text',
+            'text': 'replayed-session-history',
+          },
+        },
+      });
+      _success(id, null);
       continue;
     }
     if (method == 'session/prompt') {
-      _handlePrompt(id, decoded);
+      _handlePrompt(id, decoded, mode);
       continue;
     }
     if (method == 'session/cancel') {
@@ -86,23 +108,23 @@ Future<void> main(List<String> arguments) async {
       _cancel(params['sessionId'] as String);
       continue;
     }
-    if (method == 'vityo/test/write') {
+    if (method == '_vityo.dev/test/write') {
       _effectCount += 1;
       _success(id, <String, Object?>{'written': true});
       continue;
     }
-    if (method == 'vityo/test/status') {
+    if (method == '_vityo.dev/test/status') {
       _success(id, <String, Object?>{'effectCount': _effectCount});
       continue;
     }
-    if (method == 'vityo/shutdown') {
+    if (method == '_vityo.dev/shutdown') {
       return;
     }
     _error(id, -32601, 'method not found');
   }
 }
 
-void _handlePrompt(Object? id, Map<String, Object?> message) {
+void _handlePrompt(Object? id, Map<String, Object?> message, String mode) {
   final params =
       message['params'] as Map<String, Object?>? ?? const <String, Object?>{};
   final sessionId = params['sessionId'] as String;
@@ -123,8 +145,8 @@ void _handlePrompt(Object? id, Map<String, Object?> message) {
     return;
   }
   if (text == 'capabilities') {
-    _notification('vityo/capabilities_changed', <String, Object?>{
-      'capabilities': <String>['loadSession', 'vityo/test/status'],
+    _notification('_vityo.dev/capabilities_changed', <String, Object?>{
+      'capabilities': <String>['loadSession', '_vityo.dev/test/status'],
     });
     _pendingPrompts.remove(sessionId);
     _success(id, <String, Object?>{'stopReason': 'end_turn'});
@@ -143,17 +165,20 @@ void _handlePrompt(Object? id, Map<String, Object?> message) {
     },
     'options': <Map<String, Object?>>[
       <String, Object?>{
-        'optionId': 'allow_once',
+        'optionId': 'allow-once-$permissionId',
         'name': 'Allow once',
         'kind': 'allow_once',
       },
       <String, Object?>{
-        'optionId': 'reject_once',
+        'optionId': 'reject-once-$permissionId',
         'name': 'Reject',
         'kind': 'reject_once',
       },
     ],
   });
+  if (mode == 'crash-with-permission') {
+    Timer(const Duration(milliseconds: 100), () => exit(23));
+  }
 }
 
 void _handleClientResponse(Map<String, Object?> response) {
@@ -168,7 +193,10 @@ void _handleClientResponse(Map<String, Object?> response) {
   }
   final result =
       response['result'] as Map<String, Object?>? ?? const <String, Object?>{};
-  if (result['outcome'] != 'selected' || result['optionId'] != 'allow_once') {
+  final outcome =
+      result['outcome'] as Map<String, Object?>? ?? const <String, Object?>{};
+  if (outcome['outcome'] != 'selected' ||
+      outcome['optionId'] != 'allow-once-$permissionId') {
     _success(pending.id, <String, Object?>{'stopReason': 'refusal'});
     return;
   }
@@ -182,10 +210,29 @@ void _handleClientResponse(Map<String, Object?> response) {
       },
     },
   });
+  if (pending.text == 'propose-change') {
+    _notification('_vityo.dev/workspace-change-proposal', <String, Object?>{
+      'sessionId': sessionId,
+      'proposal': <String, Object?>{
+        'id': 'change-$sessionId',
+        'baseWorkspaceRevision': 0,
+        'resources': <Object?>[
+          <String, Object?>{
+            'resourceId': 'file',
+            'baseDocumentRevision': 0,
+            'edits': <Object?>[
+              <String, Object?>{'start': 0, 'end': 6, 'replacement': 'after'},
+            ],
+          },
+        ],
+      },
+    });
+  }
   _success(pending.id, <String, Object?>{'stopReason': 'end_turn'});
 }
 
 void _cancel(String sessionId) {
+  _permissionToSession.removeWhere((_, owner) => owner == sessionId);
   final pending = _pendingPrompts.remove(sessionId);
   if (pending == null) {
     return;

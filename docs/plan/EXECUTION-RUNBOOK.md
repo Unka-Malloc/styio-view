@@ -2,7 +2,7 @@
 
 **Purpose:** Give a mechanical, fail-closed procedure for planning, implementing, validating, repairing, and auditing Vityo Better Plan Nodes without relying on unrecorded agent judgment.
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-01
 
 ## 1. Authority Rules
 
@@ -57,63 +57,49 @@ For a planning request:
 5. Run workspace validation and requirement-label checking.
 6. Stop. Do not call `dispatch`, `advance ... regression-requested`, or a product full-suite command.
 
-## 4. Implementation Lifecycle Procedure
+## 4. Current Task-Group Lifecycle Procedure
 
 Use `<tool>` for the active Better Plan `manifest_tool.py` and `<node>` for the selected UUID.
 
-1. Ask for the state-machine action:
+1. Ask for the state-machine action for the selected Node:
 
    ```text
    python3 <tool> next-action <node> docs/plan
    ```
 
-2. If the result is `main_acceptance_decision`, correct the Node contract with `edit-node`; do not
-   dispatch until the contract matches current source facts.
-3. If the result is `dispatch_acceptance_designer`, run:
+2. A task group starts with exactly one `group_design` Node. If the result requests the Designer,
+   dispatch the Designer once:
 
    ```text
-   python3 <tool> dispatch <node> docs/plan --role acceptance_designer
+   python3 <tool> dispatch <node> docs/plan --role designer
    ```
 
-   Record the returned dispatch id, load only the Better Plan acceptance-designer role reference,
-   and launch exactly one leaf with the returned prompt. The designer reads design and acceptance
-   artifacts, changes no product code, and returns a frozen acceptance decision. After that leaf
-   exits, run:
+   Bind the returned dispatch to the real native child-agent ID. The Designer receives the complete
+   ordered group, the examined capability scope, the Designer role reference, and the local design
+   pattern catalog. It may change design and executable-acceptance artifacts but not production
+   implementation. Consume only the matching final child completion with `agent-complete`.
+3. For each independently eligible `implementation` Node, dispatch one Worker and bind its native
+   child-agent ID:
 
    ```text
-   python3 <tool> advance <node> docs/plan \
-     --event acceptance-designer-exited \
-     --dispatch-id <dispatch-id>
+   python3 <tool> dispatch <node> docs/plan --role worker
    ```
 
-4. If the result is `dispatch_executor`, run:
+   Workers own disjoint implementation paths, follow the frozen design, and run only the smallest
+   local diagnostic needed for a useful handoff. Independent Workers may overlap; Plan-state writes
+   remain serialized.
+4. After a Worker's matching final completion, dispatch a fresh Verifier for that Node:
 
    ```text
-   python3 <tool> dispatch <node> docs/plan --role executor
+   python3 <tool> dispatch <node> docs/plan --role verifier
    ```
 
-   Record the new dispatch id, load only the Better Plan executor role reference, and launch exactly
-   one leaf with the returned prompt. The executor:
-   - works through the Node's keep/modify/remove list in dependency order;
-   - closes one independently testable slice before the next;
-   - fixes ordinary compile, lint, unit, and local-integration defects in the same dispatch;
-   - makes no unrelated cleanup;
-   - never runs the full suite.
-5. When the executor exits, run:
-
-   ```text
-   python3 <tool> advance <node> docs/plan \
-     --event executor-exited \
-     --dispatch-id <dispatch-id>
-   ```
-
-   The lifecycle runs the declared focused regression automatically. Do not run the same commands
-   manually in parallel.
-6. On `correction_required`, classify the evidence:
-   - ordinary implementation defect: dispatch the same Node executor again without changing
-     acceptance;
-   - real design or product-semantics defect: revise the same Node and re-freeze acceptance;
-   - missing external authority or dependency: persist the decision; do not fake success:
+   The Verifier inspects and directly repairs implementation-local defects. After its matching final
+   completion, the state tool runs the frozen focused regression once. Do not duplicate that run.
+5. On a remaining failure, classify the evidence:
+   - ordinary implementation defect: return to the same Worker lifecycle;
+   - real cross-node design or product-semantics defect: return the decision to native main;
+   - missing external authority or dependency: persist the blocker; do not fake success:
 
      ```text
      python3 <tool> block <node> docs/plan --reason "<blocker and unblock condition>"
@@ -121,34 +107,36 @@ Use `<tool>` for the active Better Plan `manifest_tool.py` and `<node>` for the 
      ```
 
      Use `block` for a present impasse and `defer` for intentionally scheduled future work.
-7. After focused regression passes, dispatch the single read-only auditor:
+6. After every implementation Node completes, dispatch the one group Reviewer against the trailing
+   `final_validation` Node:
 
    ```text
-   python3 <tool> dispatch <node> docs/plan --role auditor
+   python3 <tool> dispatch <node> docs/plan --role reviewer
    ```
 
-   Load only the Better Plan auditor role reference. The auditor checks only scope, criteria,
-   changed paths, and the bound receipt.
-8. Advance `audit-passed` with that auditor dispatch id only for a real PASS:
+   The Reviewer repairs autonomous end-to-end findings once and returns only genuine developer
+   choices as structured decision issues. Record and resolve any immediate choices before advancing
+   `reviewer-finished` with that dispatch ID. The state tool then runs the group's full regression
+   once. Only a failed run may create a bounded repair Node and failure-driven rerun; never dispatch
+   the Reviewer a second time for the same group.
+7. Every native child completion must match the bound dispatch and child ID:
 
    ```text
-   python3 <tool> advance <node> docs/plan \
-     --event audit-passed \
-     --dispatch-id <dispatch-id>
+   python3 <tool> agent-complete <node> docs/plan \
+     --dispatch-id <dispatch-id> --agent-id <native-child-id> --final
    ```
 
-   Completion ends the lifecycle; never auto-start the next Node.
+   A child completion advances only its own Node and never authorizes another Node automatically.
 
-After every `dispatch` or `advance`, treat the returned action as the only authorized next lifecycle
-operation. If it is absent, contradictory, or not one of the documented actions, stop and return the
-tool output to native main; do not guess a transition.
+After every state mutation, treat the returned action as the only authorized next lifecycle
+operation. If it is absent or contradictory, stop and return the tool output to native main.
 
 ## 5. Evidence and Failure Rules
 
 | Situation | Required action | Forbidden action |
 |---|---|---|
 | A declared path is missing | Stop as a design blocker. | Create a similarly named parallel implementation. |
-| Focused test fails because of this Node | Repair in the same executor lifecycle. | Open an unrelated repair Node. |
+| Focused test fails because of this Node | Repair in the same Worker/Verifier lifecycle. | Open an unrelated repair Node. |
 | Test exposes a closed lifecycle defect | Return the exact failing seam to native main for a bounded repair Node. | Add a compatibility shim or silently weaken the test. |
 | Protocol lacks a required message | Stop and revise the versioned protocol design with both consumers identified. | Import Agent runtime code or add an unversioned callback. |
 | Tool, fixture, or host is missing | Record `blocked` or `failed` truthfully. | Report skipped work as passed. |
@@ -159,9 +147,10 @@ Evidence may contain command identity, exit code, bounded duration, schema/fixtu
 and repository-relative paths. It must not contain secrets, personal paths, machine identity,
 backend runtime data, or unbounded raw logs.
 
-## 6. Remaining Vityo Execution Order
+## 6. Completed Vityo Execution Order
 
-Only these future lifecycles may be executed, in this order:
+These lifecycles are completed immutable history. Their order is retained as provenance and they
+must not be replayed:
 
 1. `014e7fb0-3f51-4033-be71-eca130a4a2ea` — remove IDE-owned model/provider and coding-loop runtime
    surfaces, leaving the Agent Workbench backed only by the versioned Agent Client.
@@ -170,12 +159,12 @@ Only these future lifecycles may be executed, in this order:
 3. `c5bfe53f-4094-4771-b323-12a99750c95b` — run the final platform-independent IDE regression for
    one immutable candidate and record the final receipt.
 
-If the workspace state does not show this order through `prerequisites`, repair the graph before
-implementation.
+Future work must use a distinct eligible Node rather than reopening any lifecycle above.
 
-## 7. Protocol-Only Agent Boundary Playbook
+## 7. Historical Protocol-Only Agent Boundary Playbook
 
-Node `014e7fb0-3f51-4033-be71-eca130a4a2ea` must be executed in these phases:
+Node `014e7fb0-3f51-4033-be71-eca130a4a2ea` used these phases. The removed paths and symbols below
+are immutable migration provenance, not current implementation or compatibility surfaces:
 
 1. **Inventory:** enumerate, before editing:
    - every file under `products/vityo_app/lib/src/view_ide/agent_client/`;
@@ -246,7 +235,7 @@ gates. Any match is a failure unless it is in immutable archived provenance.
 
 ### 7.2 Phase exit checklist
 
-The executor must not move to the next phase until the current row is true:
+The historical implementation worker did not move to the next phase until the current row was true:
 
 | Phase | Exit condition |
 |---|---|
@@ -351,9 +340,9 @@ The focused tests must inject, and assert without launching a real suite:
 | Source changes during synthetic iteration | Failed receipt with `source_fingerprint_drift`. |
 | Receipt replacement fails | No partial file; bounded `receipt_write_failed` envelope. |
 
-## 9. Final Validation Playbook
+## 9. Historical Final Validation Playbook
 
-Node `c5bfe53f-4094-4771-b323-12a99750c95b` is validation-only:
+Node `c5bfe53f-4094-4771-b323-12a99750c95b` was validation-only and used this procedure:
 
 1. Require explicit user authorization for the final run.
 2. Confirm every implementation prerequisite is completed and no source-writing task is active.
@@ -373,7 +362,7 @@ Node `c5bfe53f-4094-4771-b323-12a99750c95b` is validation-only:
 
 ## 10. Required Leaf Handoff
 
-Every designer, executor, or auditor response must be short and use this exact evidence order:
+Every Designer, Worker, Verifier, or Reviewer response must be short and use this exact evidence order:
 
 1. Node UUID and role.
 2. One-sentence closure.

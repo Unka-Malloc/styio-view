@@ -22,10 +22,7 @@ enum WorkspaceConflictKind {
 }
 
 final class WorkspaceConflict {
-  const WorkspaceConflict({
-    required this.kind,
-    required this.resourceId,
-  });
+  const WorkspaceConflict({required this.kind, required this.resourceId});
 
   final WorkspaceConflictKind kind;
   final String? resourceId;
@@ -38,8 +35,8 @@ final class WorkspaceTransactionPreview {
     required this.outcome,
     required Iterable<WorkspaceConflict> conflicts,
   }) : conflicts = UnmodifiableListView<WorkspaceConflict>(
-          List<WorkspaceConflict>.of(conflicts),
-        );
+         List<WorkspaceConflict>.of(conflicts),
+       );
 
   final String id;
   final String changeSetId;
@@ -70,35 +67,66 @@ abstract interface class WorkspaceTransactionService {
 }
 
 final class _PreparedPreview {
-  const _PreparedPreview({
+  _PreparedPreview({
     required this.preview,
-    required this.before,
-    required this.replacements,
-  });
+    required this.expectedWorkspaceRevision,
+    required Map<String, int> expectedDocumentRevisions,
+    required Map<String, String> beforeTexts,
+    required Map<String, String> replacements,
+  }) : expectedDocumentRevisions = Map<String, int>.unmodifiable(
+         expectedDocumentRevisions,
+       ),
+       beforeTexts = Map<String, String>.unmodifiable(beforeTexts),
+       replacements = Map<String, String>.unmodifiable(replacements);
 
   final WorkspaceTransactionPreview preview;
-  final WorkspaceSnapshot before;
+  final int expectedWorkspaceRevision;
+  final Map<String, int> expectedDocumentRevisions;
+  final Map<String, String> beforeTexts;
   final Map<String, String> replacements;
 }
 
 final class _CommittedTransaction {
-  const _CommittedTransaction({
-    required this.receipt,
-    required this.before,
-    required this.after,
-  });
+  _CommittedTransaction({
+    required this.afterWorkspaceRevision,
+    required Map<String, int> afterDocumentRevisions,
+    required Map<String, String> beforeTexts,
+  }) : afterDocumentRevisions = Map<String, int>.unmodifiable(
+         afterDocumentRevisions,
+       ),
+       beforeTexts = Map<String, String>.unmodifiable(beforeTexts);
 
-  final WorkspaceTransactionReceipt receipt;
-  final WorkspaceSnapshot before;
-  final WorkspaceSnapshot after;
+  final int afterWorkspaceRevision;
+  final Map<String, int> afterDocumentRevisions;
+  final Map<String, String> beforeTexts;
 }
 
 /// Revision-bound transaction authority for user and Agent edits.
 final class RevisionedWorkspaceTransactionService
     implements WorkspaceTransactionService {
-  RevisionedWorkspaceTransactionService(this._revisions);
+  RevisionedWorkspaceTransactionService(
+    this._revisions, {
+    this.maxPreparedPreviews = 128,
+    this.maxCommittedTransactions = 128,
+    this.maxResourcesPerChangeSet = 64,
+    this.maxEditsPerChangeSet = 500,
+    this.maxReplacementCharactersPerChangeSet = 200000,
+  }) {
+    if (maxPreparedPreviews <= 0 ||
+        maxCommittedTransactions <= 0 ||
+        maxResourcesPerChangeSet <= 0 ||
+        maxEditsPerChangeSet <= 0 ||
+        maxReplacementCharactersPerChangeSet <= 0) {
+      throw ArgumentError('workspace transaction limits must be positive');
+    }
+  }
 
   final InMemoryWorkspaceRevisionService _revisions;
+  final int maxPreparedPreviews;
+  final int maxCommittedTransactions;
+  final int maxResourcesPerChangeSet;
+  final int maxEditsPerChangeSet;
+  final int maxReplacementCharactersPerChangeSet;
   final Map<String, _PreparedPreview> _previews = <String, _PreparedPreview>{};
   final Map<String, _CommittedTransaction> _committed =
       <String, _CommittedTransaction>{};
@@ -110,6 +138,14 @@ final class RevisionedWorkspaceTransactionService
   Future<WorkspaceTransactionPreview> preview(
     WorkspaceChangeSet changeSet,
   ) async {
+    if (!_withinLimits(changeSet)) {
+      return WorkspaceTransactionPreview(
+        id: 'preview-${++_previewSequence}',
+        changeSetId: changeSet.id,
+        outcome: WorkspaceTransactionOutcome.failed,
+        conflicts: const <WorkspaceConflict>[],
+      );
+    }
     final before = _revisions.snapshot();
     final conflicts = <WorkspaceConflict>[];
     final replacements = <String, String>{};
@@ -156,19 +192,34 @@ final class RevisionedWorkspaceTransactionService
       }
     }
 
+    var outcome = conflicts.isEmpty
+        ? WorkspaceTransactionOutcome.ready
+        : WorkspaceTransactionOutcome.conflict;
+    if (outcome == WorkspaceTransactionOutcome.ready &&
+        _previews.length >= maxPreparedPreviews) {
+      outcome = WorkspaceTransactionOutcome.failed;
+    }
     final preview = WorkspaceTransactionPreview(
       id: 'preview-${++_previewSequence}',
       changeSetId: changeSet.id,
-      outcome: conflicts.isEmpty
-          ? WorkspaceTransactionOutcome.ready
-          : WorkspaceTransactionOutcome.conflict,
+      outcome: outcome,
       conflicts: conflicts,
     );
-    _previews[preview.id] = _PreparedPreview(
-      preview: preview,
-      before: before,
-      replacements: Map<String, String>.unmodifiable(replacements),
-    );
+    if (outcome == WorkspaceTransactionOutcome.ready) {
+      _previews[preview.id] = _PreparedPreview(
+        preview: preview,
+        expectedWorkspaceRevision: before.workspaceRevision,
+        expectedDocumentRevisions: <String, int>{
+          for (final resourceId in replacements.keys)
+            resourceId: before.document(resourceId).revision,
+        },
+        beforeTexts: <String, String>{
+          for (final resourceId in replacements.keys)
+            resourceId: before.document(resourceId).text,
+        },
+        replacements: replacements,
+      );
+    }
     return preview;
   }
 
@@ -182,15 +233,15 @@ final class RevisionedWorkspaceTransactionService
       if (prepared.preview.outcome != WorkspaceTransactionOutcome.ready) {
         return _receipt(WorkspaceTransactionOutcome.conflict);
       }
+      if (_committed.length >= maxCommittedTransactions) {
+        return _receipt(WorkspaceTransactionOutcome.failed);
+      }
 
       try {
         final after = _revisions.compareAndSwap(
           WorkspaceAtomicCommit(
-            expectedWorkspaceRevision: prepared.before.workspaceRevision,
-            expectedDocumentRevisions: <String, int>{
-              for (final resourceId in prepared.replacements.keys)
-                resourceId: prepared.before.document(resourceId).revision,
-            },
+            expectedWorkspaceRevision: prepared.expectedWorkspaceRevision,
+            expectedDocumentRevisions: prepared.expectedDocumentRevisions,
             replacements: prepared.replacements,
           ),
         );
@@ -199,9 +250,12 @@ final class RevisionedWorkspaceTransactionService
           workspaceRevision: after.workspaceRevision,
         );
         _committed[receipt.id] = _CommittedTransaction(
-          receipt: receipt,
-          before: prepared.before,
-          after: after,
+          afterWorkspaceRevision: after.workspaceRevision,
+          afterDocumentRevisions: <String, int>{
+            for (final resourceId in prepared.replacements.keys)
+              resourceId: after.document(resourceId).revision,
+          },
+          beforeTexts: prepared.beforeTexts,
         );
         return receipt;
       } on WorkspaceRevisionConflict {
@@ -227,38 +281,56 @@ final class RevisionedWorkspaceTransactionService
   @override
   Future<WorkspaceTransactionReceipt> rollback(String transactionId) {
     return _serialize(() async {
-      final transaction = _committed.remove(transactionId);
+      final transaction = _committed[transactionId];
       if (transaction == null) {
         return _receipt(WorkspaceTransactionOutcome.failed);
       }
-      final replacements = <String, String>{
-        for (final resourceId in transaction.after.documents.keys)
-          if (transaction.before.documents.containsKey(resourceId) &&
-              transaction.before.document(resourceId).text !=
-                  transaction.after.document(resourceId).text)
-            resourceId: transaction.before.document(resourceId).text,
-      };
       try {
         final afterRollback = _revisions.compareAndSwap(
           WorkspaceAtomicCommit(
-            expectedWorkspaceRevision: transaction.after.workspaceRevision,
-            expectedDocumentRevisions: <String, int>{
-              for (final resourceId in replacements.keys)
-                resourceId: transaction.after.document(resourceId).revision,
-            },
-            replacements: replacements,
+            expectedWorkspaceRevision: transaction.afterWorkspaceRevision,
+            expectedDocumentRevisions: transaction.afterDocumentRevisions,
+            replacements: transaction.beforeTexts,
           ),
         );
+        _committed.remove(transactionId);
         return _receipt(
           WorkspaceTransactionOutcome.rolledBack,
           workspaceRevision: afterRollback.workspaceRevision,
         );
       } on WorkspaceRevisionConflict {
+        _committed.remove(transactionId);
         return _receipt(WorkspaceTransactionOutcome.conflict);
       } on WorkspaceCommitFailure {
         return _receipt(WorkspaceTransactionOutcome.failed);
       }
     });
+  }
+
+  bool _withinLimits(WorkspaceChangeSet changeSet) {
+    if (changeSet.id.length > 256 ||
+        changeSet.resources.isEmpty ||
+        changeSet.resources.length > maxResourcesPerChangeSet) {
+      return false;
+    }
+    var editCount = 0;
+    var replacementCharacters = 0;
+    for (final resource in changeSet.resources) {
+      if (resource.resourceId.length > 4096 ||
+          resource.baseDocumentRevision < 0 ||
+          resource.edits.isEmpty) {
+        return false;
+      }
+      editCount += resource.edits.length;
+      for (final edit in resource.edits) {
+        replacementCharacters += edit.replacement.length;
+      }
+      if (editCount > maxEditsPerChangeSet ||
+          replacementCharacters > maxReplacementCharactersPerChangeSet) {
+        return false;
+      }
+    }
+    return true;
   }
 
   _PreparedResource _prepareResource(

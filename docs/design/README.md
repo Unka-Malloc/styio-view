@@ -2,7 +2,7 @@
 
 **Purpose:** 定义 `docs/design/` 作为产品、系统架构、已交付设计基线和活跃缺口登记的 SSOT 范围；具体文件见 [INDEX.md](./INDEX.md)。
 
-**Last updated:** 2026-07-30
+**Last updated:** 2026-08-02
 
 ## Scope
 
@@ -12,6 +12,11 @@
 4. 未完成实现、集成、验证和上游依赖缺口。
 5. `frontend_shell/` 与 `backend_toolchain/` 这类物理目录边界如何表达产品壳层和工具链后端切面。
 6. 不承载临时任务清单和执行排期。
+
+The stable improvement ordering derived from mainstream open-source implementations lives in
+[Vityo-Mainstream-Open-Source-Improvement-Plan.md](./Vityo-Mainstream-Open-Source-Improvement-Plan.md).
+It defines product priorities and acceptance boundaries, while executable state remains exclusively
+in `docs/plan/`.
 
 ## Planning Boundary
 

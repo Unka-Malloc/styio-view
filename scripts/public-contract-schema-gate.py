@@ -26,7 +26,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 # Directories to scan for public contracts
 SCAN_DIRS = [
-    "products/vityo_app/lib/src/view_ide/agent",
     "products/vityo_app/lib/src/view_ide/runtime",
     "products/vityo_app/lib/src/ide/workspace",
     "products/vityo_app/lib/src/view_ide/workbench",
@@ -44,11 +43,6 @@ SKIP_PATTERNS = [
     "_stub.dart",         # Stub implementations
     "_io.dart",           # Platform I/O
     "_web.dart",          # Platform web
-    "agent_tool_call_execution_journal.dart",  # Has specialized redaction, OK
-    "agent_tool_input_validator.dart",         # Pure validator, no toJson
-    "agent_tool_call_lifecycle.dart",          # Lifecycle controller
-    "agent_tool_session_processor.dart",       # Session processor
-    "agent_tool_session_transcript.dart",      # Has own schema handling
     "runtime_replay_summary.dart",             # Display data, no toJson/fromJson
     "runtime_task_lifecycle.dart",             # Lifecycle events
     "workspace_controller.dart",               # UI controller
@@ -106,27 +100,6 @@ SKIP_PATTERNS = [
     "debug_runtime_task_history.dart",         # History
     "debug_smoke_readiness_io.dart",           # Platform
     "extension_debug_contributions.dart",      # Ext
-    "agent_coding_skill.dart",                 # Skill implementation
-    "agent_coding_session_controller.dart",    # Controller
-    "agent_provider_registry.dart",            # Registry
-    "agent_tool_registry.dart",                # Registry
-    "agent_provider_credential_resolver.dart", # Credential
-    "agent_provider_adapter.dart",             # Adapter
-    "agent_provider_kind.dart",                # Simple enum
-    "agent_code_patch_applier.dart",           # Implementation
-    "agent_builtin_tool_executor.dart",        # Implementation
-    "agent_tool_call_dispatcher.dart",         # Dispatcher
-    "agent_tool_call_execution_plan.dart",     # Execution plan (no fromJson on models)
-    "agent_tool_call_result_context.dart",     # Result context
-    "agent_tool_call_stream_bridge.dart",      # Stream bridge
-    "agent_tool_permission_policy_store.dart", # Store
-    "agent_workspace_snapshot_store.dart",     # Store
-    "agent_workspace_edit_adapter.dart",       # Adapter
-    "agent_prompt_profile_store.dart",         # Store
-    "agent_coding_validation_pipeline.dart",   # Pipeline
-    "agent_coding_change_review_gate.dart",    # Review gate
-    "agent_coding_autonomy_policy.dart",       # Policy
-    "agent_coding_loop_context.dart",          # Context
     "extension_manifest_registry_store.dart",  # Store
     "extension_activator.dart",               # Activator
     "extension_lifecycle.dart",               # Lifecycle
@@ -157,12 +130,7 @@ SKIP_PATTERNS = [
     "project_document_rule_provider.dart",     # Provider
     "legacy_project_document_rule_provider.dart", # Legacy
     # ── Settings / config with fromJson for local persistence only ──
-    "agent_settings.dart",                # Settings models use fromJson for local-file persistence, not API contract
-    "agent_profile.dart",                 # Agent profile config with fromJson for local persistence
     "command_keybinding_profile.dart",    # Keybinding profile stored locally, not API contract
-    # ── Internal agent models with fromJson for testing convenience ──
-    "agent_tool_permission.dart",         # Permission models use fromJson for test fixtures only
-    "agent_workspace_snapshot.dart",      # Workspace snapshot internal to agent module
     # ── Internal extension lifecycle (not cross-machine) ──
     "extension_lifecycle_hooks.dart",     # Lifecycle hooks internal to module host
     # ── Runtime output channels: internal event bus, not API contract ──

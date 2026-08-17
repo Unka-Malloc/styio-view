@@ -6,6 +6,12 @@
   "build_relative_path": "products/vityo_app/build/macos/Build/Products/Release/Vityo.app",
   "icon_relative_path": "products/vityo_app/macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_512.png",
   "installer_definition": "packaging/macos/create-dmg.sh",
+  "vityod": {
+    "target": "native-apple-darwin",
+    "source_relative_path": "products/vityo_app/native/vityod/target/release/vityod",
+    "package_relative_path": "Contents/Helpers/vityod",
+    "required_runtime_libraries": []
+  },
   "signing": {"status": "explicit-gap", "reason": "Nightly Developer ID and notarization credentials are not configured."},
   "automatic_updates": false
 }

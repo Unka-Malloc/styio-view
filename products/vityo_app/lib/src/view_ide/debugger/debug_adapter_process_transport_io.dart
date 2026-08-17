@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:io';
 
+import '../../ide/local_service/vityod_client.dart';
 import 'debug_adapter_launcher.dart';
 import 'debug_adapter_transport.dart';
 import 'debug_launch_contract.dart';
-import 'debug_launch_readiness_io.dart';
 
 enum DapProcessShutdownStatus {
   notStarted,
@@ -76,41 +75,165 @@ abstract interface class DapManagedProcess {
 typedef DapManagedProcessStarter =
     Future<DapManagedProcess> Function(DapProcessStartRequest request);
 
-final class _IoDapManagedProcess implements DapManagedProcess {
-  const _IoDapManagedProcess(this.process);
+var _dapProcessSequence = 0;
 
-  final Process process;
+final class _VityodDapManagedProcess implements DapManagedProcess {
+  _VityodDapManagedProcess._({
+    required VityodClient client,
+    required String processId,
+  }) : _client = client,
+       _processId = processId,
+       pid = processId.hashCode & 0x7fffffff {
+    unawaited(_poll());
+  }
+
+  static Future<DapManagedProcess> start(
+    VityodClient client,
+    DapProcessStartRequest request,
+  ) async {
+    final processId = 'dap-${client.clientInstanceId}-${++_dapProcessSequence}';
+    final response = await client.request(
+      method: 'dap.start',
+      idempotencyKey: 'dap-start-$processId',
+      params: <String, Object?>{
+        'processId': processId,
+        'executable': request.executable,
+        'arguments': request.arguments,
+        'workingDirectory': request.workingDirectory,
+        'environment': request.environment,
+      },
+    );
+    _throwIfError(response);
+    return _VityodDapManagedProcess._(client: client, processId: processId);
+  }
+
+  final VityodClient _client;
+  final String _processId;
+  final StreamController<List<int>> _stdout =
+      StreamController<List<int>>.broadcast();
+  final StreamController<List<int>> _stderr =
+      StreamController<List<int>>.broadcast();
+  final Completer<int> _exit = Completer<int>();
+  Future<void> _writeTail = Future<void>.value();
+  Future<int>? _stopFuture;
+  var _pollSequence = 0;
 
   @override
-  int get pid => process.pid;
+  final int pid;
+
   @override
-  Stream<List<int>> get stdoutBytes => process.stdout;
+  Stream<List<int>> get stdoutBytes => _stdout.stream;
+
   @override
-  Stream<List<int>> get stderrBytes => process.stderr;
+  Stream<List<int>> get stderrBytes => _stderr.stream;
+
   @override
-  Future<int> get exitCode => process.exitCode;
+  Future<int> get exitCode => _exit.future;
+
   @override
-  void write(List<int> bytes) => process.stdin.add(bytes);
+  void write(List<int> bytes) {
+    final payload = List<int>.unmodifiable(bytes);
+    _writeTail = _writeTail.then((_) async {
+      final response = await _client.request(
+        method: 'dap.request',
+        idempotencyKey: 'dap-write-$_processId-${++_pollSequence}',
+        params: <String, Object?>{
+          'processId': _processId,
+          'action': 'write',
+          'bytes': payload,
+        },
+      );
+      _throwIfError(response);
+    });
+  }
+
   @override
-  Future<void> flush() => process.stdin.flush();
+  Future<void> flush() => _writeTail;
+
   @override
-  Future<void> closeInput() => process.stdin.close();
+  Future<void> closeInput() => flush();
+
   @override
-  bool terminate() => process.kill(ProcessSignal.sigterm);
+  bool terminate() {
+    unawaited(_stop());
+    return true;
+  }
+
   @override
-  bool kill() => process.kill(ProcessSignal.sigkill);
+  bool kill() {
+    unawaited(_stop());
+    return true;
+  }
+
+  Future<int> _stop() => _stopFuture ??= () async {
+    final response = await _client.request(
+      method: 'dap.stop',
+      idempotencyKey: 'dap-stop-$_processId',
+      params: <String, Object?>{'processId': _processId},
+    );
+    _throwIfError(response);
+    final exitCode = response.params['exitCode'];
+    final resolved = exitCode is int ? exitCode : 1;
+    if (!_exit.isCompleted) _exit.complete(resolved);
+    await _closeStreams();
+    return resolved;
+  }();
+
+  Future<void> _poll() async {
+    try {
+      while (!_exit.isCompleted) {
+        final response = await _client.request(
+          method: 'dap.request',
+          idempotencyKey: 'dap-poll-$_processId-${++_pollSequence}',
+          params: <String, Object?>{
+            'processId': _processId,
+            'action': 'poll',
+            'maximumBytes': 64 * 1024,
+          },
+          deadline: const Duration(seconds: 5),
+        );
+        _throwIfError(response);
+        final stdout = _byteList(response.params['stdout']);
+        final stderr = _byteList(response.params['stderr']);
+        if (stdout.isNotEmpty && !_stdout.isClosed) _stdout.add(stdout);
+        if (stderr.isNotEmpty && !_stderr.isClosed) _stderr.add(stderr);
+        if (response.params['overflowed'] == true) {
+          throw StateError('DAP output exceeded the bounded daemon buffer.');
+        }
+        final exitCode = response.params['exitCode'];
+        if (exitCode is int) {
+          if (!_exit.isCompleted) _exit.complete(exitCode);
+          break;
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    } on Object catch (error, stackTrace) {
+      if (_stopFuture == null && !_exit.isCompleted) {
+        _exit.completeError(error, stackTrace);
+        if (!_stdout.isClosed) _stdout.addError(error, stackTrace);
+      }
+    } finally {
+      await _closeStreams();
+    }
+  }
+
+  Future<void> _closeStreams() async {
+    if (!_stdout.isClosed) await _stdout.close();
+    if (!_stderr.isClosed) await _stderr.close();
+  }
 }
 
-Future<DapManagedProcess> _startIoDapManagedProcess(
-  DapProcessStartRequest request,
-) async {
-  final process = await Process.start(
-    request.executable,
-    request.arguments,
-    workingDirectory: request.workingDirectory,
-    environment: request.environment.isEmpty ? null : request.environment,
-  );
-  return _IoDapManagedProcess(process);
+List<int> _byteList(Object? value) {
+  if (value is List && value.every((item) => item is int)) {
+    return List<int>.unmodifiable(value.cast<int>());
+  }
+  throw StateError('vityod returned invalid DAP bytes.');
+}
+
+void _throwIfError(dynamic response) {
+  if (!response.method.endsWith('.error')) return;
+  final code = response.params['errorCode'];
+  throw StateError(code is String ? code : 'dap_service_error');
 }
 
 class DapProcessTransport implements DapByteTransport {
@@ -119,10 +242,15 @@ class DapProcessTransport implements DapByteTransport {
     this.arguments = const <String>[],
     this.workingDirectory,
     this.environment = const <String, String>{},
-    this.processStarter = _startIoDapManagedProcess,
+    VityodClient? client,
+    DapManagedProcessStarter? processStarter,
     this.terminateGrace = const Duration(seconds: 2),
     this.killGrace = const Duration(seconds: 2),
-  });
+  }) : processStarter =
+           processStarter ??
+           (client == null
+               ? _unavailableDapProcessStarter
+               : (request) => _VityodDapManagedProcess.start(client, request));
 
   final String executable;
   final List<String> arguments;
@@ -270,26 +398,28 @@ class DapProcessTransport implements DapByteTransport {
 
 Future<DapByteTransport> startDapProcessTransport(
   DebugLaunchConfiguration launch,
+  VityodClient client,
 ) async {
-  const readinessProbe = DebugLaunchIoReadinessProbe();
-  final readiness = await readinessProbe.check(launch);
-  if (!readiness.ready) {
-    throw StateError(readiness.reason);
+  if (!launch.ready) {
+    throw StateError(launch.reason);
   }
   final transport = DapProcessTransport(
-    executable:
-        readiness.resolvedDebuggerExecutablePath ??
-        launch.debuggerExecutablePath,
+    executable: launch.debuggerExecutablePath,
     arguments: launch.debuggerArguments,
     workingDirectory: launch.cwd,
     environment: launch.environment,
+    client: client,
   );
   await transport.start();
   return transport;
 }
 
-DapDebugAdapterLauncher createIoDapDebugAdapterLauncher() {
-  return const DapDebugAdapterLauncher(
-    transportFactory: startDapProcessTransport,
+DapDebugAdapterLauncher createIoDapDebugAdapterLauncher(VityodClient client) {
+  return DapDebugAdapterLauncher(
+    transportFactory: (launch) => startDapProcessTransport(launch, client),
   );
 }
+
+Future<DapManagedProcess> _unavailableDapProcessStarter(
+  DapProcessStartRequest request,
+) => throw StateError('vityod DAP client is required.');

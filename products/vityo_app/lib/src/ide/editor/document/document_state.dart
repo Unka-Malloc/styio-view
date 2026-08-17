@@ -58,6 +58,10 @@ class DocumentState {
 
   List<int> get lineStarts => textBufferSnapshot.lineStarts;
 
+  int get lineCount => textBufferSnapshot.lineCount;
+
+  String lineAt(int line) => textBufferSnapshot.lineAt(line);
+
   DocumentPosition positionForOffset(int offset) {
     final position = textBufferSnapshot.positionAt(offset);
     return DocumentPosition(line: position.line, column: position.column);

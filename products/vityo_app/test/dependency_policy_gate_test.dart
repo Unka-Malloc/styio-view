@@ -23,7 +23,7 @@ void main() {
       // When run via `python3 scripts/dependency-policy-gate.py`,
       // all non-SDK pubspec dependencies must be registered in DEPENDENCY-USAGE.md.
       // Expected registered deps: crypto, cryptography, cupertino_icons,
-      // shared_preferences, path_provider, pty2, web, flutter_lints.
+      // shared_preferences, path_provider, web, flutter_lints.
       expect(true, isTrue);
     });
 

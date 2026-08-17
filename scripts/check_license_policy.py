@@ -14,19 +14,21 @@ PUBSPEC = REPO_ROOT / "products/vityo_app/pubspec.yaml"
 ALLOWED_EXTERNAL_DART_PACKAGES = {
     "flutter",
     "crypto",
+    "ffi",
     "cupertino_icons",
     "shared_preferences",
     "path_provider",
-    "pty2",
     "cryptography",
     "web",
     "flutter_test",
+    "integration_test",
     "flutter_lints",
     "test",
 }
 
 FIRST_PARTY_DART_PACKAGE_PATHS = {
     "vityo_agent_protocol": "../../packages/vityo_agent_protocol",
+    "vityo_daemon_protocol": "../../packages/vityo_daemon_protocol",
 }
 
 FORBIDDEN_LICENSE_MARKERS = (

@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
+import '../environment/system_compatibility/process/process.dart';
 import 'project_graph_contract.dart';
 import 'pafio_cli_discovery.dart';
 
@@ -56,14 +57,23 @@ Map<String, dynamic>? parseJsonObjectPayload(String text) {
   }
 }
 
-Future<T> runLocalPafioCommand<T>({
+Future<T> runPafioCommand<T>({
+  required PlatformManagerBundle? platformManagers,
   required ProjectGraphSnapshot projectGraph,
   required String command,
   required List<String> args,
   required PafioCommandResultFactory<T> factory,
   String missingBinaryMessage = missingLocalPafioBinaryMessage,
 }) async {
-  final pafioBinary = await resolvePafioBinary();
+  final managers = platformManagers;
+  if (managers == null) {
+    return blockedPafioCommandResult(
+      factory: factory,
+      command: command,
+      statusMessage: 'The local service is not available for $command.',
+    );
+  }
+  final pafioBinary = await resolvePafioBinary(managers);
   if (pafioBinary == null) {
     return blockedPafioCommandResult(
       factory: factory,
@@ -73,16 +83,19 @@ Future<T> runLocalPafioCommand<T>({
   }
 
   try {
-    final result = await Process.run(
-      pafioBinary,
-      args,
-      workingDirectory: projectGraph.workspaceRoot,
+    final result = await managers.process.run(
+      ProcessCommandRequest(
+        executablePath: pafioBinary,
+        arguments: args,
+        workingDirectory: projectGraph.workspaceRoot,
+        serviceKind: ProcessServiceKind.pafio,
+      ),
     );
-    final stdout = '${result.stdout}';
-    final stderr = '${result.stderr}';
+    final stdout = result.stdout;
+    final stderr = result.stderr;
     final successPayload = parseJsonObjectPayload(stdout);
     final failurePayload = parseJsonObjectPayload(stderr);
-    if (result.exitCode == 0) {
+    if (result.succeeded) {
       return factory(
         outcome: LocalPafioCommandOutcome.succeeded,
         command: command,
@@ -105,11 +118,11 @@ Future<T> runLocalPafioCommand<T>({
       stderr: stderr,
       errorPayload: failurePayload,
     );
-  } on ProcessException catch (error) {
+  } on Object catch (error) {
     return factory(
       outcome: LocalPafioCommandOutcome.failed,
       command: command,
-      statusMessage: 'Failed to execute pafio: ${error.message}',
+      statusMessage: 'Failed to execute pafio: $error',
       stdout: '',
       stderr: '',
     );

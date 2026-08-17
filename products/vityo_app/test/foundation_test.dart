@@ -5,11 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'resource coordinator maps namespaces to resource locations without file writes',
     () {
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: '/tmp',
@@ -56,7 +58,7 @@ void main() {
         'vityo_foundation_datastore_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -111,7 +113,7 @@ void main() {
         'vityo_foundation_datastore_migration_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -187,7 +189,7 @@ void main() {
       'vityo_foundation_datastore_lock_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -236,7 +238,7 @@ void main() {
       'vityo_foundation_datastore_owner_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -298,7 +300,7 @@ void main() {
         'vityo_foundation_datastore_update_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -385,7 +387,7 @@ void main() {
       'vityo_foundation_datastore_watch_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -454,7 +456,7 @@ void main() {
         'vityo_foundation_datastore_edit_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -791,7 +793,7 @@ void main() {
         'vityo_foundation_registry_manifest_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -862,7 +864,7 @@ void main() {
   );
 
   test('foundation workspace owns workspace scope and cache location', () {
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(homePath: '/home/vityo'),
     );

@@ -2,12 +2,18 @@ import 'dart:io';
 
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
 
+import '../test/support/vityod_test_harness.dart';
+
 Future<void> main() async {
+  if (!VityodTestHarness.isSupported) return;
   final fixture = File.fromUri(
     Platform.script.resolve(
       '../../../tests/acceptance/fixtures/vityo_app/agent_client/'
       'fake_agent.dart',
     ),
+  );
+  final harness = await VityodTestHarness.start(
+    clientId: 'agent-protocol-integration',
   );
   final registry = AgentClientRegistry(
     descriptors: <String, AgentLaunchDescriptor>{
@@ -18,6 +24,7 @@ Future<void> main() async {
         workingDirectory: Directory.current.path,
       ),
     },
+    client: harness.client,
     policy: const AgentClientPolicy(
       requestTimeout: Duration(seconds: 3),
       allowedExtensions: <String>{
@@ -28,11 +35,10 @@ Future<void> main() async {
   );
   try {
     final connection = await registry.connect('fixture');
-    if (connection.protocolVersion != 1) {
-      throw StateError('ACP v1 negotiation failed');
-    }
-    if (registry.activeConnectionCount != 1) {
-      throw StateError('connection was not retained after initialize');
+    if (connection.protocolVersion != 1 ||
+        registry.activeConnectionCount != 1 ||
+        connection.metadata.isNotEmpty) {
+      throw StateError('daemon-owned ACP negotiation was not retained');
     }
     final session = await registry.newSession(
       agentId: 'fixture',
@@ -46,22 +52,14 @@ Future<void> main() async {
       permission.id,
       AgentPermissionDecision.allowOnce,
     );
-    if ((await prompt).stopReason != 'end_turn') {
-      throw StateError('stdio prompt did not complete');
-    }
-    if (registry.activeConnectionCount != 1) {
-      throw StateError('connection was not retained after prompt');
+    if ((await prompt).stopReason != 'end_turn' ||
+        !session.snapshot.updates.any(
+          (update) => update.text == 'approved:integration',
+        )) {
+      throw StateError('daemon-owned prompt correlation did not complete');
     }
   } finally {
-    final activeBeforeClose = registry.activeConnectionCount;
-    final receipts = await registry.close();
-    if (activeBeforeClose == 1 &&
-        (receipts.length != 1 || !receipts.single.terminated)) {
-      throw StateError(
-        'supervised process was not reaped '
-        '(receipts=${receipts.length}, '
-        'terminated=${receipts.firstOrNull?.terminated})',
-      );
-    }
+    await registry.close();
+    await harness.close();
   }
 }

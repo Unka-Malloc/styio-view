@@ -17,7 +17,7 @@
 | `cupertino_icons` | ^1.0.8 | MIT | `package:cupertino_icons` from pub.dev | iOS-style icon set for Cupertino-themed UI surfaces on iOS and macOS targets | Runtime (iOS/macOS) |
 | `shared_preferences` | ^2.5.5 | BSD-3-Clause | `package:shared_preferences` from Flutter ecosystem | Platform-appropriate persistent key-value store for user settings, theme profile, session preferences | Runtime |
 | `path_provider` | ^2.1.5 | BSD-3-Clause | `package:path_provider` from Flutter ecosystem | Platform-appropriate directory path resolution for local file system operations, cache directories, document directories | Runtime |
-| `pty2` | 0.5.2 | MIT | Fixed `package:pty2` release from pub.dev | Native desktop pseudo-terminal transport: Windows ConPTY and Linux/macOS forkpty, with Vityo fail-closed validation preventing the Windows pipe fallback from launching the requested process | Runtime (desktop only) |
+| `portable-pty` | 0.9.0 | MIT | Locked Rust crate in the `vityod` workspace | Daemon-owned native desktop pseudo-terminal transport: Windows ConPTY and Linux/macOS forkpty, with bounded reconnect output and deterministic process cleanup | Runtime (desktop only) |
 | `vityo_agent_protocol` | Workspace path package | Apache-2.0 | `packages/vityo_agent_protocol` in this repository | Pure versioned JSON-RPC/ACP wire types shared by the Vityo IDE and compatible Agent runtimes; contains no product orchestration or runtime implementation | Runtime (internal shared protocol) |
 
 ## Dev Dependencies

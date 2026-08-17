@@ -20,8 +20,8 @@ final class WorkspaceResourceChange {
     required this.baseDocumentRevision,
     required Iterable<WorkspaceTextChange> edits,
   }) : edits = UnmodifiableListView<WorkspaceTextChange>(
-          List<WorkspaceTextChange>.of(edits),
-        );
+         List<WorkspaceTextChange>.of(edits),
+       );
 
   final String resourceId;
   final int baseDocumentRevision;
@@ -35,8 +35,8 @@ final class WorkspaceChangeSet {
     required this.baseWorkspaceRevision,
     required Iterable<WorkspaceResourceChange> resources,
   }) : resources = UnmodifiableListView<WorkspaceResourceChange>(
-          List<WorkspaceResourceChange>.of(resources),
-        ) {
+         List<WorkspaceResourceChange>.of(resources),
+       ) {
     if (id.trim().isEmpty) {
       throw ArgumentError.value(id, 'id', 'must not be empty');
     }

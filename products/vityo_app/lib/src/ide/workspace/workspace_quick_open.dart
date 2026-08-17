@@ -439,10 +439,7 @@ class _QuickOpenScore {
 }
 
 class _ScoredQuickOpenItem {
-  const _ScoredQuickOpenItem({
-    required this.item,
-    required this.projectIndex,
-  });
+  const _ScoredQuickOpenItem({required this.item, required this.projectIndex});
 
   final WorkspaceQuickOpenItem item;
   final int projectIndex;

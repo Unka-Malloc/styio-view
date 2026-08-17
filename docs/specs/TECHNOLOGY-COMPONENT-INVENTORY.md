@@ -40,15 +40,13 @@ Missing or stale lists are audit failures. They block license, commercial-risk, 
 
 #### Security, Permission, And Audit Components
 
-- **Agent Client registry** (`ide/agent_client/agent_client_registry.dart`): bounded protocol
-  sessions, correlated one-shot permission requests, reconnect, and failure cleanup.
-- **Agent process supervisor** (`ide/agent_client/agent_process_supervisor.dart`): argv-based stdio
-  launch, bounded shutdown, timeout, and orphan cleanup.
-- **IDE MCP server and tool policy** (`ide/agent_client/mcp/`,
-  `ide/agent_client/tools/tool_security_policy.dart`): declared tools, capability grants,
-  workspace-root authorization, payload bounds, sanitization, and receipts.
-- **Context export** (`ide/agent_client/tools/context_export_service.dart`): bounded,
-  revision-bound, paginated, deduplicated, and sanitized IDE facts.
+- **Agent Client registry** (`ide/agent_client/agent_client_registry.dart`): thin typed gateway for
+  daemon-owned sessions, one-shot permission presentation, reconnect, and failure projection.
+- **Daemon ACP host** (`native/vityod/crates/vityod-agent-host/src/acp.rs`): argv-based stdio
+  launch, bounded frames, correlation, cancellation, capability enforcement, and orphan cleanup.
+- **Daemon MCP gateway** (`ide/agent_client/mcp/vityod_mcp_gateway.dart` plus native `vityod`
+  handlers): declared tools, capability grants, workspace-root authorization, payload bounds,
+  sanitization, revision binding, and receipts.
 - **Collaboration projection** (`ide/workbench/agent_collaboration/`): immutable task/session,
   permission, change-review, error, and verification state.
 - **Workspace transaction authority** (`ide/workspace/workspace_transaction_service.dart`):
@@ -78,7 +76,7 @@ Missing or stale lists are audit failures. They block license, commercial-risk, 
 - `cupertino_icons`.
 - `shared_preferences`.
 - `path_provider`.
-- `pty2` 0.5.2 (desktop ConPTY/forkpty transport; Windows use is fail-closed against pipe fallback).
+- `portable-pty` 0.9.0 in `vityod` (desktop ConPTY/forkpty transport with daemon-owned bounded streams and process cleanup).
 - `flutter_test`.
 - `flutter_lints`.
 - `crypto` (SHA-256/512 for module manifest checksums and signature verification).

@@ -1,10 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_fixture_confidence_matrix.dart';
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
+
+import 'support/test_file_system_manager.dart';
 
 void main() {
   test('language fixture confidence matrix classifies parser outcomes', () async {
@@ -89,7 +90,7 @@ void main() {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'vityo-language-fixtures-',
     );
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     try {
       final root = tempDirectory.path;
       final nested = fileSystemManager.joinPath(<String>[root, 'nested']);
@@ -134,7 +135,7 @@ void main() {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'vityo-language-fixture-loader-',
     );
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     try {
       final fixture = fileSystemManager.joinPath(<String>[
         tempDirectory.path,
@@ -156,7 +157,7 @@ void main() {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'vityo-styio-service-fixture-gate-',
     );
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     try {
       final valid = fileSystemManager.joinPath(<String>[
         tempDirectory.path,

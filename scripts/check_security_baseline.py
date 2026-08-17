@@ -16,8 +16,8 @@ REQUIRED_SECURITY_FILES = (
     Path("products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart"),
     Path("products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart"),
     Path("products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart"),
-    Path("products/vityo_app/lib/src/ide/agent_client/agent_process_supervisor.dart"),
-    Path("products/vityo_app/lib/src/ide/agent_client/mcp/ide_mcp_server.dart"),
+    Path("products/vityo_app/lib/src/ide/agent_client/mcp/vityod_mcp_gateway.dart"),
+    Path("products/vityo_app/native/vityod/crates/vityod-agent-host/src/acp.rs"),
     Path("products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart"),
     Path("packages/vityo_agent_protocol/lib/src/protocol.dart"),
 )
@@ -29,6 +29,7 @@ CRITICAL_SOURCE_GLOBS = (
     "products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart",
     "products/vityo_app/lib/src/ide/agent_client/*.dart",
     "products/vityo_app/lib/src/ide/agent_client/mcp/*.dart",
+    "products/vityo_app/native/vityod/crates/vityod-agent-host/src/*.rs",
     "products/vityo_app/lib/src/ide/workbench/agent_collaboration/*.dart",
     "products/vityo_app/lib/src/ide/workspace/workspace_change_set.dart",
     "products/vityo_app/lib/src/ide/workspace/workspace_revision_service.dart",

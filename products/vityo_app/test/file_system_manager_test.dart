@@ -2,11 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/ide/editor/document_state.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
-import 'package:vityo_app/src/view_ide/environment/system_compatibility/file_system/file_system_manager_io.dart'
-    as file_system_io;
-import 'package:vityo_app/src/ide/workspace/workspace_document_store_io.dart';
+import 'support/test_file_system_manager.dart';
 
 void main() {
   test('file system prober classifies linux debian arm target facts', () async {
@@ -172,13 +169,13 @@ void main() {
   });
 
   test(
-    'LocalFileSystemManager.windowsX64ForTest reads writes stats',
+    'TestFileSystemManager.windowsX64ForTest reads writes stats',
     () async {
       final tempRoot = await Directory.systemTemp.createTemp(
         'vityo_win_fs_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final manager = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+      final manager = TestFileSystemManager.windowsX64();
       final fp = manager.joinPath(<String>[
         tempRoot.path,
         'workspace',
@@ -192,7 +189,7 @@ void main() {
   );
 
   test('Windows path containment is case-insensitive', () {
-    final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    final m = TestFileSystemManager.windowsX64();
     expect(
       m.compatibility.isWithin(r'C:\PROJECT\src\main.styio', r'c:\project'),
       isTrue,
@@ -201,12 +198,12 @@ void main() {
   });
 
   test('Windows normalize path handles drive and dot-dot', () {
-    final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    final m = TestFileSystemManager.windowsX64();
     expect(m.normalizePath(r'C:\Users\..\app\m.styio'), r'C:\app\m.styio');
   });
 
   test('Windows locked-file retry is documented blocked on dioxus host', () {
-    final m = file_system_io.LocalFileSystemManager.windowsX64ForTest();
+    final m = TestFileSystemManager.windowsX64();
     expect(m.compatibility.supportsAtomicWrite, isTrue);
   });
 
@@ -217,7 +214,7 @@ void main() {
         'vityo_fs_manager_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final manager = LocalFileSystemManager.linuxDebianArmForTest();
+      final manager = TestFileSystemManager.linuxDebianArm();
       final filePath = manager.joinPath(<String>[
         tempRoot.path,
         'workspace',
@@ -263,7 +260,7 @@ void main() {
   });
 
   test('file system manager classifies operation failures structurally', () {
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
+    final manager = TestFileSystemManager.linuxDebianArm();
     final permissionFailure = manager.classifyFailure(
       const FileSystemException(
         'Permission denied',
@@ -325,7 +322,7 @@ void main() {
     );
 
     expect(permissionFailure.kind, FileSystemFailureKind.permissionDenied);
-    expect(permissionFailure.sourceManager, 'LocalFileSystemManager');
+    expect(permissionFailure.sourceManager, 'TestFileSystemManager');
     expect(permissionFailure.toJson()['operation'], 'readText');
     expect(permissionFailure.toJson()['recoveryHint'], contains('readable'));
     expect(unsupportedFailure.kind, FileSystemFailureKind.unsupportedProvider);
@@ -412,7 +409,7 @@ void main() {
   });
 
   test('file system boundary guard reports outside workspace targets', () {
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
+    final manager = TestFileSystemManager.linuxDebianArm();
     final guard = FileSystemBoundaryGuard(
       fileSystemManager: manager,
       rootPath: '/workspace/project',
@@ -448,7 +445,7 @@ void main() {
   test(
     'file system provider router supports local file uri and rejects other schemes',
     () {
-      final manager = LocalFileSystemManager.linuxDebianArmForTest();
+      final manager = TestFileSystemManager.linuxDebianArm();
       final router = FileSystemProviderRouter(fileSystemManager: manager);
       final local = router.route(Uri.file('/workspace/project/main.styio'));
       final barePath = router.route(Uri(path: '/workspace/project/main.styio'));
@@ -497,7 +494,7 @@ void main() {
         'vityo_fs_manager_copy_move_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final manager = LocalFileSystemManager.linuxDebianArmForTest();
+      final manager = TestFileSystemManager.linuxDebianArm();
       final source = manager.joinPath(<String>[tempRoot.path, 'source.txt']);
       final copy = manager.joinPath(<String>[tempRoot.path, 'copy.txt']);
       final moved = manager.joinPath(<String>[
@@ -633,33 +630,4 @@ void main() {
       );
     },
   );
-
-  test('workspace document store uses file system manager route', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_fs_store_route_test_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
-    final store = FileSystemWorkspaceDocumentStore(
-      tempRoot,
-      fileSystemManager: manager,
-    );
-    const document = DocumentState(
-      documentId: 'notes/main.txt',
-      text: 'stored through manager',
-      revision: 4,
-    );
-
-    await store.saveDocument(document);
-    final loaded = await store.loadDocument(document.documentId);
-
-    expect(loaded.text, document.text);
-    expect(loaded.revision, document.revision);
-    expect(
-      await manager.exists(
-        manager.joinPath(<String>[tempRoot.path, 'notes', 'main.txt']),
-      ),
-      isTrue,
-    );
-  });
 }

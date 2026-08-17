@@ -8,6 +8,8 @@ import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/ide/workspace/workspace.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('workspace diagnostics snapshot groups and counts diagnostics', () {
     const snapshot = WorkspaceDiagnosticsSnapshot(
@@ -915,7 +917,7 @@ Future<FoundationDataStore> _createDataStore() async {
   );
   // ignore: discarded_futures
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

@@ -1,4 +1,5 @@
 import '../platform/platform_target.dart';
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
 import 'dependency_source_adapter.dart';
 import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
@@ -6,6 +7,7 @@ import 'pafio_cli_support.dart';
 
 Future<DependencySourceAdapter> createPlatformDependencySourceAdapter({
   required PlatformTarget platformTarget,
+  PlatformManagerBundle? platformManagers,
 }) async {
   final hostedClient = await createHostedControlPlaneClient(
     platformTarget: platformTarget,
@@ -13,7 +15,10 @@ Future<DependencySourceAdapter> createPlatformDependencySourceAdapter({
   if (hostedClient != null) {
     return _HostedDependencySourceAdapter(hostedClient: hostedClient);
   }
-  return _LocalCliDependencySourceAdapter(platformTarget: platformTarget);
+  return _LocalCliDependencySourceAdapter(
+    platformTarget: platformTarget,
+    platformManagers: platformManagers,
+  );
 }
 
 class _HostedDependencySourceAdapter implements DependencySourceAdapter {
@@ -101,9 +106,13 @@ class _HostedDependencySourceAdapter implements DependencySourceAdapter {
 }
 
 class _LocalCliDependencySourceAdapter implements DependencySourceAdapter {
-  const _LocalCliDependencySourceAdapter({required this.platformTarget});
+  const _LocalCliDependencySourceAdapter({
+    required this.platformTarget,
+    required this.platformManagers,
+  });
 
   final PlatformTarget platformTarget;
+  final PlatformManagerBundle? platformManagers;
 
   @override
   Future<DependencySourceCommandResult> syncDependencies({
@@ -166,7 +175,8 @@ class _LocalCliDependencySourceAdapter implements DependencySourceAdapter {
       );
     }
 
-    return runLocalPafioCommand(
+    return runPafioCommand(
+      platformManagers: platformManagers,
       projectGraph: projectGraph,
       command: command,
       args: args,

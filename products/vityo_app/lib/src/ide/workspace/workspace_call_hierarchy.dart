@@ -125,10 +125,8 @@ class WorkspaceCallHierarchyResult {
 
   int get callCount => calls.length;
 
-  int get referenceCount => calls.fold<int>(
-    0,
-    (count, call) => count + call.referenceCount,
-  );
+  int get referenceCount =>
+      calls.fold<int>(0, (count, call) => count + call.referenceCount);
 
   int get matchedFileCount =>
       calls.map((call) => call.symbol.filePath).toSet().length;
@@ -180,7 +178,8 @@ class WorkspaceCallHierarchyService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     final documentsById = {
@@ -332,17 +331,18 @@ class WorkspaceCallHierarchyService {
         }
     }
 
-    final calls = accumulatorByKey.values
-        .map(
-          (accumulator) => WorkspaceCallHierarchyCall(
-            symbol: accumulator.symbol,
-            locations: List<WorkspaceCallHierarchyLocation>.unmodifiable(
-              accumulator.locations,
-            ),
-          ),
-        )
-        .toList(growable: false)
-      ..sort(_compareCalls);
+    final calls =
+        accumulatorByKey.values
+            .map(
+              (accumulator) => WorkspaceCallHierarchyCall(
+                symbol: accumulator.symbol,
+                locations: List<WorkspaceCallHierarchyLocation>.unmodifiable(
+                  accumulator.locations,
+                ),
+              ),
+            )
+            .toList(growable: false)
+          ..sort(_compareCalls);
     final directionLabel =
         query.direction == WorkspaceCallHierarchyDirection.incoming
         ? 'incoming'
@@ -372,7 +372,9 @@ class WorkspaceCallHierarchyService {
     final definitions = <StyioProjectSymbolDefinition>[];
     for (final document in documents) {
       definitions.addAll(
-        snapshot.functionsFor(document.documentId).map(
+        snapshot
+            .functionsFor(document.documentId)
+            .map(
               (function) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.function,
@@ -383,7 +385,9 @@ class WorkspaceCallHierarchyService {
             ),
       );
       definitions.addAll(
-        snapshot.tasksFor(document.documentId).map(
+        snapshot
+            .tasksFor(document.documentId)
+            .map(
               (task) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.task,
@@ -408,7 +412,8 @@ class WorkspaceCallHierarchyService {
     required List<DocumentState> documents,
     required List<StyioProjectSymbolDefinition> definitions,
   }) {
-    final definitionsByDocument = <String, List<StyioProjectSymbolDefinition>>{};
+    final definitionsByDocument =
+        <String, List<StyioProjectSymbolDefinition>>{};
     for (final definition in definitions) {
       definitionsByDocument
           .putIfAbsent(
@@ -427,9 +432,9 @@ class WorkspaceCallHierarchyService {
         continue;
       }
       final sortedDefinitions = [...documentDefinitions]
-        ..sort((first, second) => first.range.start.compareTo(
-          second.range.start,
-        ));
+        ..sort(
+          (first, second) => first.range.start.compareTo(second.range.start),
+        );
       final extents = <_CallableExtent>[];
       for (var index = 0; index < sortedDefinitions.length; index += 1) {
         final definition = sortedDefinitions[index];
@@ -543,10 +548,7 @@ class WorkspaceCallHierarchyService {
     return unique;
   }
 
-  static bool _isIndexable(
-    String filePath,
-    WorkspaceCallHierarchyQuery query,
-  ) {
+  static bool _isIndexable(String filePath, WorkspaceCallHierarchyQuery query) {
     final normalized = _displayPath(filePath).toLowerCase();
     if (!normalized.endsWith('.styio')) {
       return false;
@@ -615,9 +617,7 @@ class WorkspaceCallHierarchyService {
     if (fallback == null) {
       return null;
     }
-    final cappedDefinitionIndex = definitionIndex > 250
-        ? 250
-        : definitionIndex;
+    final cappedDefinitionIndex = definitionIndex > 250 ? 250 : definitionIndex;
     return fallback.withBoost(kindBoost - cappedDefinitionIndex);
   }
 
@@ -912,8 +912,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

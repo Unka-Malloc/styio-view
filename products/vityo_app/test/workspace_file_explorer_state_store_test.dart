@@ -7,6 +7,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/ide/workspace/workspace.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('workspace file explorer state toggles and round trips', () {
     final state = const WorkspaceFileExplorerState(workspaceId: 'demo')
@@ -33,7 +35,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -82,7 +84,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,

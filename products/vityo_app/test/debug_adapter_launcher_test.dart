@@ -13,6 +13,8 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain_catalog.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'DAP debug adapter launcher sends launch plan through transport',
@@ -382,7 +384,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_debug_launch_telemetry_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

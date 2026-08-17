@@ -2,12 +2,7 @@ import '../editor/document/document_state.dart';
 import '../../view_ide/language/language.dart';
 import 'workspace_document_store_types.dart';
 
-enum WorkspaceCodeLensStatus {
-  completed,
-  emptyWorkspace,
-  noLenses,
-  hitLimit,
-}
+enum WorkspaceCodeLensStatus { completed, emptyWorkspace, noLenses, hitLimit }
 
 enum WorkspaceCodeLensKind { references }
 
@@ -145,7 +140,8 @@ class WorkspaceCodeLensService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     final documentsById = {
@@ -188,9 +184,7 @@ class WorkspaceCodeLensService {
       final usageCount = references
           .where((reference) => !reference.isDefinition)
           .length;
-      final position = targetDocument.positionForOffset(
-        definition.range.start,
-      );
+      final position = targetDocument.positionForOffset(definition.range.start);
       lenses.add(
         WorkspaceCodeLensItem(
           filePath: targetFilePath,
@@ -340,9 +334,9 @@ class _GlobMatcher {
       return normalized == suffix || normalized.endsWith('/$suffix');
     }
     if (_pattern.contains('*')) {
-      final expression = RegExp.escape(_pattern)
-          .replaceAll(r'\*\*', '.*')
-          .replaceAll(r'\*', '[^/]*');
+      final expression = RegExp.escape(
+        _pattern,
+      ).replaceAll(r'\*\*', '.*').replaceAll(r'\*', '[^/]*');
       final regex = RegExp('^$expression\$');
       return regex.hasMatch(normalized);
     }

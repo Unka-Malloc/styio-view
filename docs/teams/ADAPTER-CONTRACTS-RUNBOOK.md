@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-11
 
 ## Mission
 
@@ -56,6 +56,10 @@ Key SSOTs:
 15. The IDE-side provider/controller migration is complete. Agent plans, permissions, workspace
     proposals, and receipts cross only `packages/vityo_agent_protocol`; removed provider profiles,
     tool dispatchers, policy stores, and contribution kinds are not adapter aliases.
+16. Desktop Agent integration is daemon-owned: Flutter uses `AgentClientRegistry` and
+    `VityodMcpGateway` only as typed projections, while `vityod-agent-host` owns ACP process/session
+    supervision and MCP authority. Do not restore Dart process supervisors, root registries,
+    context-export hosts, or tool-policy compatibility adapters.
 
 ## Change Classes
 
@@ -98,3 +102,7 @@ Record:
 2026-07-31: Updated `UserFacingWorkflows.md` to the completed protocol-only Agent Client,
 collaboration, MCP/context, Workbench, and workspace-transaction paths. Removed current-contract
 references to the retired IDE provider/controller implementation.
+
+2026-08-11: Updated the Agent workflow contract after the desktop daemon cutover. `vityod` is the
+sole IDE-side ACP process/session and MCP authority; Flutter retains typed projections, permission
+presentation, change preview, and workspace-transaction presentation.

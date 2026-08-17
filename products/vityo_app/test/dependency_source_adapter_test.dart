@@ -12,6 +12,9 @@ import 'fake_pafio_cli.dart';
 import 'backend_provider_test_support.dart';
 
 void main() {
+  setUpAll(startBackendProviderTestServices);
+  tearDownAll(stopBackendProviderTestServices);
+
   test('dependency source adapter executes published pafio sync', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_dependency_source_test_',
@@ -24,7 +27,8 @@ void main() {
     final manifestPath = '${tempRoot.path}${Platform.pathSeparator}pafio.toml';
     final pafio = await writeFakePafioCli(
       workspaceRoot: tempRoot,
-      pythonSource: '''#!/usr/bin/env python3
+      pythonSource:
+          '''#!/usr/bin/env python3
 import json, os, sys
 
 expected_manifest = os.path.normpath(${jsonEncode(manifestPath)})
@@ -52,11 +56,8 @@ if (
 raise SystemExit(64)
 ''',
     );
-    debugOverridePafioDiscoveryEnvironment(<String, String>{
-      ...Platform.environment,
-      'VITYO_PAFIO_BIN': pafio.path,
-    });
-    addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+    debugOverridePafioExecutableCandidates(<String>[pafio.path]);
+    addTearDown(() => debugOverridePafioExecutableCandidates(null));
 
     final adapter = await createDependencySourceAdapter(
       platformTarget: PlatformTarget.macos,
@@ -87,7 +88,10 @@ raise SystemExit(64)
     );
 
     expect(result.status, DependencySourceCommandStatus.blocked);
-    expect(result.statusMessage, contains('requires a resolved pafio manifest'));
+    expect(
+      result.statusMessage,
+      contains('requires a resolved pafio manifest'),
+    );
   });
 }
 

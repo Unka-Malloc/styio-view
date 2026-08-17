@@ -131,7 +131,8 @@ class WorkspaceDefinitionService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     final documentsById = {
@@ -222,7 +223,9 @@ class WorkspaceDefinitionService {
     final definitions = <StyioProjectSymbolDefinition>[];
     for (final document in documents) {
       definitions.addAll(
-        snapshot.functionsFor(document.documentId).map(
+        snapshot
+            .functionsFor(document.documentId)
+            .map(
               (function) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.function,
@@ -233,7 +236,9 @@ class WorkspaceDefinitionService {
             ),
       );
       definitions.addAll(
-        snapshot.resourcesFor(document.documentId).map(
+        snapshot
+            .resourcesFor(document.documentId)
+            .map(
               (resource) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.resource,
@@ -244,7 +249,9 @@ class WorkspaceDefinitionService {
             ),
       );
       definitions.addAll(
-        snapshot.tasksFor(document.documentId).map(
+        snapshot
+            .tasksFor(document.documentId)
+            .map(
               (task) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.task,
@@ -269,10 +276,7 @@ class WorkspaceDefinitionService {
     return unique;
   }
 
-  static bool _isIndexable(
-    String filePath,
-    WorkspaceDefinitionQuery query,
-  ) {
+  static bool _isIndexable(String filePath, WorkspaceDefinitionQuery query) {
     final normalized = _displayPath(filePath).toLowerCase();
     if (!normalized.endsWith('.styio')) {
       return false;
@@ -351,9 +355,7 @@ class WorkspaceDefinitionService {
     if (fallback == null) {
       return null;
     }
-    final cappedDefinitionIndex = definitionIndex > 250
-        ? 250
-        : definitionIndex;
+    final cappedDefinitionIndex = definitionIndex > 250 ? 250 : definitionIndex;
     return fallback.withBoost(kindBoost - cappedDefinitionIndex);
   }
 
@@ -561,8 +563,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

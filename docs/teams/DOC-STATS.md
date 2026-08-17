@@ -2,7 +2,7 @@
 
 **Purpose:** Record the current size of each `docs/teams/` runbook using the repository-local docs audit counting rules; this is a maintenance snapshot, not a quality target.
 
-**Last updated:** 2026-08-02
+**Last updated:** 2026-08-11
 
 ## Counting Method
 
@@ -15,17 +15,17 @@
 
 | Team | Document | Word count | Character count |
 |------|----------|------------|-----------------|
-| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,725 | 5,691 |
+| Adapter / Contracts | [ADAPTER-CONTRACTS-RUNBOOK.md](./ADAPTER-CONTRACTS-RUNBOOK.md) | 1,840 | 6,304 |
 | Agent Runtime | [AGENT-RUNTIME-RUNBOOK.md](./AGENT-RUNTIME-RUNBOOK.md) | 725 | 3,326 |
 | Architecture | [ARCHITECTURE-RUNBOOK.md](./ARCHITECTURE-RUNBOOK.md) | 911 | 4,026 |
 | Coordination | [COORDINATION-RUNBOOK.md](./COORDINATION-RUNBOOK.md) | 2,360 | 6,292 |
-| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 4,756 | 17,202 |
+| Docs / Delivery | [DOCS-DELIVERY-RUNBOOK.md](./DOCS-DELIVERY-RUNBOOK.md) | 4,800 | 17,522 |
 | Extension Module | [EXTENSION-MODULE-RUNBOOK.md](./EXTENSION-MODULE-RUNBOOK.md) | 669 | 3,192 |
 | Module / Platform | [MODULE-PLATFORM-RUNBOOK.md](./MODULE-PLATFORM-RUNBOOK.md) | 1,480 | 5,597 |
-| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,094 | 4,363 |
-| Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,523 | 12,992 |
+| Runtime / Agent | [RUNTIME-AGENT-RUNBOOK.md](./RUNTIME-AGENT-RUNBOOK.md) | 1,130 | 4,518 |
+| Shell / Editor | [SHELL-EDITOR-RUNBOOK.md](./SHELL-EDITOR-RUNBOOK.md) | 3,593 | 13,374 |
 | Theme / UX | [THEME-UX-RUNBOOK.md](./THEME-UX-RUNBOOK.md) | 1,127 | 2,776 |
-| **Total** | Team runbooks only | **18,370** | **65,457** |
+| **Total** | Team runbooks only | **18,635** | **66,927** |
 
 ## Support File Size
 

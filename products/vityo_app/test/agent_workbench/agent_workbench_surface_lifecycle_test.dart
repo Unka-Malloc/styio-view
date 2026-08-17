@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
+import 'package:vityo_app/src/ide/local_service/vityod_client.dart';
 import 'package:vityo_app/src/ide/workbench/agent_collaboration/agent_collaboration_service.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_revision_service.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
@@ -62,6 +63,10 @@ AgentCollaborationService _service(String agentId) {
           workingDirectory: '.',
         ),
       },
+      client: VityodClient(
+        transport: MemoryVityodTransport(),
+        clientInstanceId: 'surface-$agentId',
+      ),
     ),
     transactions: RevisionedWorkspaceTransactionService(revisions),
     workspaceRoot: Uri.directory('/workspace'),

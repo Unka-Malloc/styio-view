@@ -1,0 +1,4 @@
+fn main() {
+  let stream = source |> normalize -> sink
+  emit stream
+}

@@ -1,4 +1,5 @@
 import '../../platform/platform_target.dart';
+import '../../environment/system_compatibility/platform_manager/platform_manager.dart';
 import '../backend_provider.dart';
 import '../dependency_source_adapter.dart';
 import '../dependency_source_adapter_web.dart';
@@ -26,7 +27,9 @@ final class WebBackendProvider implements BackendProvider {
   };
 
   @override
-  Future<ProjectGraphAdapter> createProjectGraphAdapter() {
+  Future<ProjectGraphAdapter> createProjectGraphAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
     return createPlatformProjectGraphAdapter(
       platformTarget: PlatformTarget.web,
     );
@@ -34,8 +37,9 @@ final class WebBackendProvider implements BackendProvider {
 
   @override
   Future<ExecutionAdapter> createExecutionAdapter(
-    ProjectGraphSnapshot projectGraph,
-  ) {
+    ProjectGraphSnapshot projectGraph, {
+    PlatformManagerBundle? platformManagers,
+  }) {
     return createPlatformExecutionAdapter(
       platformTarget: PlatformTarget.web,
       projectGraph: projectGraph,
@@ -50,14 +54,22 @@ final class WebBackendProvider implements BackendProvider {
   }
 
   @override
-  Future<DependencySourceAdapter> createDependencySourceAdapter() {
+  Future<DependencySourceAdapter> createDependencySourceAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
     return createPlatformDependencySourceAdapter(
       platformTarget: PlatformTarget.web,
+      platformManagers: platformManagers,
     );
   }
 
   @override
-  Future<DeploymentAdapter> createDeploymentAdapter() {
-    return createPlatformDeploymentAdapter(platformTarget: PlatformTarget.web);
+  Future<DeploymentAdapter> createDeploymentAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
+    return createPlatformDeploymentAdapter(
+      platformTarget: PlatformTarget.web,
+      platformManagers: platformManagers,
+    );
   }
 }

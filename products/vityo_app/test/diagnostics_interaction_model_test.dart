@@ -9,6 +9,8 @@ import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/ide/workspace/workspace.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('diagnostics interaction model exposes groups and actions', () {
     const snapshot = WorkspaceDiagnosticsSnapshot(
@@ -333,7 +335,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_diagnostics_panel_state_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

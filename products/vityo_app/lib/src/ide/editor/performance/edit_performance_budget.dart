@@ -18,6 +18,9 @@ enum EditorEditPerformanceStatus {
   medianOverBudget,
   p95OverBudget,
   deltaOverBudget,
+  nonRenderedEvidence,
+  unsupported,
+  unboundedRendering,
 }
 
 class EditorEditPerformanceResult {

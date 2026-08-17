@@ -15,9 +15,31 @@ import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_co
 import 'package:vityo_app/src/view_ide/language/service/styio_service_runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+import 'support/vityod_test_harness.dart';
+
+import 'support/test_file_system_manager.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+  late ProcessManager processManager;
+
+  setUpAll(() async {
+    if (VityodTestHarness.isSupported) {
+      vityod = await VityodTestHarness.start(clientId: 'styio-test');
+      processManager = LocalProcessManager.linuxDebianArmForTest(
+        client: vityod!.client,
+      );
+    } else {
+      processManager = UnsupportedProcessManager(
+        facts: ProcessFacts.windowsX64(),
+      );
+    }
+  });
+
+  tearDownAll(() => vityod?.close());
+
   Future<ConfigurationStore> createConfigurationStore(Directory root) async {
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: root.path,
@@ -484,10 +506,7 @@ void main() {
                 'symbol': <String, Object?>{
                   'name': 'snapshotValue',
                   'kind': 'task',
-                  'span': <String, Object?>{
-                    'startOffset': 0,
-                    'endOffset': 5,
-                  },
+                  'span': <String, Object?>{'startOffset': 0, 'endOffset': 5},
                 },
               },
             ],
@@ -702,7 +721,7 @@ void main() {
     );
     addTearDown(() => tempRoot.delete(recursive: true));
     final materializer = StyioServiceDocumentMaterializer(
-      fileSystemManager: LocalFileSystemManager.linuxDebianArmForTest(),
+      fileSystemManager: TestFileSystemManager.linuxDebianArm(),
       resourceManager: LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -1847,18 +1866,15 @@ void main() {
           StyioServiceCapability.hover,
         ],
       );
-      expect(
-        fallback.stateOf(StyioServiceCapability.hover),
-        switch (status) {
-          StyioServiceStatus.unavailable =>
-            StyioServiceCapabilityState.unavailable,
-          StyioServiceStatus.failed => StyioServiceCapabilityState.failed,
-          StyioServiceStatus.protocolError =>
-            StyioServiceCapabilityState.protocolError,
-          StyioServiceStatus.succeeded => StyioServiceCapabilityState.empty,
-          StyioServiceStatus.stale => StyioServiceCapabilityState.stale,
-        },
-      );
+      expect(fallback.stateOf(StyioServiceCapability.hover), switch (status) {
+        StyioServiceStatus.unavailable =>
+          StyioServiceCapabilityState.unavailable,
+        StyioServiceStatus.failed => StyioServiceCapabilityState.failed,
+        StyioServiceStatus.protocolError =>
+          StyioServiceCapabilityState.protocolError,
+        StyioServiceStatus.succeeded => StyioServiceCapabilityState.empty,
+        StyioServiceStatus.stale => StyioServiceCapabilityState.stale,
+      });
     }
   });
 
@@ -2158,7 +2174,7 @@ void main() {
       'vityo_capability_session_manifest_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -2278,7 +2294,7 @@ void main() {
         'vityo_styio_runtime_session_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -3891,7 +3907,7 @@ void main() {
         'vityo_styio_service_driver_manifest_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -4556,7 +4572,7 @@ void main() {
         'vityo_styio_service_manifest_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -4706,7 +4722,7 @@ void main() {
       'vityo_styio_service_cache_binding_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -4973,7 +4989,7 @@ void main() {
       final connector = ToolchainStyioServiceConnector(
         runtime: runtime,
         documentMaterializer: StyioServiceDocumentMaterializer(
-          fileSystemManager: LocalFileSystemManager.linuxDebianArmForTest(),
+          fileSystemManager: TestFileSystemManager.linuxDebianArm(),
           resourceManager: LocalResourceManager(
             facts: ResourceFacts.linuxDebianArm(
               systemTempPath: tempRoot.path,
@@ -5029,7 +5045,7 @@ void main() {
       final platformManagers = PlatformManagerBundle(
         context: baseManagers.context,
         compatibility: baseManagers.compatibility,
-        fileSystem: baseManagers.fileSystem,
+        fileSystem: TestFileSystemManager.linuxDebianArm(),
         shell: baseManagers.shell,
         process: processManager,
         resource: LocalResourceManager(
@@ -5103,7 +5119,7 @@ void main() {
       final platformManagers = PlatformManagerBundle(
         context: baseManagers.context,
         compatibility: baseManagers.compatibility,
-        fileSystem: baseManagers.fileSystem,
+        fileSystem: TestFileSystemManager.linuxDebianArm(),
         shell: baseManagers.shell,
         process: processManager,
         resource: LocalResourceManager(
@@ -5430,31 +5446,35 @@ void main() {
     );
   });
 
-  test('toolchain connector exposes health preflight', () async {
-    final catalog = ToolchainCatalog()
-      ..register(
-        const ToolchainDescriptor(
-          id: 'printf-styio',
-          kind: ToolchainKind.languageService,
-          displayName: 'printf Styio',
-          executablePath: '/usr/bin/printf',
-          metadata: <String, Object?>{'contract': 'styio-cli-jsonl-v1'},
-        ),
-        activate: true,
+  test(
+    'toolchain connector exposes health preflight',
+    () async {
+      final catalog = ToolchainCatalog()
+        ..register(
+          const ToolchainDescriptor(
+            id: 'printf-styio',
+            kind: ToolchainKind.languageService,
+            displayName: 'printf Styio',
+            executablePath: '/usr/bin/printf',
+            metadata: <String, Object?>{'contract': 'styio-cli-jsonl-v1'},
+          ),
+          activate: true,
+        );
+      final runtime = ToolchainRuntime(
+        catalog: catalog,
+        processManager: processManager,
       );
-    final runtime = ToolchainRuntime(
-      catalog: catalog,
-      processManager: LocalProcessManager.linuxDebianArmForTest(),
-    );
-    final connector = ToolchainStyioServiceConnector(runtime: runtime);
+      final connector = ToolchainStyioServiceConnector(runtime: runtime);
 
-    final report = await connector.checkHealth(
-      probeArguments: const <String>['styio-health'],
-    );
+      final report = await connector.checkHealth(
+        probeArguments: const <String>['styio-health'],
+      );
 
-    expect(report.healthy, isTrue);
-    expect(report.processResult?.stdout, 'styio-health');
-  }, skip: Platform.isWindows ? 'POSIX process fixture.' : false);
+      expect(report.healthy, isTrue);
+      expect(report.processResult?.stdout, 'styio-health');
+    },
+    skip: Platform.isWindows ? 'POSIX process fixture.' : false,
+  );
 
   test(
     'toolchain connector runs real Styio CLI when available',
@@ -5478,7 +5498,7 @@ void main() {
         );
       final runtime = ToolchainRuntime(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
       );
       final connector = ToolchainStyioServiceConnector(runtime: runtime);
 

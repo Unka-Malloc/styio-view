@@ -1,3 +1,4 @@
+import '../../../ide/editor/selection/selection_interaction.dart';
 import '../../commands/commands.dart';
 import 'workspace_file_command_controller.dart';
 
@@ -7,6 +8,7 @@ final class ShellInputCommandController {
     required this.workspaceFileCommands,
     required this.blockedReasonForCommand,
     required this.executeCommand,
+    this.requestEditorSelectionCommand,
     required this.searchWorkspace,
     required this.openWorkspaceFile,
     required this.previewWorkspaceReplace,
@@ -27,6 +29,8 @@ final class ShellInputCommandController {
   final WorkspaceFileCommandController workspaceFileCommands;
   final String? Function(AppCommandId commandId) blockedReasonForCommand;
   final Future<void> Function(AppCommandId commandId) executeCommand;
+  final void Function(EditorSelectionCommand command)?
+  requestEditorSelectionCommand;
   final Future<bool> Function(String query) searchWorkspace;
   final Future<bool> Function(String filePath) openWorkspaceFile;
   final Future<void> Function({
@@ -62,6 +66,28 @@ final class ShellInputCommandController {
       return;
     }
     switch (commandId) {
+      case AppCommandId.addCursorAbove:
+      case AppCommandId.addCursorBelow:
+      case AppCommandId.removeSecondaryCursors:
+      case AppCommandId.moveCursorsLeft:
+      case AppCommandId.moveCursorsRight:
+      case AppCommandId.moveCursorsUp:
+      case AppCommandId.moveCursorsDown:
+      case AppCommandId.extendSelectionsLeft:
+      case AppCommandId.extendSelectionsRight:
+      case AppCommandId.extendSelectionsUp:
+      case AppCommandId.extendSelectionsDown:
+      case AppCommandId.extendColumnSelectionLeft:
+      case AppCommandId.extendColumnSelectionRight:
+      case AppCommandId.extendColumnSelectionUp:
+      case AppCommandId.extendColumnSelectionDown:
+        final requestSelection = requestEditorSelectionCommand;
+        if (requestSelection == null) {
+          await executeCommand(commandId);
+          return;
+        }
+        requestSelection(_selectionCommandFor(commandId));
+        return;
       case AppCommandId.openWorkspaceFile:
         await openWorkspaceFile(normalizedInput);
         return;
@@ -189,6 +215,40 @@ final class ShellInputCommandController {
     );
     notify();
   }
+}
+
+EditorSelectionCommand _selectionCommandFor(AppCommandId commandId) {
+  return switch (commandId) {
+    AppCommandId.addCursorAbove => EditorSelectionCommand.addCursorAbove,
+    AppCommandId.addCursorBelow => EditorSelectionCommand.addCursorBelow,
+    AppCommandId.removeSecondaryCursors =>
+      EditorSelectionCommand.removeSecondaryCursors,
+    AppCommandId.moveCursorsLeft => EditorSelectionCommand.moveCursorsLeft,
+    AppCommandId.moveCursorsRight => EditorSelectionCommand.moveCursorsRight,
+    AppCommandId.moveCursorsUp => EditorSelectionCommand.moveCursorsUp,
+    AppCommandId.moveCursorsDown => EditorSelectionCommand.moveCursorsDown,
+    AppCommandId.extendSelectionsLeft =>
+      EditorSelectionCommand.extendSelectionsLeft,
+    AppCommandId.extendSelectionsRight =>
+      EditorSelectionCommand.extendSelectionsRight,
+    AppCommandId.extendSelectionsUp =>
+      EditorSelectionCommand.extendSelectionsUp,
+    AppCommandId.extendSelectionsDown =>
+      EditorSelectionCommand.extendSelectionsDown,
+    AppCommandId.extendColumnSelectionLeft =>
+      EditorSelectionCommand.extendColumnSelectionLeft,
+    AppCommandId.extendColumnSelectionRight =>
+      EditorSelectionCommand.extendColumnSelectionRight,
+    AppCommandId.extendColumnSelectionUp =>
+      EditorSelectionCommand.extendColumnSelectionUp,
+    AppCommandId.extendColumnSelectionDown =>
+      EditorSelectionCommand.extendColumnSelectionDown,
+    _ => throw ArgumentError.value(
+      commandId,
+      'commandId',
+      'is not an editor selection command',
+    ),
+  };
 }
 
 final class _WorkspaceReplacementInput {

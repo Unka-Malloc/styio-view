@@ -40,7 +40,7 @@ VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS = {
     "view_ide/debugger/debug_adapter_launcher.dart",
     "view_ide/debugger/debug_launch_contract.dart",
     "view_ide/debugger/debug_launch_telemetry_store.dart",
-    "ide/editor/document_state.dart",
+    "ide/editor/controllers/editor_session_facade.dart",    "ide/editor/input/editor_composition.dart",    "ide/editor/input/unicode_boundary_index.dart",    "ide/editor/performance/rendered_input_performance_protocol.dart",    "ide/editor/selection/selection_state.dart",    "ide/local_service/vityod_client.dart",    "ide/editor/document_state.dart",
     "ide/editor/editor_controller.dart",
     "ide/editor/editor_render_layers.dart",
     "ide/editor/render_plan/render_plan.dart",

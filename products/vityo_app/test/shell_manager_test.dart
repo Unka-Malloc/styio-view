@@ -4,7 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/shell_runtime/shell_runtime.dart';
 
+import 'support/vityod_test_harness.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+  late ShellManager shellManager;
+
+  setUpAll(() async {
+    if (!VityodTestHarness.isSupported) return;
+    vityod = await VityodTestHarness.start(clientId: 'shell-manager-test');
+    shellManager = LocalShellManager(
+      facts: ShellFacts.linuxDebianArm(defaultShellPath: '/bin/sh'),
+      processManager: LocalProcessManager.linuxDebianArmForTest(
+        client: vityod!.client,
+      ),
+    );
+  });
+
+  tearDownAll(() => vityod?.close());
+
   test('shell prober classifies linux debian arm target facts', () async {
     final prober = LocalShellProber(
       operatingSystem: 'linux',
@@ -14,7 +32,8 @@ void main() {
         'ID': 'debian',
         'PRETTY_NAME': 'Debian GNU/Linux 12 (bookworm)',
       },
-      executableExists: (path) async => path == '/bin/bash' || path == '/bin/sh',
+      executableExists: (path) async =>
+          path == '/bin/bash' || path == '/bin/sh',
       clock: () => DateTime.utc(2026, 5, 16),
     );
 
@@ -23,29 +42,35 @@ void main() {
     expect(facts.supportsLinuxDebianArmTarget, isTrue);
     expect(facts.compatibilityTarget, 'linux-debian-arm');
     expect(facts.defaultShellPath, '/bin/bash');
-    expect(facts.availableShells.map((shell) => shell.path), contains('/bin/bash'));
+    expect(
+      facts.availableShells.map((shell) => shell.path),
+      contains('/bin/bash'),
+    );
     expect(facts.entries['shell.availableShells']?.value, isA<List<Object?>>());
   });
 
-  test('local shell prober recognizes this host when it is debian arm', () async {
-    if (!Platform.isLinux) {
-      return;
-    }
+  test(
+    'local shell prober recognizes this host when it is debian arm',
+    () async {
+      if (!Platform.isLinux) {
+        return;
+      }
 
-    final facts = await const LocalShellProber().probe();
-    final machine = await Process.run('uname', const <String>['-m']);
-    final osRelease = await File('/etc/os-release').readAsString();
-    final isDebianArmHost =
-        Platform.isLinux &&
-        osRelease.contains('ID=debian') &&
-        machine.stdout.toString().trim().toLowerCase() == 'aarch64';
+      final facts = await const LocalShellProber().probe();
+      final machine = await Process.run('uname', const <String>['-m']);
+      final osRelease = await File('/etc/os-release').readAsString();
+      final isDebianArmHost =
+          Platform.isLinux &&
+          osRelease.contains('ID=debian') &&
+          machine.stdout.toString().trim().toLowerCase() == 'aarch64';
 
-    if (isDebianArmHost) {
-      expect(facts.supportsLinuxDebianArmTarget, isTrue);
-      expect(facts.compatibilityTarget, 'linux-debian-arm');
-      expect(facts.availableShells, isNotEmpty);
-    }
-  });
+      if (isDebianArmHost) {
+        expect(facts.supportsLinuxDebianArmTarget, isTrue);
+        expect(facts.compatibilityTarget, 'linux-debian-arm');
+        expect(facts.availableShells, isNotEmpty);
+      }
+    },
+  );
 
   test('shell prober recognizes Windows PowerShell and cmd shells', () async {
     final facts = await LocalShellProber(
@@ -117,15 +142,18 @@ void main() {
   });
 
   test('shell adapter plans unsupported and non-posix shell families', () {
-    final unsupportedPlan = ShellAdapter(
-      ShellFacts.linuxDebianArm(availableShells: const <ShellExecutableFact>[]),
-    ).plan(
-      const ShellCommandRequest(
-        command: 'whoami',
-        workingDirectory: '/workspace',
-        timeout: Duration(seconds: 1),
-      ),
-    );
+    final unsupportedPlan =
+        ShellAdapter(
+          ShellFacts.linuxDebianArm(
+            availableShells: const <ShellExecutableFact>[],
+          ),
+        ).plan(
+          const ShellCommandRequest(
+            command: 'whoami',
+            workingDirectory: '/workspace',
+            timeout: Duration(seconds: 1),
+          ),
+        );
     const powershellProfile = ShellProfileConfiguration(
       id: 'pwsh',
       executablePath: 'pwsh',
@@ -172,10 +200,7 @@ void main() {
       ),
     );
     final fishPlan = adapter.plan(
-      const ShellCommandRequest(
-        command: 'echo ready',
-        profile: fishProfile,
-      ),
+      const ShellCommandRequest(command: 'echo ready', profile: fishProfile),
     );
     final unknownPlan = adapter.plan(
       const ShellCommandRequest(
@@ -190,17 +215,14 @@ void main() {
     expect(unsupportedPlan.timeout, const Duration(seconds: 1));
     expect(unsupportedPlan.unsupportedMessage, contains('No executable shell'));
     expect(powershellPlan.executablePath, 'pwsh');
-    expect(
-      powershellPlan.arguments,
-      <String>[
-        '-ExecutionPolicy',
-        'Bypass',
-        '-NoLogo',
-        '-NoProfile',
-        '-Command',
-        "Write-Output 'can''t'",
-      ],
-    );
+    expect(powershellPlan.arguments, <String>[
+      '-ExecutionPolicy',
+      'Bypass',
+      '-NoLogo',
+      '-NoProfile',
+      '-Command',
+      "Write-Output 'can''t'",
+    ]);
     expect(powershellPlan.environment, <String, String>{
       'BASE_ENV': 'base',
       'PROFILE_ENV': 'pwsh',
@@ -212,22 +234,24 @@ void main() {
     expect(unknownPlan.arguments, <String>['-c', "run ''"]);
   });
 
-  test('local shell manager executes command through shell adapter', () async {
+  test(
+    'local shell manager executes command through shell adapter',
+    () async {
+      final result = await shellManager.run(
+        const ShellCommandRequest(command: 'printf vityo-shell'),
+      );
+
+      expect(result.succeeded, isTrue);
+      expect(result.stdout, 'vityo-shell');
+      expect(result.executablePath, '/bin/sh');
+    },
+    skip: Platform.isWindows ? 'POSIX shell fixture.' : false,
+  );
+
+  test('shell manager classifies command failures structurally', () async {
     final manager = LocalShellManager.linuxDebianArmForTest(
       shellPath: '/bin/sh',
     );
-
-    final result = await manager.run(
-      const ShellCommandRequest(command: 'printf vityo-shell'),
-    );
-
-    expect(result.succeeded, isTrue);
-    expect(result.stdout, 'vityo-shell');
-    expect(result.executablePath, '/bin/sh');
-  }, skip: Platform.isWindows ? 'POSIX shell fixture.' : false);
-
-  test('shell manager classifies command failures structurally', () async {
-    final manager = LocalShellManager.linuxDebianArmForTest(shellPath: '/bin/sh');
     const failed = ShellCommandResult(
       status: ShellCommandStatus.failed,
       command: 'bad-command',
@@ -261,9 +285,7 @@ void main() {
     'toolchain shell runtime provides upper-level shell abstraction',
     () async {
       final runtime = ToolchainShellRuntime(
-        shellManager: LocalShellManager.linuxDebianArmForTest(
-          shellPath: '/bin/sh',
-        ),
+        shellManager: shellManager,
         configuration: ShellConfiguration.fromFacts(
           ShellFacts.linuxDebianArm(defaultShellPath: '/bin/sh'),
         ),

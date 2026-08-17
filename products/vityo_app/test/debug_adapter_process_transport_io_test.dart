@@ -1,9 +1,48 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/debugger/debug_adapter_process_transport_io.dart';
 
+import 'support/vityod_test_harness.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+
+  setUpAll(() async {
+    if (!VityodTestHarness.isSupported) return;
+    vityod = await VityodTestHarness.start(clientId: 'dap-transport-test');
+  });
+
+  tearDownAll(() => vityod?.close());
+
+  test(
+    'DAP byte transport streams through the real daemon process owner',
+    () async {
+      final transport = DapProcessTransport(
+        executable: Platform.isMacOS ? '/bin/cat' : '/usr/bin/cat',
+        client: vityod!.client,
+      );
+      await transport.start();
+      final echoed = transport.incomingBytes.first;
+      await transport.send(<int>[100, 97, 112, 45, 111, 107, 10]);
+
+      expect(await echoed.timeout(const Duration(seconds: 5)), <int>[
+        100,
+        97,
+        112,
+        45,
+        111,
+        107,
+        10,
+      ]);
+      expect((await transport.shutdown()).processTerminated, isTrue);
+    },
+    skip: !VityodTestHarness.isSupported
+        ? 'Unix vityod transport only.'
+        : false,
+  );
+
   test('DAP process shutdown escalates from terminate to kill', () async {
     final process = _FakeManagedProcess(exitOnKill: true);
     final transport = DapProcessTransport(

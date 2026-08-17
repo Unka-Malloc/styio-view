@@ -7,7 +7,20 @@ class LanguageFeatureController extends EditorOwnedController {
   LanguageFeatureController({
     required this.languageService,
     required DocumentState initialDocument,
-  }) : _analysis = languageService.analyzeDocument(initialDocument);
+  }) : _analysis = initialDocument.lineCount >= 10000
+           ? _emptyAnalysis
+           : languageService.analyzeDocument(initialDocument);
+
+  static const StyioDocumentAnalysis _emptyAnalysis = StyioDocumentAnalysis(
+    tokenSpans: <TokenSpan>[],
+    semanticSpans: <SemanticSpan>[],
+    diagnostics: <Diagnostic>[],
+    formattingEdits: <FormattingEdit>[],
+    semanticBlocks: <SemanticBlockRange>[],
+    inlayHints: <InlayHint>[],
+    documentSymbols: <DocumentSymbol>[],
+    referenceSpans: <ReferenceSpan>[],
+  );
 
   final StyioLanguageService languageService;
   StyioDocumentAnalysis _analysis;

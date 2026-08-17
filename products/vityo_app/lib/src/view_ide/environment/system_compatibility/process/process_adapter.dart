@@ -18,14 +18,21 @@ class ProcessAdapter {
   ProcessExecutionPlan plan(ProcessCommandRequest request) {
     final compatibility = adapt();
     if (!compatibility.supportsSpawn) {
-      return ProcessExecutionPlan.unsupported(request, 'Process spawning is not supported.');
+      return ProcessExecutionPlan.unsupported(
+        request,
+        'Process spawning is not supported.',
+      );
     }
     return ProcessExecutionPlan(
       request: request,
       executablePath: request.executablePath,
       arguments: request.arguments,
-      environment: compatibility.supportsEnvironmentOverlay ? request.environment : const <String, String>{},
-      workingDirectory: compatibility.supportsWorkingDirectory ? request.workingDirectory : null,
+      environment: compatibility.supportsEnvironmentOverlay
+          ? request.environment
+          : const <String, String>{},
+      workingDirectory: compatibility.supportsWorkingDirectory
+          ? request.workingDirectory
+          : null,
       timeout: request.timeout ?? const Duration(seconds: 30),
       standardInput: request.standardInput,
       supported: true,
@@ -67,7 +74,10 @@ class ProcessExecutionPlan {
     this.unsupportedMessage,
   });
 
-  factory ProcessExecutionPlan.unsupported(ProcessCommandRequest request, String message) => ProcessExecutionPlan(
+  factory ProcessExecutionPlan.unsupported(
+    ProcessCommandRequest request,
+    String message,
+  ) => ProcessExecutionPlan(
     request: request,
     executablePath: '',
     arguments: const <String>[],

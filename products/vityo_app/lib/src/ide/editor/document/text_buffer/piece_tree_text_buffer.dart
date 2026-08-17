@@ -199,7 +199,15 @@ class TextBufferSnapshot implements TextBuffer {
 
   String get text => _cachedText ??= _materialize();
 
-  _LineMap get _lineMap => _cachedLineMap ??= _LineMap.fromText(text);
+  _LineMap get _lineMap =>
+      _cachedLineMap ??= _length >= 10000
+      ? _LineMap.fromPieces(
+          pieces: _pieces,
+          original: _original,
+          add: _add,
+          length: _length,
+        )
+      : _LineMap.fromText(text);
 
   @override
   int get length => _length;
@@ -223,7 +231,39 @@ class TextBufferSnapshot implements TextBuffer {
       return text;
     }
     final normalizedRange = range.clamp(length);
+    if (_length >= 10000) {
+      return _readTextRange(normalizedRange.start, normalizedRange.end);
+    }
     return text.substring(normalizedRange.start, normalizedRange.end);
+  }
+
+  String _readTextRange(int start, int end) {
+    if (start >= end) {
+      return '';
+    }
+    final buffer = StringBuffer();
+    var cursor = 0;
+    for (final piece in _pieces) {
+      final pieceStart = cursor;
+      final pieceEnd = cursor + piece.length;
+      if (pieceEnd <= start) {
+        cursor = pieceEnd;
+        continue;
+      }
+      if (pieceStart >= end) {
+        break;
+      }
+      final sourceText = piece.source == _PieceSource.original
+          ? _original
+          : _add;
+      final localStart =
+          piece.start + (start - pieceStart).clamp(0, piece.length);
+      final localEnd =
+          piece.start + (end - pieceStart).clamp(0, piece.length);
+      buffer.write(sourceText.substring(localStart, localEnd));
+      cursor = pieceEnd;
+    }
+    return buffer.toString();
   }
 
   @override
@@ -232,10 +272,12 @@ class TextBufferSnapshot implements TextBuffer {
       return '';
     }
     final safeLine = line.clamp(0, lineCount - 1).toInt();
-    return text.substring(
-      _lineMap.lineStarts[safeLine],
-      _lineMap.lineContentEnds[safeLine],
-    );
+    final start = _lineMap.lineStarts[safeLine];
+    final end = _lineMap.lineContentEnds[safeLine];
+    if (_length >= 10000) {
+      return _readTextRange(start, end);
+    }
+    return text.substring(start, end);
   }
 
   @override
@@ -360,6 +402,54 @@ class _LineMap {
     }
 
     ends.add(text.length);
+    return _LineMap._(lineStarts: starts, lineContentEnds: ends);
+  }
+
+  factory _LineMap.fromPieces({
+    required List<_Piece> pieces,
+    required String original,
+    required String add,
+    required int length,
+  }) {
+    final starts = <int>[0];
+    final ends = <int>[];
+    var offset = 0;
+    var previousWasCarriageReturn = false;
+
+    void consumeCodeUnit(int codeUnit) {
+      if (codeUnit == 0x0A) {
+        if (previousWasCarriageReturn) {
+          offset += 1;
+          starts[starts.length - 1] = offset;
+          previousWasCarriageReturn = false;
+          return;
+        }
+        ends.add(offset);
+        offset += 1;
+        starts.add(offset);
+        return;
+      }
+      if (codeUnit == 0x0D) {
+        ends.add(offset);
+        offset += 1;
+        starts.add(offset);
+        previousWasCarriageReturn = true;
+        return;
+      }
+      previousWasCarriageReturn = false;
+      offset += 1;
+    }
+
+    for (final piece in pieces) {
+      final sourceText = piece.source == _PieceSource.original ? original : add;
+      for (var index = piece.start; index < piece.end; index += 1) {
+        consumeCodeUnit(sourceText.codeUnitAt(index));
+      }
+    }
+
+    if (ends.length < starts.length) {
+      ends.add(length);
+    }
     return _LineMap._(lineStarts: starts, lineContentEnds: ends);
   }
 

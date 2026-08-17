@@ -94,8 +94,7 @@ class WorkspaceTypeDefinitionResult {
 class WorkspaceTypeDefinitionService {
   const WorkspaceTypeDefinitionService({
     required this.documentStore,
-    StyioSyntaxHighlighter syntaxHighlighter =
-        const StyioSyntaxHighlighter(),
+    StyioSyntaxHighlighter syntaxHighlighter = const StyioSyntaxHighlighter(),
   }) : _syntaxHighlighter = syntaxHighlighter;
 
   final WorkspaceDocumentStore documentStore;
@@ -154,10 +153,7 @@ class WorkspaceTypeDefinitionService {
         continue;
       }
       scoredTypes.add(
-        _ScoredWorkspaceTypeDeclaration(
-          declaration: declaration,
-          score: score,
-        ),
+        _ScoredWorkspaceTypeDeclaration(declaration: declaration, score: score),
       );
     }
 
@@ -396,8 +392,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

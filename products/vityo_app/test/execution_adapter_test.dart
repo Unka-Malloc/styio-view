@@ -15,6 +15,9 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'backend_provider_test_support.dart';
 
 void main() {
+  setUpAll(startBackendProviderTestServices);
+  tearDownAll(stopBackendProviderTestServices);
+
   test('execution receipt decoder fails closed on unknown schema', () {
     expect(
       ExecutionReceiptSnapshot.decode(const <String, Object?>{
@@ -613,7 +616,11 @@ raise SystemExit(65)
         activeFilePath: sourceFile.path,
       );
 
-      expect(session.status, ExecutionSessionStatus.succeeded);
+      expect(
+        session.status,
+        ExecutionSessionStatus.succeeded,
+        reason: session.statusMessage,
+      );
       expect(
         session.stdoutEvents.map((event) => event.message),
         contains(
@@ -715,7 +722,11 @@ raise SystemExit(65)
         activeFilePath: sourceFile.path,
       );
 
-      expect(session.status, ExecutionSessionStatus.succeeded);
+      expect(
+        session.status,
+        ExecutionSessionStatus.succeeded,
+        reason: session.statusMessage,
+      );
       expect(outsideFile.readAsStringSync(), 'outside before\n');
       expect(escapeLink.targetSync(), outsideFile.path);
     },
@@ -1076,11 +1087,8 @@ path = "scratch/main.styio"
           );
       expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
 
-      debugOverridePafioDiscoveryEnvironment(<String, String>{
-        'PATH': tempRoot.path,
-        'Path': tempRoot.path,
-      });
-      addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+      debugOverridePafioExecutableCandidates(const <String>[]);
+      addTearDown(() => debugOverridePafioExecutableCandidates(null));
       final missingPafioGraph = _projectGraph(
         workspaceRoot: tempRoot.path,
         manifestPath: manifestPath,
@@ -1530,10 +1538,8 @@ Future<File> _writeExecutable(File file, String contents) async {
 
 Future<File> _writePafioExecutable(File file, String contents) async {
   final executable = await _writeExecutable(file, contents);
-  debugOverridePafioDiscoveryEnvironment(<String, String>{
-    'VITYO_PAFIO_BIN': executable.path,
-  });
-  addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+  debugOverridePafioExecutableCandidates(<String>[executable.path]);
+  addTearDown(() => debugOverridePafioExecutableCandidates(null));
   return executable;
 }
 

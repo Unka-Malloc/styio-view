@@ -328,9 +328,8 @@ Required security files (must exist):
 - `products/vityo_app/lib/src/view_ide/environment/configuration/secret_store.dart`
 - `products/vityo_app/lib/src/view_ide/module_host/module_manifest_security.dart`
 - `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart`
-- `products/vityo_app/lib/src/ide/agent_client/agent_process_supervisor.dart`
-- `products/vityo_app/lib/src/ide/agent_client/mcp/ide_mcp_server.dart`
-- `products/vityo_app/lib/src/ide/agent_client/tools/tool_security_policy.dart`
+- `products/vityo_app/lib/src/ide/agent_client/mcp/vityod_mcp_gateway.dart`
+- `products/vityo_app/native/vityod/crates/vityod-agent-host/src/acp.rs`
 - `products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart`
 - `packages/vityo_agent_protocol/lib/src/protocol.dart`
 
@@ -353,10 +352,9 @@ Every file below participates in the security, permission, audit, or supply-chai
 | `products/vityo_coding_agent/lib/src/policy/` | Agent runtime policy and grant persistence | Tool authority, least privilege, grant lifecycle |
 | `products/vityo_coding_agent/lib/src/tools/` | Agent runtime tool catalog and executor | Tool validation, execution, bounds, and results |
 | `products/vityo_coding_agent/lib/src/sessions/` | Durable Agent sessions and effect receipts | Journal, replay/recovery, redacted evidence |
-| `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart` | IDE protocol connection and session registry | Negotiation, correlation, permissions, reconnect, and bounded failure isolation |
-| `products/vityo_app/lib/src/ide/agent_client/agent_process_supervisor.dart` | Supervised local Agent transport | Minimal environment, bounded frames, serialized writes, and orphan-free shutdown |
-| `products/vityo_app/lib/src/ide/agent_client/mcp/` | IDE MCP host and workspace-root registry | Revisioned root authority, schemas, capability discovery, and revocation |
-| `products/vityo_app/lib/src/ide/agent_client/tools/` | IDE fact/tool export security | Bounded redaction, risk grants, schema enforcement, and audit receipts |
+| `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart` | Thin IDE gateway and immutable projection | Typed daemon requests, permission presentation, reconnect coalescing, and bounded failure isolation |
+| `products/vityo_app/lib/src/ide/agent_client/mcp/vityod_mcp_gateway.dart` | Typed MCP security gateway | Revision-scoped grants, revocation, redacted reads, and preview-only edit proposals |
+| `products/vityo_app/native/vityod/crates/vityod-agent-host/src/acp.rs` | Daemon-owned ACP process and session authority | Minimal environment, bounded frames, correlation, capability revocation, and orphan-free shutdown |
 | `products/vityo_app/lib/src/ide/workbench/agent_collaboration/` | Immutable Workbench projection | Permission lifecycle, proposal review, and terminal-state cleanup |
 | `products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart` | Workspace mutation authority | Revision conflict detection, preview, commit, reject, and rollback |
 | `products/vityo_app/lib/src/view_ide/environment/execution/execution_sandbox.dart` | Local execution policy: cwd containment, trust, approval, network, env allowlist, timeout | Command safety, resource bounds, structured denial |

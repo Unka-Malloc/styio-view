@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "component": "vityod",
+  "daemon_version": "0.0.0-fixture",
+  "target": "x86_64-pc-windows-msvc",
+  "protocol_min": 1,
+  "protocol_max": 1,
+  "executable_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "build_source_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+  "required_runtime_libraries": ["vcruntime140.dll"],
+  "package_relative_path": "components/vityod.exe",
+  "fixture_only": true,
+  "native_launch": false,
+  "blocked_reason": "Native Windows launch evidence requires a matching release host."
+}

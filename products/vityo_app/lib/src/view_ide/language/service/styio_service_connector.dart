@@ -70,6 +70,7 @@ class StyioServiceDocumentMaterializer {
 
   final FileSystemManager fileSystemManager;
   final ResourceManager resourceManager;
+  static var _temporarySequence = 0;
 
   Future<T> materialize<T>(
     StyioServiceDocument document,
@@ -78,9 +79,7 @@ class StyioServiceDocumentMaterializer {
     if (document.filePath != null) {
       return action(document);
     }
-    final tempRoot = await resourceManager.createTempDirectory(
-      'vityo_styio_service_',
-    );
+    final tempRoot = await _createTemporaryRoot();
     final tempFilePath = fileSystemManager.joinPath(<String>[
       tempRoot,
       '${_safeFileStem(document.documentId)}.styio',
@@ -101,6 +100,20 @@ class StyioServiceDocumentMaterializer {
     } finally {
       await fileSystemManager.delete(tempRoot, recursive: true);
     }
+  }
+
+  Future<String> _createTemporaryRoot() async {
+    final root = resourceManager.snapshot().systemTempPath;
+    for (var attempt = 0; attempt < 8; attempt += 1) {
+      final candidate = fileSystemManager.joinPath(<String>[
+        root,
+        'vityo_styio_service_${DateTime.now().microsecondsSinceEpoch}-${++_temporarySequence}',
+      ]);
+      if (await fileSystemManager.exists(candidate)) continue;
+      await fileSystemManager.createDirectory(candidate);
+      return candidate;
+    }
+    throw StateError('Styio materialization directory allocation failed.');
   }
 
   String _safeFileStem(String documentId) {

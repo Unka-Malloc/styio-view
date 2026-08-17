@@ -3,7 +3,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 
+import 'support/vityod_test_harness.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+
+  setUpAll(() async {
+    if (!VityodTestHarness.isSupported) return;
+    vityod = await VityodTestHarness.start(clientId: 'platform-context-test');
+  });
+
+  tearDownAll(() => vityod?.close());
+
   PlatformContextController createController() {
     return PlatformContextController(
       store: InMemoryPlatformContextStore(),
@@ -523,15 +534,20 @@ void main() {
 
       final fileSystemManager = await createPlatformFileSystemManager(
         platformContext: context,
-      );
-      final shellManager = await createPlatformShellManager(
-        platformContext: context,
+        vityodClient: vityod!.client,
+        allowedRoots: <String>[context.resource.systemTempPath],
       );
       final processManager = await createPlatformProcessManager(
         platformContext: context,
+        vityodClient: vityod!.client,
+      );
+      final shellManager = await createPlatformShellManager(
+        platformContext: context,
+        processManager: processManager,
       );
       final resourceManager = await createPlatformResourceManager(
         platformContext: context,
+        fileSystemManager: fileSystemManager,
       );
       final networkManager = await createPlatformNetworkManager(
         platformContext: context,
@@ -547,6 +563,7 @@ void main() {
       );
       final ptyManager = await createPlatformPtyManager(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
 
       expect(fileSystemManager.facts.targetId, 'ctx');
@@ -630,6 +647,7 @@ void main() {
 
       final managers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final result = await managers.process.run(
         const ProcessCommandRequest(

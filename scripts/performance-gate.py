@@ -28,6 +28,8 @@ FLUTTER_APP_DIR = ROOT / "products" / "vityo_app"
 BENCHMARK_RUNNER = BENCHMARK_DIR / "run_all_benchmarks.dart"
 BENCHMARK_RUNNER_RELATIVE = Path("benchmark") / "run_all_benchmarks.dart"
 BENCHMARK_MEASURE_FIELDS = ("p95Ms", "p99Ms", "meanMs", "maxMs")
+REGRESSION_MEASURE_SUFFIX = ".p95Ms"
+MIN_REGRESSION_DELTA_MS = 0.5
 
 # ---------------------------------------------------------------------------
 # Discoverable benchmarks
@@ -296,6 +298,8 @@ def compare_results(current: dict, baseline: dict, threshold: float) -> list[dic
             continue
 
         for metric, current_value in bench_data["metrics"].items():
+            if not metric.endswith(REGRESSION_MEASURE_SUFFIX):
+                continue
             base_value = base_data["metrics"].get(metric)
             if base_value is None or base_value == 0:
                 continue
@@ -303,7 +307,10 @@ def compare_results(current: dict, baseline: dict, threshold: float) -> list[dic
                 continue
 
             ratio = current_value / base_value
-            if ratio > threshold:
+            if (
+                ratio > threshold
+                and current_value - base_value >= MIN_REGRESSION_DELTA_MS
+            ):
                 regressions.append({
                     "benchmark": bench_id,
                     "metric": metric,

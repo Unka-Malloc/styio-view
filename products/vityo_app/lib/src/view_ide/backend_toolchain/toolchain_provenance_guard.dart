@@ -180,7 +180,8 @@ class ToolchainCandidateDescriptor {
           registeredAt == other.registeredAt;
 
   @override
-  int get hashCode => Object.hash(id, label, path, version, channel, registeredAt);
+  int get hashCode =>
+      Object.hash(id, label, path, version, channel, registeredAt);
 
   @override
   String toString() =>
@@ -237,8 +238,11 @@ class ToolchainSelectorState {
           currentRecovery == other.currentRecovery;
 
   @override
-  int get hashCode =>
-      Object.hash(activeCandidateId, Object.hashAll(registeredCandidates), currentRecovery);
+  int get hashCode => Object.hash(
+    activeCandidateId,
+    Object.hashAll(registeredCandidates),
+    currentRecovery,
+  );
 
   @override
   String toString() =>
@@ -298,8 +302,9 @@ class ProvenanceEndpointGuard {
 
     if (plan.trustedProvenanceKeys.isNotEmpty &&
         plan.provenanceSignatureUri != null) {
-      final signatureEndpointCheck =
-          allowlist.check(plan.provenanceSignatureUri!);
+      final signatureEndpointCheck = allowlist.check(
+        plan.provenanceSignatureUri!,
+      );
       if (!signatureEndpointCheck.allowed) {
         return ToolchainInstallConfirmResult.denied(
           'Provenance signature endpoint ${plan.provenanceSignatureUri} '
@@ -344,7 +349,8 @@ class ProvenanceEndpointGuard {
     ToolchainInstallPlan plan, {
     required Future<ToolchainInstallExecutionResult> Function(
       ToolchainInstallPlan plan,
-    ) executor,
+    )
+    executor,
   }) async {
     final confirm = await validateDownload(plan);
     if (!confirm.confirmed) {
@@ -360,8 +366,8 @@ class ProvenanceEndpointGuard {
                 'download URI and expected checksum.',
           ),
         ],
-        message: confirm.rejectionReason ??
-            'Toolchain download validation failed.',
+        message:
+            confirm.rejectionReason ?? 'Toolchain download validation failed.',
       );
     }
 
@@ -402,7 +408,8 @@ class ProvenanceEndpointGuard {
         rollbackRecovery,
       ],
       platformFailure: result.platformFailure,
-      message: result.message ?? 'Toolchain install failed; rollback available.',
+      message:
+          result.message ?? 'Toolchain install failed; rollback available.',
     );
   }
 }

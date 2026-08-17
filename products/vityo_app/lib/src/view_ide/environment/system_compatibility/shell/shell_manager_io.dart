@@ -1,9 +1,7 @@
-import 'dart:async';
-import 'dart:io';
-
 import '../../configuration/shell_configuration.dart';
 import '../platform_adapter/platform_adapter.dart';
 import '../platform_context/platform_context.dart';
+import '../process/process.dart';
 import 'shell_adapter.dart';
 import 'shell_facts.dart';
 import 'shell_manager.dart';
@@ -13,18 +11,28 @@ import 'shell_prober_io.dart';
 Future<ShellManager> createPlatformShellManager({
   ShellProber? prober,
   PlatformContextSnapshot? platformContext,
+  ProcessManager? processManager,
 }) async {
-  final adapter = platformContext == null ? null : PlatformAdapter(platformContext);
+  final adapter = platformContext == null
+      ? null
+      : PlatformAdapter(platformContext);
   final facts =
-      adapter?.context.shell ?? await (prober ?? const LocalShellProber()).probe();
-  return LocalShellManager(facts: facts, adapter: adapter?.shellAdapter);
+      adapter?.context.shell ??
+      await (prober ?? const LocalShellProber()).probe();
+  return LocalShellManager(
+    facts: facts,
+    adapter: adapter?.shellAdapter,
+    processManager: processManager,
+  );
 }
 
 class LocalShellManager implements ShellManager {
   LocalShellManager({
     required this.facts,
     ShellAdapter? adapter,
+    ProcessManager? processManager,
   }) : _adapter = adapter ?? ShellAdapter(facts),
+       _processManager = processManager,
        compatibility = (adapter ?? ShellAdapter(facts)).adapt();
 
   factory LocalShellManager.linuxDebianArmForTest({
@@ -36,6 +44,7 @@ class LocalShellManager implements ShellManager {
   }
 
   final ShellAdapter _adapter;
+  final ProcessManager? _processManager;
 
   @override
   final ShellFacts facts;
@@ -51,11 +60,7 @@ class LocalShellManager implements ShellManager {
   }) {
     return const ShellFailureClassifier(
       sourceManager: 'LocalShellManager',
-    ).classify(
-      result,
-      operation: operation,
-      recoveryHint: recoveryHint,
-    );
+    ).classify(result, operation: operation, recoveryHint: recoveryHint);
   }
 
   @override
@@ -79,30 +84,11 @@ class LocalShellManager implements ShellManager {
     }
 
     final stopwatch = Stopwatch()..start();
-    try {
-      final result = await Process.run(
-        plan.executablePath,
-        plan.arguments,
-        workingDirectory: plan.workingDirectory,
-        environment: plan.environment.isEmpty ? null : plan.environment,
-      ).timeout(plan.timeout);
+    final processManager = _processManager;
+    if (processManager == null) {
       stopwatch.stop();
       return ShellCommandResult(
-        status: result.exitCode == 0
-            ? ShellCommandStatus.succeeded
-            : ShellCommandStatus.failed,
-        command: request.command,
-        executablePath: plan.executablePath,
-        arguments: plan.arguments,
-        exitCode: result.exitCode,
-        stdout: result.stdout.toString(),
-        stderr: result.stderr.toString(),
-        duration: stopwatch.elapsed,
-      );
-    } on TimeoutException {
-      stopwatch.stop();
-      return ShellCommandResult(
-        status: ShellCommandStatus.timedOut,
+        status: ShellCommandStatus.blocked,
         command: request.command,
         executablePath: plan.executablePath,
         arguments: plan.arguments,
@@ -110,7 +96,35 @@ class LocalShellManager implements ShellManager {
         stdout: '',
         stderr: '',
         duration: stopwatch.elapsed,
-        message: 'Shell command timed out after ${plan.timeout}.',
+        message: 'Shell execution requires the local process service.',
+      );
+    }
+    try {
+      final result = await processManager.run(
+        ProcessCommandRequest(
+          executablePath: plan.executablePath,
+          arguments: plan.arguments,
+          workingDirectory: plan.workingDirectory,
+          environment: plan.environment,
+          timeout: plan.timeout,
+        ),
+      );
+      stopwatch.stop();
+      return ShellCommandResult(
+        status: switch (result.status) {
+          ProcessCommandStatus.succeeded => ShellCommandStatus.succeeded,
+          ProcessCommandStatus.failed => ShellCommandStatus.failed,
+          ProcessCommandStatus.timedOut => ShellCommandStatus.timedOut,
+          ProcessCommandStatus.blocked => ShellCommandStatus.blocked,
+        },
+        command: request.command,
+        executablePath: plan.executablePath,
+        arguments: plan.arguments,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        duration: result.duration,
+        message: result.message,
       );
     } on Object catch (error) {
       stopwatch.stop();

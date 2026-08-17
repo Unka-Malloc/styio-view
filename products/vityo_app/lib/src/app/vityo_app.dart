@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'layout/vityo_shell_scaffold.dart';
 import '../view_render/theme/theme.dart';
+import '../view_render/shell/shell_model.dart';
+import '../view_render/shell/shell_scope.dart';
+import '../view_render/shell/vityo_shell_scaffold.dart';
 import 'app_bootstrap.dart';
-import 'state/shell_model.dart';
-import 'state/shell_scope.dart';
 
 class VityoApp extends StatefulWidget {
   const VityoApp({super.key, required this.bootstrap, this.initialPath});
@@ -39,8 +39,12 @@ class _VityoAppState extends State<VityoApp> {
       runtimeEventAdapter: widget.bootstrap.runtimeEventAdapter,
       dependencySourceAdapter: widget.bootstrap.dependencySourceAdapter,
       deploymentAdapter: widget.bootstrap.deploymentAdapter,
+      terminalRuntimeRegistry: widget.bootstrap.terminalRuntimeRegistry,
       agentClientRegistry: widget.bootstrap.agentClientRegistry,
       agentCollaboration: widget.bootstrap.agentCollaboration,
+      vityodClient: widget.bootstrap.vityodClient,
+      debugAdapterLauncher: widget.bootstrap.debugAdapterLauncher,
+      workspaceTextSearchProvider: widget.bootstrap.workspaceTextSearchProvider,
       runtimeOutputBuffer: widget.bootstrap.runtimeOutputBuffer,
       refreshActiveLanguageService:
           widget.bootstrap.refreshActiveLanguageService,

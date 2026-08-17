@@ -6,6 +6,8 @@ import 'package:vityo_app/src/view_ide/commands/commands.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('command palette recent store persists ranking input', () async {
     final store = CommandPaletteRecentCommandStore.fromDataStore(
@@ -216,7 +218,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_command_palette_recent_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

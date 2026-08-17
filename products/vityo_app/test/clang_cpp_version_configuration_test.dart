@@ -5,6 +5,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('Clang C++ version preference round-trips through JSON', () {
     const preference = ClangCppVersionPreference(
@@ -67,7 +69,7 @@ void main() {
 }
 
 Future<ConfigurationStore> _createConfigurationStore(Directory root) async {
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: root.path,

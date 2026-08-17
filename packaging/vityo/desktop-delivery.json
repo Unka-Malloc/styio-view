@@ -1,5 +1,20 @@
 {
   "schema_version": 1,
   "product": "vityo",
-  "platforms": ["linux", "windows", "macos"]
+  "platforms": ["linux", "windows", "macos"],
+  "component": {
+    "name": "vityod",
+    "protocol_min": 1,
+    "protocol_max": 1,
+    "instance_scope": "per-user",
+    "launch": "on-demand",
+    "privileged_service": false,
+    "discovery": "application-relative-manifest-only"
+  },
+  "state_policy": {
+    "compatible_schema_step": 1,
+    "upgrade": "checkpoint-health-rollback",
+    "uninstall": "retain-user-state",
+    "reclamation": "separate-explicit-confirmation"
+  }
 }

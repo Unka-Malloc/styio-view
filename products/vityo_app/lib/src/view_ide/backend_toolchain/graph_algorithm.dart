@@ -141,13 +141,15 @@ class GraphAlgorithm {
   /// self-loop (depends on itself).
   static List<List<String>> findCycles(Map<String, List<String>> graph) {
     final sccs = findStronglyConnectedComponents(graph);
-    return sccs.where((component) {
-      if (component.length > 1) return true;
-      // Check for self-loop.
-      final node = component.single;
-      final neighbors = graph[node] ?? <String>[];
-      return neighbors.contains(node);
-    }).toList(growable: false);
+    return sccs
+        .where((component) {
+          if (component.length > 1) return true;
+          // Check for self-loop.
+          final node = component.single;
+          final neighbors = graph[node] ?? <String>[];
+          return neighbors.contains(node);
+        })
+        .toList(growable: false);
   }
 
   /// Returns whether the graph contains any cycles.
@@ -303,14 +305,16 @@ class GraphAlgorithm {
     Map<String, List<String>> graph,
   ) {
     final cycles = findCycles(graph);
-    return cycles.map((cycle) {
-      final cycleDescription = cycle.join(' -> ');
-      return GraphDiagnostic(
-        severity: 'error',
-        message: 'Dependency cycle detected: $cycleDescription',
-        code: 'cycle_detected',
-        source: cycle.first,
-      );
-    }).toList(growable: false);
+    return cycles
+        .map((cycle) {
+          final cycleDescription = cycle.join(' -> ');
+          return GraphDiagnostic(
+            severity: 'error',
+            message: 'Dependency cycle detected: $cycleDescription',
+            code: 'cycle_detected',
+            source: cycle.first,
+          );
+        })
+        .toList(growable: false);
   }
 }

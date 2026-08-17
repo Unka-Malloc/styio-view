@@ -56,7 +56,7 @@ Concrete implementations are system specific:
 
 | Implementation | Target |
 |----------------|--------|
-| LocalFileSystemManager | Local desktop filesystem. |
+| VityodFileSystemManager | Scoped desktop filesystem gateway backed by packaged `vityod`. |
 | RemoteFileSystemManager | Remote workspace filesystem. |
 | BrowserFileSystemManager | Browser-backed or File System Access API-backed filesystem. |
 | VirtualFileSystemManager | In-memory, generated, plugin-provided, or read-only virtual filesystem. |
@@ -66,7 +66,7 @@ Rule:
 
 ```text
 FileSystemManager = interface
-LocalFileSystemManager / RemoteFileSystemManager / BrowserFileSystemManager / VirtualFileSystemManager = implementations
+VityodFileSystemManager / RemoteFileSystemManager / BrowserFileSystemManager / VirtualFileSystemManager = implementations
 ```
 
 ## 5. What Is Absorbed Into File System Manager

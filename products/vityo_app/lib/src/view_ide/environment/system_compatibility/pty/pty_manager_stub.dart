@@ -10,6 +10,7 @@ import 'pty_prober_stub.dart';
 Future<PtyManager> createPlatformPtyManager({
   PtyProber? prober,
   PlatformContextSnapshot? platformContext,
+  Object? vityodClient,
 }) async {
   if (platformContext != null) {
     return UnsupportedPtyManager(facts: platformContext.pty);
@@ -19,10 +20,13 @@ Future<PtyManager> createPlatformPtyManager({
 }
 
 class LocalPtyManager extends UnsupportedPtyManager {
-  LocalPtyManager({required PtyFacts facts, PtyAdapter? adapter})
-    : super(facts: facts);
+  LocalPtyManager({
+    required PtyFacts facts,
+    Object? client,
+    PtyAdapter? adapter,
+  }) : super(facts: facts);
 
-  factory LocalPtyManager.linuxDebianArmForTest() {
-    return LocalPtyManager(facts: PtyFacts.linuxDebianArm());
+  factory LocalPtyManager.linuxDebianArmForTest({Object? client}) {
+    return LocalPtyManager(facts: PtyFacts.linuxDebianArm(), client: client);
   }
 }

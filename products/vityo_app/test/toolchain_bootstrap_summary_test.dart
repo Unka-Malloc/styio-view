@@ -5,13 +5,15 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('toolchain manager exposes bootstrap summary actions', () async {
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_toolchain_bootstrap_summary_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,

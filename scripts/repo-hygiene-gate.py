@@ -83,6 +83,7 @@ ALLOWED_BINARY_GLOBS = (
     "prototype/*.png",
     "reference-images/*.JPG",
     "reference-images/*.png",
+    "docs/review/interactive-editor-input/*.png",
 )
 
 REQUIRED_GITIGNORE_PATTERNS = (

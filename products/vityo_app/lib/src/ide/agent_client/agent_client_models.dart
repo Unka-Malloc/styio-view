@@ -1,6 +1,43 @@
 import 'dart:async';
 import 'dart:collection';
 
+final class AgentLaunchDescriptor {
+  AgentLaunchDescriptor({
+    required this.id,
+    required this.executable,
+    required List<String> arguments,
+    required this.workingDirectory,
+  }) : arguments = List<String>.unmodifiable(arguments) {
+    if (id.isEmpty || id.length > 256) {
+      throw ArgumentError.value(id, 'id', 'must be a bounded identifier');
+    }
+    if (executable.isEmpty || workingDirectory.isEmpty) {
+      throw ArgumentError(
+        'Agent executable and working directory are required',
+      );
+    }
+  }
+
+  final String id;
+  final String executable;
+  final List<String> arguments;
+  final String workingDirectory;
+}
+
+final class AgentShutdownReceipt {
+  const AgentShutdownReceipt({
+    required this.agentId,
+    required this.terminated,
+    required this.forced,
+    required this.exitCode,
+  });
+
+  final String agentId;
+  final bool terminated;
+  final bool forced;
+  final int? exitCode;
+}
+
 final class AgentClientFailure implements Exception {
   AgentClientFailure(this.code, String message)
     : message = message.length <= 1024 ? message : message.substring(0, 1024);

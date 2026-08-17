@@ -1,0 +1,18 @@
+[package]
+name = "vityod"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc.workspace = true
+serde_json.workspace = true
+vityod-protocol = { path = "../vityod-protocol" }
+vityod-kernel = { path = "../vityod-kernel" }
+vityod-agent-host = { path = "../vityod-agent-host" }
+vityod-runtime = { path = "../vityod-runtime" }
+vityod-workspace = { path = "../vityod-workspace" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true

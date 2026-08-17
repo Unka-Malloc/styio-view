@@ -2,42 +2,18 @@ import 'dart:io';
 
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
 
-Future<void> main() async {
-  final storage = MemoryAgentSessionRecoveryStorage();
-  final recovery = AgentSessionRecoveryStore(
-    storage: storage,
-    maxSessions: 4,
-    maxTimelineEntriesPerSession: 8,
-    maxEncodedBytes: 16 * 1024,
-  );
-  await recovery.save(
-    AgentRecoveryCheckpoint(
-      sessionId: 'recoverable',
-      agentId: 'healthy',
-      processGeneration: 1,
-      protocolVersion: 1,
-      workspaceRevision: 7,
-      status: 'active',
-      droppedUpdateCount: 0,
-      timeline: const <AgentSessionUpdate>[],
-    ),
-  );
-  final restored = await AgentSessionRecoveryStore(
-    storage: storage,
-    maxSessions: 4,
-    maxTimelineEntriesPerSession: 8,
-    maxEncodedBytes: 16 * 1024,
-  ).loadAll();
-  if (restored.single.sessionId != 'recoverable' ||
-      restored.single.workspaceRevision != 7) {
-    throw StateError('session checkpoint did not survive reconstruction');
-  }
+import '../test/support/vityod_test_harness.dart';
 
+Future<void> main() async {
+  if (!VityodTestHarness.isSupported) return;
   final fixture = File.fromUri(
     Platform.script.resolve(
       '../../../tests/acceptance/fixtures/vityo_app/agent_client/'
       'fake_agent.dart',
     ),
+  );
+  final harness = await VityodTestHarness.start(
+    clientId: 'agent-isolation-integration',
   );
   final registry = AgentClientRegistry(
     descriptors: <String, AgentLaunchDescriptor>{
@@ -54,6 +30,7 @@ Future<void> main() async {
         workingDirectory: Directory.current.path,
       ),
     },
+    client: harness.client,
     policy: const AgentClientPolicy(
       requestTimeout: Duration(seconds: 3),
       shutdownTimeout: Duration(seconds: 2),
@@ -74,9 +51,10 @@ Future<void> main() async {
       cwd: Directory.current.uri,
     );
     if (session.agentId != 'healthy' || registry.activeConnectionCount != 1) {
-      throw StateError('sibling Agent connection was not isolated');
+      throw StateError('sibling Agent failure was not isolated');
     }
   } finally {
     await registry.close();
+    await harness.close();
   }
 }

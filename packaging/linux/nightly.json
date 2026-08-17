@@ -6,6 +6,12 @@
   "build_relative_path": "products/vityo_app/build/linux/x64/release/bundle",
   "icon_relative_path": "products/vityo_app/web/icons/Icon-512.png",
   "installer_definition": "packaging/linux/DEBIAN/control",
+  "vityod": {
+    "target": "x86_64-unknown-linux-gnu",
+    "source_relative_path": "products/vityo_app/native/vityod/target/release/vityod",
+    "package_relative_path": "components/vityod",
+    "required_runtime_libraries": ["glibc"]
+  },
   "signing": {"status": "explicit-gap", "reason": "Nightly Debian repository signing credentials are not configured."},
   "automatic_updates": false
 }

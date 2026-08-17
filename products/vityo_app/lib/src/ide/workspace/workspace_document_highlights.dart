@@ -178,8 +178,7 @@ class WorkspaceDocumentHighlightsService {
         filesSearched: 0,
         highlightsIndexed: 0,
         highlights: const <WorkspaceDocumentHighlightItem>[],
-        message:
-            'Document Highlights requires an active Styio workspace file.',
+        message: 'Document Highlights requires an active Styio workspace file.',
       );
     }
 
@@ -326,8 +325,7 @@ class WorkspaceDocumentHighlightsService {
       return WorkspaceDocumentHighlightKind.declaration;
     }
     return switch (reference.access) {
-      ReferenceAccess.declaration =>
-        WorkspaceDocumentHighlightKind.declaration,
+      ReferenceAccess.declaration => WorkspaceDocumentHighlightKind.declaration,
       ReferenceAccess.read => WorkspaceDocumentHighlightKind.read,
       ReferenceAccess.write => WorkspaceDocumentHighlightKind.write,
     };
@@ -450,9 +448,9 @@ class _GlobMatcher {
       return normalized == suffix || normalized.endsWith('/$suffix');
     }
     if (_pattern.contains('*')) {
-      final expression = RegExp.escape(_pattern)
-          .replaceAll(r'\*\*', '.*')
-          .replaceAll(r'\*', '[^/]*');
+      final expression = RegExp.escape(
+        _pattern,
+      ).replaceAll(r'\*\*', '.*').replaceAll(r'\*', '[^/]*');
       final regex = RegExp('^$expression\$');
       return regex.hasMatch(normalized);
     }

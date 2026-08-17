@@ -7,6 +7,7 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart'
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
+import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 
 void main() {
@@ -116,24 +117,31 @@ final class _FakeBackendProvider implements BackendProvider {
   };
 
   @override
-  Future<DependencySourceAdapter> createDependencySourceAdapter() {
+  Future<DependencySourceAdapter> createDependencySourceAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
     throw UnsupportedError('Not used by registry tests.');
   }
 
   @override
-  Future<DeploymentAdapter> createDeploymentAdapter() {
+  Future<DeploymentAdapter> createDeploymentAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
     throw UnsupportedError('Not used by registry tests.');
   }
 
   @override
   Future<ExecutionAdapter> createExecutionAdapter(
-    ProjectGraphSnapshot projectGraph,
-  ) {
+    ProjectGraphSnapshot projectGraph, {
+    PlatformManagerBundle? platformManagers,
+  }) {
     throw UnsupportedError('Not used by registry tests.');
   }
 
   @override
-  Future<ProjectGraphAdapter> createProjectGraphAdapter() {
+  Future<ProjectGraphAdapter> createProjectGraphAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
     throw UnsupportedError('Not used by registry tests.');
   }
 
@@ -141,5 +149,4 @@ final class _FakeBackendProvider implements BackendProvider {
   RuntimeEventAdapter createRuntimeEventAdapter() {
     throw UnsupportedError('Not used by registry tests.');
   }
-
 }

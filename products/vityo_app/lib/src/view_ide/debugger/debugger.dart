@@ -5,8 +5,6 @@ export 'debug_adapter_session.dart';
 export 'debug_adapter_transport.dart';
 export 'debug_breakpoint_store.dart';
 export 'debug_launch_contract.dart';
-export 'debug_launch_readiness_io.dart';
 export 'debug_launch_telemetry_store.dart';
 export 'debug_runtime_task_history.dart';
-export 'debug_smoke_readiness_io.dart';
 export 'extension_debug_contributions.dart';

@@ -32,17 +32,6 @@ Future<String?> readHostArchitecture({
     return _windowsArchitecture(env);
   }
 
-  try {
-    final result = await Process.run(
-      'uname',
-      const <String>['-m'],
-    ).timeout(const Duration(milliseconds: 500));
-    if (result.exitCode == 0) {
-      return result.stdout.toString().trim().toLowerCase();
-    }
-  } on Object {
-    return _fallbackArchitecture(env);
-  }
   return _fallbackArchitecture(env);
 }
 
@@ -116,9 +105,7 @@ String windowsCompatibilityTarget(String architecture) {
 }
 
 String? _windowsArchitecture(Map<String, String> environment) {
-  return _normalizeWindowsArchitecture(
-        environment['PROCESSOR_ARCHITEW6432'],
-      ) ??
+  return _normalizeWindowsArchitecture(environment['PROCESSOR_ARCHITEW6432']) ??
       _normalizeWindowsArchitecture(environment['PROCESSOR_ARCHITECTURE']) ??
       _fallbackArchitecture(environment);
 }

@@ -15,7 +15,30 @@ abstract class WorkspaceDocumentStore {
   String? filePathForDocumentId(String documentId);
 }
 
-abstract class WatchableWorkspaceDocumentStore implements WorkspaceDocumentStore {
+abstract interface class AtomicWorkspaceDocumentStore
+    implements WorkspaceDocumentStore {
+  Future<Map<String, int>> saveDocumentsAtomically(
+    Iterable<DocumentState> documents,
+  );
+}
+
+Future<void> saveWorkspaceDocuments(
+  WorkspaceDocumentStore store,
+  Iterable<DocumentState> documents,
+) async {
+  final pending = documents.toList(growable: false);
+  if (pending.isEmpty) return;
+  if (store is AtomicWorkspaceDocumentStore) {
+    await store.saveDocumentsAtomically(pending);
+    return;
+  }
+  for (final document in pending) {
+    await store.saveDocument(document);
+  }
+}
+
+abstract class WatchableWorkspaceDocumentStore
+    implements WorkspaceDocumentStore {
   Stream<DocumentState> watchDocument(String documentId);
 }
 
@@ -96,7 +119,8 @@ class InMemoryWorkspaceDocumentStore implements WorkspaceDocumentStore {
   }
 
   @override
-  Future<bool> documentExists(String path) async => _documents.containsKey(path);
+  Future<bool> documentExists(String path) async =>
+      _documents.containsKey(path);
 
   @override
   String? filePathForDocumentId(String documentId) => null;

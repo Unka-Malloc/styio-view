@@ -1,0 +1,14 @@
+{
+  "protocolVersion": 1,
+  "method": "workspace.snapshot",
+  "requestId": "request-1",
+  "clientInstanceId": "client-1",
+  "idempotencyKey": "operation-1",
+  "workspaceId": "workspace-1",
+  "workspaceRevision": 7,
+  "deadlineUnixMillis": 4102444800000,
+  "cancellationId": "cancel-1",
+  "params": {"includeDirtyBuffers": true},
+  "capabilities": ["workspace.snapshot", "event.resume"],
+  "futureField": {"preserved": true}
+}

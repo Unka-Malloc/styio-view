@@ -1,27 +1,61 @@
-class SelectionState {
-  const SelectionState({required this.baseOffset, required this.extentOffset});
+enum EditorCaretAffinity { upstream, downstream }
 
-  const SelectionState.collapsed(int offset)
-    : baseOffset = offset,
-      extentOffset = offset;
+class SelectionState {
+  const SelectionState({
+    required this.baseOffset,
+    required this.extentOffset,
+    this.baseAffinity = EditorCaretAffinity.downstream,
+    this.extentAffinity = EditorCaretAffinity.downstream,
+    this.desiredVisualX,
+  });
+
+  const SelectionState.collapsed(
+    int offset, {
+    EditorCaretAffinity affinity = EditorCaretAffinity.downstream,
+    this.desiredVisualX,
+  }) : baseOffset = offset,
+       extentOffset = offset,
+       baseAffinity = affinity,
+       extentAffinity = affinity;
 
   final int baseOffset;
   final int extentOffset;
+  final EditorCaretAffinity baseAffinity;
+  final EditorCaretAffinity extentAffinity;
+
+  /// Layout-owned preferred visual coordinate used by vertical movement.
+  ///
+  /// The selection model only carries this resolved fact; it never derives it
+  /// from source columns or estimated glyph widths.
+  final double? desiredVisualX;
 
   bool get isCollapsed => baseOffset == extentOffset;
   int get start => baseOffset < extentOffset ? baseOffset : extentOffset;
   int get end => baseOffset > extentOffset ? baseOffset : extentOffset;
+  EditorCaretAffinity get startAffinity =>
+      baseOffset <= extentOffset ? baseAffinity : extentAffinity;
+  EditorCaretAffinity get endAffinity =>
+      baseOffset > extentOffset ? baseAffinity : extentAffinity;
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         other is SelectionState &&
             baseOffset == other.baseOffset &&
-            extentOffset == other.extentOffset;
+            extentOffset == other.extentOffset &&
+            baseAffinity == other.baseAffinity &&
+            extentAffinity == other.extentAffinity &&
+            desiredVisualX == other.desiredVisualX;
   }
 
   @override
-  int get hashCode => Object.hash(baseOffset, extentOffset);
+  int get hashCode => Object.hash(
+    baseOffset,
+    extentOffset,
+    baseAffinity,
+    extentAffinity,
+    desiredVisualX,
+  );
 }
 
 class EditorSelectionSet {
@@ -58,6 +92,9 @@ class EditorSelectionSet {
           selection: SelectionState(
             baseOffset: selection.baseOffset.clamp(0, documentLength),
             extentOffset: selection.extentOffset.clamp(0, documentLength),
+            baseAffinity: selection.baseAffinity,
+            extentAffinity: selection.extentAffinity,
+            desiredVisualX: selection.desiredVisualX,
           ),
           isPrimary: ordinal == primaryIndex,
         ),
@@ -86,6 +123,8 @@ class EditorSelectionSet {
     var outputPrimaryIndex = -1;
     var clusterStart = normalized.first.selection.start;
     var clusterEnd = normalized.first.selection.end;
+    var clusterStartAffinity = normalized.first.selection.startAffinity;
+    var clusterEndAffinity = normalized.first.selection.endAffinity;
     var clusterDirection = normalized.first.selection;
     var clusterContainsPrimary = normalized.first.isPrimary;
 
@@ -94,6 +133,7 @@ class EditorSelectionSet {
       if (next.selection.start <= clusterEnd) {
         if (next.selection.end > clusterEnd) {
           clusterEnd = next.selection.end;
+          clusterEndAffinity = next.selection.endAffinity;
         }
         if (next.isPrimary) {
           clusterContainsPrimary = true;
@@ -109,11 +149,15 @@ class EditorSelectionSet {
         _selectionWithDirection(
           start: clusterStart,
           end: clusterEnd,
+          startAffinity: clusterStartAffinity,
+          endAffinity: clusterEndAffinity,
           direction: clusterDirection,
         ),
       );
       clusterStart = next.selection.start;
       clusterEnd = next.selection.end;
+      clusterStartAffinity = next.selection.startAffinity;
+      clusterEndAffinity = next.selection.endAffinity;
       clusterDirection = next.selection;
       clusterContainsPrimary = next.isPrimary;
     }
@@ -125,6 +169,8 @@ class EditorSelectionSet {
       _selectionWithDirection(
         start: clusterStart,
         end: clusterEnd,
+        startAffinity: clusterStartAffinity,
+        endAffinity: clusterEndAffinity,
         direction: clusterDirection,
       ),
     );
@@ -196,11 +242,25 @@ class EditorSelectionSet {
   static SelectionState _selectionWithDirection({
     required int start,
     required int end,
+    required EditorCaretAffinity startAffinity,
+    required EditorCaretAffinity endAffinity,
     required SelectionState direction,
   }) {
     return direction.baseOffset > direction.extentOffset
-        ? SelectionState(baseOffset: end, extentOffset: start)
-        : SelectionState(baseOffset: start, extentOffset: end);
+        ? SelectionState(
+            baseOffset: end,
+            extentOffset: start,
+            baseAffinity: endAffinity,
+            extentAffinity: startAffinity,
+            desiredVisualX: direction.desiredVisualX,
+          )
+        : SelectionState(
+            baseOffset: start,
+            extentOffset: end,
+            baseAffinity: startAffinity,
+            extentAffinity: endAffinity,
+            desiredVisualX: direction.desiredVisualX,
+          );
   }
 }
 

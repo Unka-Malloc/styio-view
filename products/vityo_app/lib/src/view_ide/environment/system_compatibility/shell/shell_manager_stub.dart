@@ -1,6 +1,7 @@
 // ignore_for_file: use_super_parameters
 
 import '../platform_context/platform_context.dart';
+import '../process/process.dart';
 import 'shell_adapter.dart';
 import 'shell_facts.dart';
 import 'shell_manager.dart';
@@ -9,6 +10,7 @@ import 'shell_prober.dart';
 Future<ShellManager> createPlatformShellManager({
   ShellProber? prober,
   PlatformContextSnapshot? platformContext,
+  ProcessManager? processManager,
 }) async {
   if (platformContext != null) {
     return UnsupportedShellManager(facts: platformContext.shell);
@@ -34,8 +36,11 @@ Future<ShellManager> createPlatformShellManager({
 }
 
 class LocalShellManager extends UnsupportedShellManager {
-  LocalShellManager({required ShellFacts facts, ShellAdapter? adapter})
-    : super(facts: facts);
+  LocalShellManager({
+    required ShellFacts facts,
+    ShellAdapter? adapter,
+    ProcessManager? processManager,
+  }) : super(facts: facts);
 
   factory LocalShellManager.linuxDebianArmForTest({
     String shellPath = '/bin/sh',

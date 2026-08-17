@@ -9,15 +9,27 @@ import 'package:vityo_app/src/ide/workbench/agent_collaboration/collaboration_st
 import 'package:vityo_app/src/ide/workspace/workspace_revision_service.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
 
+import '../../../products/vityo_app/test/support/vityod_test_harness.dart';
+
+late VityodTestHarness _harness;
+
 Future<void> main() async {
-  await _canonicalAcpV1ContractRoundTrips();
-  await _concurrentConnectAndRemoteSessionRoutesRemainUnique();
-  await _negotiationConcurrentStreamingPermissionAndCancellation();
-  await _crossAgentIdentifiersRemainIsolated();
-  await _protocolChangeProposalRoutesThroughWorkbenchTransaction();
-  await _processFailureClearsWorkbenchPermissionState();
-  await _dynamicCapabilityRevocationAndReconnect();
-  await _boundedFailuresAreConnectionLocal();
+  if (!VityodTestHarness.isSupported) return;
+  _harness = await VityodTestHarness.start(
+    clientId: 'agent-client-protocol-acceptance',
+  );
+  try {
+    await _canonicalAcpV1ContractRoundTrips();
+    await _concurrentConnectAndRemoteSessionRoutesRemainUnique();
+    await _negotiationConcurrentStreamingPermissionAndCancellation();
+    await _crossAgentIdentifiersRemainIsolated();
+    await _protocolChangeProposalRoutesThroughWorkbenchTransaction();
+    await _processFailureClearsWorkbenchPermissionState();
+    await _dynamicCapabilityRevocationAndReconnect();
+    await _boundedFailuresAreConnectionLocal();
+  } finally {
+    await _harness.close();
+  }
 }
 
 /// REQ-IDE-005 / both criteria / schema and atomic-cutover seam.
@@ -145,7 +157,7 @@ Future<void> _negotiationConcurrentStreamingPermissionAndCancellation() async {
       'fixture must negotiate loadSession',
     );
     _expect(
-      connection.metadata['vityo.test/privateEnvironmentVisible'] == false,
+      connection.metadata.isEmpty,
       'supervised child must not inherit ambient private environment',
     );
 
@@ -472,6 +484,12 @@ Future<void> _dynamicCapabilityRevocationAndReconnect() async {
 
     final beforeGeneration = initial.generation;
     final beforeReconnect = session.snapshot;
+    _expect(
+      beforeReconnect.updates.any(
+        (update) => update.text?.contains('capabilities') ?? false,
+      ),
+      'completed prompt must reach the session projection before reconnect',
+    );
     final shutdown = await registry.disconnect('healthy');
     _expect(shutdown.terminated, 'explicit disconnect must reap the child');
     await _expectClientFailure(
@@ -494,15 +512,27 @@ Future<void> _dynamicCapabilityRevocationAndReconnect() async {
     );
     final loaded = loadedSessions.first;
     _expect(
-      registry.connection('healthy').generation > beforeGeneration &&
-          loadedSessions.every((candidate) => identical(candidate, loaded)) &&
-          loaded.id == session.id &&
-          loaded.snapshot.revision > beforeReconnect.revision &&
-          loaded.snapshot.updates.any(
-            (update) => update.text?.contains('capabilities') ?? false,
-          ) &&
-          loaded.snapshot.updates.last.payload['status'] == 'active',
-      'concurrent reconnect must coalesce and load one exact session',
+      registry.connection('healthy').generation > beforeGeneration,
+      'reconnect must advance the supervised process generation',
+    );
+    _expect(
+      loadedSessions.every((candidate) => identical(candidate, loaded)),
+      'concurrent reconnect must coalesce to one client projection',
+    );
+    _expect(loaded.id == session.id, 'reconnect must retain the session id');
+    _expect(
+      loaded.snapshot.revision > beforeReconnect.revision,
+      'reconnect must advance the session projection revision',
+    );
+    _expect(
+      loaded.snapshot.updates.any(
+        (update) => update.text?.contains('capabilities') ?? false,
+      ),
+      'reconnect must retain prior bounded session events',
+    );
+    _expect(
+      loaded.snapshot.updates.last.payload['status'] == 'active',
+      'reconnect must end with the daemon-restored active state',
     );
   } finally {
     await registry.close();
@@ -580,10 +610,11 @@ AgentClientRegistry _registry(Map<String, String> modes) {
         entry.key: AgentLaunchDescriptor(
           id: entry.key,
           executable: Platform.resolvedExecutable,
-          arguments: <String>['run', fixture.path, entry.value],
+          arguments: <String>[fixture.path, entry.value],
           workingDirectory: Directory.current.path,
         ),
     },
+    client: _harness.client,
     policy: const AgentClientPolicy(
       maxMessageBytes: 64 * 1024,
       maxBufferedUpdatesPerSession: 32,

@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-09
 
 ## Mission
 
@@ -111,3 +111,4 @@ Record:
 3. 当前是否仍满足 source buffer fidelity。
 4. 下一步要改的 surface、回滚点和对应 history 记录。
 5. prototype/dev_server.py rejects removed legacy entrypoint assets (`/app.js`, `/styles.css`); the test `test_removed_legacy_entrypoint_assets_are_not_served` validates 404 responses.
+6. Interactive editor input now routes printable, composition, and structural text commits through the editor-owned text-input boundary; navigation, Escape, and non-mutating shortcuts remain on the command path. Multi-selection, grapheme-safe offsets, accessibility semantics, and viewport-bounded rendering are covered by the capability's focused acceptance and rendered evidence.

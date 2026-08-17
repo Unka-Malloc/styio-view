@@ -114,6 +114,9 @@ class ToolchainRuntime {
         workingDirectory: workingDirectory,
         timeout: timeout,
         standardInput: standardInput,
+        serviceKind: kind == ToolchainKind.languageService
+            ? ProcessServiceKind.styio
+            : ProcessServiceKind.generic,
       ),
     );
     return ToolchainRuntimeResult(

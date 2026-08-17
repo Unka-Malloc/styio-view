@@ -128,7 +128,8 @@ class WorkspaceFileOperationService {
       ),
     );
     await documentStore.deleteDocument(normalizedPath);
-    final shouldOpen = open || workspaceController.activeFilePath == normalizedPath;
+    final shouldOpen =
+        open || workspaceController.activeFilePath == normalizedPath;
     workspaceController.unregisterFile(normalizedPath);
     workspaceController.registerFile(normalizedNextPath, open: shouldOpen);
     return WorkspaceFileOperationResult(

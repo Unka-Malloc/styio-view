@@ -2,12 +2,7 @@ import '../editor/document/document_state.dart';
 import '../../view_ide/language/language.dart';
 import 'workspace_document_store_types.dart';
 
-enum WorkspaceOutlineStatus {
-  completed,
-  emptyWorkspace,
-  noSymbols,
-  hitLimit,
-}
+enum WorkspaceOutlineStatus { completed, emptyWorkspace, noSymbols, hitLimit }
 
 class WorkspaceOutlineQuery {
   const WorkspaceOutlineQuery({
@@ -310,8 +305,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

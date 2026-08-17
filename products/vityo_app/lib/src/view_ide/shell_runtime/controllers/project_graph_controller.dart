@@ -11,12 +11,14 @@ final class ProjectGraphController {
     required this.runtimeEventCapability,
     required this.supplementalCapabilities,
     required this.log,
-  }) : _capabilities = normalizeCapabilitySnapshots(<AdapterCapabilitySnapshot>[
-         adapter.capabilitySnapshot,
-         executionCapability(),
-         runtimeEventCapability(),
-         ...supplementalCapabilities,
-       ]);
+  }) : _capabilities = _resolveCapabilities(
+         projectGraphCapability: adapter.capabilitySnapshot,
+         downstreamCapabilities: <AdapterCapabilitySnapshot>[
+           executionCapability(),
+           runtimeEventCapability(),
+           ...supplementalCapabilities,
+         ],
+       );
 
   final ProjectGraphAdapter adapter;
   final WorkspaceController workspaceController;
@@ -35,12 +37,14 @@ final class ProjectGraphController {
     final previousProject = workspaceController.activeProject;
     final refreshedProject = await adapter.loadProjectGraph();
     await refreshExecutionAdapter(refreshedProject);
-    _capabilities = normalizeCapabilitySnapshots(<AdapterCapabilitySnapshot>[
-      adapter.capabilitySnapshot,
-      executionCapability(),
-      runtimeEventCapability(),
-      ...supplementalCapabilities,
-    ]);
+    _capabilities = _resolveCapabilities(
+      projectGraphCapability: adapter.capabilitySnapshot,
+      downstreamCapabilities: <AdapterCapabilitySnapshot>[
+        executionCapability(),
+        runtimeEventCapability(),
+        ...supplementalCapabilities,
+      ],
+    );
     workspaceController.replaceProject(
       refreshedProject,
       activeFilePath: workspaceController.activeFilePath,
@@ -53,4 +57,20 @@ final class ProjectGraphController {
       '${previousCompiler == refreshedCompiler ? '' : ' · compiler ${previousCompiler ?? 'unresolved'} -> ${refreshedCompiler ?? 'unresolved'}'}.',
     );
   }
+}
+
+List<AdapterCapabilitySnapshot> _resolveCapabilities({
+  required AdapterCapabilitySnapshot projectGraphCapability,
+  required Iterable<AdapterCapabilitySnapshot> downstreamCapabilities,
+}) {
+  final projectRouteUnavailable =
+      projectGraphCapability.projectGraph.level ==
+      AdapterCapabilityLevel.unavailable;
+  return normalizeCapabilitySnapshots(<AdapterCapabilitySnapshot>[
+    projectGraphCapability,
+    for (final capability in downstreamCapabilities)
+      if (!projectRouteUnavailable ||
+          capability.adapterKind != projectGraphCapability.adapterKind)
+        capability,
+  ]);
 }

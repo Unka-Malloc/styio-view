@@ -8,7 +8,8 @@ library;
 
 import 'dart:math';
 
-import 'package:vityo_app/src/view_ide/editor/document/range_index.dart' as editor_index;
+import 'package:vityo_app/src/ide/editor/document/range_index.dart'
+    as editor_index;
 import 'alg01_piece_table_benchmark.dart';
 
 class SourceRange {
@@ -17,8 +18,7 @@ class SourceRange {
   const SourceRange({required this.start, required this.end});
 
   bool contains(int offset) => offset >= start && offset < end;
-  bool intersects(SourceRange other) =>
-      start < other.end && end > other.start;
+  bool intersects(SourceRange other) => start < other.end && end > other.start;
 }
 
 enum DiagnosticSeverity { error, warning, info }
@@ -53,12 +53,14 @@ List<Diagnostic> generateDiagnostics(int count, int documentLength) {
   for (var i = 0; i < count; i++) {
     final start = rng.nextInt(documentLength - 20);
     final length = 1 + rng.nextInt(15);
-    diagnostics.add(Diagnostic(
-      range: SourceRange(start: start, end: start + length),
-      message: 'Diagnostic $i',
-      severity: DiagnosticSeverity.warning,
-      code: 'W$i',
-    ));
+    diagnostics.add(
+      Diagnostic(
+        range: SourceRange(start: start, end: start + length),
+        message: 'Diagnostic $i',
+        severity: DiagnosticSeverity.warning,
+        code: 'W$i',
+      ),
+    );
   }
   return diagnostics;
 }
@@ -71,10 +73,12 @@ List<SemanticSpan> generateSemanticSpans(int count, int documentLength) {
   for (var i = 0; i < count; i++) {
     final start = rng.nextInt(documentLength - 5);
     final length = 1 + rng.nextInt(20);
-    spans.add(SemanticSpan(
-      range: SourceRange(start: start, end: start + length),
-      kind: kinds[i % kinds.length],
-    ));
+    spans.add(
+      SemanticSpan(
+        range: SourceRange(start: start, end: start + length),
+        kind: kinds[i % kinds.length],
+      ),
+    );
   }
   return spans;
 }
@@ -121,19 +125,20 @@ List<Map<String, dynamic>> runAlg03Benchmarks() {
     endOf: (diagnostic) => diagnostic.range.end,
     revision: 1,
   );
-  final r2Indexed = BenchmarkRunner(
-    'diagnostics_viewport_query_100k_indexed',
-  ).run(100, (_) {
-    diagnostics100kIndex.overlapQuery(
-      start: viewport.start,
-      end: viewport.end,
-    );
-  });
+  final r2Indexed = BenchmarkRunner('diagnostics_viewport_query_100k_indexed')
+      .run(100, (_) {
+        diagnostics100kIndex.overlapQuery(
+          start: viewport.start,
+          end: viewport.end,
+        );
+      });
   results.add(r2Indexed.toJson());
 
   // 100k semantic spans viewport query
   final spans100k = generateSemanticSpans(100000, docLength);
-  final r3 = BenchmarkRunner('semantic_spans_viewport_query_100k').run(100, (_) {
+  final r3 = BenchmarkRunner('semantic_spans_viewport_query_100k').run(100, (
+    _,
+  ) {
     var count = 0;
     for (final s in spans100k) {
       if (s.range.intersects(viewport)) {
@@ -150,45 +155,53 @@ List<Map<String, dynamic>> runAlg03Benchmarks() {
     endOf: (span) => span.range.end,
     revision: 1,
   );
-  final r3Indexed = BenchmarkRunner(
-    'semantic_spans_viewport_query_100k_indexed',
-  ).run(
-    100,
-    (_) {
-      spans100kIndex.overlapQuery(
-        start: viewport.start,
-        end: viewport.end,
-      );
-    },
-  );
+  final r3Indexed =
+      BenchmarkRunner('semantic_spans_viewport_query_100k_indexed').run(100, (
+        _,
+      ) {
+        spans100kIndex.overlapQuery(start: viewport.start, end: viewport.end);
+      });
   results.add(r3Indexed.toJson());
 
   // Range update after edit (shift all positions after edit point)
   final editOffset = 200000;
   final delta = 50; // inserted 50 chars
-  final r4 = BenchmarkRunner('diagnostics_range_update_after_edit_100k').run(100, (_) {
-    final updated = <Diagnostic>[];
-    for (final d in diagnostics100k) {
-      if (d.range.start >= editOffset) {
-        updated.add(Diagnostic(
-          range: SourceRange(start: d.range.start + delta, end: d.range.end + delta),
-          message: d.message,
-          severity: d.severity,
-          code: d.code,
-        ));
-      } else if (d.range.end > editOffset) {
-        // Range straddles edit point
-        updated.add(Diagnostic(
-          range: SourceRange(start: d.range.start, end: d.range.end + delta),
-          message: d.message,
-          severity: d.severity,
-          code: d.code,
-        ));
-      } else {
-        updated.add(d);
+  final r4 = BenchmarkRunner('diagnostics_range_update_after_edit_100k').run(
+    100,
+    (_) {
+      final updated = <Diagnostic>[];
+      for (final d in diagnostics100k) {
+        if (d.range.start >= editOffset) {
+          updated.add(
+            Diagnostic(
+              range: SourceRange(
+                start: d.range.start + delta,
+                end: d.range.end + delta,
+              ),
+              message: d.message,
+              severity: d.severity,
+              code: d.code,
+            ),
+          );
+        } else if (d.range.end > editOffset) {
+          // Range straddles edit point
+          updated.add(
+            Diagnostic(
+              range: SourceRange(
+                start: d.range.start,
+                end: d.range.end + delta,
+              ),
+              message: d.message,
+              severity: d.severity,
+              code: d.code,
+            ),
+          );
+        } else {
+          updated.add(d);
+        }
       }
-    }
-  });
+    },
+  );
   results.add(r4.toJson());
 
   return results;

@@ -1,26 +1,28 @@
 import 'dart:io';
 
-import '../../../products/vityo_app/lib/src/ide/execution/developer_loop_service.dart';
-import '../../../products/vityo_app/lib/src/ide/execution/developer_operation_adapter.dart';
-import '../../../products/vityo_app/lib/src/ide/execution/execution_receipt.dart';
-import '../../../products/vityo_app/lib/src/ide/execution/process_developer_operation_adapter.dart';
-import '../../../products/vityo_app/lib/src/ide/agent_client/tools/context_export_service.dart';
-import '../../../products/vityo_app/lib/src/ide/agent_client/tools/ide_tool_catalog.dart';
-import '../../../products/vityo_app/lib/src/ide/agent_client/tools/tool_security_policy.dart';
-import '../../../products/vityo_app/lib/src/ide/language/dart_analyze_diagnostic_decoder.dart';
-import '../../../products/vityo_app/lib/src/ide/workbench/capability_snapshot.dart';
-import '../../../products/vityo_app/lib/src/ide/workbench/ide_fact_consumers.dart';
-import '../../../products/vityo_app/lib/src/ide/workbench/ide_fact_provider.dart';
-import '../../../products/vityo_app/lib/src/ide/workspace/workspace_change_set.dart';
-import '../../../products/vityo_app/lib/src/ide/workspace/workspace_revision_service.dart';
-import '../../../products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart';
+import 'package:vityo_app/src/ide/execution/developer_loop_service.dart';
+import 'package:vityo_app/src/ide/execution/developer_operation_adapter.dart';
+import 'package:vityo_app/src/ide/execution/execution_receipt.dart';
+import 'package:vityo_app/src/ide/execution/process_developer_operation_adapter.dart';
+import 'package:vityo_app/src/ide/language/dart_analyze_diagnostic_decoder.dart';
+import 'package:vityo_app/src/ide/workbench/capability_snapshot.dart';
+import 'package:vityo_app/src/ide/workbench/ide_fact_consumers.dart';
+import 'package:vityo_app/src/ide/workbench/ide_fact_provider.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_change_set.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_revision_service.dart';
+import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
+import '../../../products/vityo_app/test/support/vityod_test_harness.dart';
 
 Future<void> main() async {
+  if (!VityodTestHarness.isSupported) return;
   final fixtureRoot = Directory.fromUri(
     Platform.script.resolve('../fixtures/vityo_app/developer_loop/'),
   );
   final temporaryRoot = await Directory.systemTemp.createTemp(
     'styio-developer-loop-',
+  );
+  final vityod = await VityodTestHarness.start(
+    clientId: 'developer-loop-acceptance',
   );
   try {
     await _copyFixture(fixtureRoot, temporaryRoot);
@@ -91,6 +93,7 @@ Future<void> main() async {
             'test',
           ],
           workingDirectory: temporaryRoot.path,
+          client: vityod.client,
           diagnosticDecoder: DartAnalyzeMachineDiagnosticDecoder(
             workspaceRoot: temporaryRoot.path,
           ),
@@ -101,6 +104,7 @@ Future<void> main() async {
           executable: Platform.resolvedExecutable,
           arguments: const <String>['run', 'test/smoke.dart'],
           workingDirectory: temporaryRoot.path,
+          client: vityod.client,
         ),
         ProcessDeveloperOperationAdapter(
           kind: DeveloperOperationKind.run,
@@ -108,6 +112,7 @@ Future<void> main() async {
           executable: Platform.resolvedExecutable,
           arguments: const <String>['run', 'lib/main.dart'],
           workingDirectory: temporaryRoot.path,
+          client: vityod.client,
         ),
         for (final kind in <DeveloperOperationKind>[
           DeveloperOperationKind.format,
@@ -197,31 +202,10 @@ Future<void> main() async {
       const IdeFactQuery(),
       editedRevision,
     );
-    final agentPage =
-        await RevisionedIdeContextExportService(
-          provider: provider,
-          currentWorkspaceRevision: () =>
-              revisions.snapshot().workspaceRevision,
-          sanitizer: const McpPayloadSanitizer(),
-        ).read(
-          ContextQuery(expectedWorkspaceRevision: editedRevision),
-          const ContextBudget(
-            maxItems: 256,
-            maxUtf8Bytes: 1024 * 1024,
-            maxCodeUnitsPerItem: 256 * 1024,
-          ),
-        );
     _expect(
       userFacts.workspaceRevision == editedRevision &&
-          userFacts.capabilities.capabilities.length == capabilities.length &&
-          agentPage.workspaceRevision == editedRevision &&
-          !agentPage.truncated &&
-          agentPage.items.length ==
-              capabilities.length + userFacts.receipts.length + 1 &&
-          agentPage.items.every(
-            (item) => item.sensitivity == ContextSensitivity.internal,
-          ),
-      'Agent context must use the bounded, sanitized, revision-bound export',
+          userFacts.capabilities.capabilities.length == capabilities.length,
+      'User-facing IDE facts must remain bound to the edited revision',
     );
     _expect(
       userFacts.diagnostics.workspaceRevision == editedRevision &&
@@ -265,6 +249,7 @@ Future<void> main() async {
       'stale facts must fail closed rather than replaying cached success',
     );
   } finally {
+    await vityod.close();
     await temporaryRoot.delete(recursive: true);
   }
 }

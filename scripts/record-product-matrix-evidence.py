@@ -307,8 +307,12 @@ def validate_pty_report(
         raise ValueError("native PTY report provider does not match the platform")
     if report.get("vityoCommit") != vityo_commit:
         raise ValueError("native PTY report does not match the Vityo commit")
-    if report.get("ptyDependency") != {"name": "pty2", "version": "0.5.2"}:
-        raise ValueError("native PTY report does not use the fixed PTY dependency")
+    if report.get("ptyDependency") != {
+        "name": "portable-pty",
+        "version": "0.9.0",
+        "owner": "vityod",
+    }:
+        raise ValueError("native PTY report does not use the fixed vityod PTY dependency")
     if report.get("ok") is not True:
         raise ValueError("native PTY matrix did not pass")
     scenarios = report.get("scenarios")

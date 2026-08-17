@@ -1,5 +1,3 @@
-import 'dart:io' as io;
-
 import '../environment/environment.dart';
 import 'toolchain_catalog.dart';
 
@@ -11,21 +9,16 @@ const List<String> _defaultStyioExecutableCandidates = <String>[
 ];
 
 Future<ToolchainCatalog> createPlatformStyioLanguageToolchainCatalog({
-  PlatformManagerBundle? platformManagers,
-  Map<String, String>? environment,
+  required PlatformManagerBundle platformManagers,
+  Map<String, String> environment = const <String, String>{},
   Iterable<String> candidatePaths = _defaultStyioExecutableCandidates,
 }) async {
   final catalog = ToolchainCatalog();
-  final executablePath = platformManagers == null
-      ? _discoverLocalStyioExecutablePath(
-          environment: environment ?? io.Platform.environment,
-          candidatePaths: candidatePaths,
-        )
-      : await _discoverManagedStyioExecutablePath(
-          platformManagers,
-          environment: environment ?? const <String, String>{},
-          candidatePaths: candidatePaths,
-        );
+  final executablePath = await _discoverManagedStyioExecutablePath(
+    platformManagers,
+    environment: environment,
+    candidatePaths: candidatePaths,
+  );
   if (executablePath == null) {
     return catalog;
   }
@@ -44,44 +37,6 @@ Future<ToolchainCatalog> createPlatformStyioLanguageToolchainCatalog({
     activate: true,
   );
   return catalog;
-}
-
-String? _discoverLocalStyioExecutablePath({
-  required Map<String, String> environment,
-  required Iterable<String> candidatePaths,
-}) {
-  final isWindows = io.Platform.isWindows;
-  final override = environment['VITYO_STYIO_BIN'];
-  for (final candidate in _styioExecutableCandidates(override, isWindows)) {
-    if (_isExecutableFile(candidate)) {
-      return candidate;
-    }
-  }
-
-  for (final candidate in candidatePaths) {
-    for (final executable in _styioExecutableCandidates(candidate, isWindows)) {
-      if (_isExecutableFile(executable)) {
-        return executable;
-      }
-    }
-  }
-
-  try {
-    final lookupExecutable = isWindows ? 'where.exe' : 'which';
-    final result = io.Process.runSync(lookupExecutable, const <String>['styio']);
-    if (result.exitCode == 0) {
-      for (final line in result.stdout.toString().split(RegExp(r'\r?\n'))) {
-        final path = line.trim();
-        if (_isExecutableFile(path)) {
-          return path;
-        }
-      }
-    }
-  } on Object {
-    return null;
-  }
-
-  return null;
 }
 
 Future<String?> _discoverManagedStyioExecutablePath(
@@ -107,23 +62,6 @@ Future<String?> _discoverManagedStyioExecutablePath(
     }
   }
 
-  final lookupExecutable = isWindows ? 'where.exe' : 'which';
-  final lookup = await platformManagers.process.run(
-    ProcessCommandRequest(
-      executablePath: lookupExecutable,
-      arguments: const <String>['styio'],
-      environment: environment,
-    ),
-  );
-  if (!lookup.succeeded) {
-    return null;
-  }
-  for (final line in lookup.stdout.split(RegExp(r'\r?\n'))) {
-    final path = line.trim();
-    if (await _isExecutablePath(platformManagers, path)) {
-      return path;
-    }
-  }
   return null;
 }
 
@@ -153,19 +91,12 @@ Future<bool> _isExecutablePath(
   if (path == null || path.isEmpty) {
     return false;
   }
-  if (!await platformManagers.fileSystem.exists(path)) {
+  try {
+    if (!await platformManagers.fileSystem.exists(path)) {
+      return false;
+    }
+    return await platformManagers.fileSystem.isExecutable(path);
+  } on Object {
     return false;
   }
-  return platformManagers.fileSystem.isExecutable(path);
-}
-
-bool _isExecutableFile(String? path) {
-  if (path == null || path.isEmpty) {
-    return false;
-  }
-  final stat = io.FileStat.statSync(path);
-  if (stat.type != io.FileSystemEntityType.file) {
-    return false;
-  }
-  return true;
 }

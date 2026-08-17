@@ -141,9 +141,7 @@ class WorkspaceReferenceSearchResult {
   int get writeCount => _countAccess(ReferenceAccess.write);
 
   int _countAccess(ReferenceAccess access) {
-    return references
-        .where((reference) => reference.access == access)
-        .length;
+    return references.where((reference) => reference.access == access).length;
   }
 }
 
@@ -193,7 +191,8 @@ class WorkspaceReferenceSearchService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     final documentsById = {
@@ -345,7 +344,9 @@ class WorkspaceReferenceSearchService {
     final definitions = <StyioProjectSymbolDefinition>[];
     for (final document in documents) {
       definitions.addAll(
-        snapshot.functionsFor(document.documentId).map(
+        snapshot
+            .functionsFor(document.documentId)
+            .map(
               (function) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.function,
@@ -356,7 +357,9 @@ class WorkspaceReferenceSearchService {
             ),
       );
       definitions.addAll(
-        snapshot.resourcesFor(document.documentId).map(
+        snapshot
+            .resourcesFor(document.documentId)
+            .map(
               (resource) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.resource,
@@ -367,7 +370,9 @@ class WorkspaceReferenceSearchService {
             ),
       );
       definitions.addAll(
-        snapshot.tasksFor(document.documentId).map(
+        snapshot
+            .tasksFor(document.documentId)
+            .map(
               (task) => StyioProjectSymbolDefinition(
                 documentId: document.documentId,
                 kind: StyioProjectSymbolKind.task,
@@ -464,9 +469,7 @@ class WorkspaceReferenceSearchService {
     if (fallback == null) {
       return null;
     }
-    final cappedDefinitionIndex = definitionIndex > 250
-        ? 250
-        : definitionIndex;
+    final cappedDefinitionIndex = definitionIndex > 250 ? 250 : definitionIndex;
     return fallback.withBoost(kindBoost - cappedDefinitionIndex);
   }
 
@@ -670,8 +673,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

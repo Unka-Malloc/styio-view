@@ -1,8 +1,9 @@
-import 'dart:io';
-
 import '../../../owner_adapters/pafio_metadata_adapter.dart';
 import '../../../owner_adapters/platform_hosted_adapter.dart';
 import '../../../owner_adapters/styio_compiler_adapter.dart';
+import '../environment/system_compatibility/file_system/file_system_manager.dart';
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
+import '../environment/system_compatibility/process/process.dart';
 import '../platform/platform_target.dart';
 import 'adapter_contracts.dart';
 import 'hosted_control_plane.dart';
@@ -11,16 +12,17 @@ import 'project_graph_adapter.dart';
 import 'project_graph_contract.dart';
 
 Map<String, String> Function() _environmentProvider = () =>
-    Platform.environment;
+    const <String, String>{};
 
 void debugOverrideProjectGraphEnvironment(Map<String, String>? environment) {
   _environmentProvider = environment == null
-      ? () => Platform.environment
+      ? () => const <String, String>{}
       : () => Map<String, String>.unmodifiable(environment);
 }
 
 Future<ProjectGraphAdapter> createPlatformProjectGraphAdapter({
   required PlatformTarget platformTarget,
+  PlatformManagerBundle? platformManagers,
 }) async {
   final hostedClient = await createHostedControlPlaneClient(
     platformTarget: platformTarget,
@@ -32,51 +34,86 @@ Future<ProjectGraphAdapter> createPlatformProjectGraphAdapter({
     );
   }
 
-  final workspaceRoot = _discoverProjectRoot(Directory.current);
+  final managers = platformManagers;
+  if (managers == null) {
+    return _ScratchProjectGraphAdapter(workspaceRoot: _currentDirectoryPath());
+  }
   final environment = _environmentProvider();
-  final pafioBinary = await resolvePafioBinary(environment: environment);
-  return _LocalMetadataProjectGraphAdapter(
+  final environmentWorkingDirectory = environment['PWD']?.trim();
+  final workspaceRoot = await _discoverProjectRoot(
+    managers,
+    environmentWorkingDirectory == null || environmentWorkingDirectory.isEmpty
+        ? _currentDirectoryPath()
+        : environmentWorkingDirectory,
+  );
+  final pafioBinary = await resolvePafioBinary(
+    managers,
+    environment: environment,
+  );
+  final styioBinary = await _resolveManagedStyioBinary(
+    managers,
+    environment: environment,
+  );
+  return _ManagedMetadataProjectGraphAdapter(
     workspaceRoot: workspaceRoot,
-    pafioBinary: pafioBinary,
-    compilerAdapter: StyioCompilerAdapter(environment: environment),
+    platformManagers: managers,
+    pafioAdapter: pafioBinary == null
+        ? null
+        : PafioMetadataAdapter(
+            binaryPath: pafioBinary,
+            processManager: managers.process,
+          ),
+    compilerAdapter: styioBinary == null
+        ? null
+        : StyioCompilerAdapter(
+            binaryPath: styioBinary,
+            processManager: managers.process,
+            environment: environment,
+          ),
   );
 }
 
-class _LocalMetadataProjectGraphAdapter implements ProjectGraphAdapter {
-  const _LocalMetadataProjectGraphAdapter({
+final class _ManagedMetadataProjectGraphAdapter implements ProjectGraphAdapter {
+  const _ManagedMetadataProjectGraphAdapter({
     required this.workspaceRoot,
-    required this.pafioBinary,
+    required this.platformManagers,
+    required this.pafioAdapter,
     required this.compilerAdapter,
   });
 
-  final Directory workspaceRoot;
-  final String? pafioBinary;
-  final StyioCompilerAdapter compilerAdapter;
+  final String workspaceRoot;
+  final PlatformManagerBundle platformManagers;
+  final PafioMetadataAdapter? pafioAdapter;
+  final StyioCompilerAdapter? compilerAdapter;
 
   @override
   AdapterCapabilitySnapshot get capabilitySnapshot => AdapterCapabilitySnapshot(
     adapterKind: AdapterKind.cli,
-    languageService: const AdapterEndpointCapability(
-      level: AdapterCapabilityLevel.available,
-      detail:
-          'Language-service compiler facts are consumed directly from system Styio.',
-      supportedContractVersions: <int>[1],
-    ),
-    projectGraph: AdapterEndpointCapability(
-      level: pafioBinary == null
+    languageService: AdapterEndpointCapability(
+      level: compilerAdapter == null
           ? AdapterCapabilityLevel.unavailable
           : AdapterCapabilityLevel.available,
-      detail: pafioBinary == null
+      detail: compilerAdapter == null
+          ? 'Styio is unavailable through the local service.'
+          : 'Styio compiler facts are consumed through vityod task supervision.',
+      supportedContractVersions: compilerAdapter == null
+          ? const <int>[]
+          : const <int>[1],
+    ),
+    projectGraph: AdapterEndpointCapability(
+      level: pafioAdapter == null
+          ? AdapterCapabilityLevel.unavailable
+          : AdapterCapabilityLevel.available,
+      detail: pafioAdapter == null
           ? 'Pafio is unavailable; project metadata cannot be loaded.'
-          : 'Project facts are consumed from Pafio metadata v1.',
-      supportedContractVersions: pafioBinary == null
+          : 'Pafio metadata v1 is consumed through vityod task supervision.',
+      supportedContractVersions: pafioAdapter == null
           ? const <int>[]
           : const <int>[1],
     ),
     execution: const AdapterEndpointCapability(
       level: AdapterCapabilityLevel.available,
-      detail:
-          'Project workflows consume Pafio workflow JSON through the execution adapter.',
+      detail: 'Project workflows use the daemon-owned process service.',
       supportedContractVersions: <int>[1],
     ),
     runtimeEvents: const AdapterEndpointCapability(
@@ -88,15 +125,19 @@ class _LocalMetadataProjectGraphAdapter implements ProjectGraphAdapter {
 
   @override
   Future<ProjectGraphSnapshot> loadProjectGraph() async {
-    final compiler = await compilerAdapter.inspect();
-    final manifestPath = _joinPath(workspaceRoot.path, 'pafio.toml');
-    if (!await File(manifestPath).exists()) {
+    final compiler = await compilerAdapter?.inspect();
+    final manifestPath = platformManagers.fileSystem.joinPath(<String>[
+      workspaceRoot,
+      'pafio.toml',
+    ]);
+    if (!await platformManagers.fileSystem.exists(manifestPath)) {
       return ProjectGraphSnapshot.scratch(
-        workspaceRoot: workspaceRoot.path,
-        activeFilePath: _joinPath(
-          _joinPath(workspaceRoot.path, 'scratch'),
+        workspaceRoot: workspaceRoot,
+        activeFilePath: platformManagers.fileSystem.joinPath(<String>[
+          workspaceRoot,
+          'scratch',
           'main.styio',
-        ),
+        ]),
         title: 'Scratch Project',
         activeCompiler: compiler,
         toolchain: _systemCompilerToolchain(compiler),
@@ -105,17 +146,16 @@ class _LocalMetadataProjectGraphAdapter implements ProjectGraphAdapter {
         ],
       );
     }
-    if (pafioBinary == null) {
+    final adapter = pafioAdapter;
+    if (adapter == null) {
       return _blockedSnapshot(
         manifestPath: manifestPath,
         compiler: compiler,
-        detail:
-            'pafio metadata --json is unavailable because Pafio was not found via VITYO_PAFIO_BIN or PATH.',
+        detail: 'Pafio metadata is unavailable through the local service.',
       );
     }
-
     try {
-      return (await PafioMetadataAdapter(binaryPath: pafioBinary!).load(
+      return (await adapter.load(
         manifestPath: manifestPath,
       )).toProjectGraph(activeCompiler: compiler);
     } on Object catch (error) {
@@ -136,7 +176,7 @@ class _LocalMetadataProjectGraphAdapter implements ProjectGraphAdapter {
       id: manifestPath,
       title: 'Pafio Project',
       kind: ProjectKind.package,
-      workspaceRoot: workspaceRoot.path,
+      workspaceRoot: workspaceRoot,
       workspaceMembers: const <String>[],
       manifestPath: manifestPath,
       packages: const <ProjectPackageSnapshot>[],
@@ -158,13 +198,54 @@ class _LocalMetadataProjectGraphAdapter implements ProjectGraphAdapter {
   }
 }
 
+final class _ScratchProjectGraphAdapter implements ProjectGraphAdapter {
+  const _ScratchProjectGraphAdapter({required this.workspaceRoot});
+
+  final String workspaceRoot;
+
+  @override
+  AdapterCapabilitySnapshot get capabilitySnapshot =>
+      const AdapterCapabilitySnapshot(
+        adapterKind: AdapterKind.cli,
+        languageService: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.unavailable,
+          detail: 'The local service was not injected.',
+        ),
+        projectGraph: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.unavailable,
+          detail: 'The local service was not injected.',
+        ),
+        execution: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.unavailable,
+          detail: 'The local service was not injected.',
+        ),
+        runtimeEvents: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.unavailable,
+          detail: 'The local service was not injected.',
+        ),
+      );
+
+  @override
+  Future<ProjectGraphSnapshot> loadProjectGraph() async =>
+      ProjectGraphSnapshot.scratch(
+        workspaceRoot: workspaceRoot,
+        activeFilePath: _joinPortable(workspaceRoot, 'scratch/main.styio'),
+        title: 'Scratch Project',
+        toolchain: const ToolchainStatusSnapshot(
+          source: ToolchainResolutionSource.unavailable,
+          detail: 'The local service was not injected.',
+        ),
+        notes: const <String>['The local service was not injected.'],
+      );
+}
+
 ToolchainStatusSnapshot _systemCompilerToolchain(
   CompilerHandshakeSnapshot? compiler,
 ) {
   if (compiler == null) {
     return const ToolchainStatusSnapshot(
       source: ToolchainResolutionSource.unavailable,
-      detail: 'System Styio was not found via VITYO_STYIO_BIN or PATH.',
+      detail: 'System Styio was not resolved through the local service.',
     );
   }
   return ToolchainStatusSnapshot(
@@ -176,27 +257,86 @@ ToolchainStatusSnapshot _systemCompilerToolchain(
   );
 }
 
-Directory _discoverProjectRoot(Directory start) {
-  var current = start.absolute;
+Future<String> _discoverProjectRoot(
+  PlatformManagerBundle managers,
+  String startPath,
+) async {
+  var current = managers.fileSystem.normalizePath(startPath);
   while (true) {
-    if (File(_joinPath(current.path, 'pafio.toml')).existsSync()) {
-      return current;
+    final manifest = managers.fileSystem.joinPath(<String>[
+      current,
+      'pafio.toml',
+    ]);
+    try {
+      if (await managers.fileSystem.exists(manifest)) return current;
+    } on Object catch (error) {
+      final failure = managers.fileSystem.classifyFailure(
+        error,
+        operation: 'discoverProjectRoot',
+        target: manifest,
+      );
+      if (failure.kind == FileSystemFailureKind.outsideWorkspace) {
+        return managers.fileSystem.normalizePath(startPath);
+      }
+      rethrow;
     }
-    final parent = current.parent;
-    if (parent.path == current.path) {
-      return start.absolute;
+    final separator = managers.fileSystem.compatibility.pathSeparator;
+    final index = current.lastIndexOf(separator);
+    if (index <= 0) return managers.fileSystem.normalizePath(startPath);
+    final parent = current.substring(0, index);
+    if (parent == current || parent.isEmpty) {
+      return managers.fileSystem.normalizePath(startPath);
     }
     current = parent;
   }
 }
 
-String _joinPath(String left, String right) {
-  final separator = Platform.pathSeparator;
+Future<String?> _resolveManagedStyioBinary(
+  PlatformManagerBundle managers, {
+  required Map<String, String> environment,
+}) async {
+  final candidates = <String>[
+    if (environment['VITYO_STYIO_BIN'] case final explicit?
+        when explicit.isNotEmpty)
+      explicit,
+    if (managers.context.fileSystem.operatingSystem == 'windows')
+      r'C:\Program Files\Styio\styio.exe'
+    else ...const <String>[
+      '/usr/local/bin/styio',
+      '/usr/bin/styio',
+      '/opt/homebrew/bin/styio',
+    ],
+  ];
+  for (final candidate in candidates) {
+    try {
+      final result = await managers.process.run(
+        ProcessCommandRequest(
+          executablePath: candidate,
+          arguments: const <String>['--machine-info=json'],
+          environment: environment,
+          timeout: const Duration(seconds: 5),
+          serviceKind: ProcessServiceKind.styio,
+        ),
+      );
+      if (result.succeeded) return candidate;
+    } on Object {
+      continue;
+    }
+  }
+  return null;
+}
+
+String _currentDirectoryPath() {
+  final path = Uri.base.toFilePath();
+  return path.endsWith('/') && path.length > 1
+      ? path.substring(0, path.length - 1)
+      : path;
+}
+
+String _joinPortable(String left, String right) {
+  final separator = left.contains(r'\') ? r'\' : '/';
   final normalizedLeft = left.endsWith(separator)
-      ? left.substring(0, left.length - separator.length)
+      ? left.substring(0, left.length - 1)
       : left;
-  final normalizedRight = right.startsWith(separator)
-      ? right.substring(separator.length)
-      : right;
-  return '$normalizedLeft$separator$normalizedRight';
+  return '$normalizedLeft$separator${right.replaceAll('/', separator)}';
 }

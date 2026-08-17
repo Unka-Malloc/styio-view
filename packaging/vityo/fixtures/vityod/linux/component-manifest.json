@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "component": "vityod",
+  "daemon_version": "0.0.0-fixture",
+  "target": "x86_64-unknown-linux-gnu",
+  "protocol_min": 1,
+  "protocol_max": 1,
+  "executable_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "build_source_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+  "required_runtime_libraries": ["glibc"],
+  "package_relative_path": "components/vityod",
+  "fixture_only": true,
+  "native_launch": false,
+  "blocked_reason": "Native Linux launch evidence requires a matching release host."
+}

@@ -7,6 +7,12 @@
   "icon_relative_path": "products/vityo_app/windows/runner/resources/app_icon.ico",
   "installer_definition": "packaging/windows/install.ps1",
   "uninstaller_definition": "packaging/windows/uninstall.ps1",
+  "vityod": {
+    "target": "x86_64-pc-windows-msvc",
+    "source_relative_path": "products/vityo_app/native/vityod/target/release/vityod.exe",
+    "package_relative_path": "components/vityod.exe",
+    "required_runtime_libraries": ["vcruntime140.dll"]
+  },
   "signing": {"status": "explicit-gap", "reason": "Nightly Authenticode signing credentials are not configured."},
   "automatic_updates": false
 }

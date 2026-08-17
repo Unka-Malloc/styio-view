@@ -1,4 +1,5 @@
 import '../platform/platform_target.dart';
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
 import 'deployment_adapter.dart';
 import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
@@ -6,6 +7,7 @@ import 'pafio_cli_support.dart';
 
 Future<DeploymentAdapter> createPlatformDeploymentAdapter({
   required PlatformTarget platformTarget,
+  PlatformManagerBundle? platformManagers,
 }) async {
   final hostedClient = await createHostedControlPlaneClient(
     platformTarget: platformTarget,
@@ -13,7 +15,10 @@ Future<DeploymentAdapter> createPlatformDeploymentAdapter({
   if (hostedClient != null) {
     return _HostedDeploymentAdapter(hostedClient: hostedClient);
   }
-  return _LocalCliDeploymentAdapter(platformTarget: platformTarget);
+  return _LocalCliDeploymentAdapter(
+    platformTarget: platformTarget,
+    platformManagers: platformManagers,
+  );
 }
 
 class _HostedDeploymentAdapter implements DeploymentAdapter {
@@ -152,9 +157,13 @@ class _HostedDeploymentAdapter implements DeploymentAdapter {
 }
 
 class _LocalCliDeploymentAdapter implements DeploymentAdapter {
-  const _LocalCliDeploymentAdapter({required this.platformTarget});
+  const _LocalCliDeploymentAdapter({
+    required this.platformTarget,
+    required this.platformManagers,
+  });
 
   final PlatformTarget platformTarget;
+  final PlatformManagerBundle? platformManagers;
 
   @override
   Future<DeploymentCommandResult> packProject({
@@ -276,7 +285,8 @@ class _LocalCliDeploymentAdapter implements DeploymentAdapter {
       );
     }
 
-    return runLocalPafioCommand(
+    return runPafioCommand(
+      platformManagers: platformManagers,
       projectGraph: projectGraph,
       command: command,
       args: args,

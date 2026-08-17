@@ -2,12 +2,32 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/ide/local_service/vityod_client.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+import 'support/test_file_system_manager.dart';
+import 'support/vityod_test_harness.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+  late ShellManager shellManager;
+
+  setUpAll(() async {
+    if (!VityodTestHarness.isSupported) return;
+    vityod = await VityodTestHarness.start(clientId: 'terminal-runtime-test');
+    shellManager = LocalShellManager(
+      facts: ShellFacts.linuxDebianArm(defaultShellPath: '/bin/sh'),
+      processManager: LocalProcessManager.linuxDebianArmForTest(
+        client: vityod!.client,
+      ),
+    );
+  });
+
+  tearDownAll(() => vityod?.close());
+
   test('terminal runtime exposes a serializable PTY start plan', () async {
     final session = _FakePtySession();
     addTearDown(() async {
@@ -171,7 +191,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -437,9 +457,7 @@ void main() {
       );
       addTearDown(buffer.dispose);
       final adapter = ShellManagerRuntimeOutputAdapter(
-        shellManager: LocalShellManager.linuxDebianArmForTest(
-          shellPath: '/bin/sh',
-        ),
+        shellManager: shellManager,
         clock: () => DateTime.utc(2026, 5, 20, 10),
       );
 
@@ -481,9 +499,7 @@ void main() {
       final buffer = RuntimeOutputLiveBuffer();
       addTearDown(buffer.dispose);
       final adapter = ShellManagerRuntimeExecutionAdapter(
-        shellManager: LocalShellManager.linuxDebianArmForTest(
-          shellPath: '/bin/sh',
-        ),
+        shellManager: shellManager,
         clock: () => DateTime.utc(2026, 5, 20, 11),
       );
 
@@ -605,7 +621,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final manager = await _createToolchainManager(tempRoot);
+      final manager = await _createToolchainManager(tempRoot, vityod!.client);
       final registration = await manager.registerToolchain(
         const ToolchainDescriptor(
           id: 'sh-test-runner',
@@ -674,7 +690,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final manager = await _createToolchainManager(tempRoot);
+      final manager = await _createToolchainManager(tempRoot, vityod!.client);
       const definition = RuntimeTaskDefinition(
         id: 'shell-run',
         label: 'Shell run',
@@ -753,8 +769,11 @@ class _IdentityShellManager implements ShellManager {
   }
 }
 
-Future<ToolchainManager> _createToolchainManager(Directory root) async {
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+Future<ToolchainManager> _createToolchainManager(
+  Directory root,
+  VityodClient client,
+) async {
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: root.path,
@@ -782,6 +801,8 @@ Future<ToolchainManager> _createToolchainManager(Directory root) async {
         defaultShellPath: '/bin/sh',
       ),
     ),
+    vityodClient: client,
+    workspaceRoot: root.path,
   );
   return ToolchainManager(
     configurationStore: ToolchainConfigurationStore(

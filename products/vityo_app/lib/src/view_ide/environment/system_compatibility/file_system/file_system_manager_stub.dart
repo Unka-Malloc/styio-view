@@ -1,7 +1,7 @@
 // ignore_for_file: use_super_parameters
 
 import '../platform_context/platform_context.dart';
-import 'file_system_adapter.dart';
+import '../../../../ide/local_service/vityod_client.dart';
 import 'file_system_facts.dart';
 import 'file_system_manager.dart';
 import 'file_system_prober.dart';
@@ -9,6 +9,8 @@ import 'file_system_prober.dart';
 Future<FileSystemManager> createPlatformFileSystemManager({
   FileSystemProber? prober,
   PlatformContextSnapshot? platformContext,
+  VityodClient? vityodClient,
+  Iterable<String> allowedRoots = const <String>[],
 }) async {
   if (platformContext != null) {
     return UnsupportedFileSystemManager(facts: platformContext.fileSystem);
@@ -32,15 +34,4 @@ Future<FileSystemManager> createPlatformFileSystemManager({
         )
       : await prober.probe();
   return UnsupportedFileSystemManager(facts: facts);
-}
-
-class LocalFileSystemManager extends UnsupportedFileSystemManager {
-  LocalFileSystemManager({
-    required FileSystemFacts facts,
-    FileSystemAdapter? adapter,
-  }) : super(facts: facts);
-
-  factory LocalFileSystemManager.linuxDebianArmForTest() {
-    return LocalFileSystemManager(facts: FileSystemFacts.linuxDebianArm());
-  }
 }

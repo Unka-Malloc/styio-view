@@ -105,6 +105,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     required RuntimeEventAdapter runtimeEventAdapter,
     required DependencySourceAdapter dependencySourceAdapter,
     required DeploymentAdapter deploymentAdapter,
+    this.terminalRuntimeRegistry,
     this.toolchainManager,
     EditorSessionDataStore? editorSessionDataStore,
     String editorSessionWorkspaceId = 'default',
@@ -139,6 +140,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     String? semanticPanelEventWorkspaceId,
     WorkspaceQuickFixTelemetryStore? workspaceQuickFixTelemetryStore,
     String? workspaceQuickFixTelemetryWorkspaceId,
+    WorkspaceTextSearchProvider? workspaceTextSearchProvider,
   }) : projectLanguageService =
            projectLanguageService ?? const ProjectStyioLanguageService(),
        runtimeOutputBuffer = runtimeOutputBuffer ?? RuntimeOutputLiveBuffer(),
@@ -188,6 +190,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       editorController: editorController,
       editorWorkspaceState: _editorWorkspaceStateController,
       log: appendLog,
+      textSearchProvider: workspaceTextSearchProvider,
     )..addListener(_handleWorkspaceReplaceChanged);
     _workspaceNavigationController = WorkspaceNavigationController(
       workspaceController: workspaceController,
@@ -400,6 +403,8 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       workspaceFileCommands: _workspaceFileCommandController,
       blockedReasonForCommand: blockedReasonForCommand,
       executeCommand: executeCommand,
+      requestEditorSelectionCommand:
+          editorController.selectionController.requestInteractionCommand,
       searchWorkspace: searchWorkspace,
       openWorkspaceFile: openWorkspaceFile,
       previewWorkspaceReplace:
@@ -482,6 +487,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       languageService: this.projectLanguageService,
       documentSamples: () => _workspaceDocumentSamples,
       log: appendLog,
+      textSearchProvider: workspaceTextSearchProvider,
     );
     _backendCommandPolicyController = BackendCommandPolicyController(
       platformTarget: platformTarget,
@@ -537,6 +543,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
   final WorkspaceDocumentStore workspaceDocumentStore;
   final EditorSessionController editorController;
   final ToolchainManager? toolchainManager;
+  final TerminalRuntimeRegistry? terminalRuntimeRegistry;
   late final EditorWorkspaceStateController _editorWorkspaceStateController;
   late final EditorNavigationCommandController
   _editorNavigationCommandController;

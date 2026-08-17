@@ -127,7 +127,11 @@ class ProductMatrixEvidenceTest(unittest.TestCase):
             "capability": "desktop-native-pty",
             "platform": platform,
             "provider": "conpty" if platform == "windows" else "forkpty",
-            "ptyDependency": {"name": "pty2", "version": "0.5.2"},
+            "ptyDependency": {
+                "name": "portable-pty",
+                "version": "0.9.0",
+                "owner": "vityod",
+            },
             "vityoCommit": commit,
             "ok": True,
             "scenarios": [

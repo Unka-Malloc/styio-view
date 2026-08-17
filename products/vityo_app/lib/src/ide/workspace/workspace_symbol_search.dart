@@ -88,8 +88,7 @@ class WorkspaceSymbolSearchResult {
 
   int get matchCount => items.length;
 
-  int get matchedFileCount =>
-      items.map((item) => item.filePath).toSet().length;
+  int get matchedFileCount => items.map((item) => item.filePath).toSet().length;
 }
 
 class WorkspaceSymbolSearchService {
@@ -215,10 +214,7 @@ class WorkspaceSymbolSearchService {
     return unique;
   }
 
-  static bool _isIndexable(
-    String filePath,
-    WorkspaceSymbolSearchQuery query,
-  ) {
+  static bool _isIndexable(String filePath, WorkspaceSymbolSearchQuery query) {
     final normalized = _displayPath(filePath).toLowerCase();
     if (!normalized.endsWith('.styio')) {
       return false;
@@ -629,8 +625,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

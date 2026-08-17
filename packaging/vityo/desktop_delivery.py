@@ -20,6 +20,21 @@ REQUIRED_TOOLS = {
 }
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40,64}$")
 SOURCE_FINGERPRINT_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+VITYOD_TARGETS = {
+    "windows": "x86_64-pc-windows-msvc",
+    "macos": "native-apple-darwin",
+    "linux": "x86_64-unknown-linux-gnu",
+}
+VITYOD_PACKAGE_PATHS = {
+    "windows": "components/vityod.exe",
+    "macos": "Contents/Helpers/vityod",
+    "linux": "components/vityod",
+}
+VITYOD_SOURCE_PATHS = {
+    "windows": "products/vityo_app/native/vityod/target/release/vityod.exe",
+    "macos": "products/vityo_app/native/vityod/target/release/vityod",
+    "linux": "products/vityo_app/native/vityod/target/release/vityod",
+}
 
 
 @dataclasses.dataclass(frozen=True)
@@ -103,6 +118,26 @@ def validate_repository(root: pathlib.Path) -> list[str]:
         errors.append("desktop delivery product must be vityo")
     if set(contract.get("platforms", [])) != set(PLATFORMS):
         errors.append("desktop delivery must declare windows, macos, and linux")
+    component = contract.get("component")
+    if not isinstance(component, dict) or component.get("name") != "vityod":
+        errors.append("desktop delivery must declare the vityod component")
+    elif (
+        component.get("protocol_min") != 1
+        or component.get("protocol_max") != 1
+        or component.get("instance_scope") != "per-user"
+        or component.get("launch") != "on-demand"
+        or component.get("privileged_service") is not False
+        or component.get("discovery") != "application-relative-manifest-only"
+    ):
+        errors.append("vityod component lifecycle or protocol contract is invalid")
+    state_policy = contract.get("state_policy")
+    if not isinstance(state_policy, dict) or state_policy != {
+        "compatible_schema_step": 1,
+        "upgrade": "checkpoint-health-rollback",
+        "uninstall": "retain-user-state",
+        "reclamation": "separate-explicit-confirmation",
+    }:
+        errors.append("desktop delivery state retention policy is invalid")
 
     for platform in PLATFORMS:
         manifest_path = root / "packaging" / platform / "nightly.json"
@@ -128,6 +163,27 @@ def validate_repository(root: pathlib.Path) -> list[str]:
             signing.get("reason", "")
         ).strip():
             errors.append(f"{manifest_path.relative_to(root)}: signing gap lacks a reason")
+        vityod = manifest.get("vityod")
+        if not isinstance(vityod, dict):
+            errors.append(f"{manifest_path.relative_to(root)}: vityod component is missing")
+        else:
+            source_path = str(vityod.get("source_relative_path", ""))
+            package_path = str(vityod.get("package_relative_path", ""))
+            target = str(vityod.get("target", ""))
+            runtime_libraries = vityod.get("required_runtime_libraries")
+            if source_path != VITYOD_SOURCE_PATHS[platform]:
+                errors.append(f"{manifest_path.relative_to(root)}: vityod source path is invalid")
+            if package_path != VITYOD_PACKAGE_PATHS[platform]:
+                errors.append(f"{manifest_path.relative_to(root)}: vityod package path is invalid")
+            if target != VITYOD_TARGETS[platform]:
+                errors.append(f"{manifest_path.relative_to(root)}: vityod target is mismatched")
+            if not isinstance(runtime_libraries, list) or not all(
+                isinstance(library, str) and library.strip()
+                for library in runtime_libraries
+            ):
+                errors.append(
+                    f"{manifest_path.relative_to(root)}: vityod runtime library contract is invalid"
+                )
 
     workflow_path = root / ".github" / "workflows" / "local-ci-gate.yml"
     try:

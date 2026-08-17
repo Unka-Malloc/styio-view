@@ -68,10 +68,8 @@ class WorkspaceCodeActionItem {
   final String detail;
   final List<WorkspaceCodeActionDocumentPreview> documents;
 
-  int get editCount => documents.fold(
-    0,
-    (count, document) => count + document.editCount,
-  );
+  int get editCount =>
+      documents.fold(0, (count, document) => count + document.editCount);
 
   int get changedFileCount => documents.length;
 
@@ -100,10 +98,8 @@ class WorkspaceCodeActionsResult {
 
   int get actionCount => actions.length;
 
-  int get editCount => actions.fold(
-    0,
-    (count, action) => count + action.editCount,
-  );
+  int get editCount =>
+      actions.fold(0, (count, action) => count + action.editCount);
 
   int get matchedFileCount => actions
       .expand((action) => action.documents.map((document) => document.filePath))
@@ -195,9 +191,9 @@ class WorkspaceCodeActionsService {
       if (before == null || before.text == document.text) {
         continue;
       }
-      await documentStore.saveDocument(document);
       changedDocuments[document.documentId] = document;
     }
+    await saveWorkspaceDocuments(documentStore, changedDocuments.values);
 
     return WorkspaceCodeActionApplyResult(
       preview: preview.result,
@@ -233,8 +229,7 @@ class WorkspaceCodeActionsService {
           filesSearched: 0,
           diagnosticsScanned: 0,
           actions: const <WorkspaceCodeActionItem>[],
-          message:
-              'Code Actions requires at least one Styio workspace file.',
+          message: 'Code Actions requires at least one Styio workspace file.',
         ),
       );
     }
@@ -242,17 +237,16 @@ class WorkspaceCodeActionsService {
     final analysis = _projectLanguageService.analyzeProject(documents);
     final fixes = _projectLanguageService
         .workspaceQuickFixesForProjectDiagnostics(
-      documents: documents,
-      diagnostics: analysis.diagnostics,
-      analysis: analysis,
-    );
-    final allCandidates = _buildCandidates(
-      documents: documents,
-      fixes: fixes,
-    );
+          documents: documents,
+          diagnostics: analysis.diagnostics,
+          analysis: analysis,
+        );
+    final allCandidates = _buildCandidates(documents: documents, fixes: fixes);
     final normalizedPattern = _normalizedPattern(query.pattern);
     final filteredCandidates = allCandidates
-        .where((candidate) => _matchesPattern(candidate.item, normalizedPattern))
+        .where(
+          (candidate) => _matchesPattern(candidate.item, normalizedPattern),
+        )
         .toList(growable: false);
     final maxResults = query.maxResults <= 0 ? 50 : query.maxResults;
     final limitedCandidates = filteredCandidates
@@ -297,7 +291,8 @@ class WorkspaceCodeActionsService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     return documents;
@@ -327,9 +322,10 @@ class WorkspaceCodeActionsService {
         if (document == null) {
           continue;
         }
-        final firstEdit = [...documentPreview.edits]..sort(
-          (first, second) => first.range.start.compareTo(second.range.start),
-        );
+        final firstEdit = [...documentPreview.edits]
+          ..sort(
+            (first, second) => first.range.start.compareTo(second.range.start),
+          );
         final range = firstEdit.first.range;
         final position = document.positionForOffset(range.start);
         documentPreviews.add(
@@ -394,10 +390,7 @@ class WorkspaceCodeActionsService {
     return unique;
   }
 
-  static bool _isIndexable(
-    String filePath,
-    WorkspaceCodeActionsQuery query,
-  ) {
+  static bool _isIndexable(String filePath, WorkspaceCodeActionsQuery query) {
     final normalized = _displayPath(filePath).toLowerCase();
     if (!normalized.endsWith('.styio')) {
       return false;
@@ -429,16 +422,20 @@ class WorkspaceCodeActionsService {
         item.detail.toLowerCase().contains(normalizedPattern) ||
         item.documents.any(
           (document) =>
-              _displayPath(document.filePath).toLowerCase().contains(
-                normalizedPattern,
-              ) ||
+              _displayPath(
+                document.filePath,
+              ).toLowerCase().contains(normalizedPattern) ||
               document.previewText.toLowerCase().contains(normalizedPattern),
         );
   }
 
   static String _nextActionId(String label, Map<String, int> idCounts) {
     final base = _slug(label);
-    final count = idCounts.update(base, (value) => value + 1, ifAbsent: () => 1);
+    final count = idCounts.update(
+      base,
+      (value) => value + 1,
+      ifAbsent: () => 1,
+    );
     return count == 1 ? base : '$base-$count';
   }
 
@@ -521,10 +518,7 @@ class _WorkspaceCodeActionsPreview {
 }
 
 class _WorkspaceCodeActionCandidate {
-  const _WorkspaceCodeActionCandidate({
-    required this.fix,
-    required this.item,
-  });
+  const _WorkspaceCodeActionCandidate({required this.fix, required this.item});
 
   final StyioProjectWorkspaceFix fix;
   final WorkspaceCodeActionItem item;
@@ -552,8 +546,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

@@ -71,18 +71,19 @@
 
 ### 1.7 Agent Review
 
-The Agent workflow is protocol-backed Workbench review. The IDE owns process supervision, bounded
-context export, permission presentation, revision-bound change preview, and workspace transactions.
+The Agent workflow is protocol-backed Workbench review. `vityod` owns ACP process supervision and
+bounded MCP context export. Flutter owns permission presentation, revision-bound change preview,
+and workspace transactions.
 The connected Agent owns provider/model access, tool loops, policy, and durable sessions.
 
 | Artifact | File | Role |
 |----------|------|------|
-| `AgentClientRegistry` | `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart` | Supervises compatible Agent processes, negotiation, requests, sessions, permissions, and reconnect. |
+| `AgentClientRegistry` | `products/vityo_app/lib/src/ide/agent_client/agent_client_registry.dart` | Projects daemon-owned Agent sessions, permissions, and reconnect state through typed requests. |
 | `AgentCollaborationService` | `products/vityo_app/lib/src/ide/workbench/agent_collaboration/agent_collaboration_service.dart` | Binds protocol sessions to immutable Workbench state and revisioned proposals. |
 | `AgentCollaborationStore` | `products/vityo_app/lib/src/ide/workbench/agent_collaboration/collaboration_store.dart` | Bounded task, timeline, permission, and change-review projection. |
 | `AgentWorkbenchSurface` | `products/vityo_app/lib/src/presentation/agent_workbench/agent_workbench_surface.dart` | Agent Workbench view for task state, permission, change preview, and receipts. |
-| `ContextExportService` | `products/vityo_app/lib/src/ide/agent_client/tools/context_export_service.dart` | Revisioned, redacted, bounded IDE fact export. |
-| `IdeMcpServer` | `products/vityo_app/lib/src/ide/agent_client/mcp/ide_mcp_server.dart` | Root-scoped IDE tool and resource host with grants and audit receipts. |
+| `VityodMcpGateway` | `products/vityo_app/lib/src/ide/agent_client/mcp/vityod_mcp_gateway.dart` | Typed access to daemon-owned, revisioned, redacted, bounded workspace fact export. |
+| `Vityod ACP host` | `products/vityo_app/native/vityod/crates/vityod-agent-host/src/acp.rs` | Owns bounded Agent process lifecycle, negotiation, correlation, cancellation, and capability enforcement. |
 | `WorkspaceTransactionService` | `products/vityo_app/lib/src/ide/workspace/workspace_transaction_service.dart` | Authoritative preview, commit, reject, and rollback boundary for proposed changes. |
 
 ### 1.8 Settings

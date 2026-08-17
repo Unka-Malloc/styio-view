@@ -10,6 +10,7 @@ import 'process_prober_stub.dart';
 Future<ProcessManager> createPlatformProcessManager({
   ProcessProber? prober,
   PlatformContextSnapshot? platformContext,
+  Object? vityodClient,
 }) async {
   if (platformContext != null) {
     return UnsupportedProcessManager(facts: platformContext.process);
@@ -19,10 +20,16 @@ Future<ProcessManager> createPlatformProcessManager({
 }
 
 class LocalProcessManager extends UnsupportedProcessManager {
-  LocalProcessManager({required ProcessFacts facts, ProcessAdapter? adapter})
-    : super(facts: facts);
+  LocalProcessManager({
+    required ProcessFacts facts,
+    Object? client,
+    ProcessAdapter? adapter,
+  }) : super(facts: facts);
 
-  factory LocalProcessManager.linuxDebianArmForTest() {
-    return LocalProcessManager(facts: ProcessFacts.linuxDebianArm());
+  factory LocalProcessManager.linuxDebianArmForTest({Object? client}) {
+    return LocalProcessManager(
+      facts: ProcessFacts.linuxDebianArm(),
+      client: client,
+    );
   }
 }

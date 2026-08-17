@@ -5,6 +5,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/ide/workspace/workspace.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'source control provider adapter registry resolves non-git adapters',
@@ -410,75 +412,6 @@ diff --git a/lib/main.styio b/lib/main.styio
   });
 
   test(
-    'process source control runner executes through process manager',
-    () async {
-      final processManager = _FakeProcessManager(
-        const ProcessCommandResult(
-          status: ProcessCommandStatus.succeeded,
-          executablePath: 'git',
-          arguments: <String>['status'],
-          exitCode: 0,
-          stdout: '## ai-dev\n',
-          stderr: '',
-          duration: Duration(milliseconds: 12),
-        ),
-      );
-      final runner = ProcessSourceControlCommandRunner(
-        processManager: processManager,
-        timeout: const Duration(seconds: 3),
-      );
-
-      final result = await runner(
-        const SourceControlCommandRequest(
-          executable: 'git',
-          arguments: <String>['status', '--porcelain=v1', '--branch'],
-          workingDirectory: '/workspace/vityo',
-        ),
-      );
-
-      expect(processManager.lastRequest?.executablePath, 'git');
-      expect(processManager.lastRequest?.arguments, <String>[
-        'status',
-        '--porcelain=v1',
-        '--branch',
-      ]);
-      expect(processManager.lastRequest?.workingDirectory, '/workspace/vityo');
-      expect(processManager.lastRequest?.timeout, const Duration(seconds: 3));
-      expect(result.exitCode, 0);
-      expect(result.stdout, '## ai-dev\n');
-    },
-  );
-
-  test('process source control runner maps blocked process status', () async {
-    final processManager = _FakeProcessManager(
-      const ProcessCommandResult(
-        status: ProcessCommandStatus.blocked,
-        executablePath: 'git',
-        arguments: <String>['status'],
-        exitCode: null,
-        stdout: '',
-        stderr: '',
-        duration: Duration.zero,
-        message: 'Process execution is not available.',
-      ),
-    );
-
-    final result =
-        await ProcessSourceControlCommandRunner(
-          processManager: processManager,
-        ).call(
-          const SourceControlCommandRequest(
-            executable: 'git',
-            arguments: <String>['status'],
-            workingDirectory: '/workspace/vityo',
-          ),
-        );
-
-    expect(result.exitCode, 126);
-    expect(result.stderr, 'Process execution is not available.');
-  });
-
-  test(
     'git status provider reports unavailable status on command failure',
     () async {
       final provider = GitPorcelainStatusProvider(
@@ -809,7 +742,7 @@ diff --git a/src/main.styio b/src/main.styio
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,
@@ -1008,35 +941,5 @@ class _RecordingSourceControlConflictResolutionProvider
       kind: request.kind,
       message: 'Resolved ${request.path}.',
     );
-  }
-}
-
-class _FakeProcessManager implements ProcessManager {
-  _FakeProcessManager(this.result)
-    : facts = ProcessFacts.linuxDebianArm(),
-      compatibility = ProcessAdapter(ProcessFacts.linuxDebianArm()).adapt();
-
-  final ProcessCommandResult result;
-  ProcessCommandRequest? lastRequest;
-
-  @override
-  final ProcessFacts facts;
-
-  @override
-  final ProcessCompatibility compatibility;
-
-  @override
-  Future<ProcessCommandResult> run(ProcessCommandRequest request) async {
-    lastRequest = request;
-    return result;
-  }
-
-  @override
-  ProcessOperationFailure? failureFor(
-    ProcessCommandResult result, {
-    String operation = 'process.spawn',
-    String? recoveryHint,
-  }) {
-    return null;
   }
 }

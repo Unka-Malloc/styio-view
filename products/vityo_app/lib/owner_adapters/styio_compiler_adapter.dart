@@ -1,41 +1,37 @@
 import 'dart:convert';
-import 'dart:io';
 
 import '../src/view_ide/backend_toolchain/project_graph_contract.dart';
+import '../src/view_ide/environment/system_compatibility/process/process.dart';
 
 /// Consumes the system compiler through `styio --machine-info=json`.
 ///
 /// Vityo does not ask Pafio for compiler discovery or inspect Pafio storage.
 class StyioCompilerAdapter {
-  const StyioCompilerAdapter({this.environment});
+  const StyioCompilerAdapter({
+    required this.binaryPath,
+    required this.processManager,
+    this.environment = const <String, String>{},
+  });
 
-  final Map<String, String>? environment;
+  final String binaryPath;
+  final ProcessManager processManager;
+  final Map<String, String> environment;
 
   Future<CompilerHandshakeSnapshot?> inspect() async {
-    final env = environment ?? Platform.environment;
-    final candidates = <String>[
-      if (env['VITYO_STYIO_BIN']?.trim().isNotEmpty == true)
-        env['VITYO_STYIO_BIN']!.trim(),
-      'styio',
-    ];
-    for (final candidate in candidates) {
-      for (final executable in _executableCandidates(candidate)) {
-        try {
-          final result = await Process.run(executable, const <String>[
-            '--machine-info=json',
-          ], environment: env);
-          if (result.exitCode != 0) {
-            continue;
-          }
-          return decode(result.stdout as String, binaryPath: executable);
-        } on ProcessException {
-          continue;
-        } on StyioCompilerContractException {
-          continue;
-        }
-      }
+    try {
+      final result = await processManager.run(
+        ProcessCommandRequest(
+          executablePath: binaryPath,
+          arguments: const <String>['--machine-info=json'],
+          environment: environment,
+          serviceKind: ProcessServiceKind.styio,
+        ),
+      );
+      if (!result.succeeded) return null;
+      return decode(result.stdout, binaryPath: binaryPath);
+    } on Object {
+      return null;
     }
-    return null;
   }
 
   static CompilerHandshakeSnapshot decode(
@@ -101,19 +97,6 @@ class StyioCompilerContractException implements Exception {
 
   @override
   String toString() => 'StyioCompilerContractException: $message';
-}
-
-Iterable<String> _executableCandidates(String candidate) sync* {
-  if (Platform.isWindows &&
-      !RegExp(
-        r'\.(bat|cmd|com|exe)$',
-        caseSensitive: false,
-      ).hasMatch(candidate)) {
-    yield '$candidate.exe';
-    yield '$candidate.cmd';
-    yield '$candidate.bat';
-  }
-  yield candidate;
 }
 
 Map<String, bool> _boolMap(Object? value) {

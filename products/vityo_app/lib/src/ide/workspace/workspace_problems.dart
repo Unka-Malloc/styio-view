@@ -129,7 +129,8 @@ class WorkspaceProblemsService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     final documentsById = {
@@ -203,10 +204,7 @@ class WorkspaceProblemsService {
     return unique;
   }
 
-  static bool _isIndexable(
-    String filePath,
-    WorkspaceProblemsQuery query,
-  ) {
+  static bool _isIndexable(String filePath, WorkspaceProblemsQuery query) {
     final normalized = _displayPath(filePath).toLowerCase();
     if (!normalized.endsWith('.styio')) {
       return false;
@@ -312,8 +310,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

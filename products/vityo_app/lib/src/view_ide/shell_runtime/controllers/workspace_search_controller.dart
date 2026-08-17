@@ -10,6 +10,7 @@ final class WorkspaceSearchController {
     required this.languageService,
     required this.documentSamples,
     required this.log,
+    this.textSearchProvider,
   });
 
   final WorkspaceController workspaceController;
@@ -17,6 +18,7 @@ final class WorkspaceSearchController {
   final ProjectStyioLanguageService languageService;
   final List<DocumentState> Function() documentSamples;
   final void Function(String message) log;
+  final WorkspaceTextSearchProvider? textSearchProvider;
 
   WorkspaceSearchResult? _lastTextSearch;
   WorkspaceSymbolSearchResult? _lastSymbolSearch;
@@ -32,6 +34,11 @@ final class WorkspaceSearchController {
     final normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) {
       log('Workspace search skipped: missing input.');
+      return false;
+    }
+    final provider = textSearchProvider;
+    if (provider == null) {
+      log('Workspace search is unavailable without a backend provider.');
       return false;
     }
     final documents = <DocumentState>[];
@@ -54,14 +61,11 @@ final class WorkspaceSearchController {
         log('Workspace search skipped $filePath: $error');
       }
     }
-    final index = WorkspaceSearchIndex(
-      documents: <WorkspaceSearchIndexDocument>[
-        for (final document in documents)
-          WorkspaceSearchIndexDocument.fromDocument(document),
-      ],
-      createdAt: DateTime.now().toUtc(),
+    final textSearch = await provider.search(
+      workspaceId: workspaceController.activeProject.id,
+      query: normalizedQuery,
+      maxMatches: 1000,
     );
-    final textSearch = index.search(query: normalizedQuery, maxMatches: 50);
     final symbolResult =
         await WorkspaceSymbolSearchService(
           documentStore: InMemoryWorkspaceDocumentStore(

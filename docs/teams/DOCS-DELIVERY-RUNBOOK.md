@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-08-03
 
 ## Mission
 
@@ -105,14 +105,10 @@ claims.
 23. Governance docs are part of docs delivery. API compatibility, security, release checklist, CODEOWNERS policy, root contribution/security entries, and PR template changes must keep generated docs indexes current.
 24. When a new docs collection is added, update `scripts/docs-index.py` collection metadata and run `python3 scripts/docs-index.py --write` in the same change.
 25. Platform-native CI changes must keep `README.md`, `docs/BUILD-AND-DEV-ENV.md`, `.github/workflows/local-ci-gate.yml`, and bootstrap script comments aligned. The PowerShell workspace bootstrap may create Flutter plugin junctions on Windows to avoid Developer Mode or admin symlink requirements, but it must restore tracked `.metadata` and `pubspec.lock` after runner generation and dependency restore.
-26. Better Plan workflow state lives under `docs/plan/` as exactly two delivery tracks for one
-    Vityo product: the `vityo` IDE track and the `vityo-coding-agent` first-party companion-runtime
-    track. Keep `Capabilities.json` separate from lifecycle state, bind task groups to stable
-    capability keys, and use one `group_design`, one or more `implementation`, and one trailing
-    `final_validation` Node per executable group. Validate the capability catalog, root manifest,
-    and both state files with the current Better Plan manifest tool. `docs/plan/` is the only
-    authoritative Better Plan root; never create a nested or parallel workspace. Keep shared
-    protocol work inside both tracks instead of creating a third product track.
+26. `docs/plan/` is the only permitted location for future Better Plan state. It is currently an
+    empty documentation container with no capability catalog, Manifest, task group, or Node
+    checkpoint. A later explicitly authorized planning request may initialize one canonical
+    workspace there; nested or parallel workspaces remain invalid.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
@@ -220,5 +216,15 @@ validated both readable Plan projections without authorizing implementation or f
 into the single `docs/plan/` Better Plan root. Removed the final stale nested-path instructions,
 declared nested and parallel workspaces invalid, and retained only the two capability-bound delivery
 tracks plus their shared protocol fact.
+
+2026-08-03: Added the capability-bound `interactive-editor-input` follow-on delivery group beneath
+the existing transactional editor capability. The group freezes multi-cursor and rectangular
+selection commands, composition-safe Unicode input, Flutter text-input and accessibility
+integration, rendered 10k/100k performance evidence, and one trailing full IDE regression without
+creating another product track or Better Plan workspace.
+
+2026-08-09: Explicitly cleared all Better Plan capability, Manifest, task-group, and checkpoint
+state. Retained only the empty `docs/plan/` documentation container and reusable execution runbook;
+product implementation, tests, performance evidence, and visual evidence remain intact.
 
 <!-- codex merge: docs/build/scripts assets imported -->

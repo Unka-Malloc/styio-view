@@ -8,6 +8,8 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/contract/language_contract.dart';
 import 'package:vityo_app/src/view_ide/language/service/language_service_foundation.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('semantic snapshot resolves elements and references from fixture', () {
     final source = File(
@@ -646,7 +648,7 @@ void main() {
         'vityo_language_provider_manifest_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,

@@ -368,10 +368,7 @@ class WorkspaceDocumentLinksService {
 }
 
 class _WorkspaceImportDirective {
-  const _WorkspaceImportDirective({
-    required this.target,
-    required this.range,
-  });
+  const _WorkspaceImportDirective({required this.target, required this.range});
 
   final String target;
   final SourceRange range;
@@ -397,12 +394,10 @@ class _GlobMatcher {
       return normalized == suffix || normalized.endsWith('/$suffix');
     }
     if (_pattern.contains('*')) {
-      final expression = RegExp.escape(_pattern)
-          .replaceAll(r'\*\*', '.*')
-          .replaceAll(r'\*', '[^/]*');
-      final regex = RegExp(
-        '^$expression\$',
-      );
+      final expression = RegExp.escape(
+        _pattern,
+      ).replaceAll(r'\*\*', '.*').replaceAll(r'\*', '[^/]*');
+      final regex = RegExp('^$expression\$');
       return regex.hasMatch(normalized);
     }
     return normalized == _pattern;

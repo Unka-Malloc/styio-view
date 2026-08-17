@@ -11,7 +11,8 @@ from pathlib import Path
 
 
 CAPABILITY = "desktop-native-pty"
-PTY2_VERSION = "0.5.2"
+PORTABLE_PTY_VERSION = "0.9.0"
+PORTABLE_PTY_REQUIREMENT = "0.9"
 SCENARIOS = (
     "tty-identity",
     "child-observed-resize",
@@ -45,9 +46,22 @@ def git_head(repository: Path) -> str:
 
 
 def require_pinned_pty_dependency(app_root: Path) -> None:
-    pubspec = (app_root / "pubspec.yaml").read_text(encoding="utf-8")
-    if re.search(rf"^\s{{2}}pty2:\s*{re.escape(PTY2_VERSION)}\s*$", pubspec, re.MULTILINE) is None:
-        raise ValueError(f"pty2 must be pinned exactly to {PTY2_VERSION}")
+    daemon_root = app_root / "native" / "vityod"
+    manifest = (daemon_root / "Cargo.toml").read_text(encoding="utf-8")
+    lock = (daemon_root / "Cargo.lock").read_text(encoding="utf-8")
+    if re.search(
+        rf'^portable-pty\s*=\s*"{re.escape(PORTABLE_PTY_REQUIREMENT)}"\s*$',
+        manifest,
+        re.MULTILINE,
+    ) is None:
+        raise ValueError(
+            f"portable-pty must be pinned to {PORTABLE_PTY_REQUIREMENT}"
+        )
+    locked = rf'name = "portable-pty"\nversion = "{re.escape(PORTABLE_PTY_VERSION)}"'
+    if re.search(locked, lock) is None:
+        raise ValueError(
+            f"portable-pty lock must resolve exactly to {PORTABLE_PTY_VERSION}"
+        )
 
 
 def run_matrix(*, flutter: str, app_root: Path) -> None:
@@ -74,7 +88,11 @@ def build_report(*, platform: str, vityo_commit: str) -> dict[str, object]:
         "capability": CAPABILITY,
         "platform": platform,
         "provider": PROVIDERS[platform],
-        "ptyDependency": {"name": "pty2", "version": PTY2_VERSION},
+        "ptyDependency": {
+            "name": "portable-pty",
+            "version": PORTABLE_PTY_VERSION,
+            "owner": "vityod",
+        },
         "vityoCommit": vityo_commit,
         "ok": True,
         "scenarios": [

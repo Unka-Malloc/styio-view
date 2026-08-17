@@ -138,8 +138,7 @@ class WorkspaceTypeHierarchyResult {
 class WorkspaceTypeHierarchyService {
   const WorkspaceTypeHierarchyService({
     required this.documentStore,
-    StyioSyntaxHighlighter syntaxHighlighter =
-        const StyioSyntaxHighlighter(),
+    StyioSyntaxHighlighter syntaxHighlighter = const StyioSyntaxHighlighter(),
   }) : _syntaxHighlighter = syntaxHighlighter;
 
   final WorkspaceDocumentStore documentStore;
@@ -334,17 +333,18 @@ class WorkspaceTypeHierarchyService {
         }
     }
 
-    final relations = accumulators.values
-        .map(
-          (accumulator) => WorkspaceTypeHierarchyRelation(
-            symbol: accumulator.symbol,
-            locations: List<WorkspaceTypeHierarchyLocation>.unmodifiable(
-              accumulator.locations,
-            ),
-          ),
-        )
-        .toList(growable: false)
-      ..sort(_compareRelations);
+    final relations =
+        accumulators.values
+            .map(
+              (accumulator) => WorkspaceTypeHierarchyRelation(
+                symbol: accumulator.symbol,
+                locations: List<WorkspaceTypeHierarchyLocation>.unmodifiable(
+                  accumulator.locations,
+                ),
+              ),
+            )
+            .toList(growable: false)
+          ..sort(_compareRelations);
     final directionLabel =
         query.direction == WorkspaceTypeHierarchyDirection.supertypes
         ? 'supertypes'
@@ -528,10 +528,7 @@ class WorkspaceTypeHierarchyService {
     return unique;
   }
 
-  static bool _isIndexable(
-    String filePath,
-    WorkspaceTypeHierarchyQuery query,
-  ) {
+  static bool _isIndexable(String filePath, WorkspaceTypeHierarchyQuery query) {
     final normalized = _displayPath(filePath).toLowerCase();
     if (!normalized.endsWith('.styio')) {
       return false;
@@ -672,10 +669,7 @@ class _WorkspaceTypeHierarchyDeclaration {
 }
 
 class _WorkspaceTypeReference {
-  const _WorkspaceTypeReference({
-    required this.name,
-    required this.location,
-  });
+  const _WorkspaceTypeReference({required this.name, required this.location});
 
   final String name;
   final WorkspaceTypeHierarchyLocation location;
@@ -721,8 +715,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

@@ -2,6 +2,8 @@
 
 **Purpose:** Record Vityo performance baselines for regression detection.
 
+**Last updated:** 2026-08-18
+
 ## Rendered editor input (REQ-INPUT-004)
 
 - **Protocol:** req-input-004-v1

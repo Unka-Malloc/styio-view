@@ -2,7 +2,7 @@
 
 **Purpose:** Record dependency authorization boundaries for `Vityo`.
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-18
 
 `Vityo` is an Apache-2.0 Flutter/Dart application source project. Its current app, prototype, runner, docs, and test dependency boundary is:
 
@@ -12,6 +12,7 @@
 |---|---|---|---|---|---|
 | `flutter` (SDK) | Flutter SDK | BSD-3-Clause | Flutter framework SDK | UI framework, rendering, widgets, platform channels | Runtime |
 | `crypto` | ^3.0.7 | BSD-3-Clause | `package:crypto` from Dart SDK ecosystem | Cryptographic hash functions (SHA-256, SHA-512, HMAC) for content hashing, toolchain artifact verification, cache key derivation | Runtime |
+| `ffi` | ^2.2.0 | BSD-3-Clause | `package:ffi` from pub.dev | Native allocation and UTF-16 conversion for the Windows named-pipe transport boundary | Runtime (Windows desktop only) |
 | `cryptography` | ^2.9.0 | Apache-2.0 | `package:cryptography` from pub.dev | Cryptographic primitives for signature verification, key derivation, secure random generation used in toolchain provenance and secret handling | Runtime |
 | `web` | ^1.1.1 | BSD-3-Clause | `package:web` from Dart SDK ecosystem | Web platform interop types for browser-virtual file system provider and web-hosted workspace route | Runtime (Web target only) |
 | `cupertino_icons` | ^1.0.8 | MIT | `package:cupertino_icons` from pub.dev | iOS-style icon set for Cupertino-themed UI surfaces on iOS and macOS targets | Runtime (iOS/macOS) |

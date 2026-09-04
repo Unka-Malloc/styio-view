@@ -13,6 +13,7 @@ void main() {
     expect(snapshot.version, 'vityo-ide-capability-framework-v1');
     expect(snapshot.entries.length, ids.length);
     expect(ids, contains('service.styio-language'));
+    expect(ids, contains('service.observable-topology'));
     expect(ids, contains('service.language-result-cache'));
     expect(ids, containsAll(<String>['agent.client', 'agent.workbench']));
     expect(ids, isNot(contains('agent.provider')));

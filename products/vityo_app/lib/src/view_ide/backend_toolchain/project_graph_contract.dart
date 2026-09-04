@@ -298,6 +298,8 @@ class CompilerHandshakeSnapshot {
     required this.integrationPhase,
     this.supportedAdapterModes = const <String>[],
     this.featureFlags = const <String, bool>{},
+    this.observableStaticSnapshotSchemaVersions = const <int>[],
+    this.observableStaticSnapshotCapabilities = const <String>[],
   });
 
   final String binaryPath;
@@ -310,6 +312,8 @@ class CompilerHandshakeSnapshot {
   final String integrationPhase;
   final List<String> supportedAdapterModes;
   final Map<String, bool> featureFlags;
+  final List<int> observableStaticSnapshotSchemaVersions;
+  final List<String> observableStaticSnapshotCapabilities;
 
   bool supportsContract(String contractName) {
     return supportedContractVersions[contractName]?.isNotEmpty == true;

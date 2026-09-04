@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-05
 
 ## Mission
 
@@ -104,3 +104,8 @@ delta/query/lineage, and runtime-correlation intake remain gated by accepted ups
 Styio owns the observable wire semantics; Vityo owns version-aware decoding, bounded caches,
 degradation, and projection. The generic runtime-event shell and the Pafio-backed project graph do
 not become competing semantic protocols, and no implementation or `prototype/` change has started.
+
+2026-09-05: Published `ObservableTopologyAdapter` and implemented V1 static-topology intake. Recorded
+confirmed producer constants (machine-info key `observable_static_snapshot`, schema v1, five required
+capabilities, Pafio `--emit-observable-static-snapshot` / `--observable-capability`). V2/V3 remain
+fixture-gated. No `prototype/` change.

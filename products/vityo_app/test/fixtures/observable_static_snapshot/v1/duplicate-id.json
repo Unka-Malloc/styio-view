@@ -1,0 +1,49 @@
+{
+  "contract": "styio.observable.static-snapshot",
+  "schema_version": 1,
+  "stability": "incubating",
+  "producer": {"name": "styio", "version": "0.0.1"},
+  "capabilities": [
+    "file-source-anchors",
+    "producer-evidence",
+    "static-topology-edges",
+    "static-topology-facts",
+    "static-topology-nodes"
+  ],
+  "compilation_unit": {
+    "package_name": "example.app",
+    "manifest_path": "Styio.toml",
+    "entry_path": "src/main.styio"
+  },
+  "completeness": "complete/validated-topology",
+  "root": "n1_01000000000000000000000000000001",
+  "nodes": [
+    {
+      "id": "n1_01000000000000000000000000000001",
+      "kind": "Program",
+      "role": "Program",
+      "anchors": [],
+      "evidence": "v1_04000000000000000000000000000001"
+    },
+    {
+      "id": "n1_01000000000000000000000000000001",
+      "kind": "Value",
+      "role": "Value",
+      "anchors": [],
+      "evidence": "v1_04000000000000000000000000000001"
+    }
+  ],
+  "edges": [],
+  "facts": [],
+  "anchors": [],
+  "evidence": [
+    {
+      "ref": "v1_04000000000000000000000000000001",
+      "producer_rule": "sema.program",
+      "rule_version": "1",
+      "subjects": ["n1_01000000000000000000000000000001"],
+      "prerequisites": [],
+      "anchors": []
+    }
+  ]
+}

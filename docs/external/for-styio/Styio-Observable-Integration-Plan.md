@@ -2,9 +2,9 @@
 
 **Purpose:** Define the gated Vityo consumer work that may begin only after Styio publishes accepted observable-language fixtures.
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-05
 
-**Status:** Planned, not authorized, and not started.
+**Status:** V1 authorized and implemented. V2 and V3 remain fixture-gated and not started.
 
 ## 1. Delivery Boundary
 
@@ -31,6 +31,8 @@ The work is deliberately split by published producer evidence. A later stage can
 The attachment `Styio-Observable-Language-Long-Term-Evolution-2026-09-04.zip` is background reference only. It does not authorize work and cannot override repository contracts or accepted fixtures.
 
 ## 3. V1 — Static Topology Intake
+
+**Status:** Authorized and implemented in Vityo (TASK-001). Recorded producer constants: machine-info key `observable_static_snapshot`; schema version `1`; capabilities `file-source-anchors`, `producer-evidence`, `static-topology-edges`, `static-topology-facts`, `static-topology-nodes`; Pafio `--emit-observable-static-snapshot[=<schema-version>]` and repeatable `--observable-capability <name>`.
 
 ### Inputs
 

@@ -1,0 +1,25 @@
+{
+  "contract": "styio.observable.static-snapshot",
+  "schema_version": 99,
+  "stability": "incubating",
+  "producer": {"name": "styio", "version": "0.0.1"},
+  "capabilities": [
+    "file-source-anchors",
+    "producer-evidence",
+    "static-topology-edges",
+    "static-topology-facts",
+    "static-topology-nodes"
+  ],
+  "compilation_unit": {
+    "package_name": "example.app",
+    "manifest_path": "Styio.toml",
+    "entry_path": "src/main.styio"
+  },
+  "completeness": "complete/validated-topology",
+  "root": null,
+  "nodes": [],
+  "edges": [],
+  "facts": [],
+  "anchors": [],
+  "evidence": []
+}

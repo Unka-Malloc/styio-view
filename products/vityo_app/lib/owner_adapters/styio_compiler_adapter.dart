@@ -70,6 +70,27 @@ class StyioCompilerAdapter {
         }
       }
     }
+    final snapshotInfo = decoded['observable_static_snapshot'];
+    final snapshotVersions = <int>[];
+    final snapshotCapabilities = <String>[];
+    if (snapshotInfo is Map) {
+      final versions = snapshotInfo['schema_versions'];
+      if (versions is List) {
+        for (final item in versions) {
+          if (item is num) {
+            snapshotVersions.add(item.toInt());
+          }
+        }
+      }
+      final snapshotCaps = snapshotInfo['capabilities'];
+      if (snapshotCaps is List) {
+        for (final item in snapshotCaps) {
+          if (item is String) {
+            snapshotCapabilities.add(item);
+          }
+        }
+      }
+    }
     return CompilerHandshakeSnapshot(
       binaryPath: binaryPath,
       tool: decoded['tool'] as String? ?? 'styio',
@@ -90,6 +111,12 @@ class StyioCompilerAdapter {
               .whereType<String>()
               .toList(growable: false),
       featureFlags: _boolMap(decoded['feature_flags']),
+      observableStaticSnapshotSchemaVersions: List<int>.unmodifiable(
+        snapshotVersions,
+      ),
+      observableStaticSnapshotCapabilities: List<String>.unmodifiable(
+        snapshotCapabilities,
+      ),
     );
   }
 }

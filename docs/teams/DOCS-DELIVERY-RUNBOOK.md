@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-05
 
 ## Mission
 
@@ -225,5 +225,9 @@ tracks plus their shared protocol fact.
 consumption and regenerated its collection indexes. The document is explicitly unapproved and
 fixture-gated, does not alter the existing Better Plan workspace, and starts no adapter, UI,
 runtime, or `prototype/` implementation.
+
+2026-09-05: Indexed `docs/contracts/ObservableTopologyAdapter.md`, marked the Styio observable
+integration plan V1 as authorized and implemented, and refreshed collection indexes. V2/V3 remain
+fixture-gated. No `prototype/` change.
 
 <!-- codex merge: docs/build/scripts assets imported -->

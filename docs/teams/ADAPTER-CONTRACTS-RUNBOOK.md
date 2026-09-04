@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-09-04
 
 ## Mission
 
@@ -98,3 +98,9 @@ Record:
 2026-07-31: Updated `UserFacingWorkflows.md` to the completed protocol-only Agent Client,
 collaboration, MCP/context, Workbench, and workspace-transaction paths. Removed current-contract
 references to the retired IDE provider/controller implementation.
+
+2026-09-04: Registered the unapproved Styio observable-language consumer plan. Static snapshot,
+delta/query/lineage, and runtime-correlation intake remain gated by accepted upstream fixtures.
+Styio owns the observable wire semantics; Vityo owns version-aware decoding, bounded caches,
+degradation, and projection. The generic runtime-event shell and the Pafio-backed project graph do
+not become competing semantic protocols, and no implementation or `prototype/` change has started.

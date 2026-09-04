@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-08-01
+**Last updated:** 2026-09-04
 
 ## Mission
 
@@ -220,5 +220,10 @@ validated both readable Plan projections without authorizing implementation or f
 into the single `docs/plan/` Better Plan root. Removed the final stale nested-path instructions,
 declared nested and parallel workspaces invalid, and retained only the two capability-bound delivery
 tracks plus their shared protocol fact.
+
+2026-09-04: Added one single-purpose external handoff plan for future Styio observable-language
+consumption and regenerated its collection indexes. The document is explicitly unapproved and
+fixture-gated, does not alter the existing Better Plan workspace, and starts no adapter, UI,
+runtime, or `prototype/` implementation.
 
 <!-- codex merge: docs/build/scripts assets imported -->

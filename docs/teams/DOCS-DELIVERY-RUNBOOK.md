@@ -230,4 +230,8 @@ runtime, or `prototype/` implementation.
 integration plan V1 as authorized and implemented, and refreshed collection indexes. V2/V3 remain
 fixture-gated. No `prototype/` change.
 
+2026-09-05: Updated `ObservableTopologyAdapter` and the Styio observable integration plan for V2
+delta and lineage intake (bounded query deferred), then regenerated collection indexes. No
+`prototype/` change.
+
 <!-- codex merge: docs/build/scripts assets imported -->

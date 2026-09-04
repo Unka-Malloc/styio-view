@@ -109,3 +109,9 @@ not become competing semantic protocols, and no implementation or `prototype/` c
 confirmed producer constants (machine-info key `observable_static_snapshot`, schema v1, five required
 capabilities, Pafio `--emit-observable-static-snapshot` / `--observable-capability`). V2/V3 remain
 fixture-gated. No `prototype/` change.
+
+2026-09-05: Extended `ObservableTopologyAdapter` for producer delta and lineage intake. Recorded
+delta constants and confirmation status (`snapshot-delta` / `producer-lineage` confirmed in
+machine-info `optional_capabilities`; CLI `--observable-parent-snapshot` confirmed; delta artifact
+suffix `.observable-delta.json` and receipt `observable_static_snapshot.delta` confirmed). Identity
+is the producer `s1_` snapshot identity. Bounded query remains deferred. No `prototype/` change.

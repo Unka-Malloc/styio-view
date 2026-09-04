@@ -1,10 +1,12 @@
 import '../../backend_toolchain/project_graph_contract.dart';
+import 'observable_delta_model.dart';
 import 'observable_snapshot_model.dart';
 
 class ObservableSnapshotAdvertisement {
   const ObservableSnapshotAdvertisement({
     required this.schemaVersions,
     required this.capabilities,
+    this.optionalCapabilities = const <String>[],
   });
 
   factory ObservableSnapshotAdvertisement.fromHandshake(
@@ -16,12 +18,12 @@ class ObservableSnapshotAdvertisement {
         capabilities: <String>[],
       );
     }
-    final versions =
-        compiler.observableStaticSnapshotSchemaVersions.isNotEmpty
+    final versions = compiler.observableStaticSnapshotSchemaVersions.isNotEmpty
         ? compiler.observableStaticSnapshotSchemaVersions
         : (compiler.supportedContractVersions[kObservableMachineInfoKey] ??
               const <int>[]);
-    final capabilities = compiler.observableStaticSnapshotCapabilities.isNotEmpty
+    final capabilities =
+        compiler.observableStaticSnapshotCapabilities.isNotEmpty
         ? compiler.observableStaticSnapshotCapabilities
         : compiler.capabilities
               .where(kObservableRequiredCapabilities.contains)
@@ -29,6 +31,8 @@ class ObservableSnapshotAdvertisement {
     return ObservableSnapshotAdvertisement(
       schemaVersions: versions,
       capabilities: capabilities,
+      optionalCapabilities:
+          compiler.observableStaticSnapshotOptionalCapabilities,
     );
   }
 
@@ -63,17 +67,32 @@ class ObservableSnapshotAdvertisement {
         }
       }
     }
+    final optionalCapabilities = <String>[];
+    final optionalValue = map[kObservableMachineInfoOptionalCapabilitiesKey];
+    if (optionalValue is List) {
+      for (final item in optionalValue) {
+        if (item is String) {
+          optionalCapabilities.add(item);
+        }
+      }
+    }
     return ObservableSnapshotAdvertisement(
       schemaVersions: versions,
       capabilities: capabilities,
+      optionalCapabilities: optionalCapabilities,
     );
   }
 
   final List<int> schemaVersions;
   final List<String> capabilities;
+  final List<String> optionalCapabilities;
 
   bool get advertisesSchemaV1 =>
       schemaVersions.contains(kObservableStaticSnapshotSchemaVersion);
+
+  bool advertisesOptionalCapability(String name) {
+    return optionalCapabilities.contains(name) || capabilities.contains(name);
+  }
 
   List<String> get missingRequiredCapabilities {
     final advertised = capabilities.toSet();
@@ -147,10 +166,18 @@ ObservableNegotiationDecision negotiateObservableCapability(
     return ObservableNegotiationDecision.reject(
       availability: ObservableAvailability.unsupported,
       reason: ObservableReasonCode.missingCapability,
-      detail: 'Compiler is missing required capabilities: ${missing.join(', ')}.',
+      detail:
+          'Compiler is missing required capabilities: ${missing.join(', ')}.',
     );
   }
-  return ObservableNegotiationDecision.ok();
+  return ObservableNegotiationDecision.ok(
+    snapshotDeltaAvailable: advertisement.advertisesOptionalCapability(
+      kObservableDeltaCapability,
+    ),
+    producerLineageAvailable: advertisement.advertisesOptionalCapability(
+      kObservableLineageCapability,
+    ),
+  );
 }
 
 bool shouldDecodeObservableSnapshot(ObservableNegotiationDecision decision) {

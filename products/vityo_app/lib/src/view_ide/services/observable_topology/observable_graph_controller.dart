@@ -7,7 +7,10 @@ import '../../backend_toolchain/project_graph_contract.dart';
 import '../../environment/environment.dart';
 import 'observable_capability_negotiation.dart';
 import 'observable_change_set.dart';
+import 'observable_delta_apply.dart';
+import 'observable_delta_model.dart';
 import 'observable_graph_layout.dart';
+import 'observable_lineage_window.dart';
 import 'observable_snapshot_cache.dart';
 import 'observable_snapshot_model.dart';
 
@@ -52,6 +55,7 @@ class ObservableGraphController extends ChangeNotifier {
   final DateTime Function() _clock;
   final ObservablePafioResolver _resolvePafio;
   final Duration debounce;
+  final ObservableLineageWindow _window = ObservableLineageWindow();
 
   ObservableGraphState _state = ObservableGraphState.initial();
   StreamSubscription<FileSystemManagerEvent>? _watch;
@@ -63,10 +67,16 @@ class ObservableGraphController extends ChangeNotifier {
   String? _pafioBinary;
   ObservableSnapshot? _currentSnapshot;
   SnapshotIdentity? _currentIdentity;
+  bool _snapshotDeltaAvailable = false;
+  bool _deltasDisabled = false;
+  bool _forceFullSnapshot = false;
+  List<int>? _headBytes;
+  String? _headPath;
 
   ObservableGraphState get state => _state;
   bool get watchAttached => _watchAttached;
   ObservableSnapshotCache get cache => _cache;
+  ObservableLineageWindow get lineageWindow => _window;
 
   Future<void> start() async {
     if (_disposed) {
@@ -153,6 +163,7 @@ class ObservableGraphController extends ChangeNotifier {
       return false;
     }
     _pafioBinary = pafio;
+    _snapshotDeltaAvailable = decision.snapshotDeltaAvailable;
     return true;
   }
 
@@ -168,6 +179,8 @@ class ObservableGraphController extends ChangeNotifier {
     );
     _currentSnapshot = null;
     _currentIdentity = null;
+    _headBytes = null;
+    _headPath = null;
     notifyListeners();
   }
 
@@ -201,7 +214,8 @@ class ObservableGraphController extends ChangeNotifier {
 
   bool _shouldRefreshPath(String path) {
     final normalized = path.replaceAll('\\', '/');
-    if (normalized.endsWith(kObservableArtifactSuffix)) {
+    if (normalized.endsWith(kObservableArtifactSuffix) ||
+        normalized.endsWith(kObservableDeltaArtifactSuffix)) {
       return false;
     }
     if (normalized.endsWith('.styio')) {
@@ -225,6 +239,13 @@ class ObservableGraphController extends ChangeNotifier {
     await _run(_generation += 1);
   }
 
+  bool _shouldRequestDelta() {
+    return _snapshotDeltaAvailable &&
+        !_deltasDisabled &&
+        !_forceFullSnapshot &&
+        _headPath != null;
+  }
+
   Future<void> _run(int generation) async {
     if (_disposed || generation != _generation) {
       return;
@@ -233,6 +254,7 @@ class ObservableGraphController extends ChangeNotifier {
     final graph = _projectGraph();
     final previousSnapshot = _currentSnapshot;
     final previousIdentity = _currentIdentity;
+    final recovering = _forceFullSnapshot;
     if (_state.projection != null) {
       _state = _state.copyWith(
         availability: ObservableAvailability.refreshing,
@@ -261,16 +283,36 @@ class ObservableGraphController extends ChangeNotifier {
       return;
     }
 
-    final published = await _publisher.publish(
+    var requestDelta = _shouldRequestDelta();
+    var published = await _publisher.publish(
       ObservableSnapshotPublishRequest(
         workspaceRoot: graph.workspaceRoot,
         manifestPath: graph.manifestPath!,
         pafioBinary: pafio,
         compilerBinary: compiler.binaryPath,
+        parentSnapshotPath: requestDelta ? _headPath : null,
+        requestDelta: requestDelta,
       ),
     );
     if (generation != _generation || _disposed) {
       return;
+    }
+    if (published.reason == ObservableReasonCode.deltaTransportUnavailable &&
+        requestDelta &&
+        !_deltasDisabled) {
+      _deltasDisabled = true;
+      requestDelta = false;
+      published = await _publisher.publish(
+        ObservableSnapshotPublishRequest(
+          workspaceRoot: graph.workspaceRoot,
+          manifestPath: graph.manifestPath!,
+          pafioBinary: pafio,
+          compilerBinary: compiler.binaryPath,
+        ),
+      );
+      if (generation != _generation || _disposed) {
+        return;
+      }
     }
     if (published.status == ObservablePublishStatus.cancelled) {
       _state = _state.copyWith(
@@ -294,7 +336,150 @@ class ObservableGraphController extends ChangeNotifier {
       return;
     }
 
-    final intake = await _cache.intakeAsync(published.bytes!);
+    final childBytes = published.bytes!;
+    final childSnapshotId = observableSnapshotId(childBytes);
+    if (childSnapshotId == _currentIdentity?.snapshotId &&
+        _state.projection != null &&
+        published.deltaBytes == null &&
+        !recovering) {
+      return;
+    }
+
+    if (_snapshotDeltaAvailable && !_deltasDisabled) {
+      await _runDeltaIntake(
+        generation: generation,
+        published: published,
+        childBytes: childBytes,
+        childSnapshotId: childSnapshotId,
+        previousSnapshot: previousSnapshot,
+        previousIdentity: previousIdentity,
+        recovering: recovering,
+        requestDelta: requestDelta,
+      );
+      return;
+    }
+
+    await _runSnapshotIntake(
+      generation: generation,
+      childBytes: childBytes,
+      previousSnapshot: previousSnapshot,
+      previousIdentity: previousIdentity,
+      artifactPath: published.artifactPath,
+    );
+  }
+
+  Future<void> _runDeltaIntake({
+    required int generation,
+    required ObservableSnapshotPublishResult published,
+    required List<int> childBytes,
+    required String childSnapshotId,
+    required ObservableSnapshot? previousSnapshot,
+    required SnapshotIdentity? previousIdentity,
+    required bool recovering,
+    required bool requestDelta,
+  }) async {
+    final deltaBytes = requestDelta ? published.deltaBytes : null;
+    final intake = await computeObservableDeltaIntake(
+      ObservableDeltaIntakeInput(
+        childBytes: childBytes,
+        childSnapshotId: childSnapshotId,
+        deltaBytes: deltaBytes,
+        headBytes: requestDelta ? _headBytes : null,
+        headSnapshotId: requestDelta ? _currentIdentity?.snapshotId : null,
+        retained: [
+          for (final entry in _window.entries)
+            ObservableRetainedIdentity(
+              snapshotId: entry.snapshotId,
+              parentSnapshotId: entry.parentSnapshotId,
+            ),
+        ],
+      ),
+    );
+    if (generation != _generation || _disposed) {
+      return;
+    }
+    if (!intake.accepted) {
+      _forceFullSnapshot = true;
+      _failRun(
+        generation: generation,
+        availability: previousSnapshot == null
+            ? ObservableAvailability.blocked
+            : ObservableAvailability.stale,
+        reason: intake.reason ?? ObservableReasonCode.invalidDelta,
+        detail: intake.subcode?.wireValue ?? intake.detail ?? 'delta rejected',
+        previousSnapshot: previousSnapshot,
+        previousIdentity: previousIdentity,
+        rejectedDelta: true,
+      );
+      return;
+    }
+    // A verified no-op changes nothing: identical bytes, or an unchanged
+    // delta whose target is the retained head, must not push a window entry,
+    // move the counters, or notify — the V1 idempotency rule extended to
+    // delta intake. A recovery run is exempt: it re-establishes the fresh
+    // full-snapshot state even when the bytes are unchanged.
+    if (!recovering &&
+        previousIdentity != null &&
+        intake.childIdentity?.snapshotId == previousIdentity.snapshotId &&
+        _state.projection != null) {
+      return;
+    }
+    final snapshot = intake.child!;
+    final identity = intake.childIdentity!;
+    final usedDelta = intake.usedDelta && intake.delta != null;
+    if (snapshot.completeness == ObservableCompleteness.provenScalarNoop) {
+      _acceptScalarNoop(
+        snapshot: snapshot,
+        identity: identity,
+        previousSnapshot: previousSnapshot,
+        previousIdentity: previousIdentity,
+        childBytes: childBytes,
+        artifactPath: published.artifactPath,
+        usedDelta: usedDelta,
+      );
+      return;
+    }
+
+    final unitChanged =
+        previousSnapshot != null &&
+        previousSnapshot.compilationUnit.identityKey !=
+            snapshot.compilationUnit.identityKey;
+    if (unitChanged) {
+      _window.reset();
+    }
+
+    final changeSource = usedDelta
+        ? ObservableDeltaChangeSource(
+            delta: intake.delta!,
+            lineage: snapshot.lineage,
+          )
+        : _changeSource;
+    final changeSet = previousSnapshot == null || unitChanged
+        ? null
+        : changeSource.compare(previousSnapshot, snapshot);
+    await _finishFresh(
+      generation: generation,
+      snapshot: snapshot,
+      identity: identity,
+      previousSnapshot: previousSnapshot,
+      previousIdentity: previousIdentity,
+      changeSet: changeSet,
+      artifactPath: published.artifactPath,
+      childBytes: childBytes,
+      usedDelta: usedDelta,
+      recovering: recovering,
+      degradation: published.degradation,
+    );
+  }
+
+  Future<void> _runSnapshotIntake({
+    required int generation,
+    required List<int> childBytes,
+    required ObservableSnapshot? previousSnapshot,
+    required SnapshotIdentity? previousIdentity,
+    required String? artifactPath,
+  }) async {
+    final intake = await _cache.intakeAsync(childBytes);
     if (generation != _generation || _disposed) {
       return;
     }
@@ -320,29 +505,122 @@ class ObservableGraphController extends ChangeNotifier {
     final snapshot = intake.snapshot!;
     final identity = intake.identity!;
     if (snapshot.completeness == ObservableCompleteness.provenScalarNoop) {
-      _currentSnapshot = snapshot;
-      _currentIdentity = identity;
-      _state = ObservableGraphState(
-        availability: ObservableAvailability.scalarNoop,
-        currentIdentity: identity,
-        previousIdentity: previousIdentity,
-        projection: projectObservableGraph(current: snapshot),
-        lastFreshAt: _clock(),
+      _acceptScalarNoop(
         snapshot: snapshot,
-        counters: _state.counters.copyWith(
-          cacheHits: _cache.metrics.hits,
-          cacheMisses: _cache.metrics.misses,
-          cacheEvictions: _cache.metrics.evictions,
-          refreshRuns: _state.counters.refreshRuns + 1,
-        ),
+        identity: identity,
+        previousSnapshot: previousSnapshot,
+        previousIdentity: previousIdentity,
+        childBytes: childBytes,
+        artifactPath: artifactPath,
+        usedDelta: false,
       );
-      notifyListeners();
       return;
     }
 
-    final changeSet = previousSnapshot == null
+    final unitChanged =
+        previousSnapshot != null &&
+        previousSnapshot.compilationUnit.identityKey !=
+            snapshot.compilationUnit.identityKey;
+    if (unitChanged) {
+      _window.reset();
+    }
+    final changeSet = previousSnapshot == null || unitChanged
         ? null
         : _changeSource.compare(previousSnapshot, snapshot);
+    await _finishFresh(
+      generation: generation,
+      snapshot: snapshot,
+      identity: identity,
+      previousSnapshot: previousSnapshot,
+      previousIdentity: previousIdentity,
+      changeSet: changeSet,
+      artifactPath: artifactPath,
+      childBytes: childBytes,
+      usedDelta: false,
+      recovering: false,
+      degradation: null,
+      alreadyCached: true,
+    );
+  }
+
+  void _acceptScalarNoop({
+    required ObservableSnapshot snapshot,
+    required SnapshotIdentity identity,
+    required ObservableSnapshot? previousSnapshot,
+    required SnapshotIdentity? previousIdentity,
+    required List<int> childBytes,
+    required String? artifactPath,
+    required bool usedDelta,
+  }) {
+    final unitChanged =
+        previousSnapshot != null &&
+        previousSnapshot.compilationUnit.identityKey !=
+            snapshot.compilationUnit.identityKey;
+    if (unitChanged) {
+      _window.reset();
+    }
+    // A scalar-noop artifact is still the published head: retain its bytes
+    // and path so the next delta request parents to the snapshot the
+    // producer actually published, and push the window entry so duplicate
+    // and stale classification stay exact across the transition. This
+    // acceptance consumes any pending one-shot full-snapshot flag.
+    _window.push(
+      ObservableLineageWindowEntry(
+        snapshotId: identity.snapshotId,
+        parentSnapshotId: previousIdentity?.snapshotId,
+        changeSource: ObservableChangeSetSource.idSetComparison,
+        changeSet: const ObservableChangeSet(
+          addedNodeIds: <String>[],
+          removedNodeIds: <String>[],
+          addedEdgeIds: <String>[],
+          removedEdgeIds: <String>[],
+        ),
+        lineageRecords: snapshot.lineage,
+      ),
+    );
+    _currentSnapshot = snapshot;
+    _currentIdentity = identity;
+    _headBytes = childBytes;
+    _headPath = artifactPath;
+    _forceFullSnapshot = false;
+    final fallback = !usedDelta && _snapshotDeltaAvailable;
+    _state = ObservableGraphState(
+      availability: ObservableAvailability.scalarNoop,
+      currentIdentity: identity,
+      previousIdentity: previousIdentity,
+      projection: projectObservableGraph(current: snapshot),
+      lastFreshAt: _clock(),
+      snapshot: snapshot,
+      lineageHistory: _window.entries,
+      counters: _state.counters.copyWith(
+        cacheHits: _cache.metrics.hits,
+        cacheMisses: _cache.metrics.misses,
+        cacheEvictions: _cache.metrics.evictions,
+        refreshRuns: _state.counters.refreshRuns + 1,
+        retainedGenerations: _window.length,
+        evictedGenerations: _window.evicted,
+        appliedDeltas: _state.counters.appliedDeltas + (usedDelta ? 1 : 0),
+        fullSnapshotFallbacks:
+            _state.counters.fullSnapshotFallbacks + (fallback ? 1 : 0),
+      ),
+    );
+    notifyListeners();
+  }
+
+  Future<void> _finishFresh({
+    required int generation,
+    required ObservableSnapshot snapshot,
+    required SnapshotIdentity identity,
+    required ObservableSnapshot? previousSnapshot,
+    required SnapshotIdentity? previousIdentity,
+    required ObservableChangeSet? changeSet,
+    required String? artifactPath,
+    required List<int> childBytes,
+    required bool usedDelta,
+    required bool recovering,
+    required String? degradation,
+    bool alreadyCached = false,
+  }) async {
     final projection = projectObservableGraph(
       current: snapshot,
       previous: changeSet == null ? null : previousSnapshot,
@@ -366,10 +644,59 @@ class ObservableGraphController extends ChangeNotifier {
       return;
     }
 
+    if (!alreadyCached) {
+      _cache.put(identity, snapshot);
+    }
+    _window.push(
+      ObservableLineageWindowEntry(
+        snapshotId: identity.snapshotId,
+        parentSnapshotId: previousIdentity?.snapshotId,
+        changeSource: changeSet?.source ??
+            ObservableChangeSetSource.idSetComparison,
+        changeSet: changeSet ??
+            const ObservableChangeSet(
+              addedNodeIds: <String>[],
+              removedNodeIds: <String>[],
+              addedEdgeIds: <String>[],
+              removedEdgeIds: <String>[],
+            ),
+        lineageRecords: snapshot.lineage,
+      ),
+    );
     _currentSnapshot = snapshot;
     _currentIdentity = identity;
+    _headBytes = childBytes;
+    _headPath = artifactPath;
+    if (recovering) {
+      _forceFullSnapshot = false;
+    }
+
+    // Every negotiated run that did not apply a producer delta took the
+    // full-snapshot path; the informational reason is always rendered with
+    // the detail naming why no delta was used, including the first run,
+    // which has no retained parent.
+    final fallback = !usedDelta && _snapshotDeltaAvailable;
+    ObservableReasonCode? reason;
+    String? detail;
+    if (fallback) {
+      reason = ObservableReasonCode.fullSnapshotRequired;
+      if (_deltasDisabled) {
+        detail = kObservableDetailDeltaTransportUnavailable;
+      } else if (recovering) {
+        detail = kObservableDetailPreviousDeltaRejected;
+      } else if (degradation == kObservableProducerFullSnapshotRequired) {
+        detail = kObservableDetailProducerFullSnapshotRequired;
+      } else if (previousSnapshot == null) {
+        detail = kObservableDetailNoParent;
+      } else {
+        detail = kObservableDetailNoDeltaArtifact;
+      }
+    }
+
     _state = ObservableGraphState(
       availability: ObservableAvailability.fresh,
+      reason: reason,
+      detail: detail,
       currentIdentity: identity,
       previousIdentity: previousIdentity,
       changeSet: changeSet,
@@ -377,11 +704,17 @@ class ObservableGraphController extends ChangeNotifier {
       layout: layoutOutcome.layout,
       lastFreshAt: _clock(),
       snapshot: snapshot,
+      lineageHistory: _window.entries,
       counters: _state.counters.copyWith(
         cacheHits: _cache.metrics.hits,
         cacheMisses: _cache.metrics.misses,
         cacheEvictions: _cache.metrics.evictions,
         refreshRuns: _state.counters.refreshRuns + 1,
+        retainedGenerations: _window.length,
+        evictedGenerations: _window.evicted,
+        appliedDeltas: _state.counters.appliedDeltas + (usedDelta ? 1 : 0),
+        fullSnapshotFallbacks:
+            _state.counters.fullSnapshotFallbacks + (fallback ? 1 : 0),
       ),
     );
     notifyListeners();
@@ -394,6 +727,7 @@ class ObservableGraphController extends ChangeNotifier {
     required String detail,
     required ObservableSnapshot? previousSnapshot,
     required SnapshotIdentity? previousIdentity,
+    bool rejectedDelta = false,
   }) {
     if (generation != _generation || _disposed) {
       return;
@@ -409,8 +743,11 @@ class ObservableGraphController extends ChangeNotifier {
       layout: _state.layout,
       lastFreshAt: _state.lastFreshAt,
       snapshot: previousSnapshot,
+      lineageHistory: _window.entries,
       counters: _state.counters.copyWith(
         refreshRuns: _state.counters.refreshRuns + 1,
+        rejectedDeltas:
+            _state.counters.rejectedDeltas + (rejectedDelta ? 1 : 0),
       ),
     );
     notifyListeners();

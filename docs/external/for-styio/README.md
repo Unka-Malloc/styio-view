@@ -16,7 +16,7 @@
 2. 对接总览：[Styio-Integration-Overview.md](./Styio-Integration-Overview.md)
 3. 语言桥接合同：[Styio-Language-Service-Adapter-Contract.md](./Styio-Language-Service-Adapter-Contract.md)
 4. 编译运行合同：[Styio-Compile-Run-Contract.md](./Styio-Compile-Run-Contract.md)
-5. Observable-language staged integration plan: [Styio-Observable-Integration-Plan.md](./Styio-Observable-Integration-Plan.md) (V1 authorized and implemented; V2/V3 remain fixture-gated)
+5. Observable-language staged integration plan: [Styio-Observable-Integration-Plan.md](./Styio-Observable-Integration-Plan.md) (V1 authorized and implemented; V2 delta and lineage implemented; bounded query deferred; V3 remains fixture-gated)
 
 ## Rules
 

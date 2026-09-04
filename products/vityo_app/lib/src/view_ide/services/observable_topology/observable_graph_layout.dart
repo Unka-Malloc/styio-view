@@ -49,7 +49,10 @@ ObservableLayoutOutcome layoutObservableGraph(ObservableLayoutRequest request) {
   const groupGapY = 36.0;
 
   final nodes = [...projection.nodes]
-    ..sort((left, right) => left.id.compareTo(right.id));
+    ..sort(
+      (left, right) =>
+          (left.layoutKey ?? left.id).compareTo(right.layoutKey ?? right.id),
+    );
   final edges = [...projection.edges]
     ..sort((left, right) => left.id.compareTo(right.id));
 
@@ -102,14 +105,24 @@ ObservableLayoutOutcome layoutObservableGraph(ObservableLayoutRequest request) {
   final groupSize = <String, LayoutPoint>{};
   for (final groupId in groupOrder) {
     final members = groupNodes[groupId]!;
-    final memberIds = members.map((node) => node.id).toList()..sort();
+    final memberIds = members.map((node) => node.id).toList()
+      ..sort((left, right) {
+        final leftKey = nodesById[left]?.layoutKey ?? left;
+        final rightKey = nodesById[right]?.layoutKey ?? right;
+        return leftKey.compareTo(rightKey);
+      });
     final memberIdSet = memberIds.toSet();
     final innerEdges = <_Rel>[
       for (final edge in edges)
         if (memberIdSet.contains(edge.from) && memberIdSet.contains(edge.to))
           _Rel(edge.from, edge.to),
     ];
-    final inner = _layeredLayout(ids: memberIds, relations: innerEdges);
+    String memberKey(String id) => nodesById[id]?.layoutKey ?? id;
+    final inner = _layeredLayout(
+      ids: memberIds,
+      relations: innerEdges,
+      sortKey: memberKey,
+    );
     final layerIds = <int, List<String>>{};
     for (final id in memberIds) {
       layerIds.putIfAbsent(inner.layer[id]!, () => <String>[]).add(id);
@@ -119,7 +132,8 @@ ObservableLayoutOutcome layoutObservableGraph(ObservableLayoutRequest request) {
     var maxWidth = 0.0;
     var maxHeight = 0.0;
     for (final layer in layers) {
-      final ids = layerIds[layer]!..sort();
+      final ids = layerIds[layer]!
+        ..sort((left, right) => memberKey(left).compareTo(memberKey(right)));
       for (var index = 0; index < ids.length; index += 1) {
         final x = layer * (nodeWidth + nodeGapX);
         final y = index * (nodeHeight + nodeGapY);
@@ -235,8 +249,10 @@ class _Layered {
 _Layered _layeredLayout({
   required List<String> ids,
   required List<_Rel> relations,
+  String Function(String id)? sortKey,
 }) {
-  final sortedIds = [...ids]..sort();
+  String keyOf(String id) => sortKey?.call(id) ?? id;
+  final sortedIds = [...ids]..sort((left, right) => keyOf(left).compareTo(keyOf(right)));
   final outgoing = <String, List<String>>{
     for (final id in sortedIds) id: <String>[],
   };
@@ -251,8 +267,8 @@ _Layered _layeredLayout({
     incoming[rel.to]!.add(rel.from);
   }
   for (final id in sortedIds) {
-    outgoing[id]!.sort();
-    incoming[id]!.sort();
+    outgoing[id]!.sort((left, right) => keyOf(left).compareTo(keyOf(right)));
+    incoming[id]!.sort((left, right) => keyOf(left).compareTo(keyOf(right)));
   }
 
   final reversed = <String>{};
@@ -299,8 +315,8 @@ _Layered _layeredLayout({
     }
   }
   for (final id in sortedIds) {
-    forwardOut[id]!.sort();
-    forwardIn[id]!.sort();
+    forwardOut[id]!.sort((left, right) => keyOf(left).compareTo(keyOf(right)));
+    forwardIn[id]!.sort((left, right) => keyOf(left).compareTo(keyOf(right)));
   }
 
   final layer = <String, int>{for (final id in sortedIds) id: 0};
@@ -331,7 +347,7 @@ _Layered _layeredLayout({
   }
   final layers = layerIds.keys.toList()..sort();
   for (final index in layers) {
-    layerIds[index]!.sort();
+    layerIds[index]!.sort((left, right) => keyOf(left).compareTo(keyOf(right)));
   }
 
   List<double> barycenters(
@@ -371,7 +387,7 @@ _Layered _layeredLayout({
           if (compare != 0) {
             return compare;
           }
-          return current[left].compareTo(current[right]);
+          return keyOf(current[left]).compareTo(keyOf(current[right]));
         });
       layerIds[index] = [for (final i in ranked) current[i]];
     }
@@ -408,7 +424,7 @@ _Layered _layeredLayout({
       if (compare != 0) {
         return compare;
       }
-      return left.compareTo(right);
+      return keyOf(left).compareTo(keyOf(right));
     });
   }
 

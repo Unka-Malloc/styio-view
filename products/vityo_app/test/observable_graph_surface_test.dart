@@ -96,6 +96,7 @@ void main() {
       }
     }
     expect(find.byKey(const ValueKey('observable-legend')), findsOneWidget);
+    expect(find.text('lineage link'), findsWidgets);
     for (final kind in ObservableNodeKindX.legendKinds) {
       expect(find.text('node ${kind.wireValue}'), findsWidgets);
     }
@@ -139,7 +140,7 @@ void main() {
       onOpenAnchor: (id) => opened = id,
     );
 
-    expect(find.text('added ${changeSet.addedCount} · removed ${changeSet.removedCount}'), findsOneWidget);
+    expect(find.textContaining('added ${changeSet.addedCount} · removed ${changeSet.removedCount}'), findsOneWidget);
     expect(find.text('kind DriverSource'), findsOneWidget);
     expect(find.text('role DriverSource'), findsOneWidget);
     expect(find.text('anchor src/main.styio'), findsOneWidget);
@@ -249,5 +250,149 @@ void main() {
       find.byKey(const ValueKey('observable-legend'), skipOffstage: false),
       findsOneWidget,
     );
+  });
+
+  test('lineage link visuals are distinct from every producer edge kind', () {
+    for (final kind in ObservableEdgeKindX.legendKinds) {
+      expect(
+        ObservableGraphPalette.lineageLink,
+        isNot(ObservableGraphPalette.edgeColor(kind)),
+        reason: 'lineage link colour collides with edge ${kind.wireValue}',
+      );
+      expect(
+        ObservableGraphPalette.lineageLinkDashes,
+        isNot(ObservableGraphPalette.edgeDashes(kind)),
+        reason: 'lineage link dash collides with edge ${kind.wireValue}',
+      );
+    }
+    expect(
+      ObservableGraphPalette.lineageLink,
+      isNot(ObservableGraphPalette.addedAccent),
+    );
+    expect(
+      ObservableGraphPalette.lineageLink,
+      isNot(ObservableGraphPalette.removedGhost),
+    );
+    expect(
+      ObservableGraphPalette.lineageLink,
+      isNot(ObservableGraphPalette.changedAccent),
+    );
+  });
+
+  testWidgets('producer delta states render badges, lineage, counters and detail', (
+    tester,
+  ) async {
+    final parent = decodeNamedTopologySnapshot('parent/complete.json');
+    final rename = decodeNamedTopologySnapshot('child/rename.json');
+    final renameDelta = decodeNamedTopologyDelta('delta/rename.json');
+    final renameSet = ObservableDeltaChangeSource(
+      delta: renameDelta,
+      lineage: rename.lineage,
+    ).compare(parent, rename)!;
+    final renameProjection = projectObservableGraph(
+      current: rename,
+      previous: parent,
+      changeSet: renameSet,
+    );
+    final renameLayout = layoutObservableGraph(
+      ObservableLayoutRequest(projection: renameProjection),
+    ).layout!;
+
+    await pumpState(
+      tester,
+      ObservableGraphState(
+        availability: ObservableAvailability.fresh,
+        changeSet: renameSet,
+        projection: renameProjection,
+        layout: renameLayout,
+        snapshot: rename,
+        selectedNodeId: 'n1_ccccccccccccccccccccccccccccccc1',
+        lineageHistory: [
+          ObservableLineageWindowEntry(
+            snapshotId: observableSnapshotId(
+              readObservableTopologyFixtureBytes('child/rename.json'),
+            ),
+            changeSource: ObservableChangeSetSource.producerDelta,
+            changeSet: renameSet,
+            lineageRecords: rename.lineage,
+          ),
+        ],
+      ),
+    );
+    expect(find.textContaining('renamed ${renameSet.renamedCount}'), findsOneWidget);
+    expect(find.byKey(const ValueKey('observable-badge-n1_ccccccccccccccccccccccccccccccc1')), findsOneWidget);
+    expect(find.text('rename'), findsWidgets);
+    expect(find.text('Change'), findsOneWidget);
+    expect(find.text('Lineage'), findsOneWidget);
+    expect(find.text('History'), findsOneWidget);
+    expect(find.textContaining('kind rename'), findsOneWidget);
+    expect(find.textContaining('/Users/'), findsNothing);
+
+    final split = decodeNamedTopologySnapshot('child/split.json');
+    final splitDelta = decodeNamedTopologyDelta('delta/split.json');
+    final splitSet = ObservableDeltaChangeSource(
+      delta: splitDelta,
+      lineage: split.lineage,
+    ).compare(parent, split)!;
+    final splitProjection = projectObservableGraph(
+      current: split,
+      previous: parent,
+      changeSet: splitSet,
+    );
+    await pumpState(
+      tester,
+      ObservableGraphState(
+        availability: ObservableAvailability.fresh,
+        changeSet: splitSet,
+        projection: splitProjection,
+        layout: layoutObservableGraph(
+          ObservableLayoutRequest(projection: splitProjection),
+        ).layout!,
+        snapshot: split,
+      ),
+    );
+    expect(find.text('lineage link'), findsOneWidget);
+    expect(find.textContaining('split ${splitSet.splitCount}'), findsOneWidget);
+
+    for (final reason in <ObservableReasonCode>[
+      ObservableReasonCode.fullSnapshotRequired,
+      ObservableReasonCode.wrongParent,
+      ObservableReasonCode.staleDelta,
+      ObservableReasonCode.duplicateDelta,
+      ObservableReasonCode.outOfOrderDelta,
+      ObservableReasonCode.unsupportedDelta,
+      ObservableReasonCode.malformedDelta,
+      ObservableReasonCode.invalidDelta,
+    ]) {
+      await pumpState(
+        tester,
+        ObservableGraphState(
+          availability: reason == ObservableReasonCode.fullSnapshotRequired
+              ? ObservableAvailability.fresh
+              : ObservableAvailability.stale,
+          reason: reason,
+          detail: 'detail-${reason.wireValue}',
+          changeSet: renameSet,
+          projection: renameProjection,
+          layout: renameLayout,
+          snapshot: rename,
+        ),
+      );
+      expect(find.textContaining('reason: ${reason.wireValue}'), findsOneWidget);
+      expect(find.textContaining('detail-${reason.wireValue}'), findsOneWidget);
+    }
+
+    await pumpCompactState(
+      tester,
+      ObservableGraphState(
+        availability: ObservableAvailability.fresh,
+        changeSet: renameSet,
+        projection: renameProjection,
+        layout: renameLayout,
+        snapshot: rename,
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const ValueKey('observable-content-scroll')), findsOneWidget);
   });
 }

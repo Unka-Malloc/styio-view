@@ -125,4 +125,39 @@ void main() {
     expect(bounded.detail, contains('nodes='));
     expect(bounded.detail, contains('edges='));
   });
+
+  test('renamed node occupies the prior rectangle', () {
+    final parent = decodeNamedTopologySnapshot('parent/complete.json');
+    final child = decodeNamedTopologySnapshot('child/rename.json');
+    final delta = decodeNamedTopologyDelta('delta/rename.json');
+    final parentLayout = layoutObservableGraph(
+      ObservableLayoutRequest(projection: projectObservableGraph(current: parent)),
+    ).layout!;
+    final set = ObservableDeltaChangeSource(
+      delta: delta,
+      lineage: child.lineage,
+    ).compare(parent, child)!;
+    final childLayout = layoutObservableGraph(
+      ObservableLayoutRequest(
+        projection: projectObservableGraph(
+          current: child,
+          previous: parent,
+          changeSet: set,
+        ),
+      ),
+    ).layout!;
+    const prior = 'n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1';
+    const target = 'n1_ccccccccccccccccccccccccccccccc1';
+    expect(childLayout.nodeRects[prior], isNull);
+    expect(childLayout.nodeRects[target]!.x, parentLayout.nodeRects[prior]!.x);
+    expect(childLayout.nodeRects[target]!.y, parentLayout.nodeRects[prior]!.y);
+    expect(
+      childLayout.nodeRects[target]!.width,
+      parentLayout.nodeRects[prior]!.width,
+    );
+    expect(
+      childLayout.nodeRects[target]!.height,
+      parentLayout.nodeRects[prior]!.height,
+    );
+  });
 }

@@ -177,6 +177,13 @@ class _ObservableLegend extends StatelessWidget {
               ),
               label: 'edge ${kind.wireValue}',
             ),
+          const _LegendEntry(
+            swatch: CustomPaint(
+              painter: _LegendLineagePainter(),
+              size: Size(18, 10),
+            ),
+            label: 'lineage link',
+          ),
         ],
       ),
     );
@@ -231,6 +238,31 @@ class _LegendEdgePainter extends CustomPainter {
   }
 }
 
+class _LegendLineagePainter extends CustomPainter {
+  const _LegendLineagePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = ObservableGraphPalette.lineageLink;
+    final y = size.height / 2;
+    canvas.drawPath(
+      _dashPath(
+        Path()
+          ..moveTo(0, y)
+          ..lineTo(size.width, y),
+        ObservableGraphPalette.lineageLinkDashes,
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _LegendLineagePainter oldDelegate) => false;
+}
+
 class _ObservableCounters extends StatelessWidget {
   const _ObservableCounters({required this.changeSet});
 
@@ -240,9 +272,16 @@ class _ObservableCounters extends StatelessWidget {
   Widget build(BuildContext context) {
     final added = changeSet?.addedCount ?? 0;
     final removed = changeSet?.removedCount ?? 0;
+    final changed = changeSet?.changedCount ?? 0;
+    final renamed = changeSet?.renamedCount ?? 0;
+    final moved = changeSet?.movedCount ?? 0;
+    final split = changeSet?.splitCount ?? 0;
+    final merged = changeSet?.mergedCount ?? 0;
     return KeyedSubtree(
       key: const ValueKey('observable-counters'),
-      child: Text('added $added · removed $removed'),
+      child: Text(
+        'added $added · removed $removed · changed $changed · renamed $renamed · moved $moved · split $split · merged $merged',
+      ),
     );
   }
 }
@@ -281,8 +320,33 @@ class _ObservableCanvas extends StatelessWidget {
               for (final node in projection.nodes)
                 if (layout.nodeRects[node.id] != null)
                   _nodeHitTarget(layout.nodeRects[node.id]!, node),
+              for (final node in projection.nodes)
+                if (layout.nodeRects[node.id] != null &&
+                    node.continuity != null &&
+                    (node.continuity!.kind == ObservableLineageKind.rename ||
+                        node.continuity!.kind == ObservableLineageKind.move) &&
+                    node.changeTag != GraphItemChangeTag.removed)
+                  _continuityBadge(layout.nodeRects[node.id]!, node),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _continuityBadge(LayoutRect rect, ProjectedGraphNode node) {
+    return Positioned(
+      left: rect.x,
+      top: rect.y - 14,
+      width: rect.width,
+      height: 14,
+      child: Text(
+        node.continuity!.kind.wireValue,
+        key: ValueKey('observable-badge-${node.id}'),
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 10,
+          color: ObservableGraphPalette.continuityBadge,
         ),
       ),
     );
@@ -336,9 +400,14 @@ class _ObservableGraphPainter extends CustomPainter {
       }
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = edge.changeTag == GraphItemChangeTag.added ? 2.4 : 1.4
+        ..strokeWidth = edge.changeTag == GraphItemChangeTag.added ||
+                edge.changeTag == GraphItemChangeTag.changed
+            ? 2.4
+            : 1.4
         ..color = edge.changeTag == GraphItemChangeTag.removed
             ? ObservableGraphPalette.removedGhost
+            : edge.changeTag == GraphItemChangeTag.changed
+            ? ObservableGraphPalette.changedAccent
             : ObservableGraphPalette.edgeColor(edge.kind);
       final dashes = edge.changeTag == GraphItemChangeTag.removed
           ? const <double>[2, 4]
@@ -348,6 +417,33 @@ class _ObservableGraphPainter extends CustomPainter {
       } else {
         canvas.drawPath(_dashPath(path, dashes), paint);
       }
+    }
+    for (final link in projection.lineageLinks) {
+      final from = layout.nodeRects[link.fromId];
+      final to = layout.nodeRects[link.toId];
+      if (from == null || to == null) {
+        continue;
+      }
+      final start = Offset(from.x + from.width / 2, from.y + from.height / 2);
+      final end = Offset(to.x + to.width / 2, to.y + to.height / 2);
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.6
+        ..color = ObservableGraphPalette.lineageLink;
+      canvas.drawPath(
+        _dashPath(
+          Path()
+            ..moveTo(start.dx, start.dy)
+            ..lineTo(end.dx, end.dy),
+          ObservableGraphPalette.lineageLinkDashes,
+        ),
+        paint,
+      );
+      final dot = Paint()
+        ..style = PaintingStyle.fill
+        ..color = ObservableGraphPalette.lineageLink;
+      canvas.drawCircle(start, 3, dot);
+      canvas.drawCircle(end, 3, dot);
     }
     for (final node in projection.nodes) {
       final rect = layout.nodeRects[node.id];
@@ -374,6 +470,14 @@ class _ObservableGraphPainter extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2
             ..color = ObservableGraphPalette.addedAccent,
+        );
+      } else if (node.changeTag == GraphItemChangeTag.changed) {
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(bounds, const Radius.circular(6)),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..color = ObservableGraphPalette.changedAccent,
         );
       }
     }
@@ -434,22 +538,15 @@ class _ObservableDetailPanel extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: node == null
               ? const Text('No node selected.')
-              : ListView(
-                  children: [
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                     Text('kind ${node.rawKind}'),
                     Text('role ${node.role}'),
                     Text(
                       'anchor ${state.selectedAnchorRelativePath ?? 'unanchored'}',
                     ),
-                    for (final fact in node.facts)
-                      Text('fact ${fact.predicate} → ${fact.canonicalValue}'),
-                    const SizedBox(height: 8),
-                    const Text('evidence'),
-                    for (final record in chain)
-                      Text(
-                        '${record.producerRule}@${record.ruleVersion}',
-                      ),
-                    const SizedBox(height: 8),
                     TextButton(
                       key: const ValueKey('observable-open-anchor'),
                       onPressed: !resolved || onOpenAnchor == null
@@ -459,10 +556,91 @@ class _ObservableDetailPanel extends StatelessWidget {
                         resolved ? 'Open anchor' : 'anchor-unresolved',
                       ),
                     ),
-                  ],
+                    for (final fact in node.facts)
+                      Text('fact ${fact.predicate} → ${fact.canonicalValue}'),
+                    const SizedBox(height: 8),
+                    const Text('Change'),
+                    for (final operation in _operationsFor(state, node))
+                      Text(
+                        '${operation.op.wireValue} ${operation.category.wireValue} ${operation.key}',
+                      ),
+                    for (final operation in _operationsFor(state, node))
+                      for (final field in operation.fields)
+                        Text(
+                          '${field.name} ${field.before} → ${field.after}',
+                        ),
+                    const SizedBox(height: 8),
+                    const Text('Lineage'),
+                    for (final record in _lineageFor(state, node)) ...[
+                      Text('kind ${record.kind.wireValue}'),
+                      Text(
+                        'counterparts ${[...record.prior, ...record.target].where((id) => id != node.id).join(' ')}',
+                      ),
+                      Text(
+                        'producer_rule ${record.producerRule}@${record.ruleVersion}',
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    const Text('evidence'),
+                    for (final record in chain)
+                      Text(
+                        '${record.producerRule}@${record.ruleVersion}',
+                      ),
+                    const SizedBox(height: 8),
+                    const Text('History'),
+                    for (final record in _historyFor(state, node))
+                      Text(
+                        '${record.kind.wireValue} ${record.id}',
+                      ),
+                    ],
+                  ),
                 ),
         ),
       ),
     );
   }
+}
+
+List<ObservableDeltaOperation> _operationsFor(
+  ObservableGraphState state,
+  ProjectedGraphNode node,
+) {
+  final operations = state.changeSet?.operations ?? const <ObservableDeltaOperation>[];
+  return [
+    for (final operation in operations)
+      if (operation.key == node.id ||
+          (operation.record != null &&
+              (operation.record!['subject'] == node.id ||
+                  operation.record!['id'] == node.id)) ||
+          (operation.category == ObservableDeltaCategory.lineage &&
+              ((operation.record?['prior'] as List?)?.contains(node.id) ==
+                      true ||
+                  (operation.record?['target'] as List?)?.contains(node.id) ==
+                      true)))
+        operation,
+  ];
+}
+
+List<ObservableLineageRecord> _lineageFor(
+  ObservableGraphState state,
+  ProjectedGraphNode node,
+) {
+  final records = state.changeSet?.lineage ??
+      state.snapshot?.lineage ??
+      const <ObservableLineageRecord>[];
+  return [
+    for (final record in records)
+      if (record.mentions(node.id)) record,
+  ];
+}
+
+List<ObservableLineageRecord> _historyFor(
+  ObservableGraphState state,
+  ProjectedGraphNode node,
+) {
+  return [
+    for (final entry in state.lineageHistory)
+      for (final record in entry.lineageRecords)
+        if (record.mentions(node.id)) record,
+  ];
 }

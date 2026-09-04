@@ -5,6 +5,8 @@
 /// spelling preserved. Unknown object keys are kept in [extensions].
 library;
 
+import 'observable_delta_model.dart';
+
 const String kObservableStaticSnapshotContract =
     'styio.observable.static-snapshot';
 const int kObservableStaticSnapshotSchemaVersion = 1;
@@ -74,6 +76,15 @@ enum ObservableReasonCode {
   workspaceChanged,
   anchorUnresolved,
   cancelled,
+  fullSnapshotRequired,
+  wrongParent,
+  staleDelta,
+  duplicateDelta,
+  outOfOrderDelta,
+  unsupportedDelta,
+  malformedDelta,
+  invalidDelta,
+  deltaTransportUnavailable,
 }
 
 extension ObservableReasonCodeX on ObservableReasonCode {
@@ -91,6 +102,16 @@ extension ObservableReasonCodeX on ObservableReasonCode {
       ObservableReasonCode.workspaceChanged => 'workspace-changed',
       ObservableReasonCode.anchorUnresolved => 'anchor-unresolved',
       ObservableReasonCode.cancelled => 'cancelled',
+      ObservableReasonCode.fullSnapshotRequired => 'full-snapshot-required',
+      ObservableReasonCode.wrongParent => 'wrong-parent',
+      ObservableReasonCode.staleDelta => 'stale-delta',
+      ObservableReasonCode.duplicateDelta => 'duplicate-delta',
+      ObservableReasonCode.outOfOrderDelta => 'out-of-order-delta',
+      ObservableReasonCode.unsupportedDelta => 'unsupported-delta',
+      ObservableReasonCode.malformedDelta => 'malformed-delta',
+      ObservableReasonCode.invalidDelta => 'invalid-delta',
+      ObservableReasonCode.deltaTransportUnavailable =>
+        'delta-transport-unavailable',
     };
   }
 
@@ -108,6 +129,7 @@ enum ObservableInvalidSubcode {
   unsupportedCompleteness,
   unsupportedSchemaVersion,
   missingCapability,
+  invalidLineage,
 }
 
 extension ObservableInvalidSubcodeX on ObservableInvalidSubcode {
@@ -123,6 +145,7 @@ extension ObservableInvalidSubcodeX on ObservableInvalidSubcode {
       ObservableInvalidSubcode.unsupportedSchemaVersion =>
         'unsupported-schema-version',
       ObservableInvalidSubcode.missingCapability => 'missing-capability',
+      ObservableInvalidSubcode.invalidLineage => 'invalid-lineage',
     };
   }
 }
@@ -271,7 +294,7 @@ extension ObservableEdgeKindX on ObservableEdgeKind {
   ];
 }
 
-enum GraphItemChangeTag { unchanged, added, removed }
+enum GraphItemChangeTag { unchanged, added, removed, changed }
 
 extension GraphItemChangeTagX on GraphItemChangeTag {
   String get wireValue {
@@ -279,6 +302,7 @@ extension GraphItemChangeTagX on GraphItemChangeTag {
       GraphItemChangeTag.unchanged => 'unchanged',
       GraphItemChangeTag.added => 'added',
       GraphItemChangeTag.removed => 'removed',
+      GraphItemChangeTag.changed => 'changed',
     };
   }
 }
@@ -434,6 +458,9 @@ class ObservableSnapshot {
     required this.facts,
     required this.anchors,
     required this.evidence,
+    this.diagnostics = const <ObservableDiagnosticRecord>[],
+    this.lineage = const <ObservableLineageRecord>[],
+    this.parentSnapshotId,
     this.extensions = const <String, Object?>{},
   });
 
@@ -450,6 +477,9 @@ class ObservableSnapshot {
   final List<ObservableFactRecord> facts;
   final List<ObservableAnchorRecord> anchors;
   final List<ObservableEvidenceRecord> evidence;
+  final List<ObservableDiagnosticRecord> diagnostics;
+  final List<ObservableLineageRecord> lineage;
+  final String? parentSnapshotId;
   final Map<String, Object?> extensions;
 
   ObservableNodeRecord? nodeById(String id) {
@@ -488,6 +518,24 @@ class ObservableSnapshot {
     return null;
   }
 
+  ObservableDiagnosticRecord? diagnosticById(String id) {
+    for (final record in diagnostics) {
+      if (record.id == id) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  ObservableFactRecord? factById(String id) {
+    for (final fact in facts) {
+      if (fact.id == id) {
+        return fact;
+      }
+    }
+    return null;
+  }
+
   List<ObservableFactRecord> factsForSubject(String nodeId) {
     return facts
         .where((fact) => fact.subject == nodeId)
@@ -503,45 +551,30 @@ class ObservableSnapshot {
 
 class SnapshotIdentity {
   const SnapshotIdentity({
-    required this.schemaVersion,
+    required this.snapshotId,
     required this.compilationUnitKey,
-    required this.producerKey,
-    required this.artifactDigest,
   });
 
   factory SnapshotIdentity.fromSnapshot({
     required ObservableSnapshot snapshot,
-    required String artifactDigest,
+    required String snapshotId,
   }) {
     return SnapshotIdentity(
-      schemaVersion: snapshot.schemaVersion,
+      snapshotId: snapshotId,
       compilationUnitKey: snapshot.compilationUnit.identityKey,
-      producerKey: snapshot.producer.identityKey,
-      artifactDigest: artifactDigest,
     );
   }
 
-  final int schemaVersion;
+  final String snapshotId;
   final String compilationUnitKey;
-  final String producerKey;
-  final String artifactDigest;
 
   @override
   bool operator ==(Object other) {
-    return other is SnapshotIdentity &&
-        other.schemaVersion == schemaVersion &&
-        other.compilationUnitKey == compilationUnitKey &&
-        other.producerKey == producerKey &&
-        other.artifactDigest == artifactDigest;
+    return other is SnapshotIdentity && other.snapshotId == snapshotId;
   }
 
   @override
-  int get hashCode => Object.hash(
-    schemaVersion,
-    compilationUnitKey,
-    producerKey,
-    artifactDigest,
-  );
+  int get hashCode => snapshotId.hashCode;
 }
 
 class ObservableDecodeFailure {
@@ -573,18 +606,70 @@ class ObservableChangeSet {
     required this.removedNodeIds,
     required this.addedEdgeIds,
     required this.removedEdgeIds,
+    this.changedNodeIds = const <String>[],
+    this.changedEdgeIds = const <String>[],
+    this.source = ObservableChangeSetSource.idSetComparison,
+    this.operations = const <ObservableDeltaOperation>[],
+    this.metadataChanges = const <ObservableMetadataChange>[],
+    this.lineage = const <ObservableLineageRecord>[],
   });
 
   final List<String> addedNodeIds;
   final List<String> removedNodeIds;
   final List<String> addedEdgeIds;
   final List<String> removedEdgeIds;
+  final List<String> changedNodeIds;
+  final List<String> changedEdgeIds;
+  final ObservableChangeSetSource source;
+  final List<ObservableDeltaOperation> operations;
+  final List<ObservableMetadataChange> metadataChanges;
+  final List<ObservableLineageRecord> lineage;
 
   int get addedCount => addedNodeIds.length + addedEdgeIds.length;
 
   int get removedCount => removedNodeIds.length + removedEdgeIds.length;
 
-  bool get isEmpty => addedCount == 0 && removedCount == 0;
+  int get changedCount => changedNodeIds.length + changedEdgeIds.length;
+
+  int get renamedCount => _lineageCount(ObservableLineageKind.rename);
+
+  int get movedCount => _lineageCount(ObservableLineageKind.move);
+
+  int get splitCount => _lineageCount(ObservableLineageKind.split);
+
+  int get mergedCount => _lineageCount(ObservableLineageKind.merge);
+
+  int _lineageCount(ObservableLineageKind kind) {
+    var count = 0;
+    for (final record in lineage) {
+      if (record.kind == kind) {
+        count += 1;
+      }
+    }
+    return count;
+  }
+
+  bool get isEmpty =>
+      addedCount == 0 &&
+      removedCount == 0 &&
+      changedCount == 0 &&
+      lineage.isEmpty;
+}
+
+class ObservableLineageWindowEntry {
+  const ObservableLineageWindowEntry({
+    required this.snapshotId,
+    this.parentSnapshotId,
+    required this.changeSource,
+    required this.changeSet,
+    required this.lineageRecords,
+  });
+
+  final String snapshotId;
+  final String? parentSnapshotId;
+  final ObservableChangeSetSource changeSource;
+  final ObservableChangeSet changeSet;
+  final List<ObservableLineageRecord> lineageRecords;
 }
 
 class ProjectedGraphNode {
@@ -599,6 +684,8 @@ class ProjectedGraphNode {
     required this.facts,
     required this.evidenceRef,
     this.sourceSnapshot,
+    this.continuity,
+    this.layoutKey,
   });
 
   final String id;
@@ -611,6 +698,8 @@ class ProjectedGraphNode {
   final List<ObservableFactRecord> facts;
   final String evidenceRef;
   final ObservableSnapshot? sourceSnapshot;
+  final ObservableContinuityMark? continuity;
+  final String? layoutKey;
 }
 
 class ProjectedGraphEdge {
@@ -641,6 +730,7 @@ class GraphProjection {
     required this.evidence,
     this.compilationUnit,
     this.root,
+    this.lineageLinks = const <ObservableLineageLink>[],
   });
 
   final List<ProjectedGraphNode> nodes;
@@ -649,6 +739,7 @@ class GraphProjection {
   final List<ObservableEvidenceRecord> evidence;
   final ObservableCompilationUnit? compilationUnit;
   final String? root;
+  final List<ObservableLineageLink> lineageLinks;
 
   ProjectedGraphNode? nodeById(String id) {
     for (final node in nodes) {
@@ -816,6 +907,11 @@ class ObservableGraphCounters {
     this.cacheEvictions = 0,
     this.refreshRuns = 0,
     this.cancelledRuns = 0,
+    this.retainedGenerations = 0,
+    this.evictedGenerations = 0,
+    this.appliedDeltas = 0,
+    this.rejectedDeltas = 0,
+    this.fullSnapshotFallbacks = 0,
   });
 
   final int cacheHits;
@@ -823,6 +919,11 @@ class ObservableGraphCounters {
   final int cacheEvictions;
   final int refreshRuns;
   final int cancelledRuns;
+  final int retainedGenerations;
+  final int evictedGenerations;
+  final int appliedDeltas;
+  final int rejectedDeltas;
+  final int fullSnapshotFallbacks;
 
   ObservableGraphCounters copyWith({
     int? cacheHits,
@@ -830,6 +931,11 @@ class ObservableGraphCounters {
     int? cacheEvictions,
     int? refreshRuns,
     int? cancelledRuns,
+    int? retainedGenerations,
+    int? evictedGenerations,
+    int? appliedDeltas,
+    int? rejectedDeltas,
+    int? fullSnapshotFallbacks,
   }) {
     return ObservableGraphCounters(
       cacheHits: cacheHits ?? this.cacheHits,
@@ -837,6 +943,11 @@ class ObservableGraphCounters {
       cacheEvictions: cacheEvictions ?? this.cacheEvictions,
       refreshRuns: refreshRuns ?? this.refreshRuns,
       cancelledRuns: cancelledRuns ?? this.cancelledRuns,
+      retainedGenerations: retainedGenerations ?? this.retainedGenerations,
+      evictedGenerations: evictedGenerations ?? this.evictedGenerations,
+      appliedDeltas: appliedDeltas ?? this.appliedDeltas,
+      rejectedDeltas: rejectedDeltas ?? this.rejectedDeltas,
+      fullSnapshotFallbacks: fullSnapshotFallbacks ?? this.fullSnapshotFallbacks,
     );
   }
 }
@@ -856,6 +967,7 @@ class ObservableGraphState {
     this.selectedAnchorResolved = false,
     this.selectedAnchorRelativePath,
     this.snapshot,
+    this.lineageHistory = const <ObservableLineageWindowEntry>[],
     this.counters = const ObservableGraphCounters(),
   });
 
@@ -880,6 +992,7 @@ class ObservableGraphState {
   final bool selectedAnchorResolved;
   final String? selectedAnchorRelativePath;
   final ObservableSnapshot? snapshot;
+  final List<ObservableLineageWindowEntry> lineageHistory;
   final ObservableGraphCounters counters;
 
   ObservableGraphState copyWith({
@@ -896,6 +1009,7 @@ class ObservableGraphState {
     bool? selectedAnchorResolved,
     String? selectedAnchorRelativePath,
     ObservableSnapshot? snapshot,
+    List<ObservableLineageWindowEntry>? lineageHistory,
     ObservableGraphCounters? counters,
     bool clearReason = false,
     bool clearSelection = false,
@@ -921,6 +1035,7 @@ class ObservableGraphState {
           ? null
           : (selectedAnchorRelativePath ?? this.selectedAnchorRelativePath),
       snapshot: snapshot ?? this.snapshot,
+      lineageHistory: lineageHistory ?? this.lineageHistory,
       counters: counters ?? this.counters,
     );
   }
@@ -935,6 +1050,8 @@ class ObservableSnapshotPublishRequest {
     this.schemaVersion = kObservableStaticSnapshotSchemaVersion,
     this.requiredCapabilities = kObservableRequiredCapabilities,
     this.outputTree,
+    this.parentSnapshotPath,
+    this.requestDelta = false,
   });
 
   final String workspaceRoot;
@@ -944,6 +1061,8 @@ class ObservableSnapshotPublishRequest {
   final int schemaVersion;
   final List<String> requiredCapabilities;
   final String? outputTree;
+  final String? parentSnapshotPath;
+  final bool requestDelta;
 }
 
 class ObservableSnapshotPublishResult {
@@ -954,18 +1073,24 @@ class ObservableSnapshotPublishResult {
     this.receipt,
     this.detail,
     this.reason,
+    this.deltaBytes,
+    this.degradation,
   });
 
   factory ObservableSnapshotPublishResult.succeeded({
     required List<int> bytes,
     required String artifactPath,
     Object? receipt,
+    List<int>? deltaBytes,
+    String? degradation,
   }) {
     return ObservableSnapshotPublishResult(
       status: ObservablePublishStatus.succeeded,
       bytes: bytes,
       artifactPath: artifactPath,
       receipt: receipt,
+      deltaBytes: deltaBytes,
+      degradation: degradation,
     );
   }
 
@@ -1004,6 +1129,8 @@ class ObservableSnapshotPublishResult {
   final Object? receipt;
   final String? detail;
   final ObservableReasonCode? reason;
+  final List<int>? deltaBytes;
+  final String? degradation;
 
   bool get isSuccess =>
       status == ObservablePublishStatus.succeeded && bytes != null;
@@ -1045,12 +1172,19 @@ class ObservableNegotiationDecision {
     required this.availability,
     this.reason,
     this.detail,
+    this.snapshotDeltaAvailable = false,
+    this.producerLineageAvailable = false,
   });
 
-  factory ObservableNegotiationDecision.ok() {
-    return const ObservableNegotiationDecision(
+  factory ObservableNegotiationDecision.ok({
+    bool snapshotDeltaAvailable = false,
+    bool producerLineageAvailable = false,
+  }) {
+    return ObservableNegotiationDecision(
       accepted: true,
       availability: ObservableAvailability.refreshing,
+      snapshotDeltaAvailable: snapshotDeltaAvailable,
+      producerLineageAvailable: producerLineageAvailable,
     );
   }
 
@@ -1071,4 +1205,6 @@ class ObservableNegotiationDecision {
   final ObservableAvailability availability;
   final ObservableReasonCode? reason;
   final String? detail;
+  final bool snapshotDeltaAvailable;
+  final bool producerLineageAvailable;
 }

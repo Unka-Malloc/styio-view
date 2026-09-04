@@ -10,10 +10,8 @@ void main() {
     final identities = <SnapshotIdentity>[
       for (var i = 0; i < 9; i += 1)
         SnapshotIdentity(
-          schemaVersion: 1,
+          snapshotId: 's1_${i.toString().padLeft(32, '0')}',
           compilationUnitKey: snapshot.compilationUnit.identityKey,
-          producerKey: snapshot.producer.identityKey,
-          artifactDigest: 'digest-$i',
         ),
     ];
 
@@ -46,5 +44,7 @@ void main() {
     expect(decodeCount, 1);
     expect(cache.metrics.hits, greaterThanOrEqualTo(1));
     expect(cache.length, 1);
+    expect(first.identity!.snapshotId, observableSnapshotId(bytes));
+    expect(first.identity!.snapshotId.startsWith('s1_'), isTrue);
   });
 }

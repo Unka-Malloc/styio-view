@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-09-05
 
-**Status:** V1 authorized and implemented. V2 and V3 remain fixture-gated and not started.
+**Status:** V1 authorized and implemented. V2 delta and lineage implemented; bounded query deferred. V3 remains fixture-gated.
 
 ## 1. Delivery Boundary
 
@@ -25,7 +25,7 @@ The work is deliberately split by published producer evidence. A later stage can
 | Vityo stage | Required Styio gate | Vityo outcome |
 |---|---|---|
 | V1 — static topology intake | `styio-nightly:docs/plan/observable-static-snapshot/Plan.md` (PLAN-004) publishes the first accepted snapshot fixture set and capability identifier | Decode immutable snapshots, reject unsupported versions, cache by explicit snapshot identity, and project producer-authored facts and evidence |
-| V2 — delta, lineage, and query intake | `styio-nightly:docs/plan/observable-delta-query-lineage/Plan.md` (PLAN-005) publishes accepted parent/child, delta, and query fixtures | Apply deltas only to their declared parent, preserve lineage, validate query/snapshot equivalence, and bound retained history |
+| V2 — delta, lineage, and query intake | `styio-nightly:docs/plan/observable-delta-query-lineage/Plan.md` (PLAN-005) publishes accepted parent/child, delta, and query fixtures | Apply deltas only to their declared parent, preserve lineage, validate query/snapshot equivalence, and bound retained history. **Delta and lineage implemented in Vityo; bounded query deferred.** |
 | V3 — runtime correlation intake | `styio-nightly:docs/plan/observable-runtime-correlation/Plan.md` (PLAN-006) publishes accepted runtime-event and correlation fixtures | Join runtime events to static sites only through explicit upstream identifiers and render loss, sampling, and degraded states truthfully |
 
 The attachment `Styio-Observable-Language-Long-Term-Evolution-2026-09-04.zip` is background reference only. It does not authorize work and cannot override repository contracts or accepted fixtures.
@@ -58,6 +58,8 @@ The attachment `Styio-Observable-Language-Long-Term-Evolution-2026-09-04.zip` is
 5. Existing editing, build, run, and non-observable surfaces behave unchanged when the capability is absent.
 
 ## 4. V2 — Delta, Lineage, and Query Intake
+
+**Status:** Delta and lineage implemented in Vityo. Bounded query remains deferred.
 
 ### Planned work
 

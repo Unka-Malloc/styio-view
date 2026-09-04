@@ -517,6 +517,7 @@ CompilerHandshakeSnapshot compilerHandshakeFromPayload(
   final snapshotInfo = payload['observable_static_snapshot'];
   final snapshotVersions = <int>[];
   final snapshotCapabilities = <String>[];
+  final snapshotOptionalCapabilities = <String>[];
   if (snapshotInfo is Map) {
     final versions = snapshotInfo['schema_versions'];
     if (versions is List) {
@@ -531,6 +532,14 @@ CompilerHandshakeSnapshot compilerHandshakeFromPayload(
       for (final item in snapshotCaps) {
         if (item is String) {
           snapshotCapabilities.add(item);
+        }
+      }
+    }
+    final optionalCaps = snapshotInfo['optional_capabilities'];
+    if (optionalCaps is List) {
+      for (final item in optionalCaps) {
+        if (item is String) {
+          snapshotOptionalCapabilities.add(item);
         }
       }
     }
@@ -561,6 +570,9 @@ CompilerHandshakeSnapshot compilerHandshakeFromPayload(
     ),
     observableStaticSnapshotCapabilities: List<String>.unmodifiable(
       snapshotCapabilities,
+    ),
+    observableStaticSnapshotOptionalCapabilities: List<String>.unmodifiable(
+      snapshotOptionalCapabilities,
     ),
   );
 }

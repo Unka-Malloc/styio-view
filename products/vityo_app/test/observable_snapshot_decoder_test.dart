@@ -77,4 +77,63 @@ void main() {
       expect(second.failure!.subcode, subcode);
     });
   });
+
+  test('child fixtures decode typed lineage and diagnostics', () {
+    const children = <String>[
+      'unchanged.json',
+      'field-change.json',
+      'add-diagnostic.json',
+      'remove.json',
+      'rename.json',
+      'move.json',
+      'split.json',
+      'merge.json',
+    ];
+    for (final name in children) {
+      final first = decodeObservableSnapshotBytes(
+        readObservableTopologyFixtureBytes('child/$name'),
+      );
+      final second = decodeObservableSnapshotBytes(
+        readObservableTopologyFixtureBytes('child/$name'),
+      );
+      expect(first.isOk, isTrue, reason: '$name: ${first.failure?.detail}');
+      expect(second.isOk, isTrue);
+      expect(first.snapshot!.lineage.length, second.snapshot!.lineage.length);
+    }
+    final add = decodeNamedTopologySnapshot('child/add-diagnostic.json');
+    expect(add.diagnostics, isNotEmpty);
+    final rename = decodeNamedTopologySnapshot('child/rename.json');
+    expect(rename.lineage, isNotEmpty);
+    expect(rename.lineage.first.kind, ObservableLineageKind.rename);
+  });
+
+  test('invalid lineage and dangling subjects fail closed', () {
+    final cardinality = decodeObservableSnapshotBytes(
+      readObservableTopologyFixtureBytes(
+        'vityo/child/invalid-lineage-cardinality.json',
+      ),
+    );
+    expect(cardinality.isOk, isFalse);
+    expect(
+      cardinality.failure!.subcode,
+      ObservableInvalidSubcode.invalidLineage,
+    );
+
+    final danglingTarget = decodeObservableSnapshotBytes(
+      readObservableTopologyFixtureBytes(
+        'vityo/child/lineage-dangling-target.json',
+      ),
+    );
+    expect(danglingTarget.failure!.subcode, ObservableInvalidSubcode.danglingReference);
+
+    final danglingSubject = decodeObservableSnapshotBytes(
+      readObservableTopologyFixtureBytes(
+        'vityo/child/diagnostic-dangling-subject.json',
+      ),
+    );
+    expect(
+      danglingSubject.failure!.subcode,
+      ObservableInvalidSubcode.danglingReference,
+    );
+  });
 }

@@ -12,12 +12,29 @@ String observableFixturePath(String name) {
   ].join(Platform.pathSeparator);
 }
 
+String observableTopologyFixturePath(String relative) {
+  return [
+    'test',
+    'fixtures',
+    'observable_topology',
+    ...relative.split('/'),
+  ].join(Platform.pathSeparator);
+}
+
 String readObservableFixture(String name) {
   return File(observableFixturePath(name)).readAsStringSync();
 }
 
 List<int> readObservableFixtureBytes(String name) {
   return File(observableFixturePath(name)).readAsBytesSync();
+}
+
+String readObservableTopologyFixture(String relative) {
+  return File(observableTopologyFixturePath(relative)).readAsStringSync();
+}
+
+List<int> readObservableTopologyFixtureBytes(String relative) {
+  return File(observableTopologyFixturePath(relative)).readAsBytesSync();
 }
 
 ObservableSnapshot decodeCanonicalFixture() {
@@ -34,4 +51,24 @@ ObservableSnapshot decodeNamedObservableFixture(String name) {
     throw StateError('$name must decode: ${result.failure?.detail}');
   }
   return result.snapshot!;
+}
+
+ObservableSnapshot decodeNamedTopologySnapshot(String relative) {
+  final result = decodeObservableSnapshotBytes(
+    readObservableTopologyFixtureBytes(relative),
+  );
+  if (result.snapshot == null) {
+    throw StateError('$relative must decode: ${result.failure?.detail}');
+  }
+  return result.snapshot!;
+}
+
+ObservableDeltaEnvelope decodeNamedTopologyDelta(String relative) {
+  final result = decodeObservableDeltaBytes(
+    readObservableTopologyFixtureBytes(relative),
+  );
+  if (result.envelope == null) {
+    throw StateError('$relative must decode: ${result.failure?.detail}');
+  }
+  return result.envelope!;
 }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'observable_delta_model.dart';
 import 'observable_snapshot_model.dart';
 
 ObservableDecodeResult decodeObservableSnapshotJson(String json) {
@@ -219,7 +220,6 @@ ObservableDecodeResult decodeObservableSnapshotMap(Map<String, Object?> root) {
       return ObservableDecodeResult.invalid(failure);
     }
   }
-
   final nodeIds = nodes.map((node) => node.id).toSet();
   final edgeIds = edges.map((edge) => edge.id).toSet();
   final factIds = facts.map((fact) => fact.id).toSet();
@@ -313,7 +313,55 @@ ObservableDecodeResult decodeObservableSnapshotMap(Map<String, Object?> root) {
     'facts',
     'anchors',
     'evidence',
+    'diagnostics',
+    'lineage',
+    'parent_snapshot_id',
   };
+
+  final diagnosticsResult = _decodeDiagnostics(root['diagnostics']);
+  if (diagnosticsResult.failure != null) {
+    return ObservableDecodeResult.invalid(diagnosticsResult.failure!);
+  }
+  final lineageResult = _decodeLineage(root['lineage']);
+  if (lineageResult.failure != null) {
+    return ObservableDecodeResult.invalid(lineageResult.failure!);
+  }
+  String? parentSnapshotId;
+  if (root.containsKey('parent_snapshot_id') &&
+      root['parent_snapshot_id'] != null) {
+    final parentRaw = _stringField(root, 'parent_snapshot_id');
+    if (parentRaw == null || !isObservableSnapshotIdentity(parentRaw)) {
+      return const ObservableDecodeResult.invalid(
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.danglingReference,
+          detail: 'parent_snapshot_id is not a snapshot identity',
+        ),
+      );
+    }
+    parentSnapshotId = parentRaw;
+  }
+
+  for (final record in lineageResult.items) {
+    for (final target in record.target) {
+      if (!nodeIds.contains(target) && !edgeIds.contains(target)) {
+        return _dangling('lineage target $target');
+      }
+    }
+    for (final ref in record.evidence) {
+      if (!evidenceRefs.contains(ref)) {
+        return _dangling('lineage evidence $ref');
+      }
+    }
+  }
+  for (final diagnostic in diagnosticsResult.items) {
+    if (!nodeIds.contains(diagnostic.subject) &&
+        !edgeIds.contains(diagnostic.subject)) {
+      return _dangling('diagnostic subject ${diagnostic.subject}');
+    }
+    if (!evidenceRefs.contains(diagnostic.evidence)) {
+      return _dangling('diagnostic evidence ${diagnostic.evidence}');
+    }
+  }
 
   return ObservableDecodeResult.ok(
     ObservableSnapshot(
@@ -334,6 +382,11 @@ ObservableDecodeResult decodeObservableSnapshotMap(Map<String, Object?> root) {
       facts: List<ObservableFactRecord>.unmodifiable(facts),
       anchors: List<ObservableAnchorRecord>.unmodifiable(anchors),
       evidence: List<ObservableEvidenceRecord>.unmodifiable(evidence),
+      diagnostics: List<ObservableDiagnosticRecord>.unmodifiable(
+        diagnosticsResult.items,
+      ),
+      lineage: List<ObservableLineageRecord>.unmodifiable(lineageResult.items),
+      parentSnapshotId: parentSnapshotId,
       extensions: _extensions(root, knownRoot),
     ),
   );
@@ -635,6 +688,183 @@ _ListDecode<ObservableEvidenceRecord> _decodeEvidence(Object? value) {
     );
   }
   return _ListDecode<ObservableEvidenceRecord>(items);
+}
+
+_ListDecode<ObservableDiagnosticRecord> _decodeDiagnostics(Object? value) {
+  if (value == null) {
+    return const _ListDecode<ObservableDiagnosticRecord>(
+      <ObservableDiagnosticRecord>[],
+    );
+  }
+  if (value is! List) {
+    return const _ListDecode<ObservableDiagnosticRecord>(
+      <ObservableDiagnosticRecord>[],
+      ObservableDecodeFailure(
+        subcode: ObservableInvalidSubcode.missingField,
+        detail: 'diagnostics must be an array',
+      ),
+    );
+  }
+  const known = <String>{'id', 'code', 'severity', 'subject', 'evidence'};
+  final items = <ObservableDiagnosticRecord>[];
+  for (final item in value) {
+    if (item is! Map) {
+      return const _ListDecode<ObservableDiagnosticRecord>(
+        <ObservableDiagnosticRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.missingField,
+          detail: 'diagnostic record is invalid',
+        ),
+      );
+    }
+    final map = _asStringKeyed(item);
+    final id = _stringField(map, 'id');
+    final code = _stringField(map, 'code');
+    final severity = _stringField(map, 'severity');
+    final subject = _stringField(map, 'subject');
+    final evidence = _stringField(map, 'evidence');
+    if (id == null ||
+        code == null ||
+        severity == null ||
+        subject == null ||
+        evidence == null) {
+      return const _ListDecode<ObservableDiagnosticRecord>(
+        <ObservableDiagnosticRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.missingField,
+          detail: 'diagnostic record is missing required fields',
+        ),
+      );
+    }
+    if (!isObservablePrefixedIdentity(id, kObservableDiagnosticIdPrefix)) {
+      return const _ListDecode<ObservableDiagnosticRecord>(
+        <ObservableDiagnosticRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.invalidLineage,
+          detail: 'diagnostic id is not a diagnostic identity',
+        ),
+      );
+    }
+    items.add(
+      ObservableDiagnosticRecord(
+        id: id,
+        code: code,
+        severity: severity,
+        subject: subject,
+        evidence: evidence,
+        extensions: _extensions(map, known),
+      ),
+    );
+  }
+  return _ListDecode<ObservableDiagnosticRecord>(items);
+}
+
+_ListDecode<ObservableLineageRecord> _decodeLineage(Object? value) {
+  if (value == null) {
+    return const _ListDecode<ObservableLineageRecord>(<ObservableLineageRecord>[]);
+  }
+  if (value is! List) {
+    return const _ListDecode<ObservableLineageRecord>(
+      <ObservableLineageRecord>[],
+      ObservableDecodeFailure(
+        subcode: ObservableInvalidSubcode.invalidLineage,
+        detail: 'lineage must be an array',
+      ),
+    );
+  }
+  const known = <String>{
+    'id',
+    'kind',
+    'prior',
+    'target',
+    'producer_rule',
+    'rule_version',
+    'evidence',
+    'completeness',
+  };
+  final items = <ObservableLineageRecord>[];
+  for (final item in value) {
+    if (item is! Map) {
+      return const _ListDecode<ObservableLineageRecord>(
+        <ObservableLineageRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.invalidLineage,
+          detail: 'lineage record is invalid',
+        ),
+      );
+    }
+    final map = _asStringKeyed(item);
+    final id = _stringField(map, 'id');
+    final kindRaw = _stringField(map, 'kind');
+    final producerRule = _stringField(map, 'producer_rule');
+    final ruleVersion = _stringField(map, 'rule_version');
+    final completeness = _stringField(map, 'completeness');
+    final prior = _stringList(map['prior']);
+    final target = _stringList(map['target']);
+    final evidence = _stringList(map['evidence']);
+    if (id == null ||
+        kindRaw == null ||
+        producerRule == null ||
+        ruleVersion == null ||
+        completeness == null ||
+        prior == null ||
+        target == null ||
+        evidence == null) {
+      return const _ListDecode<ObservableLineageRecord>(
+        <ObservableLineageRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.invalidLineage,
+          detail: 'lineage record is missing required fields',
+        ),
+      );
+    }
+    if (!isObservablePrefixedIdentity(id, kObservableLineageIdPrefix)) {
+      return const _ListDecode<ObservableLineageRecord>(
+        <ObservableLineageRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.invalidLineage,
+          detail: 'lineage id is not a lineage identity',
+        ),
+      );
+    }
+    final kind = ObservableLineageKindX.fromWire(kindRaw);
+    if (kind == null) {
+      return _ListDecode<ObservableLineageRecord>(
+        const <ObservableLineageRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.invalidLineage,
+          detail: 'unsupported lineage kind $kindRaw',
+        ),
+      );
+    }
+    if (!kind.validCardinality(
+          priorCount: prior.length,
+          targetCount: target.length,
+        ) ||
+        completeness != 'complete') {
+      return const _ListDecode<ObservableLineageRecord>(
+        <ObservableLineageRecord>[],
+        ObservableDecodeFailure(
+          subcode: ObservableInvalidSubcode.invalidLineage,
+          detail: 'lineage cardinality or completeness is invalid',
+        ),
+      );
+    }
+    items.add(
+      ObservableLineageRecord(
+        id: id,
+        kind: kind,
+        prior: List<String>.unmodifiable(prior),
+        target: List<String>.unmodifiable(target),
+        producerRule: producerRule,
+        ruleVersion: ruleVersion,
+        evidence: List<String>.unmodifiable(evidence),
+        completeness: completeness,
+        extensions: _extensions(map, known),
+      ),
+    );
+  }
+  return _ListDecode<ObservableLineageRecord>(items);
 }
 
 ObservableDecodeFailure? _evidenceCycle(List<ObservableEvidenceRecord> evidence) {

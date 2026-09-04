@@ -4,11 +4,13 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import 'observable_delta_model.dart';
 import 'observable_snapshot_decoder.dart';
 import 'observable_snapshot_model.dart';
 
-String observableArtifactDigest(List<int> bytes) {
-  return sha256.convert(bytes).toString();
+String observableSnapshotId(List<int> bytes) {
+  final digest = sha256.convert(bytes).toString();
+  return '$kObservableSnapshotIdPrefix${digest.substring(0, 32)}';
 }
 
 class ObservableSnapshotCache {
@@ -19,8 +21,6 @@ class ObservableSnapshotCache {
   final int maxEntries;
   final LinkedHashMap<SnapshotIdentity, ObservableSnapshot> _entries =
       LinkedHashMap<SnapshotIdentity, ObservableSnapshot>();
-  final Map<String, SnapshotIdentity> _identitiesByDigest =
-      <String, SnapshotIdentity>{};
   ObservableCacheMetrics _metrics = const ObservableCacheMetrics();
 
   ObservableCacheMetrics get metrics => _metrics;
@@ -46,14 +46,9 @@ class ObservableSnapshotCache {
       return existing;
     }
     _entries[identity] = snapshot;
-    _identitiesByDigest[identity.artifactDigest] = identity;
     _metrics = _metrics.copyWith(misses: _metrics.misses + 1);
     while (_entries.length > maxEntries) {
-      final evicted = _entries.keys.first;
-      _entries.remove(evicted);
-      if (_identitiesByDigest[evicted.artifactDigest] == evicted) {
-        _identitiesByDigest.remove(evicted.artifactDigest);
-      }
+      _entries.remove(_entries.keys.first);
       _metrics = _metrics.copyWith(evictions: _metrics.evictions + 1);
     }
     return snapshot;
@@ -63,23 +58,23 @@ class ObservableSnapshotCache {
     List<int> bytes, {
     ObservableSnapshot Function(List<int> bytes)? decode,
   }) {
-    final digest = observableArtifactDigest(bytes);
-    final hit = _hitForDigest(digest);
+    final snapshotId = observableSnapshotId(bytes);
+    final hit = _hitForSnapshotId(snapshotId);
     if (hit != null) {
       return hit;
     }
     final decoded = decode != null
         ? _decodeWith(decode, bytes)
         : decodeObservableSnapshotBytes(bytes);
-    return _intakeDecoded(digest, decoded);
+    return _intakeDecoded(snapshotId, decoded);
   }
 
   /// Production intake path: the fail-closed decode runs in a background
   /// isolate so multi-megabyte snapshots never block the UI thread. Cache
   /// mutation still happens on the caller's thread after the decode returns.
   Future<ObservableCacheIntakeResult> intakeAsync(List<int> bytes) async {
-    final digest = observableArtifactDigest(bytes);
-    final hit = _hitForDigest(digest);
+    final snapshotId = observableSnapshotId(bytes);
+    final hit = _hitForSnapshotId(snapshotId);
     if (hit != null) {
       return hit;
     }
@@ -87,27 +82,30 @@ class ObservableSnapshotCache {
       decodeObservableSnapshotBytes,
       bytes,
     );
-    return _intakeDecoded(digest, decoded);
+    return _intakeDecoded(snapshotId, decoded);
   }
 
-  ObservableCacheIntakeResult? _hitForDigest(String digest) {
-    final knownIdentity = _identitiesByDigest[digest];
-    if (knownIdentity == null) {
-      return null;
-    }
-    final cached = get(knownIdentity);
+  ObservableCacheIntakeResult? _hitForSnapshotId(String snapshotId) {
+    final probe = SnapshotIdentity(
+      snapshotId: snapshotId,
+      compilationUnitKey: '',
+    );
+    final cached = get(probe);
     if (cached == null) {
       return null;
     }
     return ObservableCacheIntakeResult.hit(
-      identity: knownIdentity,
+      identity: SnapshotIdentity(
+        snapshotId: snapshotId,
+        compilationUnitKey: cached.compilationUnit.identityKey,
+      ),
       snapshot: cached,
       metrics: metrics,
     );
   }
 
   ObservableCacheIntakeResult _intakeDecoded(
-    String digest,
+    String snapshotId,
     ObservableDecodeResult decoded,
   ) {
     if (!decoded.isOk) {
@@ -115,7 +113,7 @@ class ObservableSnapshotCache {
     }
     final identity = SnapshotIdentity.fromSnapshot(
       snapshot: decoded.snapshot!,
-      artifactDigest: digest,
+      snapshotId: snapshotId,
     );
     final stored = put(identity, decoded.snapshot!);
     return ObservableCacheIntakeResult.miss(

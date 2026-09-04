@@ -83,4 +83,80 @@ void main() {
     );
     expect(source.compare(previous, current), isNull);
   });
+
+  test('producer delta change source matches fixture operations and tags', () {
+    final parent = decodeNamedTopologySnapshot('parent/complete.json');
+
+    void check(
+      String deltaName,
+      String childName,
+      void Function(ObservableChangeSet set, GraphProjection projection) assertTags,
+    ) {
+      final child = decodeNamedTopologySnapshot(childName);
+      final delta = decodeNamedTopologyDelta(deltaName);
+      final source = ObservableDeltaChangeSource(
+        delta: delta,
+        lineage: child.lineage,
+      );
+      final set = source.compare(parent, child)!;
+      expect(set.source, ObservableChangeSetSource.producerDelta);
+      expect(set.operations.length, delta.operations.length);
+      for (var i = 0; i < delta.operations.length; i += 1) {
+        expect(set.operations[i].key, delta.operations[i].key);
+        expect(set.operations[i].op, delta.operations[i].op);
+        expect(set.operations[i].category, delta.operations[i].category);
+      }
+      final projection = projectObservableGraph(
+        current: child,
+        previous: parent,
+        changeSet: set,
+      );
+      assertTags(set, projection);
+    }
+
+    check('delta/rename.json', 'child/rename.json', (set, projection) {
+      expect(set.removedNodeIds, <String>['n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1']);
+      expect(set.addedNodeIds, <String>['n1_ccccccccccccccccccccccccccccccc1']);
+      expect(set.renamedCount, 1);
+      expect(projection.lineageLinks, isEmpty);
+      expect(
+        projection.nodeById('n1_ccccccccccccccccccccccccccccccc1')!.continuity!.kind,
+        ObservableLineageKind.rename,
+      );
+      expect(
+        projection.nodeById('n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1'),
+        isNull,
+      );
+    });
+    check('delta/field-change.json', 'child/field-change.json', (set, projection) {
+      expect(set.changedNodeIds, <String>['n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1']);
+      expect(set.addedNodeIds, isEmpty);
+      expect(set.removedNodeIds, isEmpty);
+      expect(set.lineage, isEmpty);
+      expect(
+        projection.nodeById('n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1')!.changeTag,
+        GraphItemChangeTag.changed,
+      );
+    });
+    check('delta/split.json', 'child/split.json', (set, projection) {
+      expect(set.addedNodeIds.length, 2);
+      expect(set.splitCount, 1);
+      expect(projection.lineageLinks, isNotEmpty);
+    });
+    check('delta/merge.json', 'child/merge.json', (set, projection) {
+      expect(set.removedNodeIds, contains('n1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2'));
+      expect(set.mergedCount, 1);
+      expect(projection.lineageLinks, isNotEmpty);
+    });
+    check('delta/add.json', 'child/add-diagnostic.json', (set, projection) {
+      expect(set.changedNodeIds, <String>['n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1']);
+      expect(
+        projection.nodeById('n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1')!.changeTag,
+        GraphItemChangeTag.changed,
+      );
+    });
+    check('delta/unchanged.json', 'child/unchanged.json', (set, projection) {
+      expect(set.isEmpty, isTrue);
+    });
+  });
 }

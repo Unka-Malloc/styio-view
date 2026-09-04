@@ -55,4 +55,12 @@ class ObservableGraphPalette {
 
   static const Color addedAccent = Color(0xFF2E7D32);
   static const Color removedGhost = Color(0xFF90A4AE);
+  static const Color changedAccent = Color(0xFF1565C0);
+  static const Color continuityBadge = Color(0xFF6A1B9A);
+
+  /// Producer lineage links must be distinguishable from every producer edge
+  /// kind at a glance, so both the colour and the dash pattern are unique:
+  /// no [edgeColor] or [edgeDashes] entry uses them.
+  static const Color lineageLink = Color(0xFFF9A825);
+  static const List<double> lineageLinkDashes = <double>[6, 3];
 }

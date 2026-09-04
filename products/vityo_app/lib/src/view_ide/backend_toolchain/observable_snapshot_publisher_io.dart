@@ -1,12 +1,37 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../services/observable_topology/observable_delta_model.dart';
 import '../services/observable_topology/observable_snapshot_model.dart';
 import 'execution_adapter.dart';
 import 'pafio_cli_support.dart';
 
 ObservableSnapshotPublisher createObservableSnapshotPublisher() {
   return IoObservableSnapshotPublisher();
+}
+
+List<String> observablePublishArgumentList(
+  ObservableSnapshotPublishRequest request,
+) {
+  final args = <String>[
+    '--json',
+    'check',
+    '--manifest-path',
+    request.manifestPath,
+    '--styio-bin',
+    request.compilerBinary,
+    '$kObservablePafioEmitOption=${request.schemaVersion}',
+    for (final capability in request.requiredCapabilities) ...<String>[
+      kObservablePafioCapabilityOption,
+      capability,
+    ],
+  ];
+  final parent = request.parentSnapshotPath?.trim() ?? '';
+  if (parent.isNotEmpty) {
+    args.add(kObservablePafioParentSnapshotOption);
+    args.add(parent);
+  }
+  return args;
 }
 
 class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
@@ -21,19 +46,7 @@ class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
     _process?.kill();
     _process = null;
 
-    final args = <String>[
-      '--json',
-      'check',
-      '--manifest-path',
-      request.manifestPath,
-      '--styio-bin',
-      request.compilerBinary,
-      '$kObservablePafioEmitOption=${request.schemaVersion}',
-      for (final capability in request.requiredCapabilities) ...<String>[
-        kObservablePafioCapabilityOption,
-        capability,
-      ],
-    ];
+    final args = observablePublishArgumentList(request);
 
     try {
       final process = await Process.start(
@@ -55,6 +68,15 @@ class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
             parseJsonObjectPayload(stderr) ?? parseJsonObjectPayload(stdout);
         final message = payload?['message'] as String? ??
             'Pafio check failed while publishing the observable snapshot.';
+        final category = payload?['category'] as String?;
+        final parent = request.parentSnapshotPath?.trim() ?? '';
+        if (parent.isNotEmpty &&
+            category == kObservablePafioUsageErrorCategory) {
+          return ObservableSnapshotPublishResult.failed(
+            reason: ObservableReasonCode.deltaTransportUnavailable,
+            detail: sanitizeObservablePublishDetail(message),
+          );
+        }
         return ObservableSnapshotPublishResult.failed(
           detail: sanitizeObservablePublishDetail(message),
         );
@@ -118,8 +140,9 @@ class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
         detail: 'Workflow receipt was not found under the build root.',
       );
     }
+    final receiptRaw = parseJsonObjectPayload(await receiptFile.readAsString());
     final receipt = ExecutionReceiptSnapshot.decode(
-      parseJsonObjectPayload(await receiptFile.readAsString()),
+      receiptRaw,
       fallbackSessionId: 'observable-snapshot',
     );
     if (receipt == null) {
@@ -149,10 +172,34 @@ class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
         detail: 'Snapshot artifact named by the receipt was not found.',
       );
     }
+    final deltaPath = _selectDeltaArtifact(receipt.artifacts);
+    if (deltaPath != null) {
+      if (!_isContained(deltaPath, request.workspaceRoot) &&
+          (request.outputTree == null ||
+              !_isContained(deltaPath, request.outputTree!))) {
+        return ObservableSnapshotPublishResult.failed(
+          detail: 'Delta artifact path is outside the allowed tree.',
+        );
+      }
+      final deltaFile = File(deltaPath);
+      if (!await deltaFile.exists()) {
+        return ObservableSnapshotPublishResult.failed(
+          detail: 'Delta artifact named by the receipt was not found.',
+        );
+      }
+      return ObservableSnapshotPublishResult.succeeded(
+        bytes: await file.readAsBytes(),
+        artifactPath: artifactPath,
+        receipt: receipt,
+        deltaBytes: await deltaFile.readAsBytes(),
+        degradation: _receiptDegradation(receiptRaw),
+      );
+    }
     return ObservableSnapshotPublishResult.succeeded(
       bytes: await file.readAsBytes(),
       artifactPath: artifactPath,
       receipt: receipt,
+      degradation: _receiptDegradation(receiptRaw),
     );
   }
 }
@@ -162,6 +209,30 @@ String? _selectSnapshotArtifact(List<String> artifacts) {
     if (artifact.endsWith(kObservableArtifactSuffix)) {
       return artifact;
     }
+  }
+  return null;
+}
+
+String? _selectDeltaArtifact(List<String> artifacts) {
+  for (final artifact in artifacts) {
+    if (artifact.endsWith(kObservableDeltaArtifactSuffix)) {
+      return artifact;
+    }
+  }
+  return null;
+}
+
+String? _receiptDegradation(Map<String, dynamic>? receiptRaw) {
+  if (receiptRaw == null) {
+    return null;
+  }
+  final field = receiptRaw[kObservableReceiptObservableField];
+  if (field is! Map) {
+    return null;
+  }
+  final delta = field[kObservableReceiptDeltaKey];
+  if (delta is String && delta.trim().isNotEmpty) {
+    return delta.trim();
   }
   return null;
 }

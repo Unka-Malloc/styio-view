@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -21,7 +22,17 @@ void main() {
     return root;
   }
 
-  Future<File> writeScript(Directory root, String name, String body) async {
+  Future<File> writeExecutable(Directory root, String name, String pythonBody) async {
+    final body = '#!/usr/bin/env python3\n$pythonBody';
+    if (Platform.isWindows) {
+      final script = File('${root.path}${Platform.pathSeparator}$name.py');
+      await script.writeAsString(body);
+      final launcher = File('${root.path}${Platform.pathSeparator}$name.cmd');
+      await launcher.writeAsString(
+        '@echo off\r\npython "%~dp0$name.py" %*\r\n',
+      );
+      return launcher;
+    }
     final file = File('${root.path}${Platform.pathSeparator}$name');
     await file.writeAsString(body);
     await Process.run('chmod', <String>['+x', file.path]);
@@ -42,29 +53,40 @@ void main() {
   }) async {
     final buildRoot = '${root.path}${Platform.pathSeparator}build';
     final artifactDir = '$buildRoot${Platform.pathSeparator}artifacts';
+    final diagDir = '$buildRoot${Platform.pathSeparator}diag';
+    final planPath = '${root.path}${Platform.pathSeparator}pafio-plan.json';
     final artifacts = <String>[
-      '"$artifactPath"',
-      if (deltaPath != null) '"$deltaPath"',
+      jsonEncode(artifactPath),
+      if (deltaPath != null) jsonEncode(deltaPath),
     ].join(',');
     final extra = receiptDelta == null
         ? ''
         : ',"observable_static_snapshot":{"delta":"$receiptDelta"}';
-    final receipt = '''
-{"schema_version":1,"tool":"styio","compiler_version":"0.0.1","channel":"nightly","plan_version":1,"intent":"check","session_id":"s1","executed":true,"wall_time_ms":0,"outputs":{"build_root":"$buildRoot","artifact_dir":"$artifactDir","diag_dir":"$buildRoot${Platform.pathSeparator}diag"},"artifacts":[$artifacts]$extra}
-''';
-    final envelope = '''
-{"action":"check","command":"check","intent":"check","message":"completed Styio check via compile-plan","mode":"execute","plan":{"artifact_dir":"$artifactDir","build_root":"$buildRoot","diag_dir":"$buildRoot${Platform.pathSeparator}diag","path":"${root.path}${Platform.pathSeparator}pafio-plan.json"},"profile":"dev","status":"succeeded","styio":{"status":"succeeded"},"sync":{"status":"succeeded"},"target":{"kind":"lib","name":"example","package":"example.app","package_id":"example.app"}}
-''';
-    final argvPath = '${root.path}${Platform.pathSeparator}pafio-argv.txt';
-    return writeScript(root, 'fake-pafio', '''
-#!/bin/sh
-set -e
-printf '%s\\n' "\$@" > "$argvPath"
-mkdir -p "$artifactDir"
-${writeReceipt ? 'cat > "$buildRoot/receipt.json" <<\'EOF\'\n$receipt\nEOF' : ''}
-cat <<'EOF'
-$envelope
-EOF
+    final receipt =
+        '{"schema_version":1,"tool":"styio","compiler_version":"0.0.1","channel":"nightly","plan_version":1,"intent":"check","session_id":"s1","executed":true,"wall_time_ms":0,"outputs":{"build_root":${jsonEncode(buildRoot)},"artifact_dir":${jsonEncode(artifactDir)},"diag_dir":${jsonEncode(diagDir)}},"artifacts":[$artifacts]$extra}\n';
+    final envelope =
+        '{"action":"check","command":"check","intent":"check","message":"completed Styio check via compile-plan","mode":"execute","plan":{"artifact_dir":${jsonEncode(artifactDir)},"build_root":${jsonEncode(buildRoot)},"diag_dir":${jsonEncode(diagDir)},"path":${jsonEncode(planPath)}},"profile":"dev","status":"succeeded","styio":{"status":"succeeded"},"sync":{"status":"succeeded"},"target":{"kind":"lib","name":"example","package":"example.app","package_id":"example.app"}}\n';
+    final envelopeFile = File(
+      '${root.path}${Platform.pathSeparator}fake-pafio-envelope.json',
+    );
+    await envelopeFile.writeAsString(envelope);
+    if (writeReceipt) {
+      await Directory(buildRoot).create(recursive: true);
+      await File(
+        '$buildRoot${Platform.pathSeparator}receipt.json',
+      ).writeAsString(receipt);
+    }
+    return writeExecutable(root, 'fake-pafio', r'''
+import pathlib
+import sys
+
+here = pathlib.Path(__file__).resolve().parent
+payload = "\n".join(sys.argv[1:])
+(here / "pafio-argv.txt").write_text(
+    payload + ("\n" if payload else ""),
+    encoding="utf-8",
+)
+sys.stdout.write((here / "fake-pafio-envelope.json").read_text(encoding="utf-8"))
 ''');
   }
 
@@ -118,12 +140,12 @@ EOF
 
   test('IO publisher maps a JSON error payload to publication-failed', () async {
     final root = await workspace();
-    final pafio = await writeScript(root, 'fake-pafio-fail', '''
-#!/bin/sh
-cat >&2 <<EOF
-{"category":"CompilerError","code":70,"message":"check exploded","command":"check"}
-EOF
-exit 2
+    final pafio = await writeExecutable(root, 'fake-pafio-fail', r'''
+import sys
+sys.stderr.write(
+    '{"category":"CompilerError","code":70,"message":"check exploded","command":"check"}\n'
+)
+raise SystemExit(2)
 ''');
     final publisher = IoObservableSnapshotPublisher();
     final result = await publisher.publish(
@@ -141,12 +163,12 @@ exit 2
 
   test('IO publisher redacts absolute paths from failure details', () async {
     final root = await workspace();
-    final pafio = await writeScript(root, 'fake-pafio-paths', '''
-#!/bin/sh
-cat >&2 <<EOF
-{"category":"CompilerError","code":70,"message":"Styio failed for compile-plan /secret/machine/plan.json: boom","command":"check"}
-EOF
-exit 2
+    final pafio = await writeExecutable(root, 'fake-pafio-paths', r'''
+import sys
+sys.stderr.write(
+    '{"category":"CompilerError","code":70,"message":"Styio failed for compile-plan /secret/machine/plan.json: boom","command":"check"}\n'
+)
+raise SystemExit(2)
 ''');
     final publisher = IoObservableSnapshotPublisher();
     final result = await publisher.publish(
@@ -164,9 +186,9 @@ exit 2
 
   test('IO publisher returns cancelled after the process is killed', () async {
     final root = await workspace();
-    final pafio = await writeScript(root, 'fake-pafio-sleep', '''
-#!/bin/sh
-sleep 30
+    final pafio = await writeExecutable(root, 'fake-pafio-sleep', r'''
+import time
+time.sleep(30)
 ''');
     final publisher = IoObservableSnapshotPublisher();
     final future = publisher.publish(
@@ -177,9 +199,9 @@ sleep 30
         compilerBinary: 'styio',
       ),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 80));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
     publisher.cancel();
-    final result = await future;
+    final result = await future.timeout(const Duration(seconds: 8));
     expect(result.status, ObservablePublishStatus.cancelled);
     expect(result.reason, ObservableReasonCode.cancelled);
   });
@@ -334,12 +356,12 @@ sleep 30
 
   test('UsageError on a parent-carrying run is delta-transport-unavailable', () async {
     final root = await workspace();
-    final pafio = await writeScript(root, 'fake-pafio-usage', '''
-#!/bin/sh
-cat >&2 <<EOF
-{"category":"UsageError","code":64,"message":"unknown option","command":"check"}
-EOF
-exit 64
+    final pafio = await writeExecutable(root, 'fake-pafio-usage', r'''
+import sys
+sys.stderr.write(
+    '{"category":"UsageError","code":64,"message":"unknown option","command":"check"}\n'
+)
+raise SystemExit(64)
 ''');
     final publisher = IoObservableSnapshotPublisher();
     final result = await publisher.publish(

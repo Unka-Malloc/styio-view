@@ -54,6 +54,10 @@ class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
         args,
         workingDirectory: request.workspaceRoot,
       );
+      if (_cancelled) {
+        process.kill();
+        return ObservableSnapshotPublishResult.cancelled();
+      }
       _process = process;
       final stdoutFuture = process.stdout.transform(utf8.decoder).join();
       final stderrFuture = process.stderr.transform(utf8.decoder).join();
@@ -100,7 +104,10 @@ class IoObservableSnapshotPublisher implements ObservableSnapshotPublisher {
   @override
   void cancel() {
     _cancelled = true;
-    _process?.kill();
+    final process = _process;
+    if (process != null) {
+      process.kill();
+    }
   }
 
   Future<ObservableSnapshotPublishResult> _readArtifact({

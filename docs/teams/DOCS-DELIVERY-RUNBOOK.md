@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-06
 
 ## Mission
 
@@ -237,5 +237,9 @@ delta and lineage intake (bounded query deferred), then regenerated collection i
 2026-09-05: Marked Styio observable integration plan V3 implemented with live tailing deferred,
 rewrote `RuntimeEventAdapter` for the v2 envelope mapping, amended ADR-0012, and regenerated
 collection indexes. No `prototype/` change.
+
+2026-09-06: Recorded unapproved observable-graph follow-ups in
+`docs/rollups/OBSERVABLE-DELIVERY-FOLLOW-UPS.md`, including the execution-adapter
+envelope mismatch. Report only; no adapter implementation in this change.
 
 <!-- codex merge: docs/build/scripts assets imported -->

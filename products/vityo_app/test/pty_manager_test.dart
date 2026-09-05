@@ -89,7 +89,9 @@ void main() {
       expect(fullOutput, isNot(contains('no-tty')));
       expect(session.state, PtySessionState.exited);
     },
-    skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
+    skip: Platform.isWindows
+        ? 'Hosted Windows ConPTY is fail-closed in CI.'
+        : (!_isDesktopHost ? 'Desktop native PTY only.' : false),
   );
 
   test(

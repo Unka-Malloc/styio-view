@@ -566,7 +566,7 @@ Future<Map<String, Object?>> _runRealScenario({
       'sync_status': 'succeeded',
       'compiler_tool': compiler.tool,
       'compile_plan_contract': 1,
-      'runtime_events_contract': 2,
+      'runtime_events_contract': _runtimeEventsContract(compiler),
       'runtime_event_stream': true,
       'package': _package,
       'bin_target': _binTarget,
@@ -583,6 +583,12 @@ Future<Map<String, Object?>> _runRealScenario({
       },
     ],
   };
+}
+
+int _runtimeEventsContract(CompilerHandshakeSnapshot compiler) {
+  final versions =
+      compiler.supportedContractVersions['runtime_events'] ?? const <int>[];
+  return versions.contains(2) ? 2 : 1;
 }
 
 CompilerHandshakeSnapshot _decodeCompatibleMachine(

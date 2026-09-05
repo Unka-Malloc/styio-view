@@ -18,6 +18,10 @@ export 'required_handoff_summary.dart';
 export 'runtime_event_adapter.dart';
 export 'pafio_cli_discovery.dart';
 export 'pafio_cli_support.dart';
+export 'observable_snapshot_publisher.dart';
+export 'observable_snapshot_publisher_web.dart'
+    if (dart.library.io) 'observable_snapshot_publisher_io.dart';
+export 'observable_runtime_intake.dart';
 export 'workspace_graph_adapter.dart';
 export 'workspace_graph_builder.dart';
 export 'workspace_graph_snapshot.dart';

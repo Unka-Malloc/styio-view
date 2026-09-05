@@ -2,9 +2,9 @@
 
 **Purpose:** Define the gated Vityo consumer work that may begin only after Styio publishes accepted observable-language fixtures.
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-05
 
-**Status:** Planned, not authorized, and not started.
+**Status:** V1 authorized and implemented. V2 delta and lineage implemented; bounded query deferred. V3 runtime overlay implemented; live tailing deferred.
 
 ## 1. Delivery Boundary
 
@@ -25,12 +25,14 @@ The work is deliberately split by published producer evidence. A later stage can
 | Vityo stage | Required Styio gate | Vityo outcome |
 |---|---|---|
 | V1 — static topology intake | `styio-nightly:docs/plan/observable-static-snapshot/Plan.md` (PLAN-004) publishes the first accepted snapshot fixture set and capability identifier | Decode immutable snapshots, reject unsupported versions, cache by explicit snapshot identity, and project producer-authored facts and evidence |
-| V2 — delta, lineage, and query intake | `styio-nightly:docs/plan/observable-delta-query-lineage/Plan.md` (PLAN-005) publishes accepted parent/child, delta, and query fixtures | Apply deltas only to their declared parent, preserve lineage, validate query/snapshot equivalence, and bound retained history |
-| V3 — runtime correlation intake | `styio-nightly:docs/plan/observable-runtime-correlation/Plan.md` (PLAN-006) publishes accepted runtime-event and correlation fixtures | Join runtime events to static sites only through explicit upstream identifiers and render loss, sampling, and degraded states truthfully |
+| V2 — delta, lineage, and query intake | `styio-nightly:docs/plan/observable-delta-query-lineage/Plan.md` (PLAN-005) publishes accepted parent/child, delta, and query fixtures | Apply deltas only to their declared parent, preserve lineage, validate query/snapshot equivalence, and bound retained history. **Delta and lineage implemented in Vityo; bounded query deferred.** |
+| V3 — runtime correlation intake | `styio-nightly:docs/plan/observable-runtime-correlation/Plan.md` (PLAN-006) publishes accepted runtime-event and correlation fixtures | Join runtime events to static sites only through explicit upstream identifiers and render loss, sampling, and degraded states truthfully. **Implemented in Vityo; live tailing deferred.** |
 
 The attachment `Styio-Observable-Language-Long-Term-Evolution-2026-09-04.zip` is background reference only. It does not authorize work and cannot override repository contracts or accepted fixtures.
 
 ## 3. V1 — Static Topology Intake
+
+**Status:** Authorized and implemented in Vityo (TASK-001). Recorded producer constants: machine-info key `observable_static_snapshot`; schema version `1`; capabilities `file-source-anchors`, `producer-evidence`, `static-topology-edges`, `static-topology-facts`, `static-topology-nodes`; Pafio `--emit-observable-static-snapshot[=<schema-version>]` and repeatable `--observable-capability <name>`.
 
 ### Inputs
 
@@ -57,6 +59,8 @@ The attachment `Styio-Observable-Language-Long-Term-Evolution-2026-09-04.zip` is
 
 ## 4. V2 — Delta, Lineage, and Query Intake
 
+**Status:** Delta and lineage implemented in Vityo. Bounded query remains deferred.
+
 ### Planned work
 
 1. Require exact parent snapshot identity before applying a delta.
@@ -73,6 +77,8 @@ The attachment `Styio-Observable-Language-Long-Term-Evolution-2026-09-04.zip` is
 4. Cache size and retained lineage remain bounded under repeated updates.
 
 ## 5. V3 — Runtime Correlation Intake
+
+**Status:** Implemented in Vityo (TASK-001). Live tailing during a run is deferred because `plan.build_root` and `outputs.runtime_events_path` exist only after Pafio completes. Recorded producer constants live in `docs/contracts/ObservableTopologyAdapter.md` section 8.
 
 ### Planned work
 

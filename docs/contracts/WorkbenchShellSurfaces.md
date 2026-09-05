@@ -3,7 +3,7 @@
 **Purpose:** Define the workbench shell surface, layout, focus, command routing, capability, and responsive behavior contract for the current Vityo shell.
 
 **Owner:** `products/vityo_app/lib/src/view_render/shell/` and `products/vityo_app/lib/src/view_ide/workbench/`
-**Last updated:** 2026-07-31
+**Last updated:** 2026-09-05
 **Plan traceability:** [Vityo requirements](../plan/vityo/Requirements.md)
 `REQ-IDE-003`, `REQ-IDE-004`, and `REQ-IDE-008`
 
@@ -20,7 +20,7 @@ The following source files define the workbench shell surfaces, their layout, co
 | `products/vityo_app/lib/src/view_render/shell/vityo_shell_scaffold.dart` | Top-level StatelessWidget that assembles the shell: `_TopBar`, `_DesktopShellBody`/`_MobileShellBody`, `_BottomSurfacePanel`, status bar, and command shortcut registration. Routes between desktop (Row-layout) and mobile (ListView-stacked) through `LayoutBuilder` and `resolveViewportProfile`. |
 | `products/vityo_app/lib/src/view_render/shell/shell_model.dart` | `ShellModel` extends `ShellRuntimeModel`; owns `shellLayoutPreferenceController`, active `BottomSurfaceTab`, and command-to-tab routing in `executeCommand()`. |
 | `products/vityo_app/lib/src/view_render/shell/shell_scope.dart` | `ShellScope` (InheritedNotifier<ShellModel>) provides shell-wide access without widget-level prop drilling. |
-| `products/vityo_app/lib/src/view_render/shell/shell_layout_plan.dart` | `ShellLayoutPlan`, `ShellLayoutPreferenceController`, `ShellPanelDescriptor`, `ShellPanelContribution`, `ShellPanelContributionRegistry`. Defines the 5 layout regions, bottom-tab panel catalog (27 tabs), mobile/desktop mode selection, serialization/deserialization. |
+| `products/vityo_app/lib/src/view_render/shell/shell_layout_plan.dart` | `ShellLayoutPlan`, `ShellLayoutPreferenceController`, `ShellPanelDescriptor`, `ShellPanelContribution`, `ShellPanelContributionRegistry`. Defines the 5 layout regions, bottom-tab panel catalog (29 tabs), mobile/desktop mode selection, serialization/deserialization. |
 | `products/vityo_app/lib/src/view_render/shell/hosted_workspace_lifecycle_banner.dart` | Hosted workspace close-guard banner for cloud workspaces. |
 
 ### Layout and app shell
@@ -65,6 +65,7 @@ The following source files define the workbench shell surfaces, their layout, co
 | `products/vityo_app/lib/src/presentation/agent_workbench/agent_workbench.dart` | Agent task, permission, and change-review surface. |
 | `products/vityo_app/lib/src/view_render/source_control/source_control.dart` | Source control changes surface. |
 | `products/vityo_app/lib/src/view_render/testing/testing.dart` | Testing results surface. |
+| `products/vityo_app/lib/src/view_render/observable/observable.dart` | Observable static-topology graph surface. |
 | `products/vityo_app/lib/src/view_render/extensions/extensions.dart` | Extensions management surface. |
 | `products/vityo_app/lib/src/view_render/settings/settings_surface.dart` | Settings panel. |
 
@@ -108,7 +109,7 @@ The following source files define the workbench shell surfaces, their layout, co
 
 1. **Editor panel is always active.** Both desktop and compact modes keep `panelById('editor')?.active == true`. Verified in `shell_narrow_viewport_focus_test.dart`.
 2. **Activity rail hidden in compact mode.** `ShellLayoutMode.compact` sets `panelById('activity-rail')?.visible == false`. Verified in `shell_no_overflow_test.dart` and `shell_narrow_viewport_focus_test.dart`.
-3. **Every `BottomSurfaceTab` maps to exactly one panel ID.** 27 enum values each produce a non-empty `renderBinding().activeBottomPanelId`. Verified in `shell_no_overflow_test.dart`.
+3. **Every `BottomSurfaceTab` maps to exactly one panel ID.** 29 enum values each produce a non-empty `renderBinding().activeBottomPanelId`. Verified in `shell_no_overflow_test.dart`. `BottomSurfaceTab.observable` maps to panel `bottom.observable` with surface id `observable.graph`.
 4. **Viewport key is deterministic.** Desktop mode to `'shell-viewport-desktop'`. Compact mode to `'shell-viewport-mobile'`. Verified via serialization roundtrip.
 5. **Layout plan is serializable/deserializable.** `ShellLayoutPlan.forViewport()` to `ShellLayoutPlan.fromJson()` roundtrips active tab, mode, panel visibility, and viewport key. Verified in `shell_no_overflow_test.dart` and `shell_layout_plan_test.dart`.
 

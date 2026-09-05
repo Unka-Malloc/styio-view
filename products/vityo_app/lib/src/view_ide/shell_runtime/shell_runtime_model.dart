@@ -26,6 +26,7 @@ import '../toolchain/toolchain_install_executor.dart'
 import '../toolchain/toolchain_install_policy.dart';
 import '../toolchain/toolchain_manager.dart';
 import '../testing/testing.dart';
+import '../services/observable_topology/observable_topology.dart';
 import '../../ide/workspace/workspace.dart';
 import '../../ide/agent_client/agent_client.dart';
 import '../../ide/workbench/agent_collaboration/agent_collaboration_service.dart';
@@ -66,6 +67,7 @@ import 'workspace_file_lifecycle.dart';
 part 'facades/source_control_facade.dart';
 part 'facades/facade_host.dart';
 part 'facades/testing_facade.dart';
+part 'facades/observable_facade.dart';
 part 'facades/debug_facade.dart';
 part 'facades/command_dispatch_facade.dart';
 part 'facades/language_facade.dart';
@@ -81,6 +83,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     with
         ShellRuntimeSourceControlFacade,
         ShellRuntimeTestingFacade,
+        ShellRuntimeObservableFacade,
         ShellRuntimeDebugFacade,
         ShellRuntimeLanguageFacade,
         ShellRuntimeProjectRuntimeFacade,
@@ -123,6 +126,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
     this.toolchainStatusReport,
     WorkspaceDiagnosticsController? workspaceDiagnosticsController,
     TestingSessionController? testingSessionController,
+    this.observableGraphController,
     SourceControlStatusController? sourceControlStatusController,
     ProjectStyioLanguageService? projectLanguageService,
     EditorDocumentResourceBinding? editorFileBinding,
@@ -499,6 +503,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
       runtimeOutputBuffer: this.runtimeOutputBuffer,
       log: appendLog,
     )..addListener(_handleTestingChanged);
+    observableGraphController?.addListener(_handleObservableGraphChanged);
     _nativeToolRuntimeController = NativeToolRuntimeController(
       executionController: _executionController,
       testingController: _testingController,
@@ -570,6 +575,7 @@ class ShellRuntimeModel extends ShellRuntimeFacadeHost
   late final BackendCommandPolicyController _backendCommandPolicyController;
   late final SourceControlController _sourceControlController;
   late final ShellTestingController _testingController;
+  final ObservableGraphController? observableGraphController;
   late final SemanticTelemetryController _semanticTelemetryController;
   late final ToolchainController _toolchainController;
   final EditorDocumentResourceBinding _editorFileBinding;

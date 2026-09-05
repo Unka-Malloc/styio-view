@@ -2,7 +2,7 @@
 
 **Purpose:** 记录 `Vityo` 为什么要先冻结执行层到 UI 的最小事件协议，以及该协议的排序与退化原则。
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-09-05
 
 **Status:** Accepted
 
@@ -70,3 +70,7 @@
 1. 必须为 `RuntimeEvent` 提供 schema versioning
 2. 可视化覆盖范围将与事件种类和特性注册表一起渐进扩张
 3. 执行层与 UI 的集成会更稳定，也更适合跨平台复用
+
+## Amendment (2026-09-05)
+
+The envelope remains the ordered shell described here. Styio observable runtime-events v2 is a distinct producer contract mapped into that shell by `docs/contracts/RuntimeEventAdapter.md`. Duplicate v1 payload keys (`from`/`to`/`message`/`file`/`thread_id`) were retired in that mapping. Overlay correlation, loss accounting, and observed-run negotiation live in `docs/contracts/ObservableTopologyAdapter.md` section 8, not in this ADR.

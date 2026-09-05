@@ -22,6 +22,8 @@ import '../settings/settings_surface.dart';
 import '../source_control/source_control.dart';
 import '../terminal/terminal.dart';
 import '../testing/testing.dart';
+import '../observable/observable.dart';
+import '../../view_ide/services/observable_topology/observable_topology.dart';
 import '../../ide/workspace/workspace.dart';
 
 import 'hosted_workspace_lifecycle_banner.dart';
@@ -328,6 +330,51 @@ class VityoShellScaffold extends StatelessWidget {
         return ListenableBuilder(
           listenable: testingController,
           builder: (_, _) => buildTestingSurface(),
+        );
+      case BottomSurfaceTab.observable:
+        final observableController = shell.observableGraphController;
+        Widget buildObservableSurface() {
+          return ObservableGraphSurface(
+            viewportProfile: viewportProfile,
+            state: shell.observableGraphState,
+            onRefresh: observableController == null
+                ? null
+                : () {
+                    observableController.refreshNow();
+                  },
+            onSelectNode: observableController?.selectNode,
+            onOpenAnchor: observableController == null
+                ? null
+                : (nodeId) {
+                    final path = observableController.resolvedAnchorPath(
+                      nodeId,
+                    );
+                    if (path != null) {
+                      shell.openWorkspaceFile(path);
+                    }
+                  },
+            onRunObserved: observableController == null
+                ? null
+                : (mode) {
+                    shell.runObservedProgram(mode);
+                  },
+            observationUnavailableReason:
+                observableController == null ||
+                    observableController.runtimeObservationDecision.available
+                ? null
+                : observableController
+                      .runtimeObservationDecision
+                      .reason
+                      ?.wireValue,
+          );
+        }
+
+        if (observableController == null) {
+          return buildObservableSurface();
+        }
+        return ListenableBuilder(
+          listenable: observableController,
+          builder: (_, _) => buildObservableSurface(),
         );
       case BottomSurfaceTab.extensions:
         return ExtensionsSurface(
@@ -2206,6 +2253,11 @@ class _BottomSurfaceTabs extends StatelessWidget {
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.testing),
       ),
       _SurfaceTabChip(
+        label: 'Observable',
+        active: shell.activeBottomTab == BottomSurfaceTab.observable,
+        onTap: () => shell.selectBottomTab(BottomSurfaceTab.observable),
+      ),
+      _SurfaceTabChip(
         label: 'Extensions',
         active: shell.activeBottomTab == BottomSurfaceTab.extensions,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.extensions),
@@ -2230,7 +2282,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
           Wrap(spacing: 10, runSpacing: 10, children: tabs),
           const SizedBox(height: 8),
           Text(
-            'Mobile shell keeps runtime, terminal, commands, agent, source control, search, problems, testing, extensions, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
+            'Mobile shell keeps runtime, terminal, commands, agent, source control, search, problems, testing, observable, extensions, debug, and settings on one vertical route. Hardware keyboard shortcuts remain optional.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],

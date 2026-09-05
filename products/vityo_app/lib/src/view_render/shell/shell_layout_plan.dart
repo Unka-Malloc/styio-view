@@ -765,6 +765,7 @@ String _bottomTabTitle(BottomSurfaceTab tab) {
     BottomSurfaceTab.search => 'Search',
     BottomSurfaceTab.problems => 'Problems',
     BottomSurfaceTab.testing => 'Testing',
+    BottomSurfaceTab.observable => 'Observable',
     BottomSurfaceTab.extensions => 'Extensions',
     BottomSurfaceTab.debug => 'Debug',
     BottomSurfaceTab.navigate => 'Navigate',
@@ -784,6 +785,7 @@ String _bottomTabSurfaceId(BottomSurfaceTab tab) {
     BottomSurfaceTab.search => 'workspace.search',
     BottomSurfaceTab.problems => 'workspace.problems',
     BottomSurfaceTab.testing => 'testing.results',
+    BottomSurfaceTab.observable => 'observable.graph',
     BottomSurfaceTab.extensions => 'extensions.marketplace',
     BottomSurfaceTab.debug => 'debug.console',
     BottomSurfaceTab.navigate => 'navigate.quick',
@@ -820,6 +822,10 @@ List<String> _bottomTabCapabilities(BottomSurfaceTab tab) {
     BottomSurfaceTab.testing => const <String>[
       'test-results',
       'failed-test-debug',
+    ],
+    BottomSurfaceTab.observable => const <String>[
+      'observable-topology',
+      'change-highlight',
     ],
     BottomSurfaceTab.extensions => const <String>[
       'extension-management',

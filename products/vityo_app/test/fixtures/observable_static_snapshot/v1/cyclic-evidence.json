@@ -1,0 +1,42 @@
+{
+  "contract": "styio.observable.static-snapshot",
+  "schema_version": 1,
+  "stability": "incubating",
+  "producer": {"name": "styio", "version": "0.0.1"},
+  "capabilities": [
+    "file-source-anchors",
+    "producer-evidence",
+    "static-topology-edges",
+    "static-topology-facts",
+    "static-topology-nodes"
+  ],
+  "compilation_unit": {
+    "package_name": "example.app",
+    "manifest_path": "Styio.toml",
+    "entry_path": "src/main.styio"
+  },
+  "completeness": "complete/proven-scalar-noop",
+  "root": null,
+  "nodes": [],
+  "edges": [],
+  "facts": [],
+  "anchors": [],
+  "evidence": [
+    {
+      "ref": "v1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "producer_rule": "cycle-a",
+      "rule_version": "1",
+      "subjects": [],
+      "prerequisites": ["v1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"],
+      "anchors": []
+    },
+    {
+      "ref": "v1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "producer_rule": "cycle-b",
+      "rule_version": "1",
+      "subjects": [],
+      "prerequisites": ["v1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+      "anchors": []
+    }
+  ]
+}

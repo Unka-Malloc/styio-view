@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-09-05
 
 ## Mission
 
@@ -111,3 +111,7 @@ Record:
 3. 当前是否仍满足 source buffer fidelity。
 4. 下一步要改的 surface、回滚点和对应 history 记录。
 5. prototype/dev_server.py rejects removed legacy entrypoint assets (`/app.js`, `/styles.css`); the test `test_removed_legacy_entrypoint_assets_are_not_served` validates 404 responses.
+
+2026-09-05: Wired the Observable bottom-panel tab (`BottomSurfaceTab.observable`, surface id `observable.graph`) through app bootstrap, shell runtime facade, and scaffold. The controller is optional on non-IO or hosted workspaces; existing editing, build, run, and test surfaces stay unchanged. No `prototype/` change.
+
+2026-09-05: Added `Run observed` on the Observable panel, facade `runObservedProgram`, execution-controller observed run, and bootstrap injection of the IO runtime intake. No new `AppCommandId`. Compact Observable layout remains a scrolling `ListView`. No `prototype/` change.

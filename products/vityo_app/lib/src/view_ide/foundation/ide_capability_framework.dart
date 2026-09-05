@@ -56,6 +56,7 @@ const List<String> requiredVityoIdeCapabilityIds = <String>[
   'service.semantic-snapshot',
   'service.language-result-cache',
   'service.remote-service',
+  'service.observable-topology',
   'interaction.commands',
   'interaction.diagnostics',
   'interaction.language-service-status',
@@ -333,6 +334,20 @@ class VityoIdeCapabilityFramework {
           references: <String>[
             'VS Code remote authority and extension host services',
             'Theia backend service connections',
+          ],
+        ),
+        IdeCapabilityDescriptor(
+          id: 'service.observable-topology',
+          layer: IdeCapabilityLayer.service,
+          title: 'Observable static topology',
+          status: IdeCapabilityStatus.wired,
+          ownerPath: 'lib/src/view_ide/services/observable_topology',
+          summary:
+              'Negotiates Styio observable static snapshot schema v1, decodes producer-authored topology, caches by snapshot identity, highlights exact ID-set changes, and drives the Observable bottom-panel graph.',
+          runtimeMaturityBlocking: false,
+          references: <String>[
+            'docs/contracts/ObservableTopologyAdapter.md',
+            'docs/external/for-styio/Styio-Observable-Integration-Plan.md',
           ],
         ),
         IdeCapabilityDescriptor(

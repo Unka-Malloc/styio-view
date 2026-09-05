@@ -2,7 +2,7 @@
 
 **Purpose:** 冻结 `Vityo` 产品拥有的 adapter 合同；这些合同定义前端需要什么，而不是上游当前碰巧提供什么。
 
-**Last updated:** 2026-06-25
+**Last updated:** 2026-09-05
 
 ## Scope
 
@@ -16,6 +16,7 @@
 6. `DeploymentAdapter`
 7. `AdapterCapabilitySnapshot`
 8. `CacheContract` — 定义 Vityo 内所有缓存家族的统一接口、键空间、失效规则与分层策略
+9. `ObservableTopologyAdapter` — Styio observable static snapshot schema v1 的消费者合同：协商、解码、缓存、精确 ID 差量、刷新环与 Observable 底栏图谱
 
 ## Rules
 

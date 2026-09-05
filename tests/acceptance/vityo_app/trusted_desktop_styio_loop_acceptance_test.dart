@@ -1119,7 +1119,8 @@ void _validateScenario(Map<String, Object?> report) {
         preflight['sync_status'] == 'succeeded' &&
         preflight['compiler_tool'] == 'styio' &&
         preflight['compile_plan_contract'] == 1 &&
-        preflight['runtime_events_contract'] == 1 &&
+        (preflight['runtime_events_contract'] == 1 ||
+            preflight['runtime_events_contract'] == 2) &&
         preflight['runtime_event_stream'] == true &&
         preflight['package'] == _package &&
         preflight['bin_target'] == _binTarget &&

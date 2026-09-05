@@ -266,12 +266,13 @@ def _validate_scenario(report: dict[str, object]) -> None:
         raise ValueError("scenario identity or correlation is invalid")
 
     preflight = _object(report["preflight"], "preflight")
+    runtime_events_contract = preflight.get("runtime_events_contract")
     expected_preflight = {
         "metadata_contract": "metadata-v1",
         "sync_status": "succeeded",
         "compiler_tool": "styio",
         "compile_plan_contract": 1,
-        "runtime_events_contract": 1,
+        "runtime_events_contract": runtime_events_contract,
         "runtime_event_stream": True,
         "package": "vityo/product-gate",
         "bin_target": "product-gate",
@@ -281,7 +282,8 @@ def _validate_scenario(report: dict[str, object]) -> None:
     if (
         preflight != expected_preflight
         or not _is_int(preflight["compile_plan_contract"], 1)
-        or not _is_int(preflight["runtime_events_contract"], 1)
+        or type(runtime_events_contract) is not int
+        or runtime_events_contract not in {1, 2}
     ):
         raise ValueError("scenario preflight is incomplete")
 

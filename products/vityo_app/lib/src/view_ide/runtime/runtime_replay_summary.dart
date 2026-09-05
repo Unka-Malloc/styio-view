@@ -339,8 +339,8 @@ RuntimeGraphSummary summarizeRuntimeGraph(
   for (final event in runtimeEvents) {
     final payload = event.payload;
     if (event.eventKind == 'transition.fired') {
-      final from = payload['from'];
-      final to = payload['to'];
+      final from = payload['from_phase'];
+      final to = payload['to_phase'];
       final fromLabel = from?.toString();
       final toLabel = to?.toString();
       appendUniqueNode(phaseRouteNodes, fromLabel);
@@ -591,15 +591,7 @@ RuntimeDebugLaneSummary? summarizeRuntimeDebugLane(
 
   switch (family) {
     case 'thread':
-      final threadIds = events
-          .map((event) => event.payload['thread_id']?.toString())
-          .whereType<String>()
-          .toSet()
-          .toList(growable: false);
-      final filterTokens = <String>[
-        'family=thread',
-        ...threadIds.map((threadId) => 'thread_id=$threadId'),
-      ];
+      final filterTokens = <String>['family=thread'];
       return RuntimeDebugLaneSummary(
         family: family,
         title: 'Thread Lane',
@@ -608,10 +600,8 @@ RuntimeDebugLaneSummary? summarizeRuntimeDebugLane(
         windowLabel:
             '${formatRuntimeClock(start)} -> ${formatRuntimeClock(end)}',
         latestEventKind: latest.eventKind,
-        detailLabel: threadIds.isEmpty ? null : threadIds.join(', '),
-        digestLabel: threadIds.isEmpty
-            ? 'threads ${events.length} event(s)'
-            : 'threads ${threadIds.join(', ')}',
+        detailLabel: null,
+        digestLabel: 'threads ${events.length} event(s)',
         filterTokens: filterTokens,
         filterLabel: filterTokens.join(' · '),
         traceLabel: traceLabel,
@@ -658,11 +648,7 @@ RuntimeDebugLaneSummary? summarizeRuntimeDebugLane(
           .whereType<String>()
           .toSet()
           .toList(growable: false);
-      final latestMessage = latest.payload['message']?.toString();
-      final detailLabel = [
-        if (streams.isNotEmpty) streams.join(', '),
-        if (latestMessage != null && latestMessage.isNotEmpty) latestMessage,
-      ].join(' · ');
+      final detailLabel = streams.isEmpty ? '' : streams.join(', ');
       final filterTokens = <String>[
         'family=log',
         ...streams.map((stream) => 'stream=$stream'),
@@ -741,10 +727,8 @@ String? runtimePayloadSummary(Map<String, Object?> payload) {
   if (payload case {'unit_id': final Object? unitId}) {
     return 'unit_id=$unitId';
   }
-  if (payload case {'thread_id': final Object? threadId}) {
-    return 'thread_id=$threadId';
-  }
-  if (payload case {'from': final Object? from, 'to': final Object? to}) {
+  if (payload
+      case {'from_phase': final Object? from, 'to_phase': final Object? to}) {
     return '$from -> $to';
   }
   if (payload case {'phase': final Object? phase}) {

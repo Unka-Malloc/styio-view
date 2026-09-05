@@ -1,5 +1,6 @@
 import '../../backend_toolchain/project_graph_contract.dart';
 import 'observable_delta_model.dart';
+import 'observable_runtime_model.dart';
 import 'observable_snapshot_model.dart';
 
 class ObservableSnapshotAdvertisement {
@@ -183,3 +184,155 @@ ObservableNegotiationDecision negotiateObservableCapability(
 bool shouldDecodeObservableSnapshot(ObservableNegotiationDecision decision) {
   return decision.accepted;
 }
+
+class RuntimeEventsAdvertisement {
+  const RuntimeEventsAdvertisement({
+    required this.schemaVersions,
+    required this.capabilities,
+    this.unavailableCapabilities = const <String>[],
+    this.defaultMode = RuntimeObservationMode.aggregate,
+  });
+
+  factory RuntimeEventsAdvertisement.fromHandshake(
+    CompilerHandshakeSnapshot? compiler,
+  ) {
+    if (compiler == null) {
+      return const RuntimeEventsAdvertisement(
+        schemaVersions: <int>[],
+        capabilities: <String>[],
+      );
+    }
+    final versions =
+        compiler.supportedContractVersions[kRuntimeEventsContractVersionsKey] ??
+        const <int>[];
+    final defaultMode =
+        RuntimeObservationModeX.tryParse(
+          compiler.runtimeEventsDefaultMode ?? '',
+        ) ??
+        RuntimeObservationMode.aggregate;
+    return RuntimeEventsAdvertisement(
+      schemaVersions: versions,
+      capabilities: compiler.runtimeEventsCapabilities,
+      unavailableCapabilities: compiler.runtimeEventsUnavailableCapabilities,
+      defaultMode: defaultMode,
+    );
+  }
+
+  factory RuntimeEventsAdvertisement.fromMachineInfo(
+    Map<String, Object?> payload,
+  ) {
+    final raw = payload[kRuntimeEventsMachineInfoKey];
+    if (raw is! Map) {
+      return const RuntimeEventsAdvertisement(
+        schemaVersions: <int>[],
+        capabilities: <String>[],
+      );
+    }
+    final map = raw.map(
+      (key, value) => MapEntry<String, Object?>(key.toString(), value),
+    );
+    final versions = <int>[];
+    final versionValue = map['schema_versions'];
+    if (versionValue is List) {
+      for (final item in versionValue) {
+        if (item is num) {
+          versions.add(item.toInt());
+        }
+      }
+    }
+    final capabilities = <String>[];
+    final capabilityValue = map['capabilities'];
+    if (capabilityValue is List) {
+      for (final item in capabilityValue) {
+        if (item is String) {
+          capabilities.add(item);
+        }
+      }
+    }
+    final unavailable = <String>[];
+    final unavailableValue = map['unavailable_capabilities'];
+    if (unavailableValue is List) {
+      for (final item in unavailableValue) {
+        if (item is String) {
+          unavailable.add(item);
+        }
+      }
+    }
+    final defaultMode =
+        RuntimeObservationModeX.tryParse(_string(map['default_mode']) ?? '') ??
+        RuntimeObservationMode.aggregate;
+    return RuntimeEventsAdvertisement(
+      schemaVersions: versions,
+      capabilities: capabilities,
+      unavailableCapabilities: unavailable,
+      defaultMode: defaultMode,
+    );
+  }
+
+  final List<int> schemaVersions;
+  final List<String> capabilities;
+  final List<String> unavailableCapabilities;
+  final RuntimeObservationMode defaultMode;
+
+  bool get advertisesSchemaV2 =>
+      schemaVersions.contains(kRuntimeEventsSchemaVersion);
+
+  List<String> get missingRequiredCapabilities {
+    final advertised = capabilities.toSet();
+    return kRuntimeRequiredCapabilities
+        .where((name) => !advertised.contains(name))
+        .toList(growable: false);
+  }
+}
+
+RuntimeObservationDecision negotiateRuntimeObservation(
+  ObservableNegotiationInput input,
+) {
+  if (!input.ioPlatform || input.hosted) {
+    return RuntimeObservationDecision.unsupported(
+      reason: ObservableReasonCode.unsupportedPlatform,
+      detail: input.hosted
+          ? 'Hosted workspaces do not publish local runtime observation.'
+          : 'Runtime observation requires a local IO toolchain.',
+    );
+  }
+  if (input.compiler == null || !input.pafioAvailable) {
+    return RuntimeObservationDecision.unsupported(
+      reason: ObservableReasonCode.noToolchain,
+      detail: input.compiler == null
+          ? 'No Styio compiler handshake is available.'
+          : 'No Pafio binary is available.',
+    );
+  }
+  final manifest = input.manifestPath?.trim() ?? '';
+  if (manifest.isEmpty) {
+    return RuntimeObservationDecision.unsupported(
+      reason: ObservableReasonCode.noManifest,
+      detail: 'Runtime observation requires a package manifest.',
+    );
+  }
+  final advertisement = RuntimeEventsAdvertisement.fromHandshake(
+    input.compiler,
+  );
+  if (!advertisement.advertisesSchemaV2) {
+    return RuntimeObservationDecision.unsupported(
+      reason: ObservableReasonCode.unsupportedRuntimeEventsVersion,
+      detail: 'Compiler does not advertise runtime-events schema 2.',
+    );
+  }
+  final missing = advertisement.missingRequiredCapabilities;
+  if (missing.isNotEmpty) {
+    return RuntimeObservationDecision.unsupported(
+      reason: ObservableReasonCode.missingRuntimeCapability,
+      detail:
+          'Compiler is missing required runtime capabilities: ${missing.join(', ')}.',
+    );
+  }
+  return RuntimeObservationDecision.ok(
+    defaultMode: advertisement.defaultMode,
+    supportedCapabilities: advertisement.capabilities,
+    unavailableCapabilities: advertisement.unavailableCapabilities,
+  );
+}
+
+String? _string(Object? value) => value is String ? value : null;

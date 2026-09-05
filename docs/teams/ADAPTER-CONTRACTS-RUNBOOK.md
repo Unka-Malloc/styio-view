@@ -115,3 +115,8 @@ delta constants and confirmation status (`snapshot-delta` / `producer-lineage` c
 machine-info `optional_capabilities`; CLI `--observable-parent-snapshot` confirmed; delta artifact
 suffix `.observable-delta.json` and receipt `observable_static_snapshot.delta` confirmed). Identity
 is the producer `s1_` snapshot identity. Bounded query remains deferred. No `prototype/` change.
+
+2026-09-05: Implemented V3 runtime-events overlay intake. Recorded confirmed transport constants
+(`runtime_events` machine-info, receipt `outputs.runtime_events_path`, Pafio
+`--emit-runtime-observation`), migrated generic runtime-event intake from retired v1 parsers to v2
+envelopes, and left live tailing deferred. No `prototype/` change.

@@ -21,6 +21,20 @@ String observableTopologyFixturePath(String relative) {
   ].join(Platform.pathSeparator);
 }
 
+String observableRuntimeFixturePath(String name) {
+  return [
+    'test',
+    'fixtures',
+    'observable_runtime_correlation',
+    'v2',
+    name,
+  ].join(Platform.pathSeparator);
+}
+
+String observableRuntimeVityoFixturePath(String name) {
+  return observableRuntimeFixturePath('vityo/$name');
+}
+
 String readObservableFixture(String name) {
   return File(observableFixturePath(name)).readAsStringSync();
 }
@@ -35,6 +49,14 @@ String readObservableTopologyFixture(String relative) {
 
 List<int> readObservableTopologyFixtureBytes(String relative) {
   return File(observableTopologyFixturePath(relative)).readAsBytesSync();
+}
+
+String readObservableRuntimeFixture(String name) {
+  return File(observableRuntimeFixturePath(name)).readAsStringSync();
+}
+
+String readObservableRuntimeVityoFixture(String name) {
+  return File(observableRuntimeVityoFixturePath(name)).readAsStringSync();
 }
 
 ObservableSnapshot decodeCanonicalFixture() {

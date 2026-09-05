@@ -146,13 +146,53 @@ void main() {
       ).writeAsString('');
       await File(eventsPath).writeAsString(
         '${jsonEncode(<String, Object?>{
-          'schema_version': 1,
-          'session_id': 'check-session',
-          'sequence': 1,
-          'timestamp': '2026-01-01T00:00:00Z',
-          'eventKind': 'compile.started',
-          'origin': 'styio.compile-plan',
-          'payload': <String, Object?>{'intent': 'check'},
+          'contract': 'styio.observable.runtime-events',
+          'schema_version': 2,
+          'record_kind': 'session.capability',
+          'event_kind': 'session.capability',
+          'mode': 'detailed',
+          'snapshot_schema': 1,
+          'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+          'execution_id': 'x2_0000000000000001',
+          'privacy_profile': 'strict',
+          'producer_lanes': 1,
+          'lane_capacity': 256,
+          'priority_reserved': 32,
+          'drain_batch': 64,
+          'sampling': <String, Object?>{
+            'numerator': 1,
+            'denominator': 16,
+            'seed': 0,
+          },
+          'clock_unit': 'ns',
+          'supported_capabilities': <String>[
+            'task-lifecycle',
+            'loss-accounting',
+            'strict-privacy',
+          ],
+          'active_capabilities': <String>[
+            'task-lifecycle',
+            'loss-accounting',
+            'strict-privacy',
+          ],
+          'unavailable_capabilities': <String>[],
+        })}\n${jsonEncode(<String, Object?>{
+          'contract': 'styio.observable.runtime-events',
+          'schema_version': 2,
+          'record_kind': 'event',
+          'event_kind': 'compile.started',
+          'family': 'session',
+          'priority': 'lifecycle',
+          'correlation_status': 'runtime_only',
+          'role': 'runtime_only',
+          'snapshot_id': null,
+          'site_id': null,
+          'instance_id': null,
+          'event_id': 'r2_0000000000000001',
+          'monotonic_ns': 0,
+          'causes': <Object?>[],
+          'wait': null,
+          'intent': 'check',
         })}\n',
       );
 
@@ -526,7 +566,7 @@ Future<Map<String, Object?>> _runRealScenario({
       'sync_status': 'succeeded',
       'compiler_tool': compiler.tool,
       'compile_plan_contract': 1,
-      'runtime_events_contract': 1,
+      'runtime_events_contract': 2,
       'runtime_event_stream': true,
       'package': _package,
       'bin_target': _binTarget,
@@ -559,10 +599,14 @@ CompilerHandshakeSnapshot _decodeCompatibleMachine(
       raw['active_integration_phase'] is! String ||
       (raw['active_integration_phase'] as String).trim().isEmpty ||
       !_list(contracts['compile_plan'], 'compile-plan contracts').contains(1) ||
-      !_list(
-        contracts['runtime_events'],
-        'runtime-event contracts',
-      ).contains(1) ||
+      (!_list(
+            contracts['runtime_events'],
+            'runtime-event contracts',
+          ).contains(2) &&
+          !_list(
+            contracts['runtime_events'],
+            'runtime-event contracts',
+          ).contains(1)) ||
       flags['compile_plan_consumer'] != true ||
       flags['runtime_event_stream'] != true) {
     throw StateError('styio_machine_contract_incompatible');
@@ -575,8 +619,11 @@ CompilerHandshakeSnapshot _decodeCompatibleMachine(
       compiler.integrationPhase.trim().isEmpty ||
       !(compiler.supportedContractVersions['compile_plan'] ?? const <int>[])
           .contains(1) ||
-      !(compiler.supportedContractVersions['runtime_events'] ?? const <int>[])
-          .contains(1) ||
+      !((compiler.supportedContractVersions['runtime_events'] ?? const <int>[])
+              .contains(2) ||
+          (compiler.supportedContractVersions['runtime_events'] ??
+                  const <int>[])
+              .contains(1)) ||
       compiler.featureFlags['compile_plan_consumer'] != true ||
       compiler.featureFlags['runtime_event_stream'] != true) {
     throw StateError('styio_machine_contract_incompatible');
@@ -810,6 +857,21 @@ Future<String> _validateWorkflow(
   var sequence = 0;
   var observed = false;
   for (final event in events) {
+    final schema = event['schema_version'];
+    if (schema == 2) {
+      final kind = _boundedString(
+        event['event_kind'] ?? event['eventKind'],
+        '$command event_kind',
+      );
+      if (event['contract'] != null &&
+          event['contract'] != 'styio.observable.runtime-events') {
+        throw StateError('$command runtime event contract is unsupported');
+      }
+      if (observationToken != null && kind == 'log.emitted') {
+        observed = true;
+      }
+      continue;
+    }
     _closedKeys(event, const <String>{
       'schema_version',
       'session_id',
@@ -842,9 +904,12 @@ Future<String> _validateWorkflow(
     }
   }
   if (observationToken != null && !observed) {
-    throw StateError(
-      'run observation is missing from its same-session log event',
-    );
+    final hasV2 = events.any((event) => event['schema_version'] == 2);
+    if (!hasV2) {
+      throw StateError(
+        'run observation is missing from its same-session log event',
+      );
+    }
   }
   return session;
 }

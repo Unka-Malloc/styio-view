@@ -113,3 +113,5 @@ Record:
 5. prototype/dev_server.py rejects removed legacy entrypoint assets (`/app.js`, `/styles.css`); the test `test_removed_legacy_entrypoint_assets_are_not_served` validates 404 responses.
 
 2026-09-05: Wired the Observable bottom-panel tab (`BottomSurfaceTab.observable`, surface id `observable.graph`) through app bootstrap, shell runtime facade, and scaffold. The controller is optional on non-IO or hosted workspaces; existing editing, build, run, and test surfaces stay unchanged. No `prototype/` change.
+
+2026-09-05: Added `Run observed` on the Observable panel, facade `runObservedProgram`, execution-controller observed run, and bootstrap injection of the IO runtime intake. No new `AppCommandId`. Compact Observable layout remains a scrolling `ListView`. No `prototype/` change.

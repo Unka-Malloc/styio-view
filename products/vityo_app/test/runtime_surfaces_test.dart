@@ -190,8 +190,8 @@ void main() {
               eventKind: 'transition.fired',
               origin: 'styio.session',
               payload: const <String, Object?>{
-                'from': 'empty',
-                'to': 'tokenized',
+                'from_phase': 'empty',
+                'to_phase': 'tokenized',
               },
             ),
             RuntimeEventEnvelope(
@@ -356,7 +356,7 @@ void main() {
     expect(find.text('family=log'), findsWidgets);
     expect(find.text('thread_id=main'), findsWidgets);
     expect(find.text('stream=stdout'), findsWidgets);
-    expect(find.text('filter family=thread · thread_id=main'), findsOneWidget);
+    expect(find.text('filter family=thread'), findsOneWidget);
     expect(
       find.text('filter family=unit.test · test_name=smoke'),
       findsOneWidget,
@@ -368,9 +368,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('trace log.emitted'), findsOneWidget);
-    expect(find.text('main'), findsOneWidget);
+    expect(find.text('thread_id=main'), findsWidgets);
     expect(find.text('smoke'), findsWidgets);
-    expect(find.text('stdout · compile-plan-run'), findsOneWidget);
+    expect(find.text('stdout'), findsWidgets);
     expect(
       find.textContaining('00:00:01 log.emitted · stream=stdout'),
       findsOneWidget,
@@ -627,8 +627,8 @@ void main() {
                 eventKind: 'transition.fired',
                 origin: 'styio.session',
                 payload: const <String, Object?>{
-                  'from': 'empty',
-                  'to': 'tokenized',
+                  'from_phase': 'empty',
+                  'to_phase': 'tokenized',
                 },
               ),
               RuntimeEventEnvelope(
@@ -798,19 +798,19 @@ void main() {
     expect(find.text('timeline compile.started'), findsWidgets);
     expect(find.text('timeline transition.fired'), findsWidgets);
     expect(
-      find.text('debug threads main · tests smoke · logs stdout'),
+      find.text('debug threads 1 event(s) · tests smoke · logs stdout'),
       findsOneWidget,
     );
-    expect(find.text('Thread Lane: thread.spawned · main'), findsOneWidget);
+    expect(find.text('Thread Lane: thread.spawned'), findsOneWidget);
     expect(
       find.text('Test Lane: unit.test.started -> unit.test.finished · smoke'),
       findsOneWidget,
     );
     expect(
-      find.text('Log Lane: log.emitted · stdout · compile-plan-run'),
+      find.text('Log Lane: log.emitted · stdout'),
       findsOneWidget,
     );
-    expect(find.text('filter family=thread · thread_id=main'), findsOneWidget);
+    expect(find.text('filter family=thread'), findsOneWidget);
     expect(
       find.text('filter family=unit.test · test_name=smoke'),
       findsOneWidget,

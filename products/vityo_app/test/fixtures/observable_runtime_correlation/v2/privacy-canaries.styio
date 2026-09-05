@@ -1,0 +1,15 @@
+# Source canaries must never appear in runtime-events v2 payloads.
+secret = "CANARY_SECRET_sk-live-test"
+host = "canary.example.host"
+path = "/absolute/canary/path"
+addr = "203.0.113.77"
+raw = "raw-canary-value"
+label = "canary-source-label"
+env = "STYIO_CANARY_ENV"
+ptr = "0xCANARYADDR"
+
+job = ||> {
+    <| 1
+}
+answer <- job
+"diagnostic canary message" -> @stdout

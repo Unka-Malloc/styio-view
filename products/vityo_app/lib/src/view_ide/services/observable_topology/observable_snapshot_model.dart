@@ -6,6 +6,7 @@
 library;
 
 import 'observable_delta_model.dart';
+import 'observable_runtime_model.dart';
 
 const String kObservableStaticSnapshotContract =
     'styio.observable.static-snapshot';
@@ -85,6 +86,15 @@ enum ObservableReasonCode {
   malformedDelta,
   invalidDelta,
   deltaTransportUnavailable,
+  unsupportedRuntimeEventsVersion,
+  missingRuntimeCapability,
+  noHeadSnapshot,
+  observationInFlight,
+  runFailed,
+  noRuntimeArtifact,
+  invalidRuntimeStream,
+  capabilitySnapshotMismatch,
+  headAdvanced,
 }
 
 extension ObservableReasonCodeX on ObservableReasonCode {
@@ -112,6 +122,18 @@ extension ObservableReasonCodeX on ObservableReasonCode {
       ObservableReasonCode.invalidDelta => 'invalid-delta',
       ObservableReasonCode.deltaTransportUnavailable =>
         'delta-transport-unavailable',
+      ObservableReasonCode.unsupportedRuntimeEventsVersion =>
+        'unsupported-runtime-events-version',
+      ObservableReasonCode.missingRuntimeCapability =>
+        'missing-runtime-capability',
+      ObservableReasonCode.noHeadSnapshot => 'no-head-snapshot',
+      ObservableReasonCode.observationInFlight => 'observation-in-flight',
+      ObservableReasonCode.runFailed => 'run-failed',
+      ObservableReasonCode.noRuntimeArtifact => 'no-runtime-artifact',
+      ObservableReasonCode.invalidRuntimeStream => 'invalid-runtime-stream',
+      ObservableReasonCode.capabilitySnapshotMismatch =>
+        'capability-snapshot-mismatch',
+      ObservableReasonCode.headAdvanced => 'head-advanced',
     };
   }
 
@@ -969,6 +991,7 @@ class ObservableGraphState {
     this.snapshot,
     this.lineageHistory = const <ObservableLineageWindowEntry>[],
     this.counters = const ObservableGraphCounters(),
+    this.runtime = const RuntimeOverlayState.none(),
   });
 
   factory ObservableGraphState.initial() {
@@ -994,6 +1017,7 @@ class ObservableGraphState {
   final ObservableSnapshot? snapshot;
   final List<ObservableLineageWindowEntry> lineageHistory;
   final ObservableGraphCounters counters;
+  final RuntimeOverlayState runtime;
 
   ObservableGraphState copyWith({
     ObservableAvailability? availability,
@@ -1011,6 +1035,7 @@ class ObservableGraphState {
     ObservableSnapshot? snapshot,
     List<ObservableLineageWindowEntry>? lineageHistory,
     ObservableGraphCounters? counters,
+    RuntimeOverlayState? runtime,
     bool clearReason = false,
     bool clearSelection = false,
     bool clearChangeSet = false,
@@ -1037,6 +1062,7 @@ class ObservableGraphState {
       snapshot: snapshot ?? this.snapshot,
       lineageHistory: lineageHistory ?? this.lineageHistory,
       counters: counters ?? this.counters,
+      runtime: runtime ?? this.runtime,
     );
   }
 }

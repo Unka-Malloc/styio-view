@@ -23,6 +23,7 @@ import '../source_control/source_control.dart';
 import '../terminal/terminal.dart';
 import '../testing/testing.dart';
 import '../observable/observable.dart';
+import '../../view_ide/services/observable_topology/observable_topology.dart';
 import '../../ide/workspace/workspace.dart';
 
 import 'hosted_workspace_lifecycle_banner.dart';
@@ -352,6 +353,19 @@ class VityoShellScaffold extends StatelessWidget {
                       shell.openWorkspaceFile(path);
                     }
                   },
+            onRunObserved: observableController == null
+                ? null
+                : (mode) {
+                    shell.runObservedProgram(mode);
+                  },
+            observationUnavailableReason:
+                observableController == null ||
+                    observableController.runtimeObservationDecision.available
+                ? null
+                : observableController
+                      .runtimeObservationDecision
+                      .reason
+                      ?.wireValue,
           );
         }
 

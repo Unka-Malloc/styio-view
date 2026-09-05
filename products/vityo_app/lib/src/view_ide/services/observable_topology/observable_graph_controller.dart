@@ -11,6 +11,7 @@ import 'observable_delta_apply.dart';
 import 'observable_delta_model.dart';
 import 'observable_graph_layout.dart';
 import 'observable_lineage_window.dart';
+import 'observable_runtime_model.dart';
 import 'observable_snapshot_cache.dart';
 import 'observable_snapshot_model.dart';
 
@@ -30,6 +31,7 @@ class ObservableGraphController extends ChangeNotifier {
     ObservableDelay? delay,
     DateTime Function()? clock,
     ObservablePafioResolver? resolvePafio,
+    ObservableRuntimeIntake? runtimeIntake,
     this.debounce = const Duration(
       milliseconds: kObservableDebounceMilliseconds,
     ),
@@ -42,7 +44,8 @@ class ObservableGraphController extends ChangeNotifier {
        _changeSource = changeSource ?? const IdSetComparisonChangeSource(),
        _delay = delay ?? Future<void>.delayed,
        _clock = clock ?? DateTime.now,
-       _resolvePafio = resolvePafio ?? resolvePafioBinary;
+       _resolvePafio = resolvePafio ?? resolvePafioBinary,
+       _runtimeIntake = runtimeIntake;
 
   final ObservableSnapshotPublisher _publisher;
   final ObservableProjectGraphProvider _projectGraph;
@@ -54,6 +57,7 @@ class ObservableGraphController extends ChangeNotifier {
   final ObservableDelay _delay;
   final DateTime Function() _clock;
   final ObservablePafioResolver _resolvePafio;
+  final ObservableRuntimeIntake? _runtimeIntake;
   final Duration debounce;
   final ObservableLineageWindow _window = ObservableLineageWindow();
 
@@ -61,6 +65,7 @@ class ObservableGraphController extends ChangeNotifier {
   StreamSubscription<FileSystemManagerEvent>? _watch;
   int _generation = 0;
   int _debounceGeneration = 0;
+  int _observationGeneration = 0;
   bool _started = false;
   bool _watchAttached = false;
   bool _disposed = false;
@@ -115,6 +120,233 @@ class ObservableGraphController extends ChangeNotifier {
   }
 
   String? resolvedAnchorPath(String nodeId) => _resolveAnchor(nodeId)?.absolutePath;
+
+  RuntimeObservationDecision get runtimeObservationDecision {
+    final graph = _projectGraph();
+    return negotiateRuntimeObservation(
+      ObservableNegotiationInput(
+        ioPlatform: _ioPlatform,
+        pafioAvailable: true,
+        compiler: graph.activeCompiler,
+        manifestPath: graph.manifestPath,
+        hosted: graph.isHosted,
+      ),
+    );
+  }
+
+  bool beginObservation(RuntimeObservationMode mode) {
+    if (_disposed) {
+      return false;
+    }
+    final phase = _state.runtime.phase;
+    if (phase == RuntimeOverlayPhase.observing ||
+        phase == RuntimeOverlayPhase.ingesting) {
+      _state = _state.copyWith(
+        runtime: _state.runtime.copyWith(
+          reason: ObservableReasonCode.observationInFlight,
+          detail: 'observation-in-flight',
+        ),
+      );
+      notifyListeners();
+      return false;
+    }
+    final decision = runtimeObservationDecision;
+    if (!decision.available) {
+      _state = _state.copyWith(
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.unsupported,
+          reason: decision.reason,
+          detail: decision.detail,
+          requestedMode: mode,
+        ),
+      );
+      notifyListeners();
+      return false;
+    }
+    if (_currentIdentity == null) {
+      _state = _state.copyWith(
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.unsupported,
+          reason: ObservableReasonCode.noHeadSnapshot,
+          detail: 'no-head-snapshot',
+          requestedMode: mode,
+        ),
+      );
+      notifyListeners();
+      return false;
+    }
+    _observationGeneration += 1;
+    _state = _state.copyWith(
+      runtime: RuntimeOverlayState(
+        phase: RuntimeOverlayPhase.observing,
+        requestedMode: mode,
+      ),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> completeObservation({
+    required bool sessionFailed,
+    String? runtimeEventsPath,
+  }) async {
+    if (_disposed) {
+      return;
+    }
+    final generation = _observationGeneration;
+    final requestedMode = _state.runtime.requestedMode;
+    _state = _state.copyWith(
+      runtime: RuntimeOverlayState(
+        phase: RuntimeOverlayPhase.ingesting,
+        requestedMode: requestedMode,
+      ),
+    );
+    notifyListeners();
+
+    final identity = _currentIdentity;
+    if (identity == null) {
+      _applyRuntimeOutcome(
+        generation: generation,
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.unsupported,
+          reason: ObservableReasonCode.noHeadSnapshot,
+          detail: 'no-head-snapshot',
+          requestedMode: requestedMode,
+        ),
+      );
+      return;
+    }
+    final path = runtimeEventsPath?.trim();
+    if (path == null || path.isEmpty) {
+      _applyRuntimeOutcome(
+        generation: generation,
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.rejected,
+          reason: sessionFailed
+              ? ObservableReasonCode.runFailed
+              : ObservableReasonCode.noRuntimeArtifact,
+          detail: sessionFailed ? 'run-failed' : 'no-runtime-artifact',
+          requestedMode: requestedMode,
+        ),
+      );
+      return;
+    }
+    final intake = _runtimeIntake;
+    if (intake == null) {
+      _applyRuntimeOutcome(
+        generation: generation,
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.rejected,
+          reason: ObservableReasonCode.unsupportedPlatform,
+          detail: 'unsupported-platform',
+          requestedMode: requestedMode,
+        ),
+      );
+      return;
+    }
+    final siteIds = [
+      for (final node in _state.projection?.nodes ?? const <ProjectedGraphNode>[])
+        node.id,
+    ];
+    final RuntimeIntakeResult result;
+    try {
+      result = await intake.ingest(
+        RuntimeIntakeRequest(
+          artifactPath: path,
+          headSnapshotId: identity.snapshotId,
+          headSiteIds: siteIds,
+        ),
+      );
+    } catch (_) {
+      // A failed isolate or read error must still resolve the phase machine;
+      // otherwise the controller would wedge in `ingesting`.
+      _applyRuntimeOutcome(
+        generation: generation,
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.rejected,
+          reason: ObservableReasonCode.invalidRuntimeStream,
+          detail: 'intake-failed',
+          requestedMode: requestedMode,
+        ),
+      );
+      return;
+    }
+    if (generation != _observationGeneration || _disposed) {
+      return;
+    }
+    if (!result.isOk) {
+      _applyRuntimeOutcome(
+        generation: generation,
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.rejected,
+          reason: result.reason ?? ObservableReasonCode.invalidRuntimeStream,
+          detail: result.streamSubcode?.wireValue ?? result.detail,
+          requestedMode: requestedMode,
+        ),
+      );
+      return;
+    }
+    final overlay = result.overlay!;
+    if (overlay.snapshotId != identity.snapshotId) {
+      _applyRuntimeOutcome(
+        generation: generation,
+        runtime: RuntimeOverlayState(
+          phase: RuntimeOverlayPhase.staleSnapshot,
+          reason: ObservableReasonCode.capabilitySnapshotMismatch,
+          detail: 'capability-snapshot-mismatch',
+          requestedMode: requestedMode,
+          overlay: overlay,
+          ingestedAt: _clock(),
+        ),
+      );
+      return;
+    }
+    _applyRuntimeOutcome(
+      generation: generation,
+      runtime: RuntimeOverlayState(
+        phase: RuntimeOverlayPhase.overlaid,
+        requestedMode: requestedMode,
+        overlay: overlay,
+        ingestedAt: _clock(),
+      ),
+    );
+  }
+
+  void clearObservation() {
+    if (_disposed) {
+      return;
+    }
+    _observationGeneration += 1;
+    _state = _state.copyWith(runtime: const RuntimeOverlayState.none());
+    notifyListeners();
+  }
+
+  void _applyRuntimeOutcome({
+    required int generation,
+    required RuntimeOverlayState runtime,
+  }) {
+    if (generation != _observationGeneration || _disposed) {
+      return;
+    }
+    _state = _state.copyWith(runtime: runtime);
+    notifyListeners();
+  }
+
+  RuntimeOverlayState _runtimeForAcceptedHead(SnapshotIdentity identity) {
+    final runtime = _state.runtime;
+    final overlay = runtime.overlay;
+    if (overlay != null && overlay.snapshotId != identity.snapshotId) {
+      return RuntimeOverlayState(
+        phase: RuntimeOverlayPhase.staleSnapshot,
+        reason: ObservableReasonCode.headAdvanced,
+        detail: 'head-advanced',
+        requestedMode: runtime.requestedMode,
+        overlay: overlay,
+        ingestedAt: runtime.ingestedAt,
+      );
+    }
+    return runtime;
+  }
 
   @override
   void dispose() {
@@ -176,6 +408,7 @@ class ObservableGraphController extends ChangeNotifier {
       reason: decision.reason,
       detail: decision.detail,
       counters: _state.counters,
+      runtime: _state.runtime,
     );
     _currentSnapshot = null;
     _currentIdentity = null;
@@ -603,6 +836,7 @@ class ObservableGraphController extends ChangeNotifier {
         fullSnapshotFallbacks:
             _state.counters.fullSnapshotFallbacks + (fallback ? 1 : 0),
       ),
+      runtime: _runtimeForAcceptedHead(identity),
     );
     notifyListeners();
   }
@@ -716,6 +950,7 @@ class ObservableGraphController extends ChangeNotifier {
         fullSnapshotFallbacks:
             _state.counters.fullSnapshotFallbacks + (fallback ? 1 : 0),
       ),
+      runtime: _runtimeForAcceptedHead(identity),
     );
     notifyListeners();
   }
@@ -749,6 +984,9 @@ class ObservableGraphController extends ChangeNotifier {
         rejectedDeltas:
             _state.counters.rejectedDeltas + (rejectedDelta ? 1 : 0),
       ),
+      runtime: previousIdentity == null
+          ? _state.runtime
+          : _runtimeForAcceptedHead(previousIdentity),
     );
     notifyListeners();
   }

@@ -234,4 +234,8 @@ fixture-gated. No `prototype/` change.
 delta and lineage intake (bounded query deferred), then regenerated collection indexes. No
 `prototype/` change.
 
+2026-09-05: Marked Styio observable integration plan V3 implemented with live tailing deferred,
+rewrote `RuntimeEventAdapter` for the v2 envelope mapping, amended ADR-0012, and regenerated
+collection indexes. No `prototype/` change.
+
 <!-- codex merge: docs/build/scripts assets imported -->

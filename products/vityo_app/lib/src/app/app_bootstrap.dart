@@ -40,6 +40,7 @@ import '../view_ide/testing/testing.dart';
 import '../view_ide/services/observable_topology/observable_topology.dart';
 import '../view_ide/backend_toolchain/observable_snapshot_publisher_web.dart'
     if (dart.library.io) '../view_ide/backend_toolchain/observable_snapshot_publisher_io.dart';
+import '../view_ide/backend_toolchain/observable_runtime_intake.dart';
 import '../ide/workspace/workspace_diagnostics.dart';
 import '../ide/workspace/workspace_diagnostics_controller.dart';
 import '../ide/workspace/source_control_status.dart';
@@ -751,6 +752,7 @@ class AppBootstrap {
             projectGraph: () => workspaceController.activeProject,
             ioPlatform: true,
             fileSystemManager: platformManagers.fileSystem,
+            runtimeIntake: createObservableRuntimeIntake(),
           )
         : null;
     if (observableGraphController != null) {

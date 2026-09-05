@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/view_ide/backend_toolchain/observable_runtime_intake_io.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/services/observable_topology/observable_topology.dart';
@@ -49,6 +51,8 @@ void main() {
     List<int> versions = const <int>[1],
     List<String> capabilities = kObservableRequiredCapabilities,
     List<String> optionalCapabilities = const <String>[],
+    List<int> runtimeEventsVersions = const <int>[],
+    List<String> runtimeEventsCapabilities = const <String>[],
   }) {
     return CompilerHandshakeSnapshot(
       binaryPath: 'styio',
@@ -57,13 +61,16 @@ void main() {
       channel: 'nightly',
       variant: 'full',
       capabilities: const <String>['compile-plan'],
-      supportedContractVersions: const <String, List<int>>{
+      supportedContractVersions: <String, List<int>>{
         'compile_plan': <int>[1],
+        if (runtimeEventsVersions.isNotEmpty)
+          'runtime_events': runtimeEventsVersions,
       },
       integrationPhase: 'compile-plan-live',
       observableStaticSnapshotSchemaVersions: versions,
       observableStaticSnapshotCapabilities: capabilities,
       observableStaticSnapshotOptionalCapabilities: optionalCapabilities,
+      runtimeEventsCapabilities: runtimeEventsCapabilities,
     );
   }
 
@@ -552,6 +559,318 @@ void main() {
       expect(controller.state.detail, kObservableDetailNoDeltaArtifact);
     },
   );
+
+  test('observed run overlays exact site facts and refuses a second request', () async {
+    final canonical = readObservableFixtureBytes(
+      'vityo-authored-canonical.json',
+    );
+    final publisher = _FakePublisher()..successes.add(canonical);
+    final controller = ObservableGraphController(
+      publisher: publisher,
+      projectGraph: () => graph(
+        compiler: compiler(
+          runtimeEventsVersions: const <int>[2],
+          runtimeEventsCapabilities: kRuntimeRequiredCapabilities,
+        ),
+      ),
+      ioPlatform: true,
+      watchStream: const Stream<FileSystemManagerEvent>.empty(),
+      delay: (_) async {},
+      resolvePafio: () async => 'pafio',
+      runtimeIntake: const IoObservableRuntimeIntake(),
+    );
+    addTearDown(controller.dispose);
+    await controller.start();
+    expect(controller.state.availability, ObservableAvailability.fresh);
+    final snapshotId = controller.state.currentIdentity!.snapshotId;
+    final nodes = controller.state.projection!.nodes;
+    expect(nodes.length, greaterThan(1));
+    final taskSite = nodes.first.id;
+    final awaitSite = nodes[1].id;
+    final temp = await Directory.systemTemp.createTemp('vityo_obs_overlay_');
+    addTearDown(() async {
+      if (await temp.exists()) {
+        await temp.delete(recursive: true);
+      }
+    });
+    final artifact = File(
+      '${temp.path}${Platform.pathSeparator}runtime-events.jsonl',
+    );
+    final substituted = readObservableRuntimeFixture('canonical.jsonl')
+        .replaceAll('s1_0123456789abcdef0123456789abcdef', snapshotId)
+        .replaceAll('n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', taskSite)
+        .replaceAll('n1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', awaitSite);
+    await artifact.writeAsString(substituted);
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.observing);
+    expect(
+      controller.beginObservation(RuntimeObservationMode.detailed),
+      isFalse,
+    );
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.observing);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.observationInFlight,
+    );
+    await controller.completeObservation(
+      sessionFailed: false,
+      runtimeEventsPath: artifact.path,
+    );
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.overlaid);
+    expect(
+      controller.state.runtime.overlay!.sites[taskSite]!.instancesCreated,
+      1,
+    );
+    expect(
+      controller.state.runtime.overlay!.sites[awaitSite]!
+          .waits[RuntimeWaitReason.task]!
+          .totalDurationNs,
+      60,
+    );
+    expect(controller.state.runtime.detail, isNull);
+    expect(controller.state.detail, isNot(contains('runtime-events.jsonl')));
+  });
+
+  test('observation outcomes map no artifact, invalid stream, mismatch and head advance', () async {
+    final canonical = readObservableFixtureBytes(
+      'vityo-authored-canonical.json',
+    );
+    final edited = readObservableFixtureBytes('edited.json');
+    final publisher = _FakePublisher()
+      ..successes.addAll(<List<int>>[canonical, edited]);
+    final controller = ObservableGraphController(
+      publisher: publisher,
+      projectGraph: () => graph(
+        compiler: compiler(
+          runtimeEventsVersions: const <int>[2],
+          runtimeEventsCapabilities: kRuntimeRequiredCapabilities,
+        ),
+      ),
+      ioPlatform: true,
+      watchStream: const Stream<FileSystemManagerEvent>.empty(),
+      delay: (_) async {},
+      resolvePafio: () async => 'pafio',
+      runtimeIntake: const IoObservableRuntimeIntake(),
+    );
+    addTearDown(controller.dispose);
+    await controller.start();
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    await controller.completeObservation(sessionFailed: false);
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.rejected);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.noRuntimeArtifact,
+    );
+
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    await controller.completeObservation(
+      sessionFailed: false,
+      runtimeEventsPath: observableRuntimeVityoFixturePath(
+        'missing-capability-record.jsonl',
+      ),
+    );
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.rejected);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.invalidRuntimeStream,
+    );
+    expect(controller.state.runtime.detail, 'missing-capability-record');
+
+    final temp = await Directory.systemTemp.createTemp('vityo_obs_mismatch_');
+    addTearDown(() async {
+      if (await temp.exists()) {
+        await temp.delete(recursive: true);
+      }
+    });
+    final mismatch = File(
+      '${temp.path}${Platform.pathSeparator}runtime-events.jsonl',
+    );
+    await mismatch.writeAsString(readObservableRuntimeFixture('canonical.jsonl'));
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    await controller.completeObservation(
+      sessionFailed: false,
+      runtimeEventsPath: mismatch.path,
+    );
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.staleSnapshot);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.capabilitySnapshotMismatch,
+    );
+
+    final snapshotId = controller.state.currentIdentity!.snapshotId;
+    final nodes = controller.state.projection!.nodes;
+    final overlaid = File(
+      '${temp.path}${Platform.pathSeparator}overlaid.jsonl',
+    );
+    await overlaid.writeAsString(
+      readObservableRuntimeFixture('canonical.jsonl')
+          .replaceAll('s1_0123456789abcdef0123456789abcdef', snapshotId)
+          .replaceAll(
+            'n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            nodes.first.id,
+          )
+          .replaceAll(
+            'n1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            nodes[1].id,
+          ),
+    );
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    await controller.completeObservation(
+      sessionFailed: false,
+      runtimeEventsPath: overlaid.path,
+    );
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.overlaid);
+    await controller.refreshNow();
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.staleSnapshot);
+    expect(controller.state.runtime.reason, ObservableReasonCode.headAdvanced);
+    expect(controller.state.availability, ObservableAvailability.fresh);
+  });
+
+  test('unsupported handshake never begins observation', () async {
+    final canonical = readObservableFixtureBytes(
+      'vityo-authored-canonical.json',
+    );
+    final controller = ObservableGraphController(
+      publisher: _FakePublisher()..successes.add(canonical),
+      projectGraph: () => graph(compiler: compiler()),
+      ioPlatform: true,
+      watchStream: const Stream<FileSystemManagerEvent>.empty(),
+      delay: (_) async {},
+      resolvePafio: () async => 'pafio',
+      runtimeIntake: const IoObservableRuntimeIntake(),
+    );
+    addTearDown(controller.dispose);
+    await controller.start();
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isFalse);
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.unsupported);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.unsupportedRuntimeEventsVersion,
+    );
+  });
+
+  test('observation without a retained head is unsupported', () async {
+    final controller = ObservableGraphController(
+      publisher: _FakePublisher()
+        ..successes.add(readObservableFixtureBytes('vityo-authored-canonical.json')),
+      projectGraph: () => graph(
+        compiler: compiler(
+          runtimeEventsVersions: const <int>[2],
+          runtimeEventsCapabilities: kRuntimeRequiredCapabilities,
+        ),
+      ),
+      ioPlatform: true,
+      watchStream: const Stream<FileSystemManagerEvent>.empty(),
+      delay: (_) async {},
+      resolvePafio: () async => 'pafio',
+      runtimeIntake: const IoObservableRuntimeIntake(),
+    );
+    addTearDown(controller.dispose);
+    // Never started: negotiation would pass, but no head snapshot exists.
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isFalse);
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.unsupported);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.noHeadSnapshot,
+    );
+  });
+
+  test('clearObservation resets the overlay and cancels a pending ingest', () async {
+    final canonical = readObservableFixtureBytes(
+      'vityo-authored-canonical.json',
+    );
+    final controller = ObservableGraphController(
+      publisher: _FakePublisher()..successes.add(canonical),
+      projectGraph: () => graph(
+        compiler: compiler(
+          runtimeEventsVersions: const <int>[2],
+          runtimeEventsCapabilities: kRuntimeRequiredCapabilities,
+        ),
+      ),
+      ioPlatform: true,
+      watchStream: const Stream<FileSystemManagerEvent>.empty(),
+      delay: (_) async {},
+      resolvePafio: () async => 'pafio',
+      runtimeIntake: const IoObservableRuntimeIntake(),
+    );
+    addTearDown(controller.dispose);
+    await controller.start();
+    final snapshotId = controller.state.currentIdentity!.snapshotId;
+    final nodes = controller.state.projection!.nodes;
+    final temp = await Directory.systemTemp.createTemp('vityo_obs_clear_');
+    addTearDown(() async {
+      if (await temp.exists()) {
+        await temp.delete(recursive: true);
+      }
+    });
+    final artifact = File(
+      '${temp.path}${Platform.pathSeparator}runtime-events.jsonl',
+    );
+    await artifact.writeAsString(
+      readObservableRuntimeFixture('canonical.jsonl')
+          .replaceAll('s1_0123456789abcdef0123456789abcdef', snapshotId)
+          .replaceAll('n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', nodes.first.id)
+          .replaceAll('n1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', nodes[1].id),
+    );
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    final pending = controller.completeObservation(
+      sessionFailed: false,
+      runtimeEventsPath: artifact.path,
+    );
+    controller.clearObservation();
+    await pending;
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.none);
+    expect(controller.state.runtime.overlay, isNull);
+  });
+
+  test('an artifact naming no snapshot fails closed to stale-snapshot', () async {
+    final canonical = readObservableFixtureBytes(
+      'vityo-authored-canonical.json',
+    );
+    final controller = ObservableGraphController(
+      publisher: _FakePublisher()..successes.add(canonical),
+      projectGraph: () => graph(
+        compiler: compiler(
+          runtimeEventsVersions: const <int>[2],
+          runtimeEventsCapabilities: kRuntimeRequiredCapabilities,
+        ),
+      ),
+      ioPlatform: true,
+      watchStream: const Stream<FileSystemManagerEvent>.empty(),
+      delay: (_) async {},
+      resolvePafio: () async => 'pafio',
+      runtimeIntake: const IoObservableRuntimeIntake(),
+    );
+    addTearDown(controller.dispose);
+    await controller.start();
+    expect(controller.state.availability, ObservableAvailability.fresh);
+
+    final temp = await Directory.systemTemp.createTemp('vityo_obs_disabled_');
+    addTearDown(() async {
+      if (await temp.exists()) {
+        await temp.delete(recursive: true);
+      }
+    });
+    final artifact = File(
+      '${temp.path}${Platform.pathSeparator}runtime-events.jsonl',
+    );
+    // The producer's disabled-mode shape: capability snapshot_id is null.
+    await artifact.writeAsString(
+      readObservableRuntimeVityoFixture('disabled-mode.jsonl'),
+    );
+    expect(controller.beginObservation(RuntimeObservationMode.aggregate), isTrue);
+    await controller.completeObservation(
+      sessionFailed: false,
+      runtimeEventsPath: artifact.path,
+    );
+    expect(controller.state.runtime.phase, RuntimeOverlayPhase.staleSnapshot);
+    expect(
+      controller.state.runtime.reason,
+      ObservableReasonCode.capabilitySnapshotMismatch,
+    );
+    expect(controller.state.runtime.overlay, isNotNull);
+    expect(controller.state.runtime.overlay!.snapshotId, isNull);
+  });
 }
 
 FileSystemManagerEvent _event(String path) {

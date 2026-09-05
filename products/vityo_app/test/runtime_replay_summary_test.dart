@@ -64,15 +64,14 @@ void main() {
   test('runtime graph summary derives route nodes, edges, and relations', () {
     final graph = summarizeRuntimeGraph(<RuntimeEventEnvelope>[
       _event(1, 'transition.fired', const <String, Object?>{
-        'from': 'empty',
-        'to': 'tokenized',
+        'from_phase': 'empty',
+        'to_phase': 'tokenized',
       }),
       _event(2, 'compile.started', const <String, Object?>{'intent': 'run'}),
       _event(3, 'state.changed', const <String, Object?>{'phase': 'parsed'}),
-      _event(4, 'thread.spawned', const <String, Object?>{'thread_id': 'main'}),
+      _event(4, 'thread.spawned', const <String, Object?>{}),
       _event(5, 'log.emitted', const <String, Object?>{
         'stream': 'stdout',
-        'message': 'ready',
       }),
       _event(6, 'run.finished', const <String, Object?>{'success': true}),
     ]);
@@ -87,7 +86,6 @@ void main() {
     expect(graph.terminalNode, 'run.finished');
     expect(graph.routeTraceLabel, contains('empty -> tokenized'));
     expect(graph.observedDigestLabel, contains('phase=parsed'));
-    expect(graph.observedDigestLabel, contains('thread_id=main'));
     expect(graph.summarySentence, contains('4 node(s) / 1 explicit edge(s)'));
 
     final emptyNode = graph.nodeDetails.firstWhere(
@@ -110,7 +108,7 @@ void main() {
 
   test('runtime debug lanes summarize thread, test, and log families', () {
     final lanes = summarizeRuntimeDebugLanes(<RuntimeEventEnvelope>[
-      _event(1, 'thread.spawned', const <String, Object?>{'thread_id': 'main'}),
+      _event(1, 'thread.spawned', const <String, Object?>{}),
       _event(
         2,
         'unit.test.started',
@@ -123,7 +121,6 @@ void main() {
       ),
       _event(4, 'log.emitted', const <String, Object?>{
         'stream': 'stdout',
-        'message': 'ok',
       }),
     ]);
 
@@ -132,15 +129,14 @@ void main() {
     final log = lanes.firstWhere((lane) => lane.family == 'log');
 
     expect(thread.title, 'Thread Lane');
-    expect(thread.digestLabel, 'threads main');
-    expect(thread.filterTokens, <String>['family=thread', 'thread_id=main']);
+    expect(thread.digestLabel, 'threads 1 event(s)');
+    expect(thread.filterTokens, <String>['family=thread']);
     expect(test.statusLabel, 'completed test lane');
     expect(test.traceLabel, 'unit.test.started -> unit.test.finished');
     expect(log.detailLabel, contains('stdout'));
-    expect(log.detailLabel, contains('ok'));
     expect(log.accent, RuntimeAccent.log);
     final digest = summarizeRuntimeDebugDigest(lanes);
-    expect(digest, contains('threads main'));
+    expect(digest, contains('threads 1 event(s)'));
     expect(digest, contains('tests smoke'));
     expect(digest, contains('logs stdout'));
   });

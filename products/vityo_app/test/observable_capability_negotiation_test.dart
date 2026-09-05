@@ -190,4 +190,140 @@ void main() {
       );
     },
   );
+
+  test('runtime observation negotiation matrix', () {
+    CompilerHandshakeSnapshot runtimeHandshake({
+      List<int> runtimeEvents = const <int>[2],
+      List<String> runtimeCapabilities = kRuntimeRequiredCapabilities,
+      List<String> unavailable = const <String>['cancellation'],
+      String? defaultMode = 'aggregate',
+      String variant = 'full',
+    }) {
+      return CompilerHandshakeSnapshot(
+        binaryPath: 'styio',
+        tool: 'styio',
+        compilerVersion: '0.0.1',
+        channel: 'nightly',
+        variant: variant,
+        capabilities: const <String>['compile-plan'],
+        supportedContractVersions: <String, List<int>>{
+          'compile_plan': const <int>[1],
+          'runtime_events': runtimeEvents,
+        },
+        integrationPhase: 'compile-plan-live',
+        observableStaticSnapshotSchemaVersions: const <int>[1],
+        observableStaticSnapshotCapabilities: kObservableRequiredCapabilities,
+        runtimeEventsCapabilities: runtimeCapabilities,
+        runtimeEventsUnavailableCapabilities: unavailable,
+        runtimeEventsDefaultMode: defaultMode,
+      );
+    }
+
+    final nano = negotiateRuntimeObservation(
+      ObservableNegotiationInput(
+        ioPlatform: true,
+        pafioAvailable: true,
+        compiler: runtimeHandshake(
+          runtimeEvents: const <int>[],
+          variant: 'nano',
+        ),
+        manifestPath: 'Styio.toml',
+      ),
+    );
+    expect(nano.available, isFalse);
+    expect(
+      nano.reason,
+      ObservableReasonCode.unsupportedRuntimeEventsVersion,
+    );
+
+    final missingVersions = negotiateRuntimeObservation(
+      ObservableNegotiationInput(
+        ioPlatform: true,
+        pafioAvailable: true,
+        compiler: runtimeHandshake(runtimeEvents: const <int>[]),
+        manifestPath: 'Styio.toml',
+      ),
+    );
+    expect(
+      missingVersions.reason,
+      ObservableReasonCode.unsupportedRuntimeEventsVersion,
+    );
+
+    final missingCapability = negotiateRuntimeObservation(
+      ObservableNegotiationInput(
+        ioPlatform: true,
+        pafioAvailable: true,
+        compiler: runtimeHandshake(
+          runtimeCapabilities: const <String>['task-lifecycle'],
+        ),
+        manifestPath: 'Styio.toml',
+      ),
+    );
+    expect(
+      missingCapability.reason,
+      ObservableReasonCode.missingRuntimeCapability,
+    );
+
+    final success = negotiateRuntimeObservation(
+      ObservableNegotiationInput(
+        ioPlatform: true,
+        pafioAvailable: true,
+        compiler: runtimeHandshake(),
+        manifestPath: 'Styio.toml',
+      ),
+    );
+    expect(success.available, isTrue);
+    expect(success.defaultMode, RuntimeObservationMode.aggregate);
+    expect(success.unavailableCapabilities, contains('cancellation'));
+
+    final snapshotUnchanged = negotiateObservableCapability(
+      ObservableNegotiationInput(
+        ioPlatform: true,
+        pafioAvailable: true,
+        compiler: runtimeHandshake(),
+        manifestPath: 'Styio.toml',
+      ),
+    );
+    expect(snapshotUnchanged.accepted, isTrue);
+  });
+
+  test('runtime advertisement parses machine-info runtime_events object', () {
+    final advertisement = RuntimeEventsAdvertisement.fromMachineInfo(
+      <String, Object?>{
+        kRuntimeEventsMachineInfoKey: <String, Object?>{
+          'schema_versions': <int>[2],
+          'default_mode': 'aggregate',
+          'capabilities': kRuntimeRequiredCapabilities,
+          'unavailable_capabilities': const <String>['cancellation'],
+        },
+      },
+    );
+    expect(advertisement.advertisesSchemaV2, isTrue);
+    expect(advertisement.missingRequiredCapabilities, isEmpty);
+    expect(advertisement.unavailableCapabilities, <String>['cancellation']);
+
+    final decoded = StyioCompilerAdapter.decode(
+      jsonEncode(<String, Object?>{
+        'tool': 'styio',
+        'compiler_version': '0.0.1',
+        'channel': 'nightly',
+        'variant': 'full',
+        'capabilities': <String>['compile-plan'],
+        'supported_contracts': <String, Object?>{
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+        kRuntimeEventsMachineInfoKey: <String, Object?>{
+          'schema_versions': <int>[2],
+          'default_mode': 'aggregate',
+          'capabilities': kRuntimeRequiredCapabilities,
+          'unavailable_capabilities': const <String>['wait-timer'],
+        },
+      }),
+      binaryPath: 'styio',
+    );
+    expect(decoded.runtimeEventsCapabilities, kRuntimeRequiredCapabilities);
+    expect(decoded.runtimeEventsUnavailableCapabilities, <String>['wait-timer']);
+    expect(decoded.runtimeEventsDefaultMode, 'aggregate');
+  });
 }

@@ -9,3 +9,6 @@ export 'observable_lineage_window.dart';
 export 'observable_change_set.dart';
 export 'observable_graph_layout.dart';
 export 'observable_graph_controller.dart';
+export 'observable_runtime_model.dart';
+export 'observable_runtime_decoder.dart';
+export 'observable_runtime_correlation.dart';

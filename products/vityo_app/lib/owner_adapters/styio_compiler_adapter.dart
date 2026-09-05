@@ -100,6 +100,32 @@ class StyioCompilerAdapter {
         }
       }
     }
+    final runtimeInfo = decoded['runtime_events'];
+    final runtimeCapabilities = <String>[];
+    final runtimeUnavailable = <String>[];
+    String? runtimeDefaultMode;
+    if (runtimeInfo is Map) {
+      final runtimeCaps = runtimeInfo['capabilities'];
+      if (runtimeCaps is List) {
+        for (final item in runtimeCaps) {
+          if (item is String) {
+            runtimeCapabilities.add(item);
+          }
+        }
+      }
+      final unavailableCaps = runtimeInfo['unavailable_capabilities'];
+      if (unavailableCaps is List) {
+        for (final item in unavailableCaps) {
+          if (item is String) {
+            runtimeUnavailable.add(item);
+          }
+        }
+      }
+      final defaultMode = runtimeInfo['default_mode'];
+      if (defaultMode is String && defaultMode.trim().isNotEmpty) {
+        runtimeDefaultMode = defaultMode.trim();
+      }
+    }
     return CompilerHandshakeSnapshot(
       binaryPath: binaryPath,
       tool: decoded['tool'] as String? ?? 'styio',
@@ -129,6 +155,13 @@ class StyioCompilerAdapter {
       observableStaticSnapshotOptionalCapabilities: List<String>.unmodifiable(
         snapshotOptionalCapabilities,
       ),
+      runtimeEventsCapabilities: List<String>.unmodifiable(
+        runtimeCapabilities,
+      ),
+      runtimeEventsUnavailableCapabilities: List<String>.unmodifiable(
+        runtimeUnavailable,
+      ),
+      runtimeEventsDefaultMode: runtimeDefaultMode,
     );
   }
 }

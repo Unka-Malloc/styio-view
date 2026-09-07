@@ -18,10 +18,9 @@ final class UnicodeBoundaryIndex {
     required this.documentId,
     required this.revision,
     required this.windowStart,
-    required String windowText,
+    required this.windowText,
     required List<int> boundaries,
-  }) : windowText = windowText,
-       windowEnd = windowStart + windowText.length,
+  }) : windowEnd = windowStart + windowText.length,
        _boundaries = List<int>.unmodifiable(boundaries);
 
   static const int maximumEntryCount = 128;

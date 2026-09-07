@@ -250,3 +250,12 @@ collection indexes. No `prototype/` change.
 envelope mismatch. Report only; no adapter implementation in this change.
 
 <!-- codex merge: docs/build/scripts assets imported -->
+
+2026-09-08: Aligned the shared Flutter coverage gate with the native `vityod`
+test prerequisite on Linux and macOS. Existing LCOV inspection remains read-only.
+Record analyzer and input-connection evidence against the Flutter version pinned
+by CI; a newer local SDK does not establish compatibility with that baseline.
+The fixed product matrix now selects the Pafio revision whose native Windows
+CLI, process contracts, and CLI probes passed. Cross-repository acceptance must
+use that exact matrix, with no change to the upstream process request/result
+contract or Vityo's supported daemon platforms.

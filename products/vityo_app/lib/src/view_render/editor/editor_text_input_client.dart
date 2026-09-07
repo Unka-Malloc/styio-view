@@ -413,13 +413,6 @@ final class EditorTextInputClient with TextInputClient {
     _notifyChanged();
   }
 
-  @override
-  bool onFocusReceived() {
-    if (_awaitingExplicitReconnect) return false;
-    attach();
-    return isAttached;
-  }
-
   void _finalizeActive(EditorCompositionTransitionReason reason) {
     if (!isComposing) return;
     final document = _controller.document;

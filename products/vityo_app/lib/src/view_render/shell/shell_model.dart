@@ -75,7 +75,7 @@ class ShellModel extends ShellRuntimeModel {
     super.sourceControlStatusController,
     super.projectLanguageService,
     super.debugAdapterLauncher,
-    VityodClient? vityodClient,
+    this.vityodClient,
     super.semanticPanelEventStateController,
     super.semanticPanelEventStore,
     super.semanticPanelEventWorkspaceId,
@@ -83,8 +83,7 @@ class ShellModel extends ShellRuntimeModel {
     super.workspaceQuickFixTelemetryWorkspaceId,
     super.workspaceTextSearchProvider,
     ShellLayoutPreferenceController? shellLayoutPreferenceController,
-  }) : vityodClient = vityodClient,
-       shellLayoutPreferenceController =
+  }) : shellLayoutPreferenceController =
            shellLayoutPreferenceController ??
            ShellLayoutPreferenceController(
              initialPreferences: const ShellLayoutPreferences(

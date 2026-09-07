@@ -2,7 +2,7 @@
 
 **Purpose:** Define the repository-wide build/test health entrypoint for `Vityo` so CI and checkpoint delivery can call one script instead of wiring Flutter and prototype verification inline.
 
-**Last updated:** 2026-06-19
+**Last updated:** 2026-09-08
 
 ## Command
 
@@ -14,13 +14,22 @@
 
 1. `flutter analyze` in `products/vityo_app`
 2. `python3 -m unittest tests.test_repo_hygiene_gate`
-3. `python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85 --flutter-dir products/vityo_app`, which runs the Python tooling coverage gate and `flutter test --coverage`
+3. `python3 scripts/project-coverage-gate.py --python-fail-under 95 --flutter-fail-under 85 --flutter-dir products/vityo_app`, which runs the Python tooling coverage gate, prepares the native daemon where supported, and runs `flutter test --coverage`
 4. `python3 scripts/release-readiness-gate.py --skip-build`
 5. `./scripts/language-fixture-gate.sh --flutter-dir products/vityo_app`
 6. `npm run governance` in `prototype/`
 7. `npm run selftest:editor` in `prototype/` with the focused editor URL pinned to port `4180`
 
 The repository keeps its native Flutter, Python, and npm-based tooling, but callers must continue to use this outer health entrypoint. CI installs `coverage.py` before the health gate so the Python coverage floor and Flutter LCOV floor are both enforced.
+
+Before actual Flutter coverage tests on Linux/macOS, the shared coverage entry
+builds `vityod` once with
+`cargo build --locked --manifest-path products/vityo_app/native/vityod/Cargo.toml -p vityod --bin vityod`.
+Both checkpoint health and standalone coverage CI use this prerequisite;
+individual tests do not build the daemon. Reading an existing LCOV report does
+not run Cargo or Flutter. Use the repository's pinned Flutter/Dart version for
+analysis and tests, since newer SDK interfaces can hide incompatibilities with
+the CI baseline.
 
 The language fixture gate wrapper defaults to the parser-backed CI roots `test/fixtures/language_service` and `test/fixtures/styio_language/syntax_contract`. Pass one or more `--fixture-root` values to scan a broader fixture set intentionally.
 

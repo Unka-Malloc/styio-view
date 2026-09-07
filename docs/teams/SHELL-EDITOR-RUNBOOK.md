@@ -120,3 +120,8 @@ Record:
 2026-09-05: Wired the Observable bottom-panel tab (`BottomSurfaceTab.observable`, surface id `observable.graph`) through app bootstrap, shell runtime facade, and scaffold. The controller is optional on non-IO or hosted workspaces; existing editing, build, run, and test surfaces stay unchanged. No `prototype/` change.
 
 2026-09-05: Added `Run observed` on the Observable panel, facade `runObservedProgram`, execution-controller observed run, and bootstrap injection of the IO runtime intake. No new `AppCommandId`. Compact Observable layout remains a scrolling `ListView`. No `prototype/` change.
+
+2026-09-08: Removed the text-input callback unavailable in CI's pinned Flutter
+3.41.7 SDK. The editor's existing focus and explicit connection lifecycle retain
+reconnection after `connectionClosed`; validate that lifecycle, Unicode input,
+and shell construction with the pinned SDK when changing Flutter interfaces.

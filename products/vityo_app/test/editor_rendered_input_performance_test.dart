@@ -112,7 +112,7 @@ void main() {
         markdownFile.readAsStringSync(),
         contains('**Last updated:** 2026-08-31'),
       );
-    });
+    }, testOn: '!browser');
 
     test('profiling bounds reject quadratic selection scans', () {
       const documentLines = 100000;

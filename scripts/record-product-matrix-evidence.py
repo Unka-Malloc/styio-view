@@ -219,18 +219,26 @@ def _validate_scenario_summary(value: object) -> None:
         or len(steps) != 5
     ):
         raise ValueError("gate report scenario correlation is incomplete")
+    preflight = value.get("preflight")
+    runtime_events_contract = (
+        preflight.get("runtime_events_contract") if isinstance(preflight, dict) else None
+    )
     expected_preflight = {
         "metadata_contract": "metadata-v1",
         "sync_status": "succeeded",
         "compiler_tool": "styio",
         "compile_plan_contract": 1,
-        "runtime_events_contract": 1,
+        "runtime_events_contract": runtime_events_contract,
         "runtime_event_stream": True,
         "package": "vityo/product-gate",
         "bin_target": "product-gate",
         "test_target": "product-gate-test",
     }
-    if value.get("preflight") != expected_preflight:
+    if (
+        preflight != expected_preflight
+        or type(runtime_events_contract) is not int
+        or runtime_events_contract not in {1, 2}
+    ):
         raise ValueError("gate report scenario preflight is incomplete")
     names = ("edit", "check", "test", "run", "observe")
     sessions: list[str] = []

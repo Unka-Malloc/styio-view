@@ -52,6 +52,7 @@ VIEW_RENDER_ALLOWED_VIEW_IDE_IMPORTS = {
     "view_ide/interaction/interaction.dart",
     "view_ide/language/language_contract.dart",
     "view_ide/language/semantic_snapshot_panel.dart",
+    "view_ide/services/observable_topology/observable_topology.dart",
     "view_ide/module_host/module_definition.dart",
     "view_ide/module_host/module_host.dart",
     "view_ide/module_host/module_manifest.dart",

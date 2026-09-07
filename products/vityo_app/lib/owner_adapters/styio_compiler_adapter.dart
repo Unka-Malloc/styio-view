@@ -66,6 +66,62 @@ class StyioCompilerAdapter {
         }
       }
     }
+    final snapshotInfo = decoded['observable_static_snapshot'];
+    final snapshotVersions = <int>[];
+    final snapshotCapabilities = <String>[];
+    final snapshotOptionalCapabilities = <String>[];
+    if (snapshotInfo is Map) {
+      final versions = snapshotInfo['schema_versions'];
+      if (versions is List) {
+        for (final item in versions) {
+          if (item is num) {
+            snapshotVersions.add(item.toInt());
+          }
+        }
+      }
+      final snapshotCaps = snapshotInfo['capabilities'];
+      if (snapshotCaps is List) {
+        for (final item in snapshotCaps) {
+          if (item is String) {
+            snapshotCapabilities.add(item);
+          }
+        }
+      }
+      final optionalCaps = snapshotInfo['optional_capabilities'];
+      if (optionalCaps is List) {
+        for (final item in optionalCaps) {
+          if (item is String) {
+            snapshotOptionalCapabilities.add(item);
+          }
+        }
+      }
+    }
+    final runtimeInfo = decoded['runtime_events'];
+    final runtimeCapabilities = <String>[];
+    final runtimeUnavailable = <String>[];
+    String? runtimeDefaultMode;
+    if (runtimeInfo is Map) {
+      final runtimeCaps = runtimeInfo['capabilities'];
+      if (runtimeCaps is List) {
+        for (final item in runtimeCaps) {
+          if (item is String) {
+            runtimeCapabilities.add(item);
+          }
+        }
+      }
+      final unavailableCaps = runtimeInfo['unavailable_capabilities'];
+      if (unavailableCaps is List) {
+        for (final item in unavailableCaps) {
+          if (item is String) {
+            runtimeUnavailable.add(item);
+          }
+        }
+      }
+      final defaultMode = runtimeInfo['default_mode'];
+      if (defaultMode is String && defaultMode.trim().isNotEmpty) {
+        runtimeDefaultMode = defaultMode.trim();
+      }
+    }
     return CompilerHandshakeSnapshot(
       binaryPath: binaryPath,
       tool: decoded['tool'] as String? ?? 'styio',
@@ -86,6 +142,22 @@ class StyioCompilerAdapter {
               .whereType<String>()
               .toList(growable: false),
       featureFlags: _boolMap(decoded['feature_flags']),
+      observableStaticSnapshotSchemaVersions: List<int>.unmodifiable(
+        snapshotVersions,
+      ),
+      observableStaticSnapshotCapabilities: List<String>.unmodifiable(
+        snapshotCapabilities,
+      ),
+      observableStaticSnapshotOptionalCapabilities: List<String>.unmodifiable(
+        snapshotOptionalCapabilities,
+      ),
+      runtimeEventsCapabilities: List<String>.unmodifiable(
+        runtimeCapabilities,
+      ),
+      runtimeEventsUnavailableCapabilities: List<String>.unmodifiable(
+        runtimeUnavailable,
+      ),
+      runtimeEventsDefaultMode: runtimeDefaultMode,
     );
   }
 }

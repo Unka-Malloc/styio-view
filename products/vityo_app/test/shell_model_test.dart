@@ -9,10 +9,12 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/adapter_contracts.dart'
 import 'package:vityo_app/src/view_ide/backend_toolchain/dependency_source_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/deployment_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/execution_adapter.dart';
+import 'package:vityo_app/src/view_ide/backend_toolchain/observable_runtime_intake_io.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_adapter.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.dart';
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
+import 'package:vityo_app/src/view_ide/services/observable_topology/observable_topology.dart';
 import 'package:vityo_app/src/ide/editor/session/editor_session_data_store.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/interaction/interaction.dart';
@@ -29,6 +31,7 @@ import 'package:vityo_app/src/view_ide/platform/native_module_loader.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 
 import 'backend_provider_test_support.dart';
+import 'observable_fixture_support.dart';
 
 import 'support/test_file_system_manager.dart';
 
@@ -955,6 +958,213 @@ void main() {
 
 
   test(
+    'runObservedProgram sequences begin, observed run, complete and release',
+    () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      const compiler = CompilerHandshakeSnapshot(
+        binaryPath: '/toolchains/styio/bin/styio',
+        tool: 'styio',
+        compilerVersion: '0.0.5',
+        channel: 'stable',
+        variant: 'test-fixture',
+        capabilities: <String>[
+          'machine_info_json',
+          'single_file_entry',
+          'jsonl_diagnostics',
+        ],
+        supportedContractVersions: <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+        integrationPhase: 'compile-plan-live',
+        featureFlags: <String, bool>{'compile_plan_consumer': true},
+        observableStaticSnapshotSchemaVersions: <int>[1],
+        observableStaticSnapshotCapabilities: kObservableRequiredCapabilities,
+        runtimeEventsCapabilities: kRuntimeRequiredCapabilities,
+      );
+      const primaryEditorFile = '/workspace/demo/src/main.styio';
+      const graph = ProjectGraphSnapshot(
+        id: '/workspace/demo/pafio.toml',
+        title: 'demo/app',
+        kind: ProjectKind.package,
+        workspaceRoot: '/workspace/demo',
+        workspaceMembers: <String>[],
+        manifestPath: '/workspace/demo/pafio.toml',
+        packages: <ProjectPackageSnapshot>[],
+        dependencies: <ProjectDependencySnapshot>[],
+        targets: <ProjectTargetDescriptor>[
+          ProjectTargetDescriptor(
+            id: 'demo/app:bin:demo',
+            packageName: 'demo/app',
+            kind: ProjectTargetKind.bin,
+            name: 'demo',
+            filePath: primaryEditorFile,
+          ),
+        ],
+        editorFiles: <String>[primaryEditorFile],
+        toolchain: ToolchainStatusSnapshot(
+          source: ToolchainResolutionSource.environment,
+          detail: 'System Styio discovered for shell-model testing.',
+          channel: 'system',
+        ),
+        lockState: ProjectLockState.unknown,
+        vendorState: ProjectVendorState.present,
+        activeCompiler: compiler,
+        notes: <String>[],
+      );
+      final controller = ObservableGraphController(
+        publisher: _FakeObservablePublisher(
+          readObservableFixtureBytes('vityo-authored-canonical.json'),
+        ),
+        projectGraph: () => graph,
+        ioPlatform: true,
+        watchStream: const Stream<FileSystemManagerEvent>.empty(),
+        delay: (_) async {},
+        resolvePafio: () async => 'pafio',
+        runtimeIntake: const IoObservableRuntimeIntake(),
+      );
+      final observedAdapter = _FakeObservedExecutionAdapter(
+        sessionId: 'observed-facade-session',
+      );
+      final shell = ShellModel(
+        platformTarget: PlatformTarget.macos,
+        supplementalAdapterCapabilities: const <AdapterCapabilitySnapshot>[],
+        projectGraphAdapter: _SequenceProjectGraphAdapter(
+          snapshots: <ProjectGraphSnapshot>[graph],
+        ),
+        workspaceController: WorkspaceController(projectSnapshot: graph),
+        workspaceDocumentStore: InMemoryWorkspaceDocumentStore(),
+        moduleRegistry: ModuleRegistry(
+          platformTarget: PlatformTarget.macos,
+          definitions: const [],
+        ),
+        nativeModuleLoader: const NoopNativeModuleLoader(
+          platformTarget: PlatformTarget.macos,
+        ),
+        editorController: EditorSessionController(
+          initialDocument: EditorSessionController.seedDocumentForPath(
+            primaryEditorFile,
+          ),
+          languageService: const SimpleStyioLanguageService(),
+        ),
+        executionAdapter: observedAdapter,
+        executionAdapterFactory: (ProjectGraphSnapshot projectGraph) async =>
+            observedAdapter,
+        runtimeEventAdapter: createRuntimeEventAdapter(
+          platformTarget: PlatformTarget.macos,
+        ),
+        dependencySourceAdapter: const _SuccessfulDependencySourceAdapter(),
+        deploymentAdapter: const _SuccessfulDeploymentAdapter(),
+        observableGraphController: controller,
+      );
+      addTearDown(shell.dispose);
+
+      await controller.start();
+      expect(controller.state.availability, ObservableAvailability.fresh);
+      final snapshotId = controller.state.currentIdentity!.snapshotId;
+      final nodes = controller.state.projection!.nodes;
+      expect(nodes.length, greaterThan(1));
+
+      final temp = await Directory.systemTemp.createTemp(
+        'vityo_facade_observed_',
+      );
+      addTearDown(() async {
+        if (await temp.exists()) {
+          await temp.delete(recursive: true);
+        }
+      });
+      final artifact = File(
+        '${temp.path}${Platform.pathSeparator}runtime-events.jsonl',
+      );
+      await artifact.writeAsString(
+        readObservableRuntimeFixture('canonical.jsonl')
+            .replaceAll('s1_0123456789abcdef0123456789abcdef', snapshotId)
+            .replaceAll(
+              'n1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              nodes.first.id,
+            )
+            .replaceAll(
+              'n1_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+              nodes[1].id,
+            ),
+      );
+      observedAdapter.runtimeEventsPath = artifact.path;
+      recordRuntimeEventsForSession(
+        'observed-facade-session',
+        <RuntimeEventEnvelope>[
+          RuntimeEventEnvelope(
+            schemaVersion: 2,
+            sessionId: 'observed-facade-session',
+            sequence: 1,
+            timestamp: DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true),
+            eventKind: 'compile.started',
+            origin: 'styio.observable.runtime-events',
+            payload: const <String, Object?>{'intent': 'run'},
+          ),
+        ],
+      );
+      addTearDown(
+        () => clearRuntimeEventsForSession('observed-facade-session'),
+      );
+
+      await shell.runObservedProgram(RuntimeObservationMode.sampled);
+
+      expect(observedAdapter.observedCalls, 1);
+      expect(
+        observedAdapter.lastObservation?.mode,
+        RuntimeObservationMode.sampled,
+      );
+      expect(
+        observedAdapter.lastObservation?.requiredCapabilities,
+        kRuntimeRequiredCapabilities,
+      );
+      expect(controller.state.runtime.phase, RuntimeOverlayPhase.overlaid);
+      expect(
+        controller
+            .state
+            .runtime
+            .overlay!
+            .sites[nodes.first.id]!
+            .instancesCreated,
+        1,
+      );
+      expect(
+        shell.lastExecutionSession?.sessionId,
+        'observed-facade-session',
+      );
+      expect(
+        shell.lastRuntimeEvents.map((event) => event.eventKind),
+        contains('compile.started'),
+      );
+      expect(observedAdapter.releaseCalls, 1);
+
+      // A later observed run that yields no artifact is rejected and still
+      // releases the overlay directory.
+      observedAdapter.runtimeEventsPath = null;
+      await shell.runObservedProgram(RuntimeObservationMode.aggregate);
+      expect(controller.state.runtime.phase, RuntimeOverlayPhase.rejected);
+      expect(
+        controller.state.runtime.reason,
+        ObservableReasonCode.noRuntimeArtifact,
+      );
+      expect(observedAdapter.releaseCalls, 2);
+
+      // An observed run that throws must not wedge the phase machine in
+      // `observing`: the facade resolves it to rejected/run-failed and a
+      // later observation can begin again.
+      observedAdapter.throwOnObserved = true;
+      await shell.runObservedProgram(RuntimeObservationMode.aggregate);
+      expect(controller.state.runtime.phase, RuntimeOverlayPhase.rejected);
+      expect(controller.state.runtime.reason, ObservableReasonCode.runFailed);
+      expect(
+        controller.beginObservation(RuntimeObservationMode.aggregate),
+        isTrue,
+      );
+    },
+  );
+
+  test(
     'shell session and file binding edge states log unavailable paths',
     () async {
       final initialGraph = _projectGraph(
@@ -1521,6 +1731,104 @@ class _SuccessfulExecutionAdapter implements ExecutionAdapter {
   }
 }
 
+
+class _FakeObservablePublisher implements ObservableSnapshotPublisher {
+  _FakeObservablePublisher(this._bytes);
+
+  final List<int> _bytes;
+
+  @override
+  Future<ObservableSnapshotPublishResult> publish(
+    ObservableSnapshotPublishRequest request,
+  ) async {
+    return ObservableSnapshotPublishResult.succeeded(
+      bytes: _bytes,
+      artifactPath: 'facade.observable-static-snapshot.json',
+    );
+  }
+
+  @override
+  void cancel() {}
+}
+
+class _FakeObservedExecutionAdapter
+    implements ExecutionAdapter, ObservedExecutionAdapter {
+  _FakeObservedExecutionAdapter({required this.sessionId});
+
+  final String sessionId;
+  String? runtimeEventsPath;
+  bool throwOnObserved = false;
+  int observedCalls = 0;
+  int releaseCalls = 0;
+  RuntimeObservationRequest? lastObservation;
+
+  @override
+  AdapterCapabilitySnapshot get capabilitySnapshot =>
+      const AdapterCapabilitySnapshot(
+        adapterKind: AdapterKind.cli,
+        languageService: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.unavailable,
+          detail: 'Execution adapter does not provide language services.',
+        ),
+        projectGraph: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.unavailable,
+          detail: 'Execution adapter does not own project graph data.',
+        ),
+        execution: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.available,
+          detail:
+              'Project execution is live through published compile-plan support.',
+        ),
+        runtimeEvents: AdapterEndpointCapability(
+          level: AdapterCapabilityLevel.partial,
+          detail: 'Runtime events are replayed from published artifacts.',
+        ),
+      );
+
+  @override
+  Future<ExecutionSession> runActiveDocument({
+    required PlatformTarget platformTarget,
+    required ProjectGraphSnapshot projectGraph,
+    required DocumentState document,
+    required String activeFilePath,
+  }) async {
+    return _session();
+  }
+
+  @override
+  Future<ObservedExecutionRun> runActiveDocumentObserved({
+    required PlatformTarget platformTarget,
+    required ProjectGraphSnapshot projectGraph,
+    required DocumentState document,
+    required String activeFilePath,
+    required RuntimeObservationRequest observation,
+  }) async {
+    observedCalls += 1;
+    lastObservation = observation;
+    if (throwOnObserved) {
+      throw StateError('observed run exploded');
+    }
+    return ObservedExecutionRun(
+      session: _session(),
+      runtimeEventsPath: runtimeEventsPath,
+      release: () async {
+        releaseCalls += 1;
+      },
+    );
+  }
+
+  ExecutionSession _session() {
+    return ExecutionSession(
+      sessionId: sessionId,
+      kind: 'run',
+      status: ExecutionSessionStatus.succeeded,
+      statusMessage: 'Observed run completed through the shell-model fixture.',
+      diagnostics: const <Diagnostic>[],
+      stdoutEvents: const <ExecutionLogEvent>[],
+      stderrEvents: const <ExecutionLogEvent>[],
+    );
+  }
+}
 
 class _SuccessfulDependencySourceAdapter implements DependencySourceAdapter {
   const _SuccessfulDependencySourceAdapter();

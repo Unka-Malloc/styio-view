@@ -1,6 +1,8 @@
 import '../../ide/editor/document_state.dart';
 import '../language/language_contract.dart';
 import '../platform/platform_target.dart';
+import '../services/observable_topology/observable_runtime_model.dart';
+import '../services/observable_topology/observable_snapshot_model.dart';
 import 'adapter_contracts.dart';
 import 'project_graph_contract.dart';
 
@@ -231,6 +233,32 @@ abstract class ExecutionAdapter {
     required ProjectGraphSnapshot projectGraph,
     required DocumentState document,
     required String activeFilePath,
+  });
+}
+
+class ObservedExecutionRun {
+  ObservedExecutionRun({
+    required this.session,
+    this.runtimeEventsPath,
+    this.unavailableReason,
+    Future<void> Function()? release,
+  }) : release = release ?? _noopRelease;
+
+  final ExecutionSession session;
+  final String? runtimeEventsPath;
+  final ObservableReasonCode? unavailableReason;
+  final Future<void> Function() release;
+
+  static Future<void> _noopRelease() async {}
+}
+
+abstract class ObservedExecutionAdapter {
+  Future<ObservedExecutionRun> runActiveDocumentObserved({
+    required PlatformTarget platformTarget,
+    required ProjectGraphSnapshot projectGraph,
+    required DocumentState document,
+    required String activeFilePath,
+    required RuntimeObservationRequest observation,
   });
 }
 

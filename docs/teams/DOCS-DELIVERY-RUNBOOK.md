@@ -228,4 +228,25 @@ creating another product track or Better Plan workspace.
 state. Retained only the empty `docs/plan/` documentation container and reusable execution runbook;
 product implementation, tests, performance evidence, and visual evidence remain intact.
 
+2026-09-04: Added one single-purpose external handoff plan for future Styio observable-language
+consumption and regenerated its collection indexes. The document is explicitly unapproved and
+fixture-gated, does not alter the existing Better Plan workspace, and starts no adapter, UI,
+runtime, or `prototype/` implementation.
+
+2026-09-05: Indexed `docs/contracts/ObservableTopologyAdapter.md`, marked the Styio observable
+integration plan V1 as authorized and implemented, and refreshed collection indexes. V2/V3 remain
+fixture-gated. No `prototype/` change.
+
+2026-09-05: Updated `ObservableTopologyAdapter` and the Styio observable integration plan for V2
+delta and lineage intake (bounded query deferred), then regenerated collection indexes. No
+`prototype/` change.
+
+2026-09-05: Marked Styio observable integration plan V3 implemented with live tailing deferred,
+rewrote `RuntimeEventAdapter` for the v2 envelope mapping, amended ADR-0012, and regenerated
+collection indexes. No `prototype/` change.
+
+2026-09-06: Recorded unapproved observable-graph follow-ups in
+`docs/rollups/OBSERVABLE-DELIVERY-FOLLOW-UPS.md`, including the execution-adapter
+envelope mismatch. Report only; no adapter implementation in this change.
+
 <!-- codex merge: docs/build/scripts assets imported -->

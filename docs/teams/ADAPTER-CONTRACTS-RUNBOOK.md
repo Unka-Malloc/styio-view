@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 adapter 合同、integration 层以及上游 `styio` / `pafio` handoff 文档的日常维护入口。
 
-**Last updated:** 2026-08-11
+**Last updated:** 2026-09-08
 
 ## Mission
 
@@ -106,3 +106,25 @@ references to the retired IDE provider/controller implementation.
 2026-08-11: Updated the Agent workflow contract after the desktop daemon cutover. `vityod` is the
 sole IDE-side ACP process/session and MCP authority; Flutter retains typed projections, permission
 presentation, change preview, and workspace-transaction presentation.
+
+2026-09-04: Registered the unapproved Styio observable-language consumer plan. Static snapshot,
+delta/query/lineage, and runtime-correlation intake remain gated by accepted upstream fixtures.
+Styio owns the observable wire semantics; Vityo owns version-aware decoding, bounded caches,
+degradation, and projection. The generic runtime-event shell and the Pafio-backed project graph do
+not become competing semantic protocols, and no implementation or `prototype/` change has started.
+
+2026-09-05: Published `ObservableTopologyAdapter` and implemented V1 static-topology intake. Recorded
+confirmed producer constants (machine-info key `observable_static_snapshot`, schema v1, five required
+capabilities, Pafio `--emit-observable-static-snapshot` / `--observable-capability`). V2/V3 remain
+fixture-gated. No `prototype/` change.
+
+2026-09-05: Extended `ObservableTopologyAdapter` for producer delta and lineage intake. Recorded
+delta constants and confirmation status (`snapshot-delta` / `producer-lineage` confirmed in
+machine-info `optional_capabilities`; CLI `--observable-parent-snapshot` confirmed; delta artifact
+suffix `.observable-delta.json` and receipt `observable_static_snapshot.delta` confirmed). Identity
+is the producer `s1_` snapshot identity. Bounded query remains deferred. No `prototype/` change.
+
+2026-09-05: Implemented V3 runtime-events overlay intake. Recorded confirmed transport constants
+(`runtime_events` machine-info, receipt `outputs.runtime_events_path`, Pafio
+`--emit-runtime-observation`), migrated generic runtime-event intake from retired v1 parsers to v2
+envelopes, and left live tailing deferred. No `prototype/` change.

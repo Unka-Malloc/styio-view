@@ -11,6 +11,7 @@ import 'package:vityo_app/src/view_ide/backend_toolchain/project_graph_contract.
 import 'package:vityo_app/src/view_ide/backend_toolchain/runtime_event_adapter.dart';
 import 'package:vityo_app/src/view_ide/language/language_contract.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
+import 'package:vityo_app/src/view_ide/services/observable_topology/observable_topology.dart';
 
 import 'backend_provider_test_support.dart';
 
@@ -60,7 +61,67 @@ path = "src/main.styio"
           '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
         ),
         '''#!/usr/bin/env python3
-import json, sys
+import json, os, sys
+
+def write_runtime(session, events, command='run'):
+    build = os.path.join(os.getcwd(), '.pafio', 'build', session)
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        for event in events:
+            fh.write(json.dumps(event) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': command,
+            'session_id': session,
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    return build
+
+def cap():
+    return {
+        'contract': 'styio.observable.runtime-events',
+        'schema_version': 2,
+        'record_kind': 'session.capability',
+        'event_kind': 'session.capability',
+        'mode': 'detailed',
+        'snapshot_schema': 1,
+        'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+        'execution_id': 'x2_0000000000000001',
+        'privacy_profile': 'strict',
+        'producer_lanes': 1,
+        'lane_capacity': 256,
+        'priority_reserved': 32,
+        'drain_batch': 64,
+        'sampling': {'numerator': 1, 'denominator': 16, 'seed': 0},
+        'clock_unit': 'ns',
+        'supported_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+        'active_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+        'unavailable_capabilities': [],
+    }
+
+def ev(kind, eid, ns=0, **extra):
+    row = {
+        'contract': 'styio.observable.runtime-events',
+        'schema_version': 2,
+        'record_kind': 'event',
+        'event_kind': kind,
+        'family': 'session',
+        'priority': 'lifecycle',
+        'correlation_status': 'runtime_only',
+        'role': 'runtime_only',
+        'snapshot_id': None,
+        'site_id': None,
+        'instance_id': None,
+        'event_id': eid,
+        'monotonic_ns': ns,
+        'causes': [],
+        'wait': None,
+    }
+    row.update(extra)
+    return row
 
 if sys.argv[1:] == ['--version']:
     print('pafio 1.0.0')
@@ -71,6 +132,11 @@ if '--json' in sys.argv and 'run' in sys.argv:
         raise SystemExit(65)
     if '--bin' not in sys.argv or sys.argv[sys.argv.index('--bin') + 1] != 'demo':
         raise SystemExit(66)
+    build = write_runtime('runtime-session-1', [
+        cap(),
+        ev('compile.started', 'r2_0000000000000001', 0, intent='run'),
+        ev('run.finished', 'r2_0000000000000002', 1000, success=True),
+    ])
     print(json.dumps({
         'command': 'run',
         'mode': 'execute',
@@ -80,26 +146,7 @@ if '--json' in sys.argv and 'run' in sys.argv:
         'stderr': '',
         'diagnostics': [],
         'runtime_session_id': 'runtime-session-1',
-        'runtime_events': [
-            {
-                'schema_version': 1,
-                'session_id': 'runtime-session-1',
-                'sequence': 1,
-                'timestamp': '2026-04-17T00:00:00Z',
-                'eventKind': 'compile.started',
-                'origin': 'styio.compile-plan',
-                'payload': {'intent': 'run'},
-            },
-            {
-                'schema_version': 1,
-                'session_id': 'runtime-session-1',
-                'sequence': 2,
-                'timestamp': '2026-04-17T00:00:01Z',
-                'eventKind': 'run.finished',
-                'origin': 'styio.runtime',
-                'payload': {'file': ${jsonEncode(sourceFile.path)}, 'success': True},
-            },
-        ],
+        'plan': {'build_root': build},
         'receipt': {
             'schema_version': 1,
             'intent': 'run',
@@ -216,10 +263,13 @@ raise SystemExit(64)
           .sessionEvents(session.sessionId)
           .toList();
       expect(runtimeEvents.map((event) => event.eventKind), <String>[
+        'session.capability',
         'compile.started',
         'run.finished',
       ]);
-      expect(runtimeEvents.last.payload['file'], sourceFile.path);
+      expect(runtimeEvents.last.payload['success'], isTrue);
+      expect(runtimeEvents.last.schemaVersion, 2);
+      expect(runtimeEvents.last.origin, 'styio.observable.runtime-events');
     },
   );
 
@@ -404,39 +454,85 @@ path = "src/main.styio"
         '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
       ),
       '''#!/usr/bin/env python3
-import json, sys
+import json, os, sys
+
+def write_runtime(session, events, command='run'):
+    build = os.path.join(os.getcwd(), '.pafio', 'build', session)
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        for event in events:
+            fh.write(json.dumps(event) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': command,
+            'session_id': session,
+            'executed': False,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    return build
+
+def cap():
+    return {
+        'contract': 'styio.observable.runtime-events',
+        'schema_version': 2,
+        'record_kind': 'session.capability',
+        'event_kind': 'session.capability',
+        'mode': 'detailed',
+        'snapshot_schema': 1,
+        'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+        'execution_id': 'x2_0000000000000001',
+        'privacy_profile': 'strict',
+        'producer_lanes': 1,
+        'lane_capacity': 256,
+        'priority_reserved': 32,
+        'drain_batch': 64,
+        'sampling': {'numerator': 1, 'denominator': 16, 'seed': 0},
+        'clock_unit': 'ns',
+        'supported_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+        'active_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+        'unavailable_capabilities': [],
+    }
+
+def ev(kind, eid, ns=0, **extra):
+    row = {
+        'contract': 'styio.observable.runtime-events',
+        'schema_version': 2,
+        'record_kind': 'event',
+        'event_kind': kind,
+        'family': 'session',
+        'priority': 'lifecycle',
+        'correlation_status': 'runtime_only',
+        'role': 'runtime_only',
+        'snapshot_id': None,
+        'site_id': None,
+        'instance_id': None,
+        'event_id': eid,
+        'monotonic_ns': ns,
+        'causes': [],
+        'wait': None,
+    }
+    row.update(extra)
+    return row
 
 if sys.argv[1:] == ['--version']:
     print('pafio 1.0.0')
     raise SystemExit(0)
 
 if '--json' in sys.argv and 'run' in sys.argv:
+    build = write_runtime('runtime-session-failure', [
+        cap(),
+        ev('compile.started', 'r2_0000000000000001', 0, intent='run'),
+        ev('compile.failed', 'r2_0000000000000002', 1000, intent='run', executed=False),
+    ])
     sys.stderr.write(json.dumps({
         'category': 'CompilerError',
         'code': 23,
         'message': 'compile-plan failed through payload',
         'command': 'run',
         'runtime_session_id': 'runtime-session-failure',
-        'runtime_events': [
-            {
-                'schema_version': 1,
-                'session_id': 'runtime-session-failure',
-                'sequence': 1,
-                'timestamp': '2026-04-17T00:00:00Z',
-                'eventKind': 'compile.started',
-                'origin': 'styio.compile-plan',
-                'payload': {'intent': 'run'},
-            },
-            {
-                'schema_version': 1,
-                'session_id': 'runtime-session-failure',
-                'sequence': 2,
-                'timestamp': '2026-04-17T00:00:01Z',
-                'eventKind': 'compile.failed',
-                'origin': 'styio.compile-plan',
-                'payload': {'intent': 'run', 'executed': False},
-            },
-        ],
+        'plan': {'build_root': build},
         'diagnostics': [{
             'category': 'SyntaxError',
             'code': 'STYIO_SYN',
@@ -518,6 +614,7 @@ raise SystemExit(64)
         .sessionEvents(session.sessionId)
         .toList();
     expect(runtimeEvents.map((event) => event.eventKind), <String>[
+      'session.capability',
       'compile.started',
       'compile.failed',
     ]);
@@ -1233,7 +1330,6 @@ if '--json' in sys.argv and 'test' in sys.argv:
     artifact_dir = os.path.join(root, 'artifacts')
     os.makedirs(artifact_dir, exist_ok=True)
     diagnostics_path = os.path.join(artifact_dir, 'diagnostics.jsonl')
-    events_path = os.path.join(artifact_dir, 'events.jsonl')
     with open(diagnostics_path, 'w', encoding='utf-8') as diagnostics:
         diagnostics.write(json.dumps({
             'eventKind': 'diagnostic.emitted',
@@ -1253,17 +1349,55 @@ if '--json' in sys.argv and 'test' in sys.argv:
             'length': -2,
         }) + '\\n')
         diagnostics.write('not-json\\n')
+    build = os.path.join(root, '.pafio', 'build', 'artifact-session')
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
     with open(events_path, 'w', encoding='utf-8') as events:
-        events.write('\\n')
-        events.write('not-json\\n')
         events.write(json.dumps({
-            'schemaVersion': 2,
-            'sessionId': 'artifact-session',
-            'sequence': '4',
-            'timestamp': 'not-a-date',
-            'event_kind': 'compile.finished',
-            'payload': {'file': active},
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'detailed',
+            'snapshot_schema': 1,
+            'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+            'execution_id': 'x2_0000000000000001',
+            'privacy_profile': 'strict',
+            'producer_lanes': 1,
+            'lane_capacity': 256,
+            'priority_reserved': 32,
+            'drain_batch': 64,
+            'sampling': {'numerator': 1, 'denominator': 16, 'seed': 0},
+            'clock_unit': 'ns',
+            'supported_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+            'active_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+            'unavailable_capabilities': [],
         }) + '\\n')
+        events.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'event',
+            'event_kind': 'compile.finished',
+            'family': 'session',
+            'priority': 'lifecycle',
+            'correlation_status': 'runtime_only',
+            'role': 'runtime_only',
+            'snapshot_id': None,
+            'site_id': None,
+            'instance_id': None,
+            'event_id': 'r2_0000000000000001',
+            'monotonic_ns': 0,
+            'causes': [],
+            'wait': None,
+        }) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as receipt:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'test',
+            'session_id': 'artifact-session',
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, receipt)
     print(json.dumps({
         'workflow_payload_version': 1,
         'message': 'artifact test completed',
@@ -1275,14 +1409,14 @@ if '--json' in sys.argv and 'test' in sys.argv:
             'span': {'startOffset': '1', 'endOffset': '3'},
         }) + '\\n',
         'diagnostics_path': 'artifacts/diagnostics.jsonl',
-        'runtime_events_path': 'artifacts/events.jsonl',
+        'plan': {'build_root': build},
         'receipt': {
             'schema_version': 1,
             'intent': 'test',
             'session_id': 'artifact-session',
             'executed': True,
             'phases': ['compile', 'test'],
-            'artifacts': ['artifacts/diagnostics.jsonl', 'artifacts/events.jsonl'],
+            'artifacts': ['artifacts/diagnostics.jsonl'],
         },
     }))
     raise SystemExit(0)
@@ -1294,7 +1428,7 @@ if '--json' in sys.argv and 'build' in sys.argv and '--lib' in sys.argv:
         'stdout': 'lib stdout\\n',
         'stderr': '',
         'diagnostics': [],
-        'runtime_events': [],
+        'plan': {'build_root': os.path.join(os.getcwd(), '.pafio', 'build', 'missing')},
     }))
     raise SystemExit(0)
 
@@ -1374,18 +1508,16 @@ raise SystemExit(64)
       final runtimeEvents = await createRuntimeEventAdapter(
         platformTarget: PlatformTarget.macos,
       ).sessionEvents('artifact-session').toList();
-      expect(runtimeEvents, hasLength(1));
-      expect(runtimeEvents.single.schemaVersion, 2);
-      expect(runtimeEvents.single.sessionId, 'artifact-session');
-      expect(runtimeEvents.single.sequence, 1);
-      expect(runtimeEvents.single.eventKind, 'compile.finished');
+      expect(runtimeEvents, hasLength(2));
+      expect(runtimeEvents.first.eventKind, 'session.capability');
+      expect(runtimeEvents.last.schemaVersion, 2);
+      expect(runtimeEvents.last.sessionId, 'artifact-session');
+      expect(runtimeEvents.last.sequence, 2);
+      expect(runtimeEvents.last.eventKind, 'compile.finished');
+      expect(runtimeEvents.last.origin, 'styio.observable.runtime-events');
       expect(
-        _comparableExistingPath(runtimeEvents.single.payload['file'] as String),
-        _comparableExistingPath(testFile.path),
-      );
-      expect(
-        runtimeEvents.single.timestamp,
-        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+        runtimeEvents.last.timestamp,
+        DateTime.fromMicrosecondsSinceEpoch(0, isUtc: true),
       );
 
       final libSession = await adapter.runActiveDocument(
@@ -1506,11 +1638,1054 @@ raise SystemExit(64)
       contains('${helperFile.path}: already decorated'),
     );
   });
+
+  test('observed runs append Pafio options and return a contained artifact', () async {
+    final tempRoot = await _createTempRoot('vityo_observed_run_test_');
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+here = os.path.dirname(os.path.abspath(__file__))
+root = os.path.dirname(os.path.dirname(here))
+argv_path = os.path.join(root, 'argv.json')
+with open(argv_path, 'w', encoding='utf-8') as fh:
+    json.dump(sys.argv[1:], fh)
+def write_runtime(session, events):
+    build = os.path.join(os.getcwd(), '.pafio', 'build', session)
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        for event in events:
+            fh.write(json.dumps(event) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'run',
+            'session_id': session,
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    return build, events_path
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    build, events_path = write_runtime('observed-session', [{
+        'contract': 'styio.observable.runtime-events',
+        'schema_version': 2,
+        'record_kind': 'session.capability',
+        'event_kind': 'session.capability',
+        'mode': 'aggregate',
+        'snapshot_schema': 1,
+        'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+        'execution_id': 'x2_0000000000000001',
+        'privacy_profile': 'strict',
+        'producer_lanes': 1,
+        'lane_capacity': 256,
+        'priority_reserved': 32,
+        'drain_batch': 64,
+        'sampling': {'numerator': 1, 'denominator': 16, 'seed': 0},
+        'clock_unit': 'ns',
+        'supported_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+        'active_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+        'unavailable_capabilities': [],
+    }])
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'observed run',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'observed-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'observed-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        '/toolchains/styio/bin/styio',
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    expect(adapter, isA<ObservedExecutionAdapter>());
+    addTearDown(() => clearRuntimeEventsForSession('observed-session'));
+    final run = await (adapter as ObservedExecutionAdapter)
+        .runActiveDocumentObserved(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: projectGraph,
+          document: const DocumentState(
+            documentId: 'demo',
+            text: '>_("demo")\n',
+            revision: 1,
+          ),
+          activeFilePath: sourceFile.path,
+          observation: const RuntimeObservationRequest(
+            mode: RuntimeObservationMode.aggregate,
+          ),
+        );
+    expect(run.session.status, ExecutionSessionStatus.succeeded);
+    expect(run.runtimeEventsPath, isNotNull);
+    expect(File(run.runtimeEventsPath!).existsSync(), isTrue);
+    expect(
+      run.runtimeEventsPath!.endsWith('runtime-events.jsonl'),
+      isTrue,
+    );
+    final argv = jsonDecode(
+      File('${tempRoot.path}${Platform.pathSeparator}argv.json').readAsStringSync(),
+    ) as List<dynamic>;
+    expect(argv, contains('--emit-runtime-observation=2'));
+    expect(argv, contains('--runtime-observation-mode'));
+    expect(argv, contains('aggregate'));
+    expect(argv, contains('--runtime-observation-capability'));
+    expect(argv, contains('task-lifecycle'));
+    expect(argv, contains('loss-accounting'));
+    expect(argv, contains('strict-privacy'));
+    expect(argv, isNot(contains('--runtime-observation-lane-capacity')));
+    await run.release();
+
+    // The plain run through the same adapter must not gain any observation
+    // option: the observed seam never alters the plain command line.
+    final plainSession = await adapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+      document: const DocumentState(
+        documentId: 'demo',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(plainSession.status, ExecutionSessionStatus.succeeded);
+    final plainArgv = jsonDecode(
+      File('${tempRoot.path}${Platform.pathSeparator}argv.json').readAsStringSync(),
+    ) as List<dynamic>;
+    expect(
+      plainArgv.where((arg) => '$arg'.startsWith('--emit-runtime-observation')),
+      isEmpty,
+    );
+    expect(plainArgv, isNot(contains('--runtime-observation-mode')));
+    expect(plainArgv, isNot(contains('--runtime-observation-capability')));
+  });
+
+  test('invalid runtime stream records no envelopes', () async {
+    final tempRoot = await _createTempRoot('vityo_invalid_stream_test_');
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    build = os.path.join(os.getcwd(), '.pafio', 'build', 'invalid')
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({'contract': 'styio.other', 'schema_version': 2, 'record_kind': 'session.capability', 'event_kind': 'session.capability', 'mode': 'detailed', 'snapshot_schema': 1, 'snapshot_id': 's1_0123456789abcdef0123456789abcdef', 'execution_id': 'x2_0000000000000001'}) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({'schema_version': 1, 'intent': 'run', 'session_id': 'invalid-session', 'executed': True, 'outputs': {'runtime_events_path': events_path}}, fh)
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'invalid stream',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'invalid-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'invalid-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot('/toolchains/styio/bin/styio'),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('invalid-session'));
+    final session = await adapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+      document: const DocumentState(
+        documentId: 'demo',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(session.status, ExecutionSessionStatus.succeeded);
+    final events = await createRuntimeEventAdapter(
+      platformTarget: PlatformTarget.macos,
+    ).sessionEvents(session.sessionId).toList();
+    expect(events, isEmpty);
+  });
+
+  test('plain run records disabled-mode controller events', () async {
+    // The producer writes a v2 stream on every compile-plan run; without an
+    // observation request the capability record carries mode `disabled` and
+    // `snapshot_id: null`. That legal shape must not reject the stream, or
+    // existing sessions would lose their controller events.
+    final tempRoot = await _createTempRoot('vityo_disabled_mode_intake_test_');
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    build = os.path.join(os.getcwd(), '.pafio', 'build', 'disabled-session')
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'disabled',
+            'snapshot_schema': 1,
+            'snapshot_id': None,
+            'execution_id': 'x2_0000000000000007',
+            'privacy_profile': 'strict',
+            'producer_lanes': 0,
+            'lane_capacity': 256,
+            'priority_reserved': 32,
+            'drain_batch': 64,
+            'sampling': {'numerator': 1, 'denominator': 16, 'seed': 0},
+            'clock_unit': 'ns',
+            'supported_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+            'active_capabilities': [],
+            'unavailable_capabilities': [],
+        }) + '\\n')
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'event',
+            'event_kind': 'compile.started',
+            'family': 'controller',
+            'priority': 'lifecycle',
+            'correlation_status': 'runtime_only',
+            'role': 'runtime_only',
+            'snapshot_id': None,
+            'site_id': None,
+            'instance_id': None,
+            'event_id': 'r2_0000000000000071',
+            'monotonic_ns': 10,
+            'causes': [],
+            'wait': None,
+            'intent': 'run',
+        }) + '\\n')
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'event',
+            'event_kind': 'transition.fired',
+            'family': 'controller',
+            'priority': 'lifecycle',
+            'correlation_status': 'runtime_only',
+            'role': 'runtime_only',
+            'snapshot_id': None,
+            'site_id': None,
+            'instance_id': None,
+            'event_id': 'r2_0000000000000072',
+            'monotonic_ns': 20,
+            'causes': [],
+            'wait': None,
+            'from_phase': 'parsed',
+            'to_phase': 'typed',
+            'operation': 'sema',
+            'intent': 'run',
+        }) + '\\n')
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.summary',
+            'event_kind': 'session.summary',
+            'mode': 'disabled',
+            'execution_id': 'x2_0000000000000007',
+            'completeness': 'partial/disabled',
+            'exporter_failed': False,
+            'lane_capacity': 256,
+            'priority_reserved': 32,
+            'producer_lanes': 0,
+            'high_water_occupancy': 0,
+            'families': {},
+        }) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'run',
+            'session_id': 'disabled-session',
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'plain run',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'disabled-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'disabled-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot('/toolchains/styio/bin/styio'),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('disabled-session'));
+    final session = await adapter.runActiveDocument(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+      document: const DocumentState(
+        documentId: 'demo',
+        text: '>_("demo")\n',
+        revision: 1,
+      ),
+      activeFilePath: sourceFile.path,
+    );
+    expect(session.status, ExecutionSessionStatus.succeeded);
+    final events = await createRuntimeEventAdapter(
+      platformTarget: PlatformTarget.macos,
+    ).sessionEvents(session.sessionId).toList();
+    expect(events.map((event) => event.eventKind), <String>[
+      'session.capability',
+      'compile.started',
+      'transition.fired',
+      'session.summary',
+    ]);
+    expect(events.first.schemaVersion, 2);
+    expect(events.first.payload['mode'], 'disabled');
+    expect(events.first.payload['snapshot_id'], isNull);
+    final transition = events.firstWhere(
+      (event) => event.eventKind == 'transition.fired',
+    );
+    expect(transition.payload['from_phase'], 'parsed');
+    expect(transition.payload['to_phase'], 'typed');
+  });
+
+  test('missing receipt returns no artifact and no envelopes', () async {
+    final tempRoot = await _createTempRoot('vityo_missing_receipt_test_');
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    build = os.path.join(os.getcwd(), '.pafio', 'build', 'missing-receipt')
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'detailed',
+            'snapshot_schema': 1,
+            'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+            'execution_id': 'x2_0000000000000001',
+        }) + '\\n')
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'missing receipt',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'missing-receipt-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'missing-receipt-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        '/toolchains/styio/bin/styio',
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('missing-receipt-session'));
+    final run = await (adapter as ObservedExecutionAdapter)
+        .runActiveDocumentObserved(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: projectGraph,
+          document: const DocumentState(
+            documentId: 'demo',
+            text: '>_("demo")\n',
+            revision: 1,
+          ),
+          activeFilePath: sourceFile.path,
+          observation: const RuntimeObservationRequest(
+            mode: RuntimeObservationMode.aggregate,
+          ),
+        );
+    expect(run.session.status, ExecutionSessionStatus.succeeded);
+    expect(run.runtimeEventsPath, isNull);
+    final events = await createRuntimeEventAdapter(
+      platformTarget: PlatformTarget.macos,
+    ).sessionEvents(run.session.sessionId).toList();
+    expect(events, isEmpty);
+    await run.release();
+  });
+
+  test('artifact outside the workspace tree is ignored', () async {
+    final tempRoot = await _createTempRoot('vityo_outside_artifact_test_');
+    final outsideRoot = Directory(
+      '${tempRoot.parent.path}${Platform.pathSeparator}'
+      '${tempRoot.uri.pathSegments.lastWhere((segment) => segment.isNotEmpty)}-outside-artifact',
+    );
+    addTearDown(() async {
+      if (await outsideRoot.exists()) {
+        await outsideRoot.delete(recursive: true);
+      }
+    });
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    build = os.path.join(os.getcwd(), '.pafio', 'build', 'outside')
+    os.makedirs(build, exist_ok=True)
+    sibling = os.path.join(
+        os.path.dirname(os.getcwd()), os.path.basename(os.getcwd()) + '-outside-artifact')
+    os.makedirs(sibling, exist_ok=True)
+    events_path = os.path.join(sibling, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'detailed',
+            'snapshot_schema': 1,
+            'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+            'execution_id': 'x2_0000000000000001',
+        }) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'run',
+            'session_id': 'outside-artifact-session',
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'outside artifact',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'outside-artifact-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'outside-artifact-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        '/toolchains/styio/bin/styio',
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('outside-artifact-session'));
+    final run = await (adapter as ObservedExecutionAdapter)
+        .runActiveDocumentObserved(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: projectGraph,
+          document: const DocumentState(
+            documentId: 'demo',
+            text: '>_("demo")\n',
+            revision: 1,
+          ),
+          activeFilePath: sourceFile.path,
+          observation: const RuntimeObservationRequest(
+            mode: RuntimeObservationMode.aggregate,
+          ),
+        );
+    expect(run.session.status, ExecutionSessionStatus.succeeded);
+    expect(run.runtimeEventsPath, isNull);
+    final events = await createRuntimeEventAdapter(
+      platformTarget: PlatformTarget.macos,
+    ).sessionEvents(run.session.sessionId).toList();
+    expect(events, isEmpty);
+    await run.release();
+  });
+
+  test('foreign build root cannot consume same-suffix local receipt', () async {
+    final tempRoot = await _createTempRoot('vityo_outside_artifact_test_');
+    final foreignRoot = Directory(
+      '${tempRoot.parent.path}${Platform.pathSeparator}'
+      '${tempRoot.uri.pathSegments.lastWhere((segment) => segment.isNotEmpty)}-foreign',
+    );
+    addTearDown(() async {
+      if (await foreignRoot.exists()) {
+        await foreignRoot.delete(recursive: true);
+      }
+    });
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    suffix = os.path.join('.pafio', 'build', 'shared-session')
+    local_build = os.path.join(os.getcwd(), suffix)
+    foreign_root = os.path.join(
+        os.path.dirname(os.getcwd()), os.path.basename(os.getcwd()) + '-foreign')
+    foreign_build = os.path.join(foreign_root, suffix)
+    os.makedirs(local_build, exist_ok=True)
+    os.makedirs(foreign_build, exist_ok=True)
+    events_path = os.path.join(local_build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'detailed',
+            'snapshot_schema': 1,
+            'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+            'execution_id': 'x2_0000000000000001',
+        }) + '\\n')
+    with open(os.path.join(local_build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'run',
+            'session_id': 'outside-session',
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'outside artifact',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'outside-session',
+        'plan': {'build_root': foreign_build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'outside-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        '/toolchains/styio/bin/styio',
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('outside-session'));
+    final run = await (adapter as ObservedExecutionAdapter)
+        .runActiveDocumentObserved(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: projectGraph,
+          document: const DocumentState(
+            documentId: 'demo',
+            text: '>_("demo")\n',
+            revision: 1,
+          ),
+          activeFilePath: sourceFile.path,
+          observation: const RuntimeObservationRequest(
+            mode: RuntimeObservationMode.aggregate,
+          ),
+        );
+    expect(run.session.status, ExecutionSessionStatus.succeeded);
+    expect(run.runtimeEventsPath, isNull);
+    final events = await createRuntimeEventAdapter(
+      platformTarget: PlatformTarget.macos,
+    ).sessionEvents(run.session.sessionId).toList();
+    expect(events, isEmpty);
+    await run.release();
+  });
+
+  test('observed overlay directory lives until release', () async {
+    final tempRoot = await _createTempRoot('vityo_overlay_release_test_');
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    build = os.path.join(os.getcwd(), '.pafio', 'build', 'overlay-session')
+    os.makedirs(build, exist_ok=True)
+    events_path = os.path.join(build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'aggregate',
+            'snapshot_schema': 1,
+            'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+            'execution_id': 'x2_0000000000000001',
+            'privacy_profile': 'strict',
+            'producer_lanes': 1,
+            'lane_capacity': 256,
+            'priority_reserved': 32,
+            'drain_batch': 64,
+            'sampling': {'numerator': 1, 'denominator': 16, 'seed': 0},
+            'clock_unit': 'ns',
+            'supported_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+            'active_capabilities': ['task-lifecycle', 'loss-accounting', 'strict-privacy'],
+            'unavailable_capabilities': [],
+        }) + '\\n')
+    with open(os.path.join(build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'run',
+            'session_id': 'overlay-session',
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'overlay run',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'overlay-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'overlay-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        '/toolchains/styio/bin/styio',
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('overlay-session'));
+    final run = await (adapter as ObservedExecutionAdapter)
+        .runActiveDocumentObserved(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: projectGraph,
+          document: const DocumentState(
+            documentId: 'demo',
+            text: '>_("dirty")\n',
+            revision: 2,
+          ),
+          activeFilePath: sourceFile.path,
+          observation: const RuntimeObservationRequest(
+            mode: RuntimeObservationMode.aggregate,
+          ),
+        );
+    expect(run.session.status, ExecutionSessionStatus.succeeded);
+    final workspaceName = tempRoot.uri.pathSegments.lastWhere(
+      (segment) => segment.isNotEmpty,
+    );
+    final overlayPrefix = 'Vityo-$workspaceName-';
+    final overlays = Directory(tempRoot.parent.path)
+        .listSync()
+        .whereType<Directory>()
+        .where(
+          (directory) => directory.uri.pathSegments
+              .lastWhere((segment) => segment.isNotEmpty)
+              .startsWith(overlayPrefix),
+        )
+        .toList();
+    expect(overlays, isNotEmpty);
+    final overlay = overlays.single;
+    expect(overlay.existsSync(), isTrue);
+    await run.release();
+    expect(overlay.existsSync(), isFalse);
+  });
 }
 
 Future<Directory> _createTempRoot(String prefix) async {
-  final tempRoot = await Directory.systemTemp.createTemp(prefix);
-  addTearDown(() => tempRoot.delete(recursive: true));
+  final createdTempRoot = await Directory.systemTemp.createTemp(prefix);
+  final tempRoot = Directory(await createdTempRoot.resolveSymbolicLinks());
+  addTearDown(() async {
+    if (await tempRoot.exists()) {
+      await tempRoot.delete(recursive: true);
+    }
+  });
 
   final previousCurrentDirectory = Directory.current;
   addTearDown(() => Directory.current = previousCurrentDirectory);
@@ -1541,16 +2716,6 @@ Future<File> _writePafioExecutable(File file, String contents) async {
   debugOverridePafioExecutableCandidates(<String>[executable.path]);
   addTearDown(() => debugOverridePafioExecutableCandidates(null));
   return executable;
-}
-
-String _comparableExistingPath(String path) {
-  String resolved;
-  try {
-    resolved = File(path).resolveSymbolicLinksSync();
-  } on FileSystemException {
-    resolved = path;
-  }
-  return Platform.isWindows ? resolved.toLowerCase() : resolved;
 }
 
 CompilerHandshakeSnapshot _compilerSnapshot(

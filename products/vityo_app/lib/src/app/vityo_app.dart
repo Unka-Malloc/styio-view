@@ -60,6 +60,7 @@ class _VityoAppState extends State<VityoApp> {
       workspaceDiagnosticsController:
           widget.bootstrap.workspaceDiagnosticsController,
       testingSessionController: widget.bootstrap.testingSessionController,
+      observableGraphController: widget.bootstrap.observableGraphController,
       sourceControlStatusController:
           widget.bootstrap.sourceControlStatusController,
       projectLanguageService: widget.bootstrap.projectLanguageService,

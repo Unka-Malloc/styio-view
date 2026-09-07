@@ -1,0 +1,21 @@
+{
+  "contract": "styio.observable.static-snapshot",
+  "schema_version": 1,
+  "stability": "incubating",
+  "producer": {"name": "styio", "version": "0.0.1"},
+  "capabilities": [
+    "static-topology-nodes"
+  ],
+  "compilation_unit": {
+    "package_name": "example.app",
+    "manifest_path": "Styio.toml",
+    "entry_path": "src/main.styio"
+  },
+  "completeness": "complete/validated-topology",
+  "root": null,
+  "nodes": [],
+  "edges": [],
+  "facts": [],
+  "anchors": [],
+  "evidence": []
+}

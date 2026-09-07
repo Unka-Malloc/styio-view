@@ -116,3 +116,7 @@ Record:
 4. 下一步要改的 surface、回滚点和对应 history 记录。
 5. prototype/dev_server.py rejects removed legacy entrypoint assets (`/app.js`, `/styles.css`); the test `test_removed_legacy_entrypoint_assets_are_not_served` validates 404 responses.
 6. Interactive editor input now routes printable, composition, and structural text commits through the editor-owned text-input boundary; navigation, Escape, and non-mutating shortcuts remain on the command path. Multi-selection, grapheme-safe offsets, accessibility semantics, and viewport-bounded rendering are covered by the capability's focused acceptance and rendered evidence.
+
+2026-09-05: Wired the Observable bottom-panel tab (`BottomSurfaceTab.observable`, surface id `observable.graph`) through app bootstrap, shell runtime facade, and scaffold. The controller is optional on non-IO or hosted workspaces; existing editing, build, run, and test surfaces stay unchanged. No `prototype/` change.
+
+2026-09-05: Added `Run observed` on the Observable panel, facade `runObservedProgram`, execution-controller observed run, and bootstrap injection of the IO runtime intake. No new `AppCommandId`. Compact Observable layout remains a scrolling `ListView`. No `prototype/` change.

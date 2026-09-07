@@ -171,6 +171,18 @@ void main() {
       plan.panelById('bottom.extensions')?.todo,
       contains('marketplace IO progress'),
     );
+    expect(
+      registry.panelById('bottom.observable')?.title,
+      'Observable',
+    );
+    expect(
+      registry.panelById('bottom.observable')?.surfaceId,
+      'observable.graph',
+    );
+    expect(
+      registry.panelById('bottom.observable')?.capabilities,
+      containsAll(<String>['observable-topology', 'change-highlight']),
+    );
     expect(registry.toJson()['coreIdeCoverage'], isA<Map<String, Object?>>());
   });
 }

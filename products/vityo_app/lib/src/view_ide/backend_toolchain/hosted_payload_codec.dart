@@ -514,6 +514,37 @@ CompilerHandshakeSnapshot compilerHandshakeFromPayload(
     }
   }
 
+  final snapshotInfo = payload['observable_static_snapshot'];
+  final snapshotVersions = <int>[];
+  final snapshotCapabilities = <String>[];
+  final snapshotOptionalCapabilities = <String>[];
+  if (snapshotInfo is Map) {
+    final versions = snapshotInfo['schema_versions'];
+    if (versions is List) {
+      for (final item in versions) {
+        if (item is num) {
+          snapshotVersions.add(item.toInt());
+        }
+      }
+    }
+    final snapshotCaps = snapshotInfo['capabilities'];
+    if (snapshotCaps is List) {
+      for (final item in snapshotCaps) {
+        if (item is String) {
+          snapshotCapabilities.add(item);
+        }
+      }
+    }
+    final optionalCaps = snapshotInfo['optional_capabilities'];
+    if (optionalCaps is List) {
+      for (final item in optionalCaps) {
+        if (item is String) {
+          snapshotOptionalCapabilities.add(item);
+        }
+      }
+    }
+  }
+
   return CompilerHandshakeSnapshot(
     binaryPath:
         payload['binary_path'] as String? ?? payload['binary'] as String? ?? '',
@@ -534,6 +565,15 @@ CompilerHandshakeSnapshot compilerHandshakeFromPayload(
             .whereType<String>()
             .toList(growable: false),
     featureFlags: parseBoolMap(payload['feature_flags']),
+    observableStaticSnapshotSchemaVersions: List<int>.unmodifiable(
+      snapshotVersions,
+    ),
+    observableStaticSnapshotCapabilities: List<String>.unmodifiable(
+      snapshotCapabilities,
+    ),
+    observableStaticSnapshotOptionalCapabilities: List<String>.unmodifiable(
+      snapshotOptionalCapabilities,
+    ),
   );
 }
 

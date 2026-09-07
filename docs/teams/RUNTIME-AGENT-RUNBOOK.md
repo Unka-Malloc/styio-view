@@ -2,7 +2,7 @@
 
 **Purpose:** Define ownership for runtime/debug surfaces and the IDE-side Agent Workbench without assigning Agent-runtime execution to the IDE.
 
-**Last updated:** 2026-08-11
+**Last updated:** 2026-09-08
 
 ## Mission
 
@@ -95,3 +95,5 @@ Record:
 2. 当前依赖的 adapter 能力快照和 fallback 路径。
 3. 已更新的 schema 或测试目录条目。
 4. 下一个阻塞点、回滚点与 history 链接。
+
+2026-09-05: Migrated generic runtime-event intake and replay-summary keys to Styio runtime-events v2 (`from_phase`/`to_phase`; retired v1 `message`/`file`/`thread_id` reads). Runtime surface still degrades unknown v2 kinds. No `prototype/` change.

@@ -1,9 +1,8 @@
 /// Source Control adapter contract — capability-gap-safe model.
 ///
-/// This is an adapter contract, not a Git client. Desktop may express
-/// local git candidate; Web/iOS default blocked or hosted-controlled.
-/// No real destructive git operations are implemented.
-/// Real git integration requires permission model and approval flow.
+/// This is the immutable presentation contract, not a Git process owner.
+/// Desktop operations are executed by the typed vityod Git service;
+/// Web/iOS remain blocked or hosted-controlled.
 library;
 
 // ── Provider Kind ─────────────────────────────────────────────────
@@ -47,11 +46,11 @@ class SourceControlChange {
   final bool staged;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'filePath': filePath,
-        'kind': kind.name,
-        'oldPath': oldPath,
-        'staged': staged,
-      };
+    'filePath': filePath,
+    'kind': kind.name,
+    'oldPath': oldPath,
+    'staged': staged,
+  };
 }
 
 // ── Snapshot ──────────────────────────────────────────────────────
@@ -90,27 +89,26 @@ class SourceControlSnapshot {
   int get unstagedCount => changes.where((c) => !c.staged).length;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'providerKind': providerKind.name,
-        'branchName': branchName,
-        'remoteName': remoteName,
-        'changes': changes.map((c) => c.toJson()).toList(growable: false),
-        'stagedCount': stagedCount,
-        'unstagedCount': unstagedCount,
-        'aheadCount': aheadCount,
-        'behindCount': behindCount,
-        'unpulledCount': unpulledCount,
-        'blockedReason': blockedReason,
-        'isAvailable': isAvailable,
-        'hasChanges': hasChanges,
-      };
+    'providerKind': providerKind.name,
+    'branchName': branchName,
+    'remoteName': remoteName,
+    'changes': changes.map((c) => c.toJson()).toList(growable: false),
+    'stagedCount': stagedCount,
+    'unstagedCount': unstagedCount,
+    'aheadCount': aheadCount,
+    'behindCount': behindCount,
+    'unpulledCount': unpulledCount,
+    'blockedReason': blockedReason,
+    'isAvailable': isAvailable,
+    'hasChanges': hasChanges,
+  };
 
   static const SourceControlSnapshot none = SourceControlSnapshot();
 
-  static SourceControlSnapshot blocked(String reason) =>
-      SourceControlSnapshot(
-        providerKind: SourceControlProviderKind.unavailable,
-        blockedReason: reason,
-      );
+  static SourceControlSnapshot blocked(String reason) => SourceControlSnapshot(
+    providerKind: SourceControlProviderKind.unavailable,
+    blockedReason: reason,
+  );
 
   static SourceControlSnapshot hostedBlocked() =>
       blocked('Source control is hosted-controlled on this platform.');
@@ -137,12 +135,12 @@ class LocalHistoryEntry {
   final int byteLength;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'entryId': entryId,
-        'filePath': filePath,
-        'savedAtIso8601': savedAtIso8601,
-        'contentHash': contentHash,
-        'byteLength': byteLength,
-      };
+    'entryId': entryId,
+    'filePath': filePath,
+    'savedAtIso8601': savedAtIso8601,
+    'contentHash': contentHash,
+    'byteLength': byteLength,
+  };
 }
 
 class LocalHistorySnapshot {
@@ -159,11 +157,11 @@ class LocalHistorySnapshot {
   bool get isAvailable => persisted;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'entries': entries.map((e) => e.toJson()).toList(growable: false),
-        'maxEntries': maxEntries,
-        'persisted': persisted,
-        'isAvailable': isAvailable,
-      };
+    'entries': entries.map((e) => e.toJson()).toList(growable: false),
+    'maxEntries': maxEntries,
+    'persisted': persisted,
+    'isAvailable': isAvailable,
+  };
 
   static const LocalHistorySnapshot empty = LocalHistorySnapshot();
 }
@@ -172,18 +170,16 @@ class LocalHistorySnapshot {
 
 /// Vityo-owned source control adapter contract.
 ///
-/// Desktop may consume this via a local git CLI/FFI adapter.
+/// Desktop consumes this through the typed vityod Git gateway.
 /// Web/iOS routes return [SourceControlSnapshot.hostedBlocked].
-/// This contract does not define write operations (commit, push, etc.)
-/// because those require explicit permission/approval model.
+/// Mutating commands use the separate reviewed action contracts.
 abstract class SourceControlAdapter {
   /// Produces a source control snapshot for the current workspace.
   /// Returns [SourceControlSnapshot.none] if no provider is available.
   /// Returns [SourceControlSnapshot.blocked] if the route is unsupported.
   SourceControlSnapshot readSnapshot();
 
-  /// Whether destructive operations (commit, push, reset, etc.) are
-  /// permitted on this platform. Currently always returns false.
+  /// Whether reviewed destructive operations are permitted on this platform.
   bool get allowsDestructiveOperations;
 
   /// The provider kind available on this platform.

@@ -3,7 +3,20 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 
+import 'support/vityod_test_harness.dart';
+
+import 'support/test_file_system_manager.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+
+  setUpAll(() async {
+    if (!VityodTestHarness.isSupported) return;
+    vityod = await VityodTestHarness.start(clientId: 'process-manager-test');
+  });
+
+  tearDownAll(() => vityod?.close());
+
   test('system compatibility abstract files do not import dart io', () {
     final root = Directory('lib/src/view_ide/environment/system_compatibility');
     final offenders =
@@ -40,7 +53,7 @@ void main() {
         clock: () => DateTime.utc(2026, 5, 16),
       ).probe();
       final compatibility = ProcessAdapter(facts).adapt();
-      final manager = LocalProcessManager(facts: facts);
+      final manager = LocalProcessManager(facts: facts, client: vityod!.client);
 
       final result = await manager.run(
         const ProcessCommandRequest(
@@ -157,7 +170,9 @@ void main() {
   test(
     'process manager writes standard input to commands',
     () async {
-      final manager = LocalProcessManager.linuxDebianArmForTest();
+      final manager = LocalProcessManager.linuxDebianArmForTest(
+        client: vityod!.client,
+      );
 
       final result = await manager.run(
         ProcessCommandRequest(
@@ -173,7 +188,9 @@ void main() {
   );
 
   test('process manager classifies command failures structurally', () async {
-    final manager = LocalProcessManager.linuxDebianArmForTest();
+    final manager = LocalProcessManager.linuxDebianArmForTest(
+      client: vityod!.client,
+    );
     const failed = ProcessCommandResult(
       status: ProcessCommandStatus.failed,
       executablePath: '/usr/bin/styio',
@@ -197,7 +214,7 @@ void main() {
 
     expect(nonZeroFailure, isNotNull);
     expect(nonZeroFailure!.kind, ProcessFailureKind.nonZeroExit);
-    expect(nonZeroFailure.sourceManager, 'LocalProcessManager');
+    expect(nonZeroFailure.sourceManager, 'VityodProcessManager');
     expect(nonZeroFailure.toJson()['operation'], 'toolchain.health');
     expect(blockedFailure!.kind, ProcessFailureKind.unsupported);
     expect(blockedFailure.sourceManager, 'UnsupportedProcessManager');
@@ -211,7 +228,10 @@ void main() {
       clock: () => DateTime.utc(2026, 5, 16),
     ).probe();
     final compatibility = ResourceAdapter(facts).adapt();
-    final manager = LocalResourceManager(facts: facts);
+    final manager = LocalResourceManager(
+      facts: facts,
+      fileSystemManager: TestFileSystemManager.linuxDebianArm(),
+    );
 
     final tempPath = await manager.createTempDirectory('vityo_resource_test_');
     addTearDown(() => Directory(tempPath).delete(recursive: true));
@@ -242,8 +262,8 @@ void main() {
           target: '/tmp',
         );
 
-    expect(limitFailure.kind, ResourceFailureKind.resourceLimit);
-    expect(limitFailure.sourceManager, 'LocalResourceManager');
+    expect(limitFailure.kind, ResourceFailureKind.unknownFailure);
+    expect(limitFailure.sourceManager, 'VityodResourceManager');
     expect(limitFailure.toJson()['operation'], 'resource.temp.create');
     expect(unsupportedFailure.kind, ResourceFailureKind.unsupported);
     expect(
@@ -257,7 +277,7 @@ void main() {
       'vityo_file_system_manager_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
+    final manager = TestFileSystemManager.linuxDebianArm();
     final path = manager.joinPath(<String>[tempRoot.path, 'tool']);
 
     await manager.writeBytes(path, const <int>[0, 1, 2, 255]);

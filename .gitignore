@@ -45,6 +45,8 @@ node_modules/
 **/.ruff_cache/
 **/.turbo/
 **/build/
+/products/vityo_app/native/vityod/target/
+/products/vityo_app/output/playwright/
 /build-*/
 **/coverage/
 **/dist/

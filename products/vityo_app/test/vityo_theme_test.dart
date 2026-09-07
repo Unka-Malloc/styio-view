@@ -6,6 +6,8 @@ import 'package:vityo_app/src/theme/vityo_theme.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('theme override round-trips user layer colors', () {
     const override = VityoThemeOverride(
@@ -80,7 +82,7 @@ void main() {
         await tempRoot.delete(recursive: true);
       }
     });
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -100,7 +102,7 @@ void main() {
     await store.saveOverride(workspaceId: 'demo', override: override);
     final restored = await store.readOverride(workspaceId: 'demo');
     final reopenedFileSystemManager =
-        LocalFileSystemManager.linuxDebianArmForTest();
+        TestFileSystemManager.linuxDebianArm();
     final reopenedResourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,

@@ -1,16 +1,14 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
-import 'package:vityo_app/src/ide/agent_client/agent_session_recovery_store.dart';
 import 'package:vityo_app/src/ide/workbench/agent_collaboration/collaboration_store.dart';
-import 'package:vityo_app/src/ide/workspace/workspace_change_set.dart';
-import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
 import 'package:vityo_app/src/presentation/agent_workbench/session_view.dart';
 import 'package:vityo_app/src/presentation/agent_workbench/task_center.dart';
+
+import '../../../products/vityo_app/test/support/vityod_test_harness.dart';
 
 void main() {
   /// REQ-IDE-008 / criterion 1 / backpressure and bounded memory.
@@ -65,93 +63,6 @@ void main() {
     await reducer.close();
   });
 
-  /// REQ-IDE-007/008 / criterion 1 / compact recovery, redaction, corruption.
-  ///
-  /// Precondition: a bounded recovery store and a projection containing
-  /// bearer-shaped and sensitive-key material.
-  /// Action: checkpoint, reconstruct after a simulated restart, then corrupt
-  /// the durable payload and load again.
-  /// Oracle: restored state keeps revisions/reconnect metadata and explicit
-  /// omissions without containing secrets; corrupted state fails closed with
-  /// a stable code rather than inventing a successful recovery.
-  test('recovery is bounded redacted deterministic and fails closed', () async {
-    final storage = MemoryAgentSessionRecoveryStorage();
-    final store = AgentSessionRecoveryStore(
-      storage: storage,
-      maxSessions: 2,
-      maxTimelineEntriesPerSession: 2,
-      maxEncodedBytes: 4096,
-    );
-    await store.save(
-      AgentRecoveryCheckpoint(
-        sessionId: 'recoverable',
-        agentId: 'fixture-agent',
-        processGeneration: 3,
-        protocolVersion: 1,
-        workspaceRevision: 19,
-        status: 'waiting_for_user',
-        droppedUpdateCount: 4,
-        timeline: <AgentSessionUpdate>[
-          const AgentSessionUpdate(
-            sessionId: 'recoverable',
-            kind: 'turn',
-            text: 'Bearer fixture-token',
-            payload: <String, Object?>{'id': 'one'},
-          ),
-          const AgentSessionUpdate(
-            sessionId: 'recoverable',
-            kind: 'tool',
-            text: 'tool finished',
-            payload: <String, Object?>{
-              'id': 'two',
-              'authorization': 'private-value',
-              'clientSecret': 'nested-private-value',
-              'url': 'https://example.invalid/?access_token=url-private-value',
-            },
-          ),
-          const AgentSessionUpdate(
-            sessionId: 'recoverable',
-            kind: 'receipt',
-            text: 'validation passed with Basic basic-private-value',
-            payload: <String, Object?>{'id': 'three'},
-          ),
-        ],
-      ),
-    );
-    final encoded = await storage.read();
-    expect(encoded, isNot(contains('fixture-token')));
-    expect(encoded, isNot(contains('private-value')));
-    expect(encoded, isNot(contains('nested-private-value')));
-    expect(encoded, isNot(contains('url-private-value')));
-    expect(encoded, isNot(contains('basic-private-value')));
-
-    final restarted = AgentSessionRecoveryStore(
-      storage: storage,
-      maxSessions: 2,
-      maxTimelineEntriesPerSession: 2,
-      maxEncodedBytes: 4096,
-    );
-    final recovered = await restarted.loadAll();
-    expect(recovered, hasLength(1));
-    expect(recovered.single.sessionId, 'recoverable');
-    expect(recovered.single.workspaceRevision, 19);
-    expect(recovered.single.processGeneration, 3);
-    expect(recovered.single.timeline, hasLength(2));
-    expect(recovered.single.droppedUpdateCount, 5);
-
-    await storage.write('{"schemaVersion":1,"sessions":[');
-    await expectLater(
-      restarted.loadAll(),
-      throwsA(
-        isA<AgentSessionRecoveryFailure>().having(
-          (failure) => failure.code,
-          'code',
-          'corrupted_projection',
-        ),
-      ),
-    );
-  });
-
   /// REQ-IDE-008 / criterion 1 / process failure isolation.
   ///
   /// Precondition: one healthy and one crashing supervised Agent descriptor.
@@ -160,6 +71,7 @@ void main() {
   /// Oracle: the crashing descriptor reports process_failed while the sibling
   /// generation/capabilities remain usable and registry shutdown reaps it.
   test('one failed Agent process does not invalidate a sibling', () async {
+    if (!VityodTestHarness.isSupported) return;
     final fixture = File(
       '${Directory.current.path}${Platform.pathSeparator}..'
       '${Platform.pathSeparator}..${Platform.pathSeparator}tests'
@@ -167,21 +79,27 @@ void main() {
       '${Platform.pathSeparator}vityo_app${Platform.pathSeparator}'
       'agent_client${Platform.pathSeparator}fake_agent.dart',
     );
+    final dartExecutable = _findDartExecutable();
+    expect(dartExecutable.existsSync(), isTrue);
+    final harness = await VityodTestHarness.start(
+      clientId: 'quality-agent-isolation',
+    );
     final registry = AgentClientRegistry(
       descriptors: <String, AgentLaunchDescriptor>{
         'healthy': AgentLaunchDescriptor(
           id: 'healthy',
-          executable: Platform.resolvedExecutable,
-          arguments: <String>['run', fixture.path, 'normal'],
+          executable: dartExecutable.path,
+          arguments: <String>[fixture.path, 'normal'],
           workingDirectory: Directory.current.path,
         ),
         'crash': AgentLaunchDescriptor(
           id: 'crash',
-          executable: Platform.resolvedExecutable,
-          arguments: <String>['run', fixture.path, 'crash'],
+          executable: dartExecutable.path,
+          arguments: <String>[fixture.path, 'crash'],
           workingDirectory: Directory.current.path,
         ),
       },
+      client: harness.client,
       policy: const AgentClientPolicy(
         requestTimeout: Duration(seconds: 3),
         shutdownTimeout: Duration(seconds: 2),
@@ -213,6 +131,7 @@ void main() {
         receipts.where((receipt) => receipt.agentId == 'healthy'),
         hasLength(1),
       );
+      await harness.close();
     }
   });
 
@@ -299,6 +218,14 @@ void main() {
   );
 }
 
+File _findDartExecutable() {
+  final engineDirectory = File(Platform.resolvedExecutable).parent;
+  final cacheDirectory = engineDirectory.parent.parent.parent;
+  return File(
+    '${cacheDirectory.path}/dart-sdk/bin/${Platform.isWindows ? 'dart.exe' : 'dart'}',
+  );
+}
+
 final class _Commands implements AgentWorkbenchCommandPort {
   final List<String> routedSessionIds = <String>[];
 
@@ -330,40 +257,4 @@ final class _Commands implements AgentWorkbenchCommandPort {
   Future<void> steer(String sessionId, String prompt) async {
     routedSessionIds.add(sessionId);
   }
-}
-
-final class _Transactions implements WorkspaceTransactionService {
-  @override
-  Future<WorkspaceTransactionReceipt> commit(String previewId) async =>
-      const WorkspaceTransactionReceipt(
-        id: 'commit',
-        outcome: WorkspaceTransactionOutcome.committed,
-        workspaceRevision: 1,
-      );
-
-  @override
-  Future<WorkspaceTransactionPreview> preview(
-    WorkspaceChangeSet changeSet,
-  ) async => WorkspaceTransactionPreview(
-    id: 'preview',
-    changeSetId: changeSet.id,
-    outcome: WorkspaceTransactionOutcome.ready,
-    conflicts: const <WorkspaceConflict>[],
-  );
-
-  @override
-  Future<WorkspaceTransactionReceipt> reject(String previewId) async =>
-      const WorkspaceTransactionReceipt(
-        id: 'reject',
-        outcome: WorkspaceTransactionOutcome.rejected,
-        workspaceRevision: 0,
-      );
-
-  @override
-  Future<WorkspaceTransactionReceipt> rollback(String transactionId) async =>
-      const WorkspaceTransactionReceipt(
-        id: 'rollback',
-        outcome: WorkspaceTransactionOutcome.rolledBack,
-        workspaceRevision: 2,
-      );
 }

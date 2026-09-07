@@ -46,7 +46,8 @@ class WorkspaceController extends ChangeNotifier {
             : projectSnapshot.editorFiles.isNotEmpty
             ? projectSnapshot.editorFiles.first
             : '');
-    if (_activeFilePath.isNotEmpty && !_openFilePaths.contains(_activeFilePath)) {
+    if (_activeFilePath.isNotEmpty &&
+        !_openFilePaths.contains(_activeFilePath)) {
       _openFilePaths.add(_activeFilePath);
     }
     notifyListeners();
@@ -133,10 +134,7 @@ class WorkspaceController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void restoreOpenFiles(
-    List<String> filePaths, {
-    String? activeFilePath,
-  }) {
+  void restoreOpenFiles(List<String> filePaths, {String? activeFilePath}) {
     final restored = <String>[];
     for (final filePath in filePaths) {
       if (!_projectSnapshot.editorFiles.contains(filePath) ||

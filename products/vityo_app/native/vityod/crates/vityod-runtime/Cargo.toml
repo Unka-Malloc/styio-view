@@ -1,0 +1,16 @@
+[package]
+name = "vityod-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc.workspace = true
+portable-pty.workspace = true
+vityod-agent-host = { path = "../vityod-agent-host" }
+vityod-kernel = { path = "../vityod-kernel" }
+vityod-workspace = { path = "../vityod-workspace" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys.workspace = true

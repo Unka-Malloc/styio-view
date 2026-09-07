@@ -14,8 +14,8 @@ library;
 
 import 'dart:math';
 
-import 'package:vityo_app/src/view_ide/editor/document/document_state.dart';
-import 'package:vityo_app/src/view_ide/editor/document/text_buffer/text_buffer.dart';
+import 'package:vityo_app/src/ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/ide/editor/document/text_buffer/text_buffer.dart';
 
 /// Generates a document with [lineCount] lines of text.
 DocumentState generateDocument(
@@ -142,10 +142,7 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
     final r = BenchmarkRunner('random_insert_${size}lines').run(100, (_) {
       for (var j = 0; j < 10; j++) {
         final offset = rng.nextInt(buffer.length + 1);
-        buffer = buffer.replace(
-          TextRange(start: offset, end: offset),
-          'x',
-        );
+        buffer = buffer.replace(TextRange(start: offset, end: offset), 'x');
       }
     });
     results.add(r);
@@ -161,10 +158,7 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
           continue;
         }
         final offset = rng.nextInt(buffer.length);
-        buffer = buffer.replace(
-          TextRange(start: offset, end: offset + 1),
-          '',
-        );
+        buffer = buffer.replace(TextRange(start: offset, end: offset + 1), '');
       }
     });
     results.add(r);
@@ -188,9 +182,9 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
       100,
       (_) => (line: rng.nextInt(lines.length), column: rng.nextInt(60)),
     );
-    final r2 = BenchmarkRunner(
-      'offset_for_line_column_${size}lines',
-    ).run(100, (_) {
+    final r2 = BenchmarkRunner('offset_for_line_column_${size}lines').run(100, (
+      _,
+    ) {
       for (final pair in lineColumnPairs) {
         snapshot.offsetAt(TextPosition(line: pair.line, column: pair.column));
       }
@@ -208,9 +202,7 @@ List<Map<String, dynamic>> runAlg01Benchmarks() {
       final midLine = lines.length ~/ 2;
       final startLine = midLine.clamp(0, lines.length - 25).toInt();
       final endLine = (startLine + 50).clamp(0, lines.length).toInt();
-      final start = snapshot.offsetAt(
-        TextPosition(line: startLine, column: 0),
-      );
+      final start = snapshot.offsetAt(TextPosition(line: startLine, column: 0));
       final end = snapshot.offsetAt(
         TextPosition(line: endLine - 1, column: lines[endLine - 1].length),
       );

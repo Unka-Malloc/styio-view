@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import '../../ide/local_service/vityod_client.dart';
 import '../../view_ide/commands/commands.dart';
 import '../../view_ide/interaction/interaction.dart';
 import '../../view_ide/shell_runtime/shell_runtime.dart';
@@ -50,6 +53,7 @@ class ShellModel extends ShellRuntimeModel {
     required super.runtimeEventAdapter,
     required super.dependencySourceAdapter,
     required super.deploymentAdapter,
+    super.terminalRuntimeRegistry,
     super.agentClientRegistry,
     super.agentCollaboration,
     super.runtimeOutputBuffer,
@@ -70,11 +74,14 @@ class ShellModel extends ShellRuntimeModel {
     super.observableGraphController,
     super.sourceControlStatusController,
     super.projectLanguageService,
+    super.debugAdapterLauncher,
+    this.vityodClient,
     super.semanticPanelEventStateController,
     super.semanticPanelEventStore,
     super.semanticPanelEventWorkspaceId,
     super.workspaceQuickFixTelemetryStore,
     super.workspaceQuickFixTelemetryWorkspaceId,
+    super.workspaceTextSearchProvider,
     ShellLayoutPreferenceController? shellLayoutPreferenceController,
   }) : shellLayoutPreferenceController =
            shellLayoutPreferenceController ??
@@ -82,9 +89,42 @@ class ShellModel extends ShellRuntimeModel {
              initialPreferences: const ShellLayoutPreferences(
                workspaceId: 'default',
              ),
-           );
+           ) {
+    _vityodStateSubscription = vityodClient?.states.listen((_) {
+      notifyListeners();
+    });
+  }
 
   final ShellLayoutPreferenceController shellLayoutPreferenceController;
+  final VityodClient? vityodClient;
+  StreamSubscription<VityodConnectionState>? _vityodStateSubscription;
+
+  VityodConnectionState get localServiceConnection =>
+      vityodClient?.state ?? const VityodConnectionState.disconnected();
+
+  VityodServiceSnapshot? get localServiceSnapshot => vityodClient?.snapshot;
+
+  Future<void> recoverServiceConnection() async {
+    appendLog('Service recovery requested.');
+    try {
+      final client = vityodClient;
+      if (client != null) {
+        await client.connect();
+      } else {
+        await refreshProjectGraph(reason: 'service recovery');
+      }
+    } on Object {
+      appendLog('Service recovery remains unavailable.');
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_vityodStateSubscription?.cancel());
+    _vityodStateSubscription = null;
+    super.dispose();
+  }
 
   BottomSurfaceTab get activeBottomTab =>
       shellLayoutPreferenceController.preferences.activeBottomTab;

@@ -66,5 +66,4 @@ class LocalProcessProber implements ProcessProber {
       ),
     );
   }
-
 }

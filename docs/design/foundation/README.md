@@ -877,7 +877,7 @@ The following invariants are enforced by Foundation code and tests:
 
 4. **Single Implementation Path**: Foundation has exactly one implementation path per module. No debug-only, prototype-only, lab-only, or experimental code paths exist as final deliverables. All Foundation modules compile into the production Dart library without conditional guard flags.
 
-5. **Capability Gap Serialization Safety**: Capability gap reports remain user-visible IDE state. Any facts exposed to an Agent must traverse the bounded, sanitized `RevisionedIdeContextExportService`; Foundation does not own a parallel Agent projection.
+5. **Capability Gap Serialization Safety**: Capability gap reports remain user-visible IDE state. Any facts exposed to an Agent must traverse the bounded, sanitized daemon MCP gateway; Foundation does not own a parallel Agent projection.
 
 6. **Resource Coordinator Does Not Write Files**: `FoundationResourceCoordinator` produces `FoundationResourceLocation` records. It never calls file-system write, delete, or directory creation APIs directly.
 

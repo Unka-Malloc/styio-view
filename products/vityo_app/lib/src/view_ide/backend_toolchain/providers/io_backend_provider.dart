@@ -1,4 +1,5 @@
 import '../../platform/platform_target.dart';
+import '../../environment/system_compatibility/platform_manager/platform_manager.dart';
 import '../backend_provider.dart';
 import '../dependency_source_adapter.dart';
 import '../dependency_source_adapter_io.dart';
@@ -32,17 +33,24 @@ abstract class IoBackendProvider implements BackendProvider {
   };
 
   @override
-  Future<ProjectGraphAdapter> createProjectGraphAdapter() {
-    return createPlatformProjectGraphAdapter(platformTarget: platformTarget);
+  Future<ProjectGraphAdapter> createProjectGraphAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
+    return createPlatformProjectGraphAdapter(
+      platformTarget: platformTarget,
+      platformManagers: platformManagers,
+    );
   }
 
   @override
   Future<ExecutionAdapter> createExecutionAdapter(
-    ProjectGraphSnapshot projectGraph,
-  ) {
+    ProjectGraphSnapshot projectGraph, {
+    PlatformManagerBundle? platformManagers,
+  }) {
     return createPlatformExecutionAdapter(
       platformTarget: platformTarget,
       projectGraph: projectGraph,
+      platformManagers: platformManagers,
     );
   }
 
@@ -52,14 +60,22 @@ abstract class IoBackendProvider implements BackendProvider {
   }
 
   @override
-  Future<DependencySourceAdapter> createDependencySourceAdapter() {
+  Future<DependencySourceAdapter> createDependencySourceAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
     return createPlatformDependencySourceAdapter(
       platformTarget: platformTarget,
+      platformManagers: platformManagers,
     );
   }
 
   @override
-  Future<DeploymentAdapter> createDeploymentAdapter() {
-    return createPlatformDeploymentAdapter(platformTarget: platformTarget);
+  Future<DeploymentAdapter> createDeploymentAdapter({
+    PlatformManagerBundle? platformManagers,
+  }) {
+    return createPlatformDeploymentAdapter(
+      platformTarget: platformTarget,
+      platformManagers: platformManagers,
+    );
   }
 }

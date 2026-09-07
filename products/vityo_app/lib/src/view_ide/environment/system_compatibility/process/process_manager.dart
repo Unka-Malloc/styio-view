@@ -3,6 +3,8 @@ import 'process_facts.dart';
 
 enum ProcessCommandStatus { succeeded, failed, timedOut, blocked }
 
+enum ProcessServiceKind { generic, styio, pafio }
+
 enum ProcessFailureKind {
   unsupported,
   executableNotFound,
@@ -21,6 +23,7 @@ class ProcessCommandRequest {
     this.workingDirectory,
     this.timeout,
     this.standardInput,
+    this.serviceKind = ProcessServiceKind.generic,
   });
 
   final String executablePath;
@@ -29,6 +32,7 @@ class ProcessCommandRequest {
   final String? workingDirectory;
   final Duration? timeout;
   final String? standardInput;
+  final ProcessServiceKind serviceKind;
 }
 
 class ProcessOperationFailure {

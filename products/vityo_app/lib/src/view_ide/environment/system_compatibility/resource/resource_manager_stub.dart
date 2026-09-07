@@ -1,6 +1,7 @@
 // ignore_for_file: use_super_parameters
 
 import '../platform_context/platform_context.dart';
+import '../file_system/file_system_manager.dart';
 import 'resource_adapter.dart';
 import 'resource_facts.dart';
 import 'resource_manager.dart';
@@ -10,6 +11,7 @@ import 'resource_prober_stub.dart';
 Future<ResourceManager> createPlatformResourceManager({
   ResourceProber? prober,
   PlatformContextSnapshot? platformContext,
+  FileSystemManager? fileSystemManager,
 }) async {
   if (platformContext != null) {
     return UnsupportedResourceManager(facts: platformContext.resource);
@@ -19,8 +21,11 @@ Future<ResourceManager> createPlatformResourceManager({
 }
 
 class LocalResourceManager extends UnsupportedResourceManager {
-  LocalResourceManager({required ResourceFacts facts, ResourceAdapter? adapter})
-    : super(facts: facts);
+  LocalResourceManager({
+    required ResourceFacts facts,
+    ResourceAdapter? adapter,
+    FileSystemManager? fileSystemManager,
+  }) : super(facts: facts);
 
   factory LocalResourceManager.linuxDebianArmForTest({
     String systemTempPath = '/tmp',

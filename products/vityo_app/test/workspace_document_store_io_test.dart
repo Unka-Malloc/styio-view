@@ -1,134 +1,129 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/ide/editor/document/document_encoding.dart';
+import 'package:vityo_app/src/ide/editor/document/document_state.dart';
+import 'package:vityo_app/src/ide/local_service/vityod_client.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_document_store_io.dart';
-import 'package:vityo_app/src/ide/editor/document_state.dart';
 
 void main() {
-  test('filesystem store persists source and revision sidecar', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_store_test_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-
-    final store = FileSystemWorkspaceDocumentStore(tempRoot);
-    const document = DocumentState(
-      documentId: 'cloud/main.styio',
-      text: 'fn main() {\n  emit session\n}\n',
-      revision: 7,
-    );
-
-    await store.saveDocument(document);
-    final loaded = await store.loadDocument(document.documentId);
-
-    expect(loaded.text, document.text);
-    expect(loaded.revision, document.revision);
-    expect(
-      File(
-        '${tempRoot.path}${Platform.pathSeparator}cloud${Platform.pathSeparator}main.styio',
-      ).existsSync(),
-      isTrue,
-    );
-    expect(
-      store.filePathForDocumentId(document.documentId),
-      '${tempRoot.path}${Platform.pathSeparator}cloud${Platform.pathSeparator}main.styio',
-    );
-  });
-
   test(
-    'filesystem store reads and writes absolute project files directly',
+    'vityod document store persists revisions and encoding across daemon restart',
     () async {
-      final tempRoot = await Directory.systemTemp.createTemp(
-        'vityo_store_abs_test_',
+      if (Platform.isWindows) return;
+      final executable = _findVityodExecutable();
+      expect(executable.existsSync(), isTrue);
+      final temporary = await Directory.systemTemp.createTemp('vd-store-');
+      final endpoint = '${temporary.path}/service.sock';
+
+      var daemon = await _startDaemon(executable, endpoint);
+      var client = await _connect(endpoint, 'store-client-1');
+      var store = VityodWorkspaceDocumentStore(client: client);
+      const document = DocumentState(
+        documentId: 'lib/main.styio',
+        text: 'value = 1',
+        revision: 0,
+        encoding: DocumentEncoding.utf8WithBom,
       );
-      addTearDown(() => tempRoot.delete(recursive: true));
+      await store.saveDocument(document);
+      final loaded = await store.loadDocument(document.documentId);
+      expect(loaded.text, document.text);
+      expect(loaded.revision, 1);
+      expect(loaded.encoding, DocumentEncoding.utf8WithBom);
 
-      final absoluteFile = File(
-        '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
-      )..createSync(recursive: true);
-      absoluteFile.writeAsStringSync('fn main() {\n  emit seed\n}\n');
+      await client.dispose();
+      daemon.kill();
+      await daemon.exitCode.timeout(const Duration(seconds: 5));
 
-      final store = FileSystemWorkspaceDocumentStore(tempRoot);
+      daemon = await _startDaemon(executable, endpoint);
+      client = await _connect(endpoint, 'store-client-2');
+      store = VityodWorkspaceDocumentStore(client: client);
+      final reopened = await store.loadDocument(document.documentId);
+      expect(reopened.text, document.text);
+      expect(reopened.revision, 1);
+      expect(reopened.encoding, DocumentEncoding.utf8WithBom);
+      expect(await store.documentExists(document.documentId), isTrue);
+      expect(await store.deleteDocument(document.documentId), isTrue);
+      expect(await store.documentExists(document.documentId), isFalse);
 
-      final loaded = await store.loadDocument(absoluteFile.path);
-      expect(loaded.text, 'fn main() {\n  emit seed\n}\n');
-
-      final updated = DocumentState(
-        documentId: loaded.documentId,
-        text: 'fn main() {\n  emit updated\n}\n',
-        revision: 3,
-      );
-
-      await store.saveDocument(updated);
-
-      expect(absoluteFile.readAsStringSync(), updated.text);
-      expect(store.filePathForDocumentId(absoluteFile.path), absoluteFile.path);
-    },
-  );
-
-  test('filesystem store rejects escaping relative document ids', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_store_escape_test_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-
-    final store = FileSystemWorkspaceDocumentStore(tempRoot);
-
-    expect(
-      () => store.filePathForDocumentId('../secret.styio'),
-      throwsArgumentError,
-    );
-    await expectLater(
-      store.loadDocument('..\\secret.styio'),
-      throwsArgumentError,
-    );
-    await expectLater(
-      store.saveDocument(
-        const DocumentState(
-          documentId: '../secret.styio',
-          text: 'secret\n',
-          revision: 1,
+      await expectLater(
+        store.saveDocument(
+          const DocumentState(
+            documentId: '../outside',
+            text: 'denied',
+            revision: 0,
+          ),
         ),
-      ),
-      throwsArgumentError,
+        throwsA(
+          isA<VityodWorkspaceStoreFailure>().having(
+            (failure) => failure.code,
+            'code',
+            'workspace_root_escape',
+          ),
+        ),
+      );
+
+      await client.dispose();
+      daemon.kill();
+      await daemon.exitCode.timeout(const Duration(seconds: 5));
+      await temporary.delete(recursive: true);
+    },
+    skip: !(Platform.isMacOS || Platform.isLinux)
+        ? 'Unix local-service transport only.'
+        : false,
+  );
+}
+
+Future<Process> _startDaemon(File executable, String endpoint) async {
+  final daemon = await Process.start(executable.path, <String>[
+    '--serve',
+    '--endpoint',
+    endpoint,
+  ]);
+  await _waitForEndpoint(endpoint);
+  return daemon;
+}
+
+Future<VityodClient> _connect(String endpoint, String clientId) async {
+  final client = VityodClient(
+    transport: SocketVityodTransport(endpointPath: endpoint),
+    clientInstanceId: clientId,
+  );
+  await client.connect();
+  return client;
+}
+
+File _findVityodExecutable() {
+  var directory = Directory.current.absolute;
+  for (var depth = 0; depth < 12; depth += 1) {
+    final candidate = File(
+      '${directory.path}/native/vityod/target/debug/vityod',
     );
-  });
+    if (candidate.existsSync()) return candidate;
+    final parent = directory.parent;
+    if (parent.path == directory.path) break;
+    directory = parent;
+  }
+  return File('native/vityod/target/debug/vityod');
+}
 
-  test('filesystem store watches document text and revision changes', () async {
-    final tempRoot = await Directory.systemTemp.createTemp(
-      'vityo_store_watch_test_',
-    );
-    addTearDown(() => tempRoot.delete(recursive: true));
-
-    final store = FileSystemWorkspaceDocumentStore(tempRoot);
-    const initial = DocumentState(
-      documentId: 'watched/main.styio',
-      text: 'value := 1\n',
-      revision: 1,
-    );
-    final updated = initial.replaceRange(
-      start: initial.text.indexOf('1'),
-      end: initial.text.indexOf('1') + 1,
-      replacement: '2',
-    );
-
-    await store.saveDocument(initial);
-    final observed = store
-        .watchDocument(initial.documentId)
-        .firstWhere(
-          (document) =>
-              document.text == updated.text &&
-              document.revision == updated.revision,
-        )
-        .timeout(const Duration(seconds: 3));
-
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-    await store.saveDocument(updated);
-
-    final watched = await observed;
-
-    expect(watched.documentId, updated.documentId);
-    expect(watched.text, updated.text);
-    expect(watched.revision, updated.revision);
-  });
+Future<void> _waitForEndpoint(String endpoint) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (true) {
+    try {
+      final probe = await Socket.connect(
+        InternetAddress(endpoint, type: InternetAddressType.unix),
+        0,
+      );
+      await probe.close();
+      return;
+    } on SocketException {
+      // A stale endpoint may remain until the new daemon owns the lock.
+    }
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('vityod workspace endpoint was not created');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
 }

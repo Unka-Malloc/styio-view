@@ -7,6 +7,8 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 import 'package:vityo_app/src/ide/workspace/workspace.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'workspace edit applier applies edits across stored documents',
@@ -671,7 +673,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_workspace_edit_pagination_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

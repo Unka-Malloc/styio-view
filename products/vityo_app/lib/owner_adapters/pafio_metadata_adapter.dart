@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:io';
 
 import '../src/view_ide/backend_toolchain/project_graph_contract.dart';
+import '../src/view_ide/environment/system_compatibility/process/process.dart';
 
 /// Vityo's only local Pafio project-model entry is `pafio metadata --json`.
 ///
@@ -9,24 +9,34 @@ import '../src/view_ide/backend_toolchain/project_graph_contract.dart';
 /// not inspect pafio.toml, pafio.lock, project cache directories, or Pafio's
 /// process environment.
 class PafioMetadataAdapter {
-  const PafioMetadataAdapter({required this.binaryPath});
+  const PafioMetadataAdapter({
+    required this.binaryPath,
+    required this.processManager,
+  });
 
   final String binaryPath;
+  final ProcessManager processManager;
 
   Future<PafioMetadataDocument> load({required String manifestPath}) async {
-    final result = await Process.run(binaryPath, <String>[
-      'metadata',
-      '--json',
-      '--manifest-path',
-      manifestPath,
-    ]);
-    if (result.exitCode != 0) {
+    final result = await processManager.run(
+      ProcessCommandRequest(
+        executablePath: binaryPath,
+        arguments: <String>[
+          'metadata',
+          '--json',
+          '--manifest-path',
+          manifestPath,
+        ],
+        serviceKind: ProcessServiceKind.pafio,
+      ),
+    );
+    if (!result.succeeded) {
       throw PafioMetadataException(
         'pafio metadata --json exited with code ${result.exitCode}: '
         '${_boundedText(result.stderr)}',
       );
     }
-    return decode(result.stdout as String);
+    return decode(result.stdout);
   }
 
   static PafioMetadataDocument decode(String payload) {

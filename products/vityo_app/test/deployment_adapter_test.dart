@@ -11,6 +11,9 @@ import 'fake_pafio_cli.dart';
 import 'backend_provider_test_support.dart';
 
 void main() {
+  setUpAll(startBackendProviderTestServices);
+  tearDownAll(stopBackendProviderTestServices);
+
   test('deployment adapter executes published pafio pack', () async {
     final tempRoot = await _createWorkspaceFixture();
     addTearDown(() => tempRoot.delete(recursive: true));
@@ -220,11 +223,8 @@ print(json.dumps({
 raise SystemExit(64)
 ''',
   );
-  debugOverridePafioDiscoveryEnvironment(<String, String>{
-    ...Platform.environment,
-    'VITYO_PAFIO_BIN': pafio.path,
-  });
-  addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+  debugOverridePafioExecutableCandidates(<String>[pafio.path]);
+  addTearDown(() => debugOverridePafioExecutableCandidates(null));
   return tempRoot;
 }
 

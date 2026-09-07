@@ -1,6 +1,22 @@
 import '../workbench/context_key_service.dart';
 
 enum AppCommandId {
+  addCursorAbove,
+  addCursorBelow,
+  removeSecondaryCursors,
+  moveCursorsLeft,
+  moveCursorsRight,
+  moveCursorsUp,
+  moveCursorsDown,
+  extendSelectionsLeft,
+  extendSelectionsRight,
+  extendSelectionsUp,
+  extendSelectionsDown,
+  extendColumnSelectionLeft,
+  extendColumnSelectionRight,
+  extendColumnSelectionUp,
+  extendColumnSelectionDown,
+
   save,
   saveAll,
   openFile,
@@ -259,6 +275,21 @@ extension AppCommandIdX on AppCommandId {
         AppCommandCategory.sourceControl,
       AppCommandId.collectProjectLanguageContext =>
         AppCommandCategory.languageService,
+      AppCommandId.addCursorAbove ||
+      AppCommandId.addCursorBelow ||
+      AppCommandId.removeSecondaryCursors ||
+      AppCommandId.moveCursorsLeft ||
+      AppCommandId.moveCursorsRight ||
+      AppCommandId.moveCursorsUp ||
+      AppCommandId.moveCursorsDown ||
+      AppCommandId.extendSelectionsLeft ||
+      AppCommandId.extendSelectionsRight ||
+      AppCommandId.extendSelectionsUp ||
+      AppCommandId.extendSelectionsDown ||
+      AppCommandId.extendColumnSelectionLeft ||
+      AppCommandId.extendColumnSelectionRight ||
+      AppCommandId.extendColumnSelectionUp ||
+      AppCommandId.extendColumnSelectionDown => AppCommandCategory.navigation,
       AppCommandId.openWorkspaceFile ||
       AppCommandId.searchWorkspace ||
       AppCommandId.previewWorkspaceReplace ||
@@ -544,6 +575,184 @@ class VityoCommandRegistry {
   );
 
   static const List<AppCommandDescriptor> commands = [
+    AppCommandDescriptor(
+      id: AppCommandId.addCursorAbove,
+      label: 'Add Cursor Above',
+      shortcutHint: 'Cmd/Ctrl+Alt+Up',
+      description: 'Add cursors on the visually adjacent line above.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowUp', control: true, alt: true),
+        AppCommandShortcutSpec('arrowUp', meta: true, alt: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.addCursorBelow,
+      label: 'Add Cursor Below',
+      shortcutHint: 'Cmd/Ctrl+Alt+Down',
+      description: 'Add cursors on the visually adjacent line below.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowDown', control: true, alt: true),
+        AppCommandShortcutSpec('arrowDown', meta: true, alt: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.removeSecondaryCursors,
+      label: 'Remove Secondary Cursors',
+      shortcutHint: 'Escape',
+      description:
+          'Keep the primary selection and remove all secondary cursors.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('escape')],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.moveCursorsLeft,
+      label: 'Move Cursors Left',
+      shortcutHint: 'Left',
+      description:
+          'Move every cursor to its layout-resolved position on the left.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('arrowLeft')],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.moveCursorsRight,
+      label: 'Move Cursors Right',
+      shortcutHint: 'Right',
+      description:
+          'Move every cursor to its layout-resolved position on the right.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('arrowRight')],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.moveCursorsUp,
+      label: 'Move Cursors Up',
+      shortcutHint: 'Up',
+      description: 'Move every cursor to its layout-resolved position above.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('arrowUp')],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.moveCursorsDown,
+      label: 'Move Cursors Down',
+      shortcutHint: 'Down',
+      description: 'Move every cursor to its layout-resolved position below.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[AppCommandShortcutSpec('arrowDown')],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendSelectionsLeft,
+      label: 'Extend Selections Left',
+      shortcutHint: 'Shift+Left',
+      description:
+          'Extend every selection to its layout-resolved position on the left.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowLeft', shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendSelectionsRight,
+      label: 'Extend Selections Right',
+      shortcutHint: 'Shift+Right',
+      description:
+          'Extend every selection to its layout-resolved position on the right.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowRight', shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendSelectionsUp,
+      label: 'Extend Selections Up',
+      shortcutHint: 'Shift+Up',
+      description:
+          'Extend every selection to its layout-resolved position above.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowUp', shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendSelectionsDown,
+      label: 'Extend Selections Down',
+      shortcutHint: 'Shift+Down',
+      description:
+          'Extend every selection to its layout-resolved position below.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec('arrowDown', shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendColumnSelectionLeft,
+      label: 'Extend Column Selection Left',
+      shortcutHint: 'Cmd/Ctrl+Alt+Shift+Left',
+      description: 'Extend the rectangular selection to the visual left.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec(
+          'arrowLeft',
+          control: true,
+          alt: true,
+          shift: true,
+        ),
+        AppCommandShortcutSpec('arrowLeft', meta: true, alt: true, shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendColumnSelectionRight,
+      label: 'Extend Column Selection Right',
+      shortcutHint: 'Cmd/Ctrl+Alt+Shift+Right',
+      description: 'Extend the rectangular selection to the visual right.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec(
+          'arrowRight',
+          control: true,
+          alt: true,
+          shift: true,
+        ),
+        AppCommandShortcutSpec(
+          'arrowRight',
+          meta: true,
+          alt: true,
+          shift: true,
+        ),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendColumnSelectionUp,
+      label: 'Extend Column Selection Up',
+      shortcutHint: 'Cmd/Ctrl+Alt+Shift+Up',
+      description: 'Extend the rectangular selection to the visual line above.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec(
+          'arrowUp',
+          control: true,
+          alt: true,
+          shift: true,
+        ),
+        AppCommandShortcutSpec('arrowUp', meta: true, alt: true, shift: true),
+      ],
+    ),
+    AppCommandDescriptor(
+      id: AppCommandId.extendColumnSelectionDown,
+      label: 'Extend Column Selection Down',
+      shortcutHint: 'Cmd/Ctrl+Alt+Shift+Down',
+      description: 'Extend the rectangular selection to the visual line below.',
+      targetSurface: AppCommandTargetSurface.editor,
+      shortcuts: <AppCommandShortcutSpec>[
+        AppCommandShortcutSpec(
+          'arrowDown',
+          control: true,
+          alt: true,
+          shift: true,
+        ),
+        AppCommandShortcutSpec('arrowDown', meta: true, alt: true, shift: true),
+      ],
+    ),
     AppCommandDescriptor(
       id: AppCommandId.save,
       label: 'Save',

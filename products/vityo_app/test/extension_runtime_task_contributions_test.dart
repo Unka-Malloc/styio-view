@@ -6,6 +6,8 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'extension runtime task catalog converts task routes to definitions',
@@ -570,7 +572,7 @@ ExtensionRuntimeTaskExecutionPlan _createRuntimeTaskPlan() {
 }
 
 FoundationDataStore _createDataStore(Directory tempRoot) {
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

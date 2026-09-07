@@ -188,6 +188,33 @@ class PerformanceGateRunnerTest(unittest.TestCase):
         )
         self.assertNotIn("open_document_100000lines.iterations", metrics["alg01_piece_table"])
 
+    def test_compare_results_gates_p95_and_ignores_sub_millisecond_noise(
+        self,
+    ) -> None:
+        baseline = {
+            "alg": {
+                "metrics": {
+                    "steady.p95Ms": 10.0,
+                    "steady.maxMs": 10.0,
+                    "tiny.p95Ms": 0.01,
+                }
+            }
+        }
+        current = {
+            "alg": {
+                "metrics": {
+                    "steady.p95Ms": 11.2,
+                    "steady.maxMs": 100.0,
+                    "tiny.p95Ms": 0.02,
+                }
+            }
+        }
+
+        regressions = self.gate.compare_results(current, baseline, 1.10)
+
+        self.assertEqual(len(regressions), 1)
+        self.assertEqual(regressions[0]["metric"], "steady.p95Ms")
+
     def test_run_benchmark_suite_uses_dart_runner_and_embedded_json(self) -> None:
         with tempfile.TemporaryDirectory(prefix="performance-runner-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)

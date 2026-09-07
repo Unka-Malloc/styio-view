@@ -16,6 +16,9 @@ import 'package:vityo_app/src/view_ide/services/observable_topology/observable_t
 import 'backend_provider_test_support.dart';
 
 void main() {
+  setUpAll(startBackendProviderTestServices);
+  tearDownAll(stopBackendProviderTestServices);
+
   test('execution receipt decoder fails closed on unknown schema', () {
     expect(
       ExecutionReceiptSnapshot.decode(const <String, Object?>{
@@ -710,7 +713,11 @@ raise SystemExit(65)
         activeFilePath: sourceFile.path,
       );
 
-      expect(session.status, ExecutionSessionStatus.succeeded);
+      expect(
+        session.status,
+        ExecutionSessionStatus.succeeded,
+        reason: session.statusMessage,
+      );
       expect(
         session.stdoutEvents.map((event) => event.message),
         contains(
@@ -812,7 +819,11 @@ raise SystemExit(65)
         activeFilePath: sourceFile.path,
       );
 
-      expect(session.status, ExecutionSessionStatus.succeeded);
+      expect(
+        session.status,
+        ExecutionSessionStatus.succeeded,
+        reason: session.statusMessage,
+      );
       expect(outsideFile.readAsStringSync(), 'outside before\n');
       expect(escapeLink.targetSync(), outsideFile.path);
     },
@@ -1173,11 +1184,8 @@ path = "scratch/main.styio"
           );
       expect(blockedCompilePlan.sessionId, 'compile-plan-preview-only');
 
-      debugOverridePafioDiscoveryEnvironment(<String, String>{
-        'PATH': tempRoot.path,
-        'Path': tempRoot.path,
-      });
-      addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+      debugOverridePafioExecutableCandidates(const <String>[]);
+      addTearDown(() => debugOverridePafioExecutableCandidates(null));
       final missingPafioGraph = _projectGraph(
         workspaceRoot: tempRoot.path,
         manifestPath: manifestPath,
@@ -2236,6 +2244,15 @@ raise SystemExit(64)
 
   test('artifact outside the workspace tree is ignored', () async {
     final tempRoot = await _createTempRoot('vityo_outside_artifact_test_');
+    final outsideRoot = Directory(
+      '${tempRoot.parent.path}${Platform.pathSeparator}'
+      '${tempRoot.uri.pathSegments.lastWhere((segment) => segment.isNotEmpty)}-outside-artifact',
+    );
+    addTearDown(() async {
+      if (await outsideRoot.exists()) {
+        await outsideRoot.delete(recursive: true);
+      }
+    });
     final sourceFile =
         File(
             '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
@@ -2264,7 +2281,8 @@ if sys.argv[1:] == ['--version']:
 if '--json' in sys.argv and 'run' in sys.argv:
     build = os.path.join(os.getcwd(), '.pafio', 'build', 'outside')
     os.makedirs(build, exist_ok=True)
-    sibling = os.path.abspath(os.path.join(os.getcwd(), '..', 'vityo-outside-runtime-events'))
+    sibling = os.path.join(
+        os.path.dirname(os.getcwd()), os.path.basename(os.getcwd()) + '-outside-artifact')
     os.makedirs(sibling, exist_ok=True)
     events_path = os.path.join(sibling, 'runtime-events.jsonl')
     with open(events_path, 'w', encoding='utf-8') as fh:
@@ -2282,6 +2300,149 @@ if '--json' in sys.argv and 'run' in sys.argv:
         json.dump({
             'schema_version': 1,
             'intent': 'run',
+            'session_id': 'outside-artifact-session',
+            'executed': True,
+            'outputs': {'runtime_events_path': events_path},
+        }, fh)
+    print(json.dumps({
+        'workflow_payload_version': 1,
+        'message': 'outside artifact',
+        'stdout': '',
+        'stderr': '',
+        'diagnostics': [],
+        'runtime_session_id': 'outside-artifact-session',
+        'plan': {'build_root': build},
+        'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'outside-artifact-session', 'executed': True},
+    }))
+    raise SystemExit(0)
+raise SystemExit(64)
+''',
+    );
+    final projectGraph = _projectGraph(
+      workspaceRoot: tempRoot.path,
+      manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+      targets: <ProjectTargetDescriptor>[
+        ProjectTargetDescriptor(
+          id: 'demo/app:bin:demo',
+          packageName: 'demo/app',
+          kind: ProjectTargetKind.bin,
+          name: 'demo',
+          filePath: sourceFile.path,
+        ),
+      ],
+      packages: <ProjectPackageSnapshot>[
+        _packageSnapshot(
+          packageName: 'demo/app',
+          rootPath: tempRoot.path,
+          manifestPath: '${tempRoot.path}${Platform.pathSeparator}pafio.toml',
+          targets: <ProjectTargetDescriptor>[
+            ProjectTargetDescriptor(
+              id: 'demo/app:bin:demo',
+              packageName: 'demo/app',
+              kind: ProjectTargetKind.bin,
+              name: 'demo',
+              filePath: sourceFile.path,
+            ),
+          ],
+        ),
+      ],
+      activeCompiler: _compilerSnapshot(
+        '/toolchains/styio/bin/styio',
+        contracts: const <String, List<int>>{
+          'machine_info': <int>[1],
+          'compile_plan': <int>[1],
+          'runtime_events': <int>[2],
+        },
+      ),
+    );
+    final adapter = await createExecutionAdapter(
+      platformTarget: PlatformTarget.macos,
+      projectGraph: projectGraph,
+    );
+    addTearDown(() => clearRuntimeEventsForSession('outside-artifact-session'));
+    final run = await (adapter as ObservedExecutionAdapter)
+        .runActiveDocumentObserved(
+          platformTarget: PlatformTarget.macos,
+          projectGraph: projectGraph,
+          document: const DocumentState(
+            documentId: 'demo',
+            text: '>_("demo")\n',
+            revision: 1,
+          ),
+          activeFilePath: sourceFile.path,
+          observation: const RuntimeObservationRequest(
+            mode: RuntimeObservationMode.aggregate,
+          ),
+        );
+    expect(run.session.status, ExecutionSessionStatus.succeeded);
+    expect(run.runtimeEventsPath, isNull);
+    final events = await createRuntimeEventAdapter(
+      platformTarget: PlatformTarget.macos,
+    ).sessionEvents(run.session.sessionId).toList();
+    expect(events, isEmpty);
+    await run.release();
+  });
+
+  test('foreign build root cannot consume same-suffix local receipt', () async {
+    final tempRoot = await _createTempRoot('vityo_outside_artifact_test_');
+    final foreignRoot = Directory(
+      '${tempRoot.parent.path}${Platform.pathSeparator}'
+      '${tempRoot.uri.pathSegments.lastWhere((segment) => segment.isNotEmpty)}-foreign',
+    );
+    addTearDown(() async {
+      if (await foreignRoot.exists()) {
+        await foreignRoot.delete(recursive: true);
+      }
+    });
+    final sourceFile =
+        File(
+            '${tempRoot.path}${Platform.pathSeparator}src${Platform.pathSeparator}main.styio',
+          )
+          ..createSync(recursive: true)
+          ..writeAsStringSync('>_("demo")\n');
+    File('${tempRoot.path}${Platform.pathSeparator}pafio.toml')
+      ..createSync(recursive: true)
+      ..writeAsStringSync('''
+[package]
+name = "demo/app"
+version = "0.1.0"
+[[bin]]
+name = "demo"
+path = "src/main.styio"
+''');
+    await _writePafioExecutable(
+      File(
+        '${tempRoot.path}${Platform.pathSeparator}.pafio${Platform.pathSeparator}bin${Platform.pathSeparator}pafio',
+      ),
+      '''#!/usr/bin/env python3
+import json, os, sys
+if sys.argv[1:] == ['--version']:
+    print('pafio 1.0.0')
+    raise SystemExit(0)
+if '--json' in sys.argv and 'run' in sys.argv:
+    suffix = os.path.join('.pafio', 'build', 'shared-session')
+    local_build = os.path.join(os.getcwd(), suffix)
+    foreign_root = os.path.join(
+        os.path.dirname(os.getcwd()), os.path.basename(os.getcwd()) + '-foreign')
+    foreign_build = os.path.join(foreign_root, suffix)
+    os.makedirs(local_build, exist_ok=True)
+    os.makedirs(foreign_build, exist_ok=True)
+    events_path = os.path.join(local_build, 'runtime-events.jsonl')
+    with open(events_path, 'w', encoding='utf-8') as fh:
+        fh.write(json.dumps({
+            'contract': 'styio.observable.runtime-events',
+            'schema_version': 2,
+            'record_kind': 'session.capability',
+            'event_kind': 'session.capability',
+            'mode': 'detailed',
+            'snapshot_schema': 1,
+            'snapshot_id': 's1_0123456789abcdef0123456789abcdef',
+            'execution_id': 'x2_0000000000000001',
+        }) + '\\n')
+    with open(os.path.join(local_build, 'receipt.json'), 'w', encoding='utf-8') as fh:
+        json.dump({
+            'schema_version': 1,
+            'intent': 'run',
             'session_id': 'outside-session',
             'executed': True,
             'outputs': {'runtime_events_path': events_path},
@@ -2293,7 +2454,7 @@ if '--json' in sys.argv and 'run' in sys.argv:
         'stderr': '',
         'diagnostics': [],
         'runtime_session_id': 'outside-session',
-        'plan': {'build_root': build},
+        'plan': {'build_root': foreign_build},
         'receipt': {'schema_version': 1, 'intent': 'run', 'session_id': 'outside-session', 'executed': True},
     }))
     raise SystemExit(0)
@@ -2499,7 +2660,7 @@ raise SystemExit(64)
     final workspaceName = tempRoot.uri.pathSegments.lastWhere(
       (segment) => segment.isNotEmpty,
     );
-    final overlayPrefix = '.Vityo-$workspaceName-';
+    final overlayPrefix = 'Vityo-$workspaceName-';
     final overlays = Directory(tempRoot.parent.path)
         .listSync()
         .whereType<Directory>()
@@ -2518,8 +2679,13 @@ raise SystemExit(64)
 }
 
 Future<Directory> _createTempRoot(String prefix) async {
-  final tempRoot = await Directory.systemTemp.createTemp(prefix);
-  addTearDown(() => tempRoot.delete(recursive: true));
+  final createdTempRoot = await Directory.systemTemp.createTemp(prefix);
+  final tempRoot = Directory(await createdTempRoot.resolveSymbolicLinks());
+  addTearDown(() async {
+    if (await tempRoot.exists()) {
+      await tempRoot.delete(recursive: true);
+    }
+  });
 
   final previousCurrentDirectory = Directory.current;
   addTearDown(() => Directory.current = previousCurrentDirectory);
@@ -2547,10 +2713,8 @@ Future<File> _writeExecutable(File file, String contents) async {
 
 Future<File> _writePafioExecutable(File file, String contents) async {
   final executable = await _writeExecutable(file, contents);
-  debugOverridePafioDiscoveryEnvironment(<String, String>{
-    'VITYO_PAFIO_BIN': executable.path,
-  });
-  addTearDown(() => debugOverridePafioDiscoveryEnvironment(null));
+  debugOverridePafioExecutableCandidates(<String>[executable.path]);
+  addTearDown(() => debugOverridePafioExecutableCandidates(null));
   return executable;
 }
 

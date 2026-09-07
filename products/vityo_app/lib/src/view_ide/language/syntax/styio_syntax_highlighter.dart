@@ -341,6 +341,26 @@ class StyioSyntaxHighlighter {
         continue;
       }
 
+      // Keep UTF-16 scalar values intact so render/hover never paint unpaired
+      // surrogates from emoji and other non-BMP source characters.
+      final start = index;
+      final unit = source.codeUnitAt(index);
+      if (unit >= 0xD800 &&
+          unit <= 0xDBFF &&
+          index + 1 < source.length) {
+        final next = source.codeUnitAt(index + 1);
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          index += 2;
+          tokens.add(
+            TokenSpan(
+              range: SourceRange(start: start, end: index),
+              kind: TokenKind.unknown,
+              lexeme: source.substring(start, index),
+            ),
+          );
+          continue;
+        }
+      }
       tokens.add(
         TokenSpan(
           range: SourceRange(start: index, end: index + 1),

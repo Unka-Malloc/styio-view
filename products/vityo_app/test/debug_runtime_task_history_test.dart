@@ -8,6 +8,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('debug runtime task history binder converts DAP snapshot to task', () {
     const launch = DebugLaunchConfiguration(
@@ -61,7 +63,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,

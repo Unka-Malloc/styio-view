@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 `Vityo` 文档树、里程碑、history、repo hygiene 与交付文档的日常维护入口。
 
-**Last updated:** 2026-09-06
+**Last updated:** 2026-09-08
 
 ## Mission
 
@@ -92,8 +92,9 @@ claims.
 11. 真实设备验证入口也属于交付表面：Android bash/PowerShell 验证脚本和 Apple 设备验证脚本必须与 profile CSV、bootstrap、仓库级 build/dev-env 文档同步更新，不能单独漂移。
 12. 根 `README.md` 只保留仓库级一跳入口；多平台 bootstrap、profile 切换和真实设备验证的细节统一收在 `docs/BUILD-AND-DEV-ENV.md`，不要在 README、runbook 和子系统文档里各自维护平行说明。
 13. 新增 external audit、agent findings、contract package 或 toolchain handoff 时，同批刷新 collection `README.md` / `INDEX.md`，并确保缺口被路由到 owner runbook，而不是停留在审计摘要里。
-14. 本轮最小闭环只要求 `repo-hygiene --mode tracked`、`docs-audit`、Flutter analyze/test 和三仓合同测试；product gate 项保持 `VITYO_PRODUCT_GATE=1` 的显式扩展验证，不写成默认必过项。
+14. Select verification for the current change from [Post-Commit CI Checks](../specs/POST-COMMIT-CI-CHECKS.md); a documentation-only closure does not require unrelated Flutter or cross-repository product suites. Preserve explicitly required product and release checks and reuse unchanged passing evidence.
 15. Keep [../specs/POST-COMMIT-CI-CHECKS.md](../specs/POST-COMMIT-CI-CHECKS.md) aligned with actual GitHub Actions monitoring practice whenever commit, push, or CI handoff rules change.
+    Keep [the execution runbook](../plan/EXECUTION-RUNBOOK.md) limited to Vityo's authority and verification boundaries. Lifecycle commands, state formats, and recovery operations belong to the active installed planning skill; do not restore retired command recipes here.
 16. 外部上游 handoff 统一收在 `docs/external/for-*`，不要在 docs 根目录重新创建 `for-*` collection。
 17. Keep [../specs/TECHNOLOGY-COMPONENT-INVENTORY.md](../specs/TECHNOLOGY-COMPONENT-INVENTORY.md) aligned with `styio-audit` whenever the technology stack, internal components, open-source components, dependency manifests, Apache-2.0 evidence, commercial-risk boundaries, or UI asset-source evidence changes.
 18. Maintain GitHub merge gates through Rulesets rather than legacy classic branch protection; audit effective branch rules when required status-check governance changes.
@@ -105,14 +106,10 @@ claims.
 23. Governance docs are part of docs delivery. API compatibility, security, release checklist, CODEOWNERS policy, root contribution/security entries, and PR template changes must keep generated docs indexes current.
 24. When a new docs collection is added, update `scripts/docs-index.py` collection metadata and run `python3 scripts/docs-index.py --write` in the same change.
 25. Platform-native CI changes must keep `README.md`, `docs/BUILD-AND-DEV-ENV.md`, `.github/workflows/local-ci-gate.yml`, and bootstrap script comments aligned. The PowerShell workspace bootstrap may create Flutter plugin junctions on Windows to avoid Developer Mode or admin symlink requirements, but it must restore tracked `.metadata` and `pubspec.lock` after runner generation and dependency restore.
-26. Better Plan workflow state lives under `docs/plan/` as exactly two delivery tracks for one
-    Vityo product: the `vityo` IDE track and the `vityo-coding-agent` first-party companion-runtime
-    track. Keep `Capabilities.json` separate from lifecycle state, bind task groups to stable
-    capability keys, and use one `group_design`, one or more `implementation`, and one trailing
-    `final_validation` Node per executable group. Validate the capability catalog, root manifest,
-    and both state files with the current Better Plan manifest tool. `docs/plan/` is the only
-    authoritative Better Plan root; never create a nested or parallel workspace. Keep shared
-    protocol work inside both tracks instead of creating a third product track.
+26. `docs/plan/` is the only permitted location for future Better Plan state. It is currently an
+    empty documentation container with no capability catalog, Manifest, task group, or Node
+    checkpoint. A later explicitly authorized planning request may initialize one canonical
+    workspace there; nested or parallel workspaces remain invalid.
 27. Implemented architectural decisions belong in `docs/adr/IMPLEMENTED-DECISIONS.md` only when they match current code, tests, gates, or owner SSOTs; stale plan residue must be deleted or routed back to active gap/review docs.
 28. Repository documentation is English by default. Chinese prose is allowed only when a document's `Purpose` explicitly scopes it as Chinese localization, Chinese translation, or Chinese user-facing product/marketing copy; when touching legacy Chinese prose in non-localized owner docs, convert the touched passage to English.
 29. Workspace bootstrap scripts must not leave Flutter template files that are not tracked product tests. When runner generation, Windows LLVM discovery, or platform bootstrap behavior changes, keep bash, PowerShell, and GitHub Actions entry points aligned in the same change.
@@ -221,6 +218,16 @@ into the single `docs/plan/` Better Plan root. Removed the final stale nested-pa
 declared nested and parallel workspaces invalid, and retained only the two capability-bound delivery
 tracks plus their shared protocol fact.
 
+2026-08-03: Added the capability-bound `interactive-editor-input` follow-on delivery group beneath
+the existing transactional editor capability. The group freezes multi-cursor and rectangular
+selection commands, composition-safe Unicode input, Flutter text-input and accessibility
+integration, rendered 10k/100k performance evidence, and one trailing full IDE regression without
+creating another product track or Better Plan workspace.
+
+2026-08-09: Explicitly cleared all Better Plan capability, Manifest, task-group, and checkpoint
+state. Retained only the empty `docs/plan/` documentation container and reusable execution runbook;
+product implementation, tests, performance evidence, and visual evidence remain intact.
+
 2026-09-04: Added one single-purpose external handoff plan for future Styio observable-language
 consumption and regenerated its collection indexes. The document is explicitly unapproved and
 fixture-gated, does not alter the existing Better Plan workspace, and starts no adapter, UI,
@@ -243,3 +250,12 @@ collection indexes. No `prototype/` change.
 envelope mismatch. Report only; no adapter implementation in this change.
 
 <!-- codex merge: docs/build/scripts assets imported -->
+
+2026-09-08: Aligned the shared Flutter coverage gate with the native `vityod`
+test prerequisite on Linux and macOS. Existing LCOV inspection remains read-only.
+Record analyzer and input-connection evidence against the Flutter version pinned
+by CI; a newer local SDK does not establish compatibility with that baseline.
+The fixed product matrix now selects the Pafio revision whose native Windows
+CLI, process contracts, and CLI probes passed. Cross-repository acceptance must
+use that exact matrix, with no change to the upstream process request/result
+contract or Vityo's supported daemon platforms.

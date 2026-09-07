@@ -146,7 +146,9 @@ bool _isAbsolutePath(String path) {
 String _normalizePathForContainment(String path) {
   final source = path.trim().replaceAll(r'\', '/');
   final driveMatch = RegExp(r'^([A-Za-z]:)(?:/|$)').firstMatch(source);
-  final prefix = driveMatch == null ? (source.startsWith('/') ? '/' : '') : driveMatch.group(1)!.toLowerCase();
+  final prefix = driveMatch == null
+      ? (source.startsWith('/') ? '/' : '')
+      : driveMatch.group(1)!.toLowerCase();
   final body = driveMatch == null
       ? (source.startsWith('/') ? source.substring(1) : source)
       : source.substring(driveMatch.group(0)!.length);

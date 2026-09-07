@@ -495,8 +495,10 @@ Future<StyioServiceAnalysisDriver> createPlatformStyioServiceAnalysisDriver({
       resultCache: resultCache,
     );
   }
-  final catalog = await createPlatformStyioLanguageToolchainCatalog();
   final platformManagers = await createDetectedPlatformManagerBundle();
+  final catalog = await createPlatformStyioLanguageToolchainCatalog(
+    platformManagers: platformManagers,
+  );
   final runtime = ToolchainRuntime.fromPlatformManagers(
     catalog: catalog,
     platformManagers: platformManagers,

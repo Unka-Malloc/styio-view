@@ -10,6 +10,7 @@ import '../process/process.dart';
 import '../pty/pty.dart';
 import '../resource/resource.dart';
 import '../shell/shell.dart';
+import '../../../../ide/local_service/vityod_client.dart';
 
 enum PlatformManagerHealthProbeKind { factReadiness, managerLiveOperation }
 
@@ -71,7 +72,9 @@ class PlatformManagerBundle {
       ),
       PlatformManagerComponentHealth(
         managerKey: 'shell',
-        ready: _isSupportedCompatibilityTarget(context.shell.compatibilityTarget),
+        ready: _isSupportedCompatibilityTarget(
+          context.shell.compatibilityTarget,
+        ),
         message: 'Shell manager compatibility is available.',
       ),
       PlatformManagerComponentHealth(
@@ -674,19 +677,35 @@ bool _isSupportedCompatibilityTarget(String compatibilityTarget) {
 
 Future<PlatformManagerBundle> createPlatformManagerBundle({
   required PlatformContextSnapshot platformContext,
+  VityodClient? vityodClient,
+  String? workspaceRoot,
 }) async {
+  final process = await createPlatformProcessManager(
+    platformContext: platformContext,
+    vityodClient: vityodClient,
+  );
+  final fileSystem = await createPlatformFileSystemManager(
+    platformContext: platformContext,
+    vityodClient: vityodClient,
+    allowedRoots: <String>[
+      if (workspaceRoot != null) workspaceRoot,
+      if (platformContext.resource.homePath != null)
+        platformContext.resource.homePath!,
+      platformContext.resource.systemTempPath,
+    ],
+  );
   return PlatformManagerBundle(
     context: platformContext,
     compatibility: PlatformAdapter(platformContext).adapt(),
-    fileSystem: await createPlatformFileSystemManager(
+    fileSystem: fileSystem,
+    shell: await createPlatformShellManager(
       platformContext: platformContext,
+      processManager: process,
     ),
-    shell: await createPlatformShellManager(platformContext: platformContext),
-    process: await createPlatformProcessManager(
-      platformContext: platformContext,
-    ),
+    process: process,
     resource: await createPlatformResourceManager(
       platformContext: platformContext,
+      fileSystemManager: fileSystem,
     ),
     network: await createPlatformNetworkManager(
       platformContext: platformContext,
@@ -700,13 +719,18 @@ Future<PlatformManagerBundle> createPlatformManagerBundle({
     localService: await createPlatformLocalServiceManager(
       platformContext: platformContext,
     ),
-    pty: await createPlatformPtyManager(platformContext: platformContext),
+    pty: await createPlatformPtyManager(
+      platformContext: platformContext,
+      vityodClient: vityodClient,
+    ),
   );
 }
 
 Future<PlatformManagerBundle> createDetectedPlatformManagerBundle({
   String targetId = 'local',
   PlatformDetector? detector,
+  VityodClient? vityodClient,
+  String? workspaceRoot,
 }) async {
   final platformDetector =
       detector ??
@@ -722,5 +746,9 @@ Future<PlatformManagerBundle> createDetectedPlatformManagerBundle({
         ptyProber: LocalPtyProber(),
       );
   final context = await platformDetector.detect(targetId: targetId);
-  return createPlatformManagerBundle(platformContext: context);
+  return createPlatformManagerBundle(
+    platformContext: context,
+    vityodClient: vityodClient,
+    workspaceRoot: workspaceRoot,
+  );
 }

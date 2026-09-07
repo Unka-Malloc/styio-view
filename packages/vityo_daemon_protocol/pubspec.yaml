@@ -1,0 +1,11 @@
+name: vityo_daemon_protocol
+description: Pure versioned control and binary-frame contracts shared by Vityo and vityod.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.11.5 <4.0.0"
+
+dev_dependencies:
+  lints: ^5.1.1
+  test: ^1.25.15

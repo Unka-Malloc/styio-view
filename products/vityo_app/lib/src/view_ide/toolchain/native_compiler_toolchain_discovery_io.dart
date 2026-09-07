@@ -1,5 +1,3 @@
-import 'dart:io' as io;
-
 import '../environment/environment.dart';
 import 'clang_cpp_version_parser.dart';
 import 'toolchain_catalog.dart';
@@ -75,8 +73,8 @@ const List<String> _defaultCtestCandidatePaths = <String>[
 ];
 
 Future<ToolchainCatalog> createPlatformNativeCompilerToolchainCatalog({
-  PlatformManagerBundle? platformManagers,
-  Map<String, String>? environment,
+  required PlatformManagerBundle platformManagers,
+  Map<String, String> environment = const <String, String>{},
   Iterable<String> cCompilerCandidatePaths = _defaultClangCandidatePaths,
   Iterable<String> cxxCompilerCandidatePaths = _defaultClangxxCandidatePaths,
   Iterable<String> cmakeCandidatePaths = _defaultCmakeCandidatePaths,
@@ -91,147 +89,60 @@ Future<ToolchainCatalog> createPlatformNativeCompilerToolchainCatalog({
   Future<String?> Function(String executablePath)? clangVersionOutputProbe,
 }) async {
   final catalog = ToolchainCatalog();
-  final effectiveEnvironment = environment ?? io.Platform.environment;
-  final cCompilerPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CLANG_BIN',
-          executableName: 'clang',
-          environment: effectiveEnvironment,
-          candidatePaths: cCompilerCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CLANG_BIN',
-          executableName: 'clang',
-          environment: effectiveEnvironment,
-          candidatePaths: cCompilerCandidatePaths,
-        );
-  final cxxCompilerPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CLANGXX_BIN',
-          executableName: 'clang++',
-          environment: effectiveEnvironment,
-          candidatePaths: cxxCompilerCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CLANGXX_BIN',
-          executableName: 'clang++',
-          environment: effectiveEnvironment,
-          candidatePaths: cxxCompilerCandidatePaths,
-        );
-  final cmakePath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CMAKE_BIN',
-          executableName: 'cmake',
-          environment: effectiveEnvironment,
-          candidatePaths: cmakeCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CMAKE_BIN',
-          executableName: 'cmake',
-          environment: effectiveEnvironment,
-          candidatePaths: cmakeCandidatePaths,
-        );
-  final ninjaPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_NINJA_BIN',
-          executableName: 'ninja',
-          environment: effectiveEnvironment,
-          candidatePaths: ninjaCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_NINJA_BIN',
-          executableName: 'ninja',
-          environment: effectiveEnvironment,
-          candidatePaths: ninjaCandidatePaths,
-        );
-  final clangdPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CLANGD_BIN',
-          executableName: 'clangd',
-          environment: effectiveEnvironment,
-          candidatePaths: clangdCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CLANGD_BIN',
-          executableName: 'clangd',
-          environment: effectiveEnvironment,
-          candidatePaths: clangdCandidatePaths,
-        );
-  final lldbPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_LLDB_BIN',
-          executableName: 'lldb',
-          environment: effectiveEnvironment,
-          candidatePaths: lldbCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_LLDB_BIN',
-          executableName: 'lldb',
-          environment: effectiveEnvironment,
-          candidatePaths: lldbCandidatePaths,
-        );
-  final gdbPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_GDB_BIN',
-          executableName: 'gdb',
-          environment: effectiveEnvironment,
-          candidatePaths: gdbCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_GDB_BIN',
-          executableName: 'gdb',
-          environment: effectiveEnvironment,
-          candidatePaths: gdbCandidatePaths,
-        );
-  final clangFormatPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CLANG_FORMAT_BIN',
-          executableName: 'clang-format',
-          environment: effectiveEnvironment,
-          candidatePaths: clangFormatCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CLANG_FORMAT_BIN',
-          executableName: 'clang-format',
-          environment: effectiveEnvironment,
-          candidatePaths: clangFormatCandidatePaths,
-        );
-  final clangTidyPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CLANG_TIDY_BIN',
-          executableName: 'clang-tidy',
-          environment: effectiveEnvironment,
-          candidatePaths: clangTidyCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CLANG_TIDY_BIN',
-          executableName: 'clang-tidy',
-          environment: effectiveEnvironment,
-          candidatePaths: clangTidyCandidatePaths,
-        );
-  final ctestPath = platformManagers == null
-      ? _discoverLocalExecutablePath(
-          overrideKey: 'VITYO_CTEST_BIN',
-          executableName: 'ctest',
-          environment: effectiveEnvironment,
-          candidatePaths: ctestCandidatePaths,
-        )
-      : await _discoverManagedExecutablePath(
-          platformManagers,
-          overrideKey: 'VITYO_CTEST_BIN',
-          executableName: 'ctest',
-          environment: effectiveEnvironment,
-          candidatePaths: ctestCandidatePaths,
-        );
+  final effectiveEnvironment = environment;
+  Future<String?> discover(
+    String overrideKey,
+    String executableName,
+    Iterable<String> candidatePaths,
+  ) => _discoverManagedExecutablePath(
+    platformManagers,
+    overrideKey: overrideKey,
+    executableName: executableName,
+    environment: effectiveEnvironment,
+    candidatePaths: candidatePaths,
+  );
+  final cCompilerPath = await discover(
+    'VITYO_CLANG_BIN',
+    'clang',
+    cCompilerCandidatePaths,
+  );
+  final cxxCompilerPath = await discover(
+    'VITYO_CLANGXX_BIN',
+    'clang++',
+    cxxCompilerCandidatePaths,
+  );
+  final cmakePath = await discover(
+    'VITYO_CMAKE_BIN',
+    'cmake',
+    cmakeCandidatePaths,
+  );
+  final ninjaPath = await discover(
+    'VITYO_NINJA_BIN',
+    'ninja',
+    ninjaCandidatePaths,
+  );
+  final clangdPath = await discover(
+    'VITYO_CLANGD_BIN',
+    'clangd',
+    clangdCandidatePaths,
+  );
+  final lldbPath = await discover('VITYO_LLDB_BIN', 'lldb', lldbCandidatePaths);
+  final gdbPath = await discover('VITYO_GDB_BIN', 'gdb', gdbCandidatePaths);
+  final clangFormatPath = await discover(
+    'VITYO_CLANG_FORMAT_BIN',
+    'clang-format',
+    clangFormatCandidatePaths,
+  );
+  final clangTidyPath = await discover(
+    'VITYO_CLANG_TIDY_BIN',
+    'clang-tidy',
+    clangTidyCandidatePaths,
+  );
+  final ctestPath = await discover(
+    'VITYO_CTEST_BIN',
+    'ctest',
+    ctestCandidatePaths,
+  );
 
   if (cCompilerPath != null && cxxCompilerPath != null) {
     final clangVersionFacts = parseClangCppVersionOutput(
@@ -408,77 +319,24 @@ Future<ToolchainCatalog> createPlatformNativeCompilerToolchainCatalog({
 
 Future<String?> _probeClangVersionOutput(
   String executablePath, {
-  required PlatformManagerBundle? platformManagers,
+  required PlatformManagerBundle platformManagers,
   required Map<String, String> environment,
 }) async {
   try {
-    if (platformManagers != null) {
-      final result = await platformManagers.process.run(
-        ProcessCommandRequest(
-          executablePath: executablePath,
-          arguments: const <String>['--version'],
-          environment: environment,
-        ),
-      );
-      if (!result.succeeded) {
-        return null;
-      }
-      return '${result.stdout}\n${result.stderr}'.trim();
-    }
-    final result = await io.Process.run(
-      executablePath,
-      const <String>['--version'],
-      environment: environment,
+    final result = await platformManagers.process.run(
+      ProcessCommandRequest(
+        executablePath: executablePath,
+        arguments: const <String>['--version'],
+        environment: environment,
+      ),
     );
-    if (result.exitCode != 0) {
+    if (!result.succeeded) {
       return null;
     }
     return '${result.stdout}\n${result.stderr}'.trim();
   } on Object {
     return null;
   }
-}
-
-String? _discoverLocalExecutablePath({
-  required String overrideKey,
-  required String executableName,
-  required Map<String, String> environment,
-  required Iterable<String> candidatePaths,
-}) {
-  final isWindows = io.Platform.isWindows;
-  final override = environment[overrideKey];
-  for (final candidate in _executableCandidates(override, isWindows)) {
-    if (_isExecutableFile(candidate)) {
-      return candidate;
-    }
-  }
-
-  for (final candidate in candidatePaths) {
-    for (final executable in _executableCandidates(candidate, isWindows)) {
-      if (_isExecutableFile(executable)) {
-        return executable;
-      }
-    }
-  }
-
-  try {
-    final lookupExecutable = isWindows ? 'where.exe' : 'which';
-    final result = io.Process.runSync(lookupExecutable, <String>[
-      executableName,
-    ]);
-    if (result.exitCode == 0) {
-      for (final line in result.stdout.toString().split(RegExp(r'\r?\n'))) {
-        final path = line.trim();
-        if (_isExecutableFile(path)) {
-          return path;
-        }
-      }
-    }
-  } on Object {
-    return null;
-  }
-
-  return null;
 }
 
 Future<String?> _discoverManagedExecutablePath(
@@ -549,16 +407,12 @@ Future<bool> _isExecutablePath(
   if (path == null || path.isEmpty) {
     return false;
   }
-  if (!await platformManagers.fileSystem.exists(path)) {
+  try {
+    if (!await platformManagers.fileSystem.exists(path)) {
+      return false;
+    }
+    return await platformManagers.fileSystem.isExecutable(path);
+  } on Object {
     return false;
   }
-  return platformManagers.fileSystem.isExecutable(path);
-}
-
-bool _isExecutableFile(String? path) {
-  if (path == null || path.isEmpty) {
-    return false;
-  }
-  final stat = io.FileStat.statSync(path);
-  return stat.type == io.FileSystemEntityType.file;
 }

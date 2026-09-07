@@ -11,6 +11,8 @@ import 'package:vityo_app/src/view_ide/language/service/semantic_snapshot_provid
 import 'package:vityo_app/src/view_ide/language/service/styio_service_connector.dart';
 import 'package:vityo_app/src/ide/workspace/workspace.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'workspace quick open ranks exact prefix contains and fuzzy matches',
@@ -1151,7 +1153,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_workspace_search_history_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

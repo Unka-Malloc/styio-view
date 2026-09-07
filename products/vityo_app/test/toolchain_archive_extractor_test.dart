@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
+
+import 'support/test_file_system_manager.dart';
 
 void main() {
   test('archive extractor expands tar directories and files', () async {
@@ -11,7 +12,7 @@ void main() {
       'vityo_toolchain_archive_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final manager = LocalFileSystemManager.linuxDebianArmForTest();
+    final manager = TestFileSystemManager.linuxDebianArm();
     final extractor = ToolchainArchiveExtractor(fileSystemManager: manager);
     final destination = manager.joinPath(<String>[tempRoot.path, 'extracted']);
     final archive = _tarArchive(<_TarEntry>[
@@ -48,7 +49,7 @@ void main() {
     );
     addTearDown(() => tempRoot.delete(recursive: true));
     final extractor = ToolchainArchiveExtractor(
-      fileSystemManager: LocalFileSystemManager.linuxDebianArmForTest(),
+      fileSystemManager: TestFileSystemManager.linuxDebianArm(),
     );
 
     final emptyPath = await extractor.extractTar(
@@ -80,7 +81,7 @@ void main() {
     );
     addTearDown(() => tempRoot.delete(recursive: true));
     final extractor = ToolchainArchiveExtractor(
-      fileSystemManager: LocalFileSystemManager.linuxDebianArmForTest(),
+      fileSystemManager: TestFileSystemManager.linuxDebianArm(),
     );
 
     final truncated = await extractor.extractTar(

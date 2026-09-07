@@ -244,6 +244,8 @@ jobs:
           "$PYTHON_BIN" packaging/vityo/desktop_delivery.py \
             --repo-root . --platform linux \
             --evidence build/nightly/linux-delivery.json
+          "$PYTHON_BIN" scripts/vityod-desktop-matrix-gate.py \
+            --platform linux --application-root /opt/vityo
 
       - name: Record pinned Linux product matrix evidence
         working-directory: vityo-nightly
@@ -558,6 +560,7 @@ jobs:
           $process = Start-Process -FilePath (Join-Path $installRoot "vityo_app.exe") -ArgumentList @("--vityo-delivery-smoke", "--workspace", $smokeWorkspace, "--evidence", $evidence, "--commit", $commit, "--source-fingerprint", $sourceFingerprint) -WorkingDirectory $installRoot -WindowStyle Hidden -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Installed Windows Nightly smoke failed with code $($process.ExitCode)" }
           python packaging/vityo/desktop_delivery.py --repo-root . --platform windows --evidence $evidence
+          python scripts/vityod-desktop-matrix-gate.py --platform windows --application-root $installRoot
           & (Join-Path $packageRoot "uninstall.ps1") -Destination $installRoot
 
       - name: Record pinned Windows product matrix evidence
@@ -825,6 +828,9 @@ jobs:
           "$PYTHON_BIN" packaging/vityo/desktop_delivery.py \
             --repo-root . --platform macos \
             --evidence build/nightly/macos-delivery.json
+          "$PYTHON_BIN" scripts/vityod-desktop-matrix-gate.py \
+            --platform macos \
+            --application-root "$install_dir/Vityo Nightly.app"
           hdiutil detach "$mount_dir"
           trap - EXIT
           rm -rf "$mount_dir" "$install_dir"

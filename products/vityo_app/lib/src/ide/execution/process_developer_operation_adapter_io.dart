@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
+import '../local_service/vityod_client.dart';
 import '../language/dart_analyze_diagnostic_decoder.dart';
 import '../workbench/capability_snapshot.dart';
 import 'developer_operation_adapter.dart';
@@ -15,9 +14,11 @@ final class ProcessDeveloperOperationAdapter
     required this.executable,
     required List<String> arguments,
     required this.workingDirectory,
+    required VityodClient client,
     this.maxOutputCodeUnits = 4096,
     this.diagnosticDecoder,
-  }) : capabilities = List<IdeCapabilityFact>.unmodifiable(capabilities),
+  }) : _client = client,
+       capabilities = List<IdeCapabilityFact>.unmodifiable(capabilities),
        arguments = List<String>.unmodifiable(arguments) {
     if (this.capabilities.isEmpty) {
       throw ArgumentError.value(
@@ -50,6 +51,7 @@ final class ProcessDeveloperOperationAdapter
   final String workingDirectory;
   final int maxOutputCodeUnits;
   final DeveloperDiagnosticDecoder? diagnosticDecoder;
+  final VityodClient _client;
 
   @override
   Future<DeveloperOperationResult> execute(
@@ -63,110 +65,132 @@ final class ProcessDeveloperOperationAdapter
       );
     }
 
-    final Process process;
+    final taskId = 'developer-${context.operationId}-${++_taskSequence}';
     try {
-      process = await Process.start(
-        executable,
-        arguments,
-        workingDirectory: workingDirectory,
-        runInShell: false,
+      final start = await _client.request(
+        method: 'task.start',
+        idempotencyKey: 'developer-start-$taskId',
+        params: <String, Object?>{
+          'taskId': taskId,
+          'executable': executable,
+          'arguments': arguments,
+          'workingDirectory': workingDirectory,
+          'timeoutMillis': 30 * 60 * 1000,
+        },
       );
-    } on ProcessException {
+      _throwIfError(start);
+    } on Object {
       return const DeveloperOperationResult(
         status: ExecutionReceiptStatus.blocked,
-        provenance: 'process-adapter',
+        provenance: 'vityod-process-adapter',
         message: 'Configured process adapter is unavailable.',
       );
     }
 
-    final output = _BoundedOutputCollector(maxOutputCodeUnits);
-    final errorOutput = _BoundedOutputCollector(maxOutputCodeUnits);
-    final outputDone = output.collect(process.stdout);
-    final errorDone = errorOutput.collect(process.stderr);
-
-    final completion =
-        await Future.any<_ProcessCompletion>(<Future<_ProcessCompletion>>[
-          process.exitCode.then((_) => const _ProcessCompletion.exited()),
-          context.cancellation.whenCancelled.then(
-            (_) => const _ProcessCompletion.cancelled(),
-          ),
+    var pollSequence = 0;
+    while (true) {
+      if (context.cancellation.isCancelled) {
+        final cancelled = await _client.request(
+          method: 'task.cancel',
+          idempotencyKey: 'developer-cancel-$taskId',
+          params: <String, Object?>{'taskId': taskId},
+        );
+        _throwIfError(cancelled);
+        final output = await _readOutput(taskId, ++pollSequence);
+        await _close(taskId);
+        final exitCode = output.params['exitCode'];
+        final stdout = _boundedText(output.params['stdout']);
+        final stderr = _boundedText(output.params['stderr']);
+        return DeveloperOperationResult(
+          status: ExecutionReceiptStatus.cancelled,
+          provenance: 'vityod-process-adapter',
+          message: 'Operation was cancelled.',
+          exitCode: exitCode is int ? exitCode : null,
+          output: stdout,
+          errorOutput: stderr,
+        );
+      }
+      final output = await _readOutput(taskId, ++pollSequence);
+      if (output.params['running'] == true) {
+        await Future.any<void>(<Future<void>>[
+          Future<void>.delayed(const Duration(milliseconds: 10)),
+          context.cancellation.whenCancelled,
         ]);
-    if (completion.cancelled) {
-      process.kill();
-    }
-    final exitCode = await process.exitCode;
-    await Future.wait<void>(<Future<void>>[outputDone, errorDone]);
-
-    if (completion.cancelled) {
+        continue;
+      }
+      final exitCode = output.params['exitCode'];
+      if (exitCode is! int) {
+        await _close(taskId);
+        return const DeveloperOperationResult(
+          status: ExecutionReceiptStatus.failed,
+          provenance: 'vityod-process-adapter',
+          message: 'The daemon returned an invalid task receipt.',
+        );
+      }
+      final stdout = _boundedText(output.params['stdout']);
+      final stderr = _boundedText(output.params['stderr']);
+      await _close(taskId);
       return DeveloperOperationResult(
-        status: ExecutionReceiptStatus.cancelled,
-        provenance: 'process-adapter',
-        message: 'Operation was cancelled.',
+        status: exitCode == 0
+            ? ExecutionReceiptStatus.succeeded
+            : ExecutionReceiptStatus.failed,
+        provenance: 'vityod-process-adapter',
+        message: exitCode == 0
+            ? 'Process completed successfully.'
+            : 'Process exited with a non-zero status.',
         exitCode: exitCode,
-        output: output.value,
-        errorOutput: errorOutput.value,
+        output: stdout,
+        errorOutput: stderr,
+        diagnostics: diagnosticDecoder?.decode(
+          output: stdout,
+          errorOutput: stderr,
+          exitCode: exitCode,
+        ),
       );
     }
-    final boundedOutput = output.value;
-    final boundedErrorOutput = errorOutput.value;
-    return DeveloperOperationResult(
-      status: exitCode == 0
-          ? ExecutionReceiptStatus.succeeded
-          : ExecutionReceiptStatus.failed,
-      provenance: 'process-adapter',
-      message: exitCode == 0
-          ? 'Process completed successfully.'
-          : 'Process exited with a non-zero status.',
-      exitCode: exitCode,
-      output: boundedOutput,
-      errorOutput: boundedErrorOutput,
-      diagnostics: diagnosticDecoder?.decode(
-        output: boundedOutput,
-        errorOutput: boundedErrorOutput,
-        exitCode: exitCode,
-      ),
+  }
+
+  Future<dynamic> _readOutput(String taskId, int sequence) async {
+    final response = await _client.request(
+      method: 'task.output',
+      idempotencyKey: 'developer-output-$taskId-$sequence',
+      params: <String, Object?>{'taskId': taskId},
+      deadline: const Duration(seconds: 5),
+    );
+    _throwIfError(response);
+    return response;
+  }
+
+  Future<void> _close(String taskId) async {
+    final response = await _client.request(
+      method: 'task.close',
+      idempotencyKey: 'developer-close-$taskId',
+      params: <String, Object?>{'taskId': taskId},
+    );
+    _throwIfError(response);
+  }
+
+  BoundedText _boundedText(Object? value) {
+    final text = value is String ? value : '';
+    if (text.length <= maxOutputCodeUnits) {
+      return BoundedText(text: text, omittedCodeUnits: 0);
+    }
+    var accepted = maxOutputCodeUnits;
+    if (accepted > 0) {
+      final last = text.codeUnitAt(accepted - 1);
+      if (last >= 0xD800 && last <= 0xDBFF) accepted -= 1;
+    }
+    return BoundedText(
+      text: text.substring(0, accepted),
+      omittedCodeUnits: text.length - accepted,
     );
   }
 }
 
-final class _ProcessCompletion {
-  const _ProcessCompletion.exited() : cancelled = false;
+var _taskSequence = 0;
 
-  const _ProcessCompletion.cancelled() : cancelled = true;
-
-  final bool cancelled;
-}
-
-final class _BoundedOutputCollector {
-  _BoundedOutputCollector(this.limit);
-
-  final int limit;
-  final StringBuffer _buffer = StringBuffer();
-  var _written = 0;
-  var _omitted = 0;
-
-  Future<void> collect(Stream<List<int>> stream) async {
-    await for (final chunk in stream.transform(utf8.decoder)) {
-      final remaining = limit - _written;
-      if (remaining <= 0) {
-        _omitted += chunk.length;
-        continue;
-      }
-      var accepted = chunk.length < remaining ? chunk.length : remaining;
-      if (accepted > 0) {
-        final last = chunk.codeUnitAt(accepted - 1);
-        if (last >= 0xD800 && last <= 0xDBFF) {
-          accepted -= 1;
-        }
-      }
-      if (accepted > 0) {
-        _buffer.write(chunk.substring(0, accepted));
-        _written += accepted;
-      }
-      _omitted += chunk.length - accepted;
-    }
-  }
-
-  BoundedText get value =>
-      BoundedText(text: _buffer.toString(), omittedCodeUnits: _omitted);
+void _throwIfError(dynamic response) {
+  if (!response.method.endsWith('.error')) return;
+  final code = response.params['errorCode'];
+  throw StateError(code is String ? code : 'task_service_error');
 }

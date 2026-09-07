@@ -127,6 +127,30 @@ class ProjectCoverageGateTest(unittest.TestCase):
 
         run.assert_called_once_with(["coverage", "report"], cwd=REPO_ROOT, check=False)
 
+    def test_vityod_build_uses_locked_native_target_on_linux_and_macos(self) -> None:
+        expected_command = [
+            "cargo",
+            "build",
+            "--locked",
+            "--manifest-path",
+            "products/vityo_app/native/vityod/Cargo.toml",
+            "-p",
+            "vityod",
+            "--bin",
+            "vityod",
+        ]
+        for platform in ("linux", "darwin"):
+            with self.subTest(platform=platform):
+                with mock.patch.object(self.gate.sys, "platform", platform):
+                    with mock.patch.object(self.gate, "run_command", return_value=0) as run_command:
+                        self.assertEqual(self.gate.build_vityod_for_flutter_tests(), 0)
+                run_command.assert_called_once_with(expected_command, cwd=self.gate.ROOT)
+
+        with mock.patch.object(self.gate.sys, "platform", "win32"):
+            with mock.patch.object(self.gate, "run_command") as run_command:
+                self.assertEqual(self.gate.build_vityod_for_flutter_tests(), 0)
+        run_command.assert_not_called()
+
     def test_resolve_flutter_binary_uses_path_or_explicit_file(self) -> None:
         with tempfile.TemporaryDirectory(prefix="project-coverage-", dir=REPO_ROOT) as tmp_name:
             explicit = Path(tmp_name) / "flutter"
@@ -198,6 +222,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
                 )
         self.assertIn("Flutter app directory is missing", stderr.getvalue())
 
+    @mock.patch.object(sys, "platform", "linux")
     def test_run_flutter_gate_runs_tests_parses_lcov_and_applies_threshold(self) -> None:
         with tempfile.TemporaryDirectory(prefix="project-coverage-", dir=REPO_ROOT) as tmp_name:
             root = Path(tmp_name)
@@ -207,7 +232,7 @@ class ProjectCoverageGateTest(unittest.TestCase):
             self.gate.ROOT = root
             try:
                 with mock.patch.object(self.gate, "resolve_flutter_binary", return_value="/bin/flutter"):
-                    with mock.patch.object(self.gate, "run_command", return_value=7):
+                    with mock.patch.object(self.gate, "run_command", side_effect=[0, 7]):
                         self.assertEqual(
                             self.gate.run_flutter_gate(
                                 fail_under=95,
@@ -260,24 +285,74 @@ class ProjectCoverageGateTest(unittest.TestCase):
                                 ),
                                 0,
                             )
+                    self.assertEqual(
+                        run_command.call_args_list,
+                        [
+                            mock.call(
+                                [
+                                    "cargo",
+                                    "build",
+                                    "--locked",
+                                    "--manifest-path",
+                                    "products/vityo_app/native/vityod/Cargo.toml",
+                                    "-p",
+                                    "vityod",
+                                    "--bin",
+                                    "vityod",
+                                ],
+                                cwd=root,
+                            ),
+                            mock.call(["/bin/flutter", "test", "--coverage"], cwd=app),
+                        ],
+                    )
                     self.assertEqual(run_command.call_args.args[0], ["/bin/flutter", "test", "--coverage"])
                     self.assertIn("95.00%", stdout.getvalue())
 
                     with mock.patch.object(self.gate, "resolve_flutter_binary", return_value=None):
-                        with mock.patch.object(self.gate, "run_command") as run_command:
-                            stdout = io.StringIO()
-                            with redirect_stdout(stdout):
-                                self.assertEqual(
-                                    self.gate.run_flutter_gate(
-                                        fail_under=95,
-                                        flutter_dir=Path("app"),
-                                        flutter_bin=None,
-                                        use_existing_report=True,
-                                    ),
-                                    0,
-                                )
+                        with mock.patch.object(self.gate, "build_vityod_for_flutter_tests") as build_vityod:
+                            with mock.patch.object(self.gate, "run_command") as run_command:
+                                stdout = io.StringIO()
+                                with redirect_stdout(stdout):
+                                    self.assertEqual(
+                                        self.gate.run_flutter_gate(
+                                            fail_under=95,
+                                            flutter_dir=Path("app"),
+                                            flutter_bin=None,
+                                            use_existing_report=True,
+                                        ),
+                                        0,
+                                    )
+                    build_vityod.assert_not_called()
                     run_command.assert_not_called()
                     self.assertIn("95.00%", stdout.getvalue())
+            finally:
+                self.gate.ROOT = original_root
+
+    def test_run_flutter_gate_stops_when_vityod_build_fails(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="project-coverage-", dir=REPO_ROOT) as tmp_name:
+            root = Path(tmp_name)
+            app = root / "app"
+            app.mkdir()
+            original_root = self.gate.ROOT
+            self.gate.ROOT = root
+            try:
+                with mock.patch.object(self.gate, "resolve_flutter_binary", return_value="/bin/flutter"):
+                    with mock.patch.object(
+                        self.gate,
+                        "build_vityod_for_flutter_tests",
+                        return_value=19,
+                    ) as build_vityod:
+                        with mock.patch.object(self.gate, "run_command") as run_command:
+                            self.assertEqual(
+                                self.gate.run_flutter_gate(
+                                    fail_under=95,
+                                    flutter_dir=Path("app"),
+                                    flutter_bin=None,
+                                ),
+                                19,
+                            )
+                build_vityod.assert_called_once_with()
+                run_command.assert_not_called()
             finally:
                 self.gate.ROOT = original_root
 

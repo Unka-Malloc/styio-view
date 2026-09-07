@@ -55,6 +55,7 @@ TEST_MODULES = (
     "tests.test_supply_chain_governance_gate",
     "tests.test_linux_host_readiness_gate",
     "tests.test_linux_packaging_gate",
+    "tests.acceptance.vityo_app.vityod_packaging_acceptance_test",
     "prototype.test_dev_server_security",
 )
 

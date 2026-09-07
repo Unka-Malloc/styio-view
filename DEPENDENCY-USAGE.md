@@ -2,7 +2,7 @@
 
 **Purpose:** Record dependency authorization boundaries for `Vityo`.
 
-**Last updated:** 2026-07-31
+**Last updated:** 2026-08-18
 
 `Vityo` is an Apache-2.0 Flutter/Dart application source project. Its current app, prototype, runner, docs, and test dependency boundary is:
 
@@ -12,12 +12,13 @@
 |---|---|---|---|---|---|
 | `flutter` (SDK) | Flutter SDK | BSD-3-Clause | Flutter framework SDK | UI framework, rendering, widgets, platform channels | Runtime |
 | `crypto` | ^3.0.7 | BSD-3-Clause | `package:crypto` from Dart SDK ecosystem | Cryptographic hash functions (SHA-256, SHA-512, HMAC) for content hashing, toolchain artifact verification, cache key derivation | Runtime |
+| `ffi` | ^2.2.0 | BSD-3-Clause | `package:ffi` from pub.dev | Native allocation and UTF-16 conversion for the Windows named-pipe transport boundary | Runtime (Windows desktop only) |
 | `cryptography` | ^2.9.0 | Apache-2.0 | `package:cryptography` from pub.dev | Cryptographic primitives for signature verification, key derivation, secure random generation used in toolchain provenance and secret handling | Runtime |
 | `web` | ^1.1.1 | BSD-3-Clause | `package:web` from Dart SDK ecosystem | Web platform interop types for browser-virtual file system provider and web-hosted workspace route | Runtime (Web target only) |
 | `cupertino_icons` | ^1.0.8 | MIT | `package:cupertino_icons` from pub.dev | iOS-style icon set for Cupertino-themed UI surfaces on iOS and macOS targets | Runtime (iOS/macOS) |
 | `shared_preferences` | ^2.5.5 | BSD-3-Clause | `package:shared_preferences` from Flutter ecosystem | Platform-appropriate persistent key-value store for user settings, theme profile, session preferences | Runtime |
 | `path_provider` | ^2.1.5 | BSD-3-Clause | `package:path_provider` from Flutter ecosystem | Platform-appropriate directory path resolution for local file system operations, cache directories, document directories | Runtime |
-| `pty2` | 0.5.2 | MIT | Fixed `package:pty2` release from pub.dev | Native desktop pseudo-terminal transport: Windows ConPTY and Linux/macOS forkpty, with Vityo fail-closed validation preventing the Windows pipe fallback from launching the requested process | Runtime (desktop only) |
+| `portable-pty` | 0.9.0 | MIT | Locked Rust crate in the `vityod` workspace | Daemon-owned native desktop pseudo-terminal transport: Windows ConPTY and Linux/macOS forkpty, with bounded reconnect output and deterministic process cleanup | Runtime (desktop only) |
 | `vityo_agent_protocol` | Workspace path package | Apache-2.0 | `packages/vityo_agent_protocol` in this repository | Pure versioned JSON-RPC/ACP wire types shared by the Vityo IDE and compatible Agent runtimes; contains no product orchestration or runtime implementation | Runtime (internal shared protocol) |
 
 ## Dev Dependencies

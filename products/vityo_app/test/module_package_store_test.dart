@@ -10,12 +10,11 @@ import 'package:vityo_app/src/view_ide/module_host/module_manifest.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_package_store.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_registry.dart';
 import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
-import 'package:vityo_app/src/view_ide/environment/system_compatibility/file_system/file_system_manager_io.dart'
-    as file_system_io;
+import 'support/test_file_system_manager.dart';
 
 void main() {
   test('module package store installs verified optional packages', () async {
-    final fs = await file_system_io.createPlatformFileSystemManager();
+    final fs = TestFileSystemManager.linuxDebianArm();
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_module_package_install_',
     );
@@ -69,7 +68,7 @@ void main() {
   test(
     'module package store downloads and installs verified packages',
     () async {
-      final fs = await file_system_io.createPlatformFileSystemManager();
+      final fs = TestFileSystemManager.linuxDebianArm();
       final tempRoot = await Directory.systemTemp.createTemp(
         'vityo_module_package_download_install_',
       );
@@ -119,7 +118,7 @@ void main() {
   test(
     'staged package update keeps running package until restart activation',
     () async {
-      final fs = await file_system_io.createPlatformFileSystemManager();
+      final fs = TestFileSystemManager.linuxDebianArm();
       final tempRoot = await Directory.systemTemp.createTemp(
         'vityo_module_package_stage_',
       );
@@ -236,7 +235,7 @@ void main() {
   );
 
   test('desktop uninstall keeps or clears user data by policy', () async {
-    final fs = await file_system_io.createPlatformFileSystemManager();
+    final fs = TestFileSystemManager.linuxDebianArm();
     final tempRoot = await Directory.systemTemp.createTemp(
       'vityo_module_package_uninstall_',
     );
@@ -310,7 +309,7 @@ void main() {
   test(
     'locked package cleanup retries before reclaiming active package',
     () async {
-      final base = await file_system_io.createPlatformFileSystemManager();
+      final base = TestFileSystemManager.linuxDebianArm();
       final tempRoot = await Directory.systemTemp.createTemp(
         'vityo_module_package_retry_',
       );
@@ -361,7 +360,7 @@ void main() {
   test(
     'locked package cleanup reports blocked after retry exhaustion',
     () async {
-      final base = await file_system_io.createPlatformFileSystemManager();
+      final base = TestFileSystemManager.linuxDebianArm();
       final tempRoot = await Directory.systemTemp.createTemp(
         'vityo_module_package_blocked_',
       );
@@ -462,7 +461,7 @@ ModuleDefinition _module({
 }
 
 class _TransientDeleteFileSystemManager
-    extends file_system_io.LocalFileSystemManager {
+    extends TestFileSystemManager {
   _TransientDeleteFileSystemManager({
     required super.facts,
     required Map<String, int> failuresBeforeSuccessByPath,

@@ -2,11 +2,46 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vityo_app/src/ide/local_service/vityod_client.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 
 const _interactivePtyTimeout = Duration(seconds: 30);
 
 void main() {
+  VityodClient? daemonClient;
+  Process? daemonProcess;
+  Directory? daemonDirectory;
+
+  setUpAll(() async {
+    if (!_supportsDaemonPtyOnHost) return;
+    final executable = _findVityodExecutable();
+    expect(
+      executable.existsSync(),
+      isTrue,
+      reason: 'Run the focused Cargo workspace tests before this suite.',
+    );
+    daemonDirectory = await Directory.systemTemp.createTemp('vd-pty-');
+    final endpoint = '${daemonDirectory!.path}/service.sock';
+    daemonProcess = await Process.start(executable.path, <String>[
+      '--serve',
+      '--endpoint',
+      endpoint,
+    ]);
+    await _waitForEndpoint(endpoint);
+    daemonClient = VityodClient(
+      transport: SocketVityodTransport(endpointPath: endpoint),
+      clientInstanceId: 'pty-test-client',
+    );
+    await daemonClient!.connect();
+  });
+
+  tearDownAll(() async {
+    await daemonClient?.dispose();
+    daemonProcess?.kill();
+    await daemonProcess?.exitCode.timeout(const Duration(seconds: 5));
+    await daemonDirectory?.delete(recursive: true);
+  });
+
   test('pty prober classifies Linux as native forkpty', () async {
     final facts = await LocalPtyProber(
       operatingSystem: 'linux',
@@ -62,7 +97,7 @@ void main() {
     'pty manager runs a command inside a real desktop PTY',
     () async {
       final facts = await const LocalPtyProber().probe();
-      final manager = LocalPtyManager(facts: facts);
+      final manager = LocalPtyManager(facts: facts, client: daemonClient!);
       final session = await manager.start(_ttyProbeRequest());
       final output = <String>[];
       if (Platform.isWindows) {
@@ -89,16 +124,14 @@ void main() {
       expect(fullOutput, isNot(contains('no-tty')));
       expect(session.state, PtySessionState.exited);
     },
-    skip: Platform.isWindows
-        ? 'Hosted Windows ConPTY is fail-closed in CI.'
-        : (!_isDesktopHost ? 'Desktop native PTY only.' : false),
+    skip: !_supportsDaemonPtyOnHost ? 'Unix vityod PTY only.' : false,
   );
 
   test(
     'native PTY applies resize and reports it to the child',
     () async {
       final facts = await const LocalPtyProber().probe();
-      final manager = LocalPtyManager(facts: facts);
+      final manager = LocalPtyManager(facts: facts, client: daemonClient!);
       final session = await manager.start(_resizeProbeRequest());
       final outputFuture = session.output.join();
       final resize = await session.resize(rows: 40, cols: 120);
@@ -107,19 +140,19 @@ void main() {
       );
       final output = await outputFuture.timeout(const Duration(seconds: 10));
 
-      expect(resize.applied, isTrue);
+      expect(resize.applied, isTrue, reason: resize.message);
       expect(exitCode, 0);
       expect(output, contains('120x40'));
       expect(manager.failureForResize(resize, target: session.id), isNull);
     },
-    skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
+    skip: !_supportsDaemonPtyOnHost ? 'Unix vityod PTY only.' : false,
   );
 
   test(
     'native PTY close terminates the process lifecycle',
     () async {
       final facts = await const LocalPtyProber().probe();
-      final manager = LocalPtyManager(facts: facts);
+      final manager = LocalPtyManager(facts: facts, client: daemonClient!);
       final session = await manager.start(_longRunningRequest());
 
       final exitCode = await session
@@ -129,7 +162,25 @@ void main() {
       expect(exitCode, isNotNull);
       expect(session.state, PtySessionState.closed);
     },
-    skip: !_isDesktopHost ? 'Desktop native PTY only.' : false,
+    skip: !_supportsDaemonPtyOnHost ? 'Unix vityod PTY only.' : false,
+  );
+
+  test(
+    'native PTY reports the child non-zero exit code',
+    () async {
+      final facts = await const LocalPtyProber().probe();
+      final manager = LocalPtyManager(facts: facts, client: daemonClient!);
+      final session = await manager.start(
+        const PtySessionRequest(
+          executablePath: '/bin/sh',
+          arguments: <String>['-c', 'exit 7'],
+        ),
+      );
+
+      expect(await session.exitCode.timeout(const Duration(seconds: 10)), 7);
+      expect(session.state, PtySessionState.exited);
+    },
+    skip: !_supportsDaemonPtyOnHost ? 'Unix vityod PTY only.' : false,
   );
 
   test('pty manager classifies unsupported sessions structurally', () async {
@@ -155,8 +206,31 @@ void main() {
   });
 }
 
-bool get _isDesktopHost =>
-    Platform.isWindows || Platform.isLinux || Platform.isMacOS;
+bool get _supportsDaemonPtyOnHost => Platform.isLinux || Platform.isMacOS;
+
+File _findVityodExecutable() {
+  var directory = Directory.current.absolute;
+  for (var depth = 0; depth < 12; depth += 1) {
+    final candidate = File(
+      '${directory.path}/native/vityod/target/debug/vityod',
+    );
+    if (candidate.existsSync()) return candidate;
+    final parent = directory.parent;
+    if (parent.path == directory.path) break;
+    directory = parent;
+  }
+  return File('native/vityod/target/debug/vityod');
+}
+
+Future<void> _waitForEndpoint(String endpoint) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (!File(endpoint).existsSync()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('vityod PTY endpoint was not created');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+}
 
 PtySessionRequest _ttyProbeRequest() {
   if (Platform.isWindows) {

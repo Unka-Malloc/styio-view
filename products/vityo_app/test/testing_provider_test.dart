@@ -6,6 +6,8 @@ import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/testing/testing.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'testing provider registry resolves highest-priority active provider',
@@ -813,7 +815,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_test_run_history_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

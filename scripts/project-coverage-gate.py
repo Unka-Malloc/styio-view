@@ -14,6 +14,7 @@ PYTHON_COVERAGE_GATE = ROOT / "scripts" / "python-coverage-gate.py"
 DEFAULT_FLUTTER_DIR = Path("products/vityo_app")
 DEFAULT_FAIL_UNDER = 95
 LCOV_RELATIVE_PATH = Path("coverage/lcov.info")
+VITYOD_MANIFEST = Path("products/vityo_app/native/vityod/Cargo.toml")
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,25 @@ def run_python_gate(fail_under: int) -> int:
     )
 
 
+def build_vityod_for_flutter_tests() -> int:
+    if sys.platform not in {"linux", "darwin"}:
+        return 0
+    return run_command(
+        [
+            "cargo",
+            "build",
+            "--locked",
+            "--manifest-path",
+            str(VITYOD_MANIFEST),
+            "-p",
+            "vityod",
+            "--bin",
+            "vityod",
+        ],
+        cwd=ROOT,
+    )
+
+
 def resolve_flutter_binary(raw: str | None) -> str | None:
     if raw:
         return shutil.which(raw) or (raw if Path(raw).is_file() else None)
@@ -97,6 +117,9 @@ def run_flutter_gate(
 
     if not use_existing_report:
         assert flutter is not None
+        code = build_vityod_for_flutter_tests()
+        if code != 0:
+            return code
         code = run_command([flutter, "test", "--coverage"], cwd=app_dir)
         if code != 0:
             return code

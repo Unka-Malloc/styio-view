@@ -29,7 +29,11 @@ class DocumentSnapshot {
   });
 
   /// Create a snapshot from a document.
-  factory DocumentSnapshot.fromDocument(String documentId, String text, int revision) {
+  factory DocumentSnapshot.fromDocument(
+    String documentId,
+    String text,
+    int revision,
+  ) {
     final hash = sha256.convert(utf8.encode(text)).toString();
     return DocumentSnapshot(
       documentId: documentId,
@@ -43,6 +47,8 @@ class DocumentSnapshot {
   /// Check if snapshot matches current state.
   bool isStale(String currentText, int currentRevision) {
     if (revision != currentRevision) return true;
+    if (identical(text, currentText)) return false;
+    if (text.length != currentText.length) return true;
     final currentHash = sha256.convert(utf8.encode(currentText)).toString();
     return contentHash != currentHash;
   }
@@ -95,22 +101,26 @@ List<Map<String, dynamic>> runAlg04Benchmarks() {
     results.add(r2.toJson());
 
     // Stale detection (fresh)
-    final r3 = BenchmarkRunner('stale_detection_fresh_${size}lines').run(500, (_) {
+    final r3 = BenchmarkRunner('stale_detection_fresh_${size}lines').run(500, (
+      _,
+    ) {
       snapshot.isStale(text, 1);
     });
     results.add(r3.toJson());
 
     // Stale detection (stale - different revision)
-    final r4 = BenchmarkRunner('stale_detection_stale_revision_${size}lines').run(500, (_) {
-      snapshot.isStale(text, 2);
-    });
+    final r4 = BenchmarkRunner('stale_detection_stale_revision_${size}lines')
+        .run(500, (_) {
+          snapshot.isStale(text, 2);
+        });
     results.add(r4.toJson());
 
     // Stale detection (stale - different content)
     final modifiedText = '${text}modified!';
-    final r5 = BenchmarkRunner('stale_detection_stale_content_${size}lines').run(500, (_) {
-      snapshot.isStale(modifiedText, 1);
-    });
+    final r5 = BenchmarkRunner('stale_detection_stale_content_${size}lines')
+        .run(500, (_) {
+          snapshot.isStale(modifiedText, 1);
+        });
     results.add(r5.toJson());
   }
 

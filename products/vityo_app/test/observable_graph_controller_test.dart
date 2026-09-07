@@ -899,14 +899,14 @@ class _FakePublisher implements ObservableSnapshotPublisher {
   Future<ObservableSnapshotPublishResult> publish(
     ObservableSnapshotPublishRequest request,
   ) async {
-    final token = ++_publishToken;
+    final generation = ++_publishToken;
     calls += 1;
     parentPaths.add(request.parentSnapshotPath ?? '');
     final pending = hold;
     if (pending != null) {
       await pending.future;
     }
-    if (_cancelledToken >= token) {
+    if (_cancelledToken >= generation) {
       return ObservableSnapshotPublishResult.cancelled();
     }
     if (usageErrorOnParent &&
@@ -920,7 +920,7 @@ class _FakePublisher implements ObservableSnapshotPublisher {
     if (failWith != null) {
       return ObservableSnapshotPublishResult.failed(detail: failWith!);
     }
-    final index = token - 1;
+    final index = generation - 1;
     final bytes =
         successes[index < successes.length ? index : successes.length - 1];
     final delta = index < deltas.length ? deltas[index] : null;

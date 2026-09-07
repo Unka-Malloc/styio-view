@@ -2,9 +2,11 @@ import '../platform/platform_target.dart';
 import 'deployment_adapter.dart';
 import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
 
 Future<DeploymentAdapter> createPlatformDeploymentAdapter({
   required PlatformTarget platformTarget,
+  PlatformManagerBundle? platformManagers,
 }) async {
   final hostedClient = await createHostedControlPlaneClient(
     platformTarget: platformTarget,

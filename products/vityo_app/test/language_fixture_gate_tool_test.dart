@@ -8,8 +8,29 @@ import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_co
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
 import '../tool/language_fixture_gate.dart' as language_fixture_gate;
+import 'support/vityod_test_harness.dart';
+
+import 'support/test_file_system_manager.dart';
 
 void main() {
+  VityodTestHarness? vityod;
+  late ProcessManager processManager;
+
+  setUpAll(() async {
+    if (VityodTestHarness.isSupported) {
+      vityod = await VityodTestHarness.start(clientId: 'fixture-gate-test');
+      processManager = LocalProcessManager.linuxDebianArmForTest(
+        client: vityod!.client,
+      );
+    } else {
+      processManager = UnsupportedProcessManager(
+        facts: ProcessFacts.windowsX64(),
+      );
+    }
+  });
+
+  tearDownAll(() => vityod?.close());
+
   test('language fixture gate command defaults to parser-backed CI roots', () {
     final config = language_fixture_gate.LanguageFixtureGateCommandConfig.parse(
       const <String>[],
@@ -23,7 +44,7 @@ void main() {
   });
 
   Future<ConfigurationStore> createConfigurationStore(Directory root) async {
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: root.path,
@@ -49,8 +70,7 @@ void main() {
       final tempDirectory = await Directory.systemTemp.createTemp(
         'vityo-language-fixture-gate-command-',
       );
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
-      final processManager = LocalProcessManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       try {
         final fakeStyio = fileSystemManager.joinPath(<String>[
           tempDirectory.path,
@@ -68,9 +88,7 @@ void main() {
           fixtureRoot,
           'invalid.false.styio',
         ]);
-        await fileSystemManager.writeText(
-          fakeStyio,
-          r'''#!/bin/sh
+        await fileSystemManager.writeText(fakeStyio, r'''#!/bin/sh
 case "$*" in
   *invalid.false.styio*)
     printf '%s\n' '{"severity":"error","code":"styio.syntax","message":"invalid fixture","range":{"start":0,"end":1}}'
@@ -80,22 +98,22 @@ case "$*" in
     exit 0
     ;;
 esac
-''',
-        );
+''');
         await fileSystemManager.setExecutable(fakeStyio);
         await fileSystemManager.writeText(valid, '#valid := () => {}');
         await fileSystemManager.writeText(invalid, '#invalid := () => {');
 
         final output = StringBuffer();
         final errors = StringBuffer();
-        final result = await language_fixture_gate.runLanguageFixtureGateCommand(
-          <String>['--styio', fakeStyio, '--root', fixtureRoot],
-          out: output,
-          err: errors,
-          fileSystemManager: fileSystemManager,
-          processManager: processManager,
-          environment: const <String, String>{},
-        );
+        final result = await language_fixture_gate
+            .runLanguageFixtureGateCommand(
+              <String>['--styio', fakeStyio, '--root', fixtureRoot],
+              out: output,
+              err: errors,
+              fileSystemManager: fileSystemManager,
+              processManager: processManager,
+              environment: const <String, String>{},
+            );
 
         expect(result, 0);
         expect(errors.toString(), contains('Language fixture gate: passed'));
@@ -117,7 +135,7 @@ esac
       final tempDirectory = await Directory.systemTemp.createTemp(
         'vityo-language-fixture-gate-manager-',
       );
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       try {
         final fakeStyio = fileSystemManager.joinPath(<String>[
           tempDirectory.path,
@@ -135,9 +153,7 @@ esac
           fixtureRoot,
           'invalid.false.styio',
         ]);
-        await fileSystemManager.writeText(
-          fakeStyio,
-          r'''#!/bin/sh
+        await fileSystemManager.writeText(fakeStyio, r'''#!/bin/sh
 case "$*" in
   *invalid.false.styio*)
     printf '%s\n' '{"severity":"error","code":"styio.syntax","message":"invalid fixture","range":{"start":0,"end":1}}'
@@ -147,8 +163,7 @@ case "$*" in
     exit 0
     ;;
 esac
-''',
-        );
+''');
         await fileSystemManager.setExecutable(fakeStyio);
         await fileSystemManager.writeText(valid, '#valid := () => {}');
         await fileSystemManager.writeText(invalid, '#invalid := () => {');
@@ -162,23 +177,23 @@ esac
           ),
           platformManagers: await createDetectedPlatformManagerBundle(
             targetId: 'fixture-gate-manager',
+            vityodClient: vityod!.client,
           ),
           workspaceId: 'fixture-gate',
         );
         await manager.saveCatalog(
-          ToolchainCatalog()
-            ..register(
-              ToolchainDescriptor(
-                id: 'persisted-styio',
-                kind: ToolchainKind.languageService,
-                displayName: 'Persisted Styio',
-                executablePath: fakeStyio,
-                metadata: const <String, Object?>{
-                  'contract': 'styio-cli-jsonl-v1',
-                },
-              ),
-              activate: true,
+          ToolchainCatalog()..register(
+            ToolchainDescriptor(
+              id: 'persisted-styio',
+              kind: ToolchainKind.languageService,
+              displayName: 'Persisted Styio',
+              executablePath: fakeStyio,
+              metadata: const <String, Object?>{
+                'contract': 'styio-cli-jsonl-v1',
+              },
             ),
+            activate: true,
+          ),
         );
 
         final gate = StyioServiceFixtureGate(

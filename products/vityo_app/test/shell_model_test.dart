@@ -33,9 +33,11 @@ import 'package:vityo_app/src/view_ide/platform/platform_target.dart';
 import 'backend_provider_test_support.dart';
 import 'observable_fixture_support.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   Future<ConfigurationStore> createConfigurationStore(Directory root) async {
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: root.path,
@@ -92,7 +94,7 @@ void main() {
       'vityo_shell_editor_session_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -186,7 +188,7 @@ void main() {
           await tempDir.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempDir.path,
@@ -1305,7 +1307,7 @@ void main() {
         'vityo_shell_editor_session_edges_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final store = EditorSessionDataStore.fromDataStore(
         dataStore: FoundationDataStore(
           resourceCoordinator: FoundationResourceCoordinator(

@@ -40,11 +40,13 @@ class ToolchainShellRuntime {
 Future<ToolchainShellRuntime> createPlatformToolchainShellRuntime({
   ShellProber? prober,
   PlatformContextSnapshot? platformContext,
+  ProcessManager? processManager,
   ShellConfiguration? configuration,
 }) async {
   final manager = await createPlatformShellManager(
     prober: prober,
     platformContext: platformContext,
+    processManager: processManager,
   );
   return ToolchainShellRuntime(
     shellManager: manager,

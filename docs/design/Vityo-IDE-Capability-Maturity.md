@@ -134,7 +134,7 @@ Vityo capability maturity is measured in six levels. A capability advances by cr
 | General profile snapshot | L0 | L2 | No general IDE user/prompt profile store exists | A future provider-neutral profile is local-first and sync-optional |
 | Visual substitution toggle | L2 | L3 | Toggle exists | Setting persists across sessions |
 | Secret redaction | L2 | L2 | Configuration rejects raw secret-like values; LogRedactor sanitizes output | Raw credentials never enter settings or cross-boundary output |
-| Agent-context separation | L2 | L2 | `RevisionedIdeContextExportService` is bounded, revision-bound, and sanitized | Settings never bypass the canonical context export |
+| Agent-context separation | L2 | L2 | The daemon MCP gateway is bounded, revision-bound, and sanitized | Settings never bypass the canonical context export |
 
 ### 2.12 Module Lifecycle
 
@@ -149,7 +149,7 @@ Vityo capability maturity is measured in six levels. A capability advances by cr
 
 | Aspect | Current Level | Target Level | Evidence | Acceptance Criteria |
 |---|---|---|---|---|
-| Context tool | L2 | L3 | `ide.context.read` uses `RevisionedIdeContextExportService` | Context is available only through the declared MCP tool |
+| Context tool | L2 | L3 | `ide.context.read` uses the daemon-owned MCP gateway | Context is available only through the declared MCP tool |
 | Revision binding | L3 | L3 | Query revision must equal the current workspace revision | Stale reads fail closed |
 | Budget and pagination | L2 | L3 | Item, UTF-8 byte, per-item code-unit, cursor, and deduplication bounds | Oversized context is truncated with explicit omission facts |
 | Redaction policy | L2 | L3 | `McpPayloadSanitizer` applies before digesting and returning content | Secrets and sensitive fields never leave the IDE boundary |

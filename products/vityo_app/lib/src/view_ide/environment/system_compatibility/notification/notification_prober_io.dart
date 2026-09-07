@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import '../host_platform_io.dart';
@@ -30,8 +29,7 @@ class LocalNotificationProber implements NotificationProber {
       operatingSystem: operatingSystem,
       osReleaseReader: osReleaseReader,
     );
-    final desktop =
-        os == 'windows' || os == 'macos' || await _hasNotifySend();
+    final desktop = os == 'windows' || os == 'macos';
     final architecture =
         (await readHostArchitecture(
           operatingSystem: operatingSystem,
@@ -51,17 +49,5 @@ class LocalNotificationProber implements NotificationProber {
       supportsInAppFallback: true,
       detectedAt: (clock ?? DateTime.now)().toUtc(),
     );
-  }
-
-  Future<bool> _hasNotifySend() async {
-    try {
-      final result = await Process.run(
-        'which',
-        const <String>['notify-send'],
-      ).timeout(const Duration(milliseconds: 500));
-      return result.exitCode == 0;
-    } on Object {
-      return false;
-    }
   }
 }

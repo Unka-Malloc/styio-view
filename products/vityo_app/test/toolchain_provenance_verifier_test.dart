@@ -7,7 +7,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+import 'support/vityod_test_harness.dart';
+
 void main() {
+  VityodTestHarness? vityod;
+
+  setUpAll(() async {
+    if (!VityodTestHarness.isSupported) return;
+    vityod = await VityodTestHarness.start(clientId: 'provenance-test');
+  });
+
+  tearDownAll(() => vityod?.close());
+
   Future<_SignedArtifact> createSignedArtifact(List<int> bytes) async {
     final algorithm = Ed25519();
     final keyPair = await algorithm.newKeyPair();
@@ -115,7 +126,10 @@ void main() {
         unsupportedAlgorithm.message,
         contains('Unsupported toolchain provenance signature algorithm'),
       );
-      expect(malformedSignature.status, ToolchainProvenanceVerificationStatus.failed);
+      expect(
+        malformedSignature.status,
+        ToolchainProvenanceVerificationStatus.failed,
+      );
       expect(malformedSignature.message, contains('Invalid character'));
     },
   );
@@ -157,6 +171,8 @@ void main() {
       addTearDown(() => tempRoot.delete(recursive: true));
       final platformManagers = await createDetectedPlatformManagerBundle(
         targetId: 'toolchain-provenance-test',
+        vityodClient: vityod!.client,
+        workspaceRoot: tempRoot.path,
       );
       final artifact = await createSignedArtifact(
         utf8.encode('styio artifact'),
@@ -199,6 +215,15 @@ void main() {
       );
 
       final result = await executor.execute(plan);
+      final stagingDirectory = result.stagingDirectory;
+      if (stagingDirectory != null) {
+        addTearDown(
+          () => platformManagers.fileSystem.delete(
+            stagingDirectory,
+            recursive: true,
+          ),
+        );
+      }
 
       expect(result.status, ToolchainInstallExecutionStatus.staged);
       expect(
@@ -211,7 +236,10 @@ void main() {
       );
       expect(result.provenanceKeyId, 'styio-nightly-test');
       expect(result.stagedPath, isNotNull);
-      expect(await File(result.stagedPath!).readAsString(), 'styio artifact');
+      expect(
+        await platformManagers.fileSystem.readText(result.stagedPath!),
+        'styio artifact',
+      );
     },
   );
 

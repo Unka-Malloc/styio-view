@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-08
 
 ## Mission
 
@@ -78,6 +78,10 @@ Key SSOTs:
     child traversal. Preview-host security tests execute the non-zero loopback rejection on POSIX
     hosts and verify the same shell contract statically on Windows, where Python-to-Git-Bash
     subprocess startup is not a product security boundary.
+25. Rendered-input baseline exports include the required documentation metadata in the generator.
+    `Last updated` records the document export date; metadata-only maintenance does not establish
+    a new performance measurement. Verify the export with
+    `test/editor_rendered_input_performance_test.dart` before refreshing generated docs indexes.
 
 ## Change Classes
 
@@ -111,7 +115,13 @@ Record:
 3. 当前是否仍满足 source buffer fidelity。
 4. 下一步要改的 surface、回滚点和对应 history 记录。
 5. prototype/dev_server.py rejects removed legacy entrypoint assets (`/app.js`, `/styles.css`); the test `test_removed_legacy_entrypoint_assets_are_not_served` validates 404 responses.
+6. Interactive editor input now routes printable, composition, and structural text commits through the editor-owned text-input boundary; navigation, Escape, and non-mutating shortcuts remain on the command path. Multi-selection, grapheme-safe offsets, accessibility semantics, and viewport-bounded rendering are covered by the capability's focused acceptance and rendered evidence.
 
 2026-09-05: Wired the Observable bottom-panel tab (`BottomSurfaceTab.observable`, surface id `observable.graph`) through app bootstrap, shell runtime facade, and scaffold. The controller is optional on non-IO or hosted workspaces; existing editing, build, run, and test surfaces stay unchanged. No `prototype/` change.
 
 2026-09-05: Added `Run observed` on the Observable panel, facade `runObservedProgram`, execution-controller observed run, and bootstrap injection of the IO runtime intake. No new `AppCommandId`. Compact Observable layout remains a scrolling `ListView`. No `prototype/` change.
+
+2026-09-08: Removed the text-input callback unavailable in CI's pinned Flutter
+3.41.7 SDK. The editor's existing focus and explicit connection lifecycle retain
+reconnection after `connectionClosed`; validate that lifecycle, Unicode input,
+and shell construction with the pinned SDK when changing Flutter interfaces.

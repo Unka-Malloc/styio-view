@@ -5,6 +5,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('runtime task history appends latest task first and caps entries', () {
     final first = _task('test.one', RuntimeTaskStatus.succeeded);
@@ -30,7 +32,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,

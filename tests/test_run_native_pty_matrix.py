@@ -84,7 +84,10 @@ class NativePtyMatrixTest(unittest.TestCase):
         report = module.build_report(platform="macos", vityo_commit="v" * 40)
 
         self.assertEqual(report["provider"], "forkpty")
-        self.assertEqual(report["ptyDependency"], {"name": "pty2", "version": "0.5.2"})
+        self.assertEqual(
+            report["ptyDependency"],
+            {"name": "portable-pty", "version": "0.9.0", "owner": "vityod"},
+        )
         self.assertEqual(
             {scenario["id"] for scenario in report["scenarios"]},
             set(module.SCENARIOS),
@@ -96,9 +99,12 @@ class NativePtyMatrixTest(unittest.TestCase):
         with mock.patch.object(
             Path,
             "read_text",
-            return_value="dependencies:\n  pty2: ^0.5.2\n",
+            side_effect=[
+                '[workspace.dependencies]\nportable-pty = "^0.9"\n',
+                'name = "portable-pty"\nversion = "0.9.0"\n',
+            ],
         ):
-            with self.assertRaisesRegex(ValueError, "pinned exactly"):
+            with self.assertRaisesRegex(ValueError, "pinned to"):
                 module.require_pinned_pty_dependency(Path("app"))
 
     def test_main_writes_commit_bound_report(self) -> None:

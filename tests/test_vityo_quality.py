@@ -167,6 +167,51 @@ class VityoQualityTest(unittest.TestCase):
             commands,
         )
 
+    def test_mcp_runners_analyze_only_cutover_authority(self) -> None:
+        expected = {
+            "mcp_host": [
+                "/tools/dart",
+                "analyze",
+                "lib/src/ide/agent_client/mcp",
+                "test/mcp_host",
+                "integration_test/mcp_host_test.dart",
+            ],
+            "ide_security": [
+                "/tools/dart",
+                "analyze",
+                "lib/src/ide/agent_client/mcp",
+                "test/mcp_host/mcp_host_security_test.dart",
+            ],
+        }
+        removed_paths = {
+            "lib/src/ide/agent_client/tools",
+            "lib/src/ide/extensions",
+        }
+
+        for runner_name, analyze_command in expected.items():
+            with self.subTest(runner=runner_name):
+                with mock.patch.object(
+                    self.quality,
+                    "tool",
+                    side_effect=lambda tool_name: f"/tools/{tool_name}",
+                ):
+                    with mock.patch.object(
+                        self.quality,
+                        "run",
+                        return_value=0,
+                    ) as run:
+                        self.assertEqual(
+                            getattr(self.quality, runner_name)(),
+                            0,
+                        )
+
+                commands = [call.args[0] for call in run.call_args_list]
+                self.assertEqual(commands[0], analyze_command)
+                self.assertTrue(
+                    removed_paths.isdisjoint(analyze_command),
+                    analyze_command,
+                )
+
     def test_source_fingerprint_binds_fixtures_and_is_deterministic(self) -> None:
         roots = self.quality._FINGERPRINT_ROOTS
         self.assertIn("tests/acceptance/vityo_app", roots)

@@ -10,6 +10,7 @@ final class ProcessDeveloperOperationAdapter
     required String executable,
     required List<String> arguments,
     required String workingDirectory,
+    required Object client,
     int maxOutputCodeUnits = 4096,
     Object? diagnosticDecoder,
   }) : capabilities = List<IdeCapabilityFact>.unmodifiable(capabilities);

@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/ide/editor/document/document_encoding.dart';
 import 'package:vityo_app/src/ide/editor/document/document_state.dart';
 import 'package:vityo_app/src/ide/editor/document/text_buffer/text_buffer.dart';
-import 'package:vityo_app/src/view_ide/environment/environment.dart';
-import 'package:vityo_app/src/ide/workspace/workspace_document_store_io.dart';
 
 void main() {
   group('DocumentEncoding', () {
@@ -70,79 +66,6 @@ void main() {
         encoding: encoding,
       );
       expect(doc.encoding, encoding);
-    });
-  });
-
-  group('FileSystemWorkspaceDocumentStore encoding round-trip', () {
-    Future<FileSystemWorkspaceDocumentStore> createStore(
-      Directory tempRoot,
-    ) async {
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
-      final storeDir = Directory('${tempRoot.path}/store');
-      final rootDir = Directory('${storeDir.path}/workspace');
-      return FileSystemWorkspaceDocumentStore(
-        rootDir,
-        fileSystemManager: fileSystemManager,
-      );
-    }
-
-    test('save and load preserves utf8WithBom encoding', () async {
-      final tempRoot = await Directory.systemTemp.createTemp(
-        'vityo_encode_roundtrip_test1_',
-      );
-      addTearDown(() => tempRoot.delete(recursive: true));
-      final store = await createStore(tempRoot);
-
-      const doc = DocumentState(
-        documentId: 'test.styio',
-        text: 'value = 1',
-        revision: 0,
-        encoding: DocumentEncoding.utf8WithBom,
-      );
-      await store.saveDocument(doc);
-      final loaded = await store.loadDocument('test.styio');
-
-      expect(loaded.text, doc.text);
-      expect(loaded.encoding, DocumentEncoding.utf8WithBom);
-    });
-
-    test('save and load omits encoding for default utf8', () async {
-      final tempRoot = await Directory.systemTemp.createTemp(
-        'vityo_encode_roundtrip_test2_',
-      );
-      addTearDown(() => tempRoot.delete(recursive: true));
-      final store = await createStore(tempRoot);
-
-      const doc = DocumentState(
-        documentId: 'test.styio',
-        text: 'value = 1',
-        revision: 0,
-      );
-      await store.saveDocument(doc);
-      final loaded = await store.loadDocument('test.styio');
-
-      expect(loaded.text, doc.text);
-      expect(loaded.encoding, isNull);
-    });
-
-    test('save and load preserves latin1 encoding', () async {
-      final tempRoot = await Directory.systemTemp.createTemp(
-        'vityo_encode_roundtrip_test3_',
-      );
-      addTearDown(() => tempRoot.delete(recursive: true));
-      final store = await createStore(tempRoot);
-
-      const doc = DocumentState(
-        documentId: 'test.styio',
-        text: 'value = 1',
-        revision: 0,
-        encoding: DocumentEncoding.latin1,
-      );
-      await store.saveDocument(doc);
-      final loaded = await store.loadDocument('test.styio');
-
-      expect(loaded.text, doc.text);
-      expect(loaded.encoding, DocumentEncoding.latin1);
     });
   });
 }

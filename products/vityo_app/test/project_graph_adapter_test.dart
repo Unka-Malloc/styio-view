@@ -11,6 +11,9 @@ import 'backend_provider_test_support.dart';
 import 'fake_pafio_cli.dart';
 
 void main() {
+  setUpAll(startBackendProviderTestServices);
+  tearDownAll(stopBackendProviderTestServices);
+
   tearDown(() {
     debugOverrideProjectGraphEnvironment(null);
   });
@@ -123,12 +126,14 @@ print(json.dumps({
 
     Directory.current = tempRoot;
     debugOverrideProjectGraphEnvironment(<String, String>{
+      'PWD': tempRoot.path,
       'VITYO_PAFIO_BIN': pafio.path,
       'VITYO_STYIO_BIN': styio.path,
     });
 
     final adapter = await createProjectGraphAdapter(
       platformTarget: PlatformTarget.macos,
+      workspaceRoot: tempRoot.path,
     );
     final graph = await adapter.loadProjectGraph();
 
@@ -154,10 +159,13 @@ print(json.dumps({
       final previousCurrentDirectory = Directory.current;
       addTearDown(() => Directory.current = previousCurrentDirectory);
       Directory.current = tempRoot;
-      debugOverrideProjectGraphEnvironment(const <String, String>{});
+      debugOverrideProjectGraphEnvironment(<String, String>{
+        'PWD': tempRoot.path,
+      });
 
       final adapter = await createProjectGraphAdapter(
         platformTarget: PlatformTarget.linux,
+        workspaceRoot: tempRoot.path,
       );
       final graph = await adapter.loadProjectGraph();
 
@@ -185,11 +193,13 @@ version = "9.9.9"
 ''');
     Directory.current = tempRoot;
     debugOverrideProjectGraphEnvironment(<String, String>{
+      'PWD': tempRoot.path,
       'PATH': '${tempRoot.path}${Platform.pathSeparator}empty-path',
     });
 
     final adapter = await createProjectGraphAdapter(
       platformTarget: PlatformTarget.linux,
+      workspaceRoot: tempRoot.path,
     );
     final graph = await adapter.loadProjectGraph();
 

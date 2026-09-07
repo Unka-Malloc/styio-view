@@ -43,6 +43,45 @@ void main() {
       expect(logs.single, contains('after (test refresh)'));
     },
   );
+
+  test('unavailable project route suppresses optimistic same-kind routes', () {
+    final project = ProjectGraphSnapshot.scratch(
+      workspaceRoot: '/workspace/demo',
+      activeFilePath: '/workspace/demo/main.styio',
+      title: 'unavailable',
+      notes: const <String>[],
+    );
+    final workspace = WorkspaceController(projectSnapshot: project);
+    addTearDown(workspace.dispose);
+    final controller = ProjectGraphController(
+      adapter: _FakeProjectGraphAdapter(
+        project,
+        capability: _cloudUnavailableCapability,
+      ),
+      workspaceController: workspace,
+      refreshExecutionAdapter: (_) async {},
+      executionCapability: () => _cloudAvailableCapability,
+      runtimeEventCapability: () => _cloudAvailableCapability,
+      supplementalCapabilities: const <AdapterCapabilitySnapshot>[
+        _cloudAvailableCapability,
+        _ffiAvailableCapability,
+      ],
+      log: (_) {},
+    );
+
+    final cloud = controller.capabilities.singleWhere(
+      (capability) => capability.adapterKind == AdapterKind.cloud,
+    );
+    expect(cloud.projectGraph.level, AdapterCapabilityLevel.unavailable);
+    expect(cloud.execution.level, AdapterCapabilityLevel.unavailable);
+    expect(cloud.runtimeEvents.level, AdapterCapabilityLevel.unavailable);
+    expect(
+      controller.capabilities.any(
+        (capability) => capability.adapterKind == AdapterKind.ffi,
+      ),
+      isTrue,
+    );
+  });
 }
 
 const _unavailableEndpoint = AdapterEndpointCapability(
@@ -58,13 +97,43 @@ const _capability = AdapterCapabilitySnapshot(
   runtimeEvents: _unavailableEndpoint,
 );
 
+const _availableEndpoint = AdapterEndpointCapability(
+  level: AdapterCapabilityLevel.available,
+  detail: 'available in test',
+);
+
+const _cloudUnavailableCapability = AdapterCapabilitySnapshot(
+  adapterKind: AdapterKind.cloud,
+  languageService: _unavailableEndpoint,
+  projectGraph: _unavailableEndpoint,
+  execution: _unavailableEndpoint,
+  runtimeEvents: _unavailableEndpoint,
+);
+
+const _cloudAvailableCapability = AdapterCapabilitySnapshot(
+  adapterKind: AdapterKind.cloud,
+  languageService: _availableEndpoint,
+  projectGraph: _availableEndpoint,
+  execution: _availableEndpoint,
+  runtimeEvents: _availableEndpoint,
+);
+
+const _ffiAvailableCapability = AdapterCapabilitySnapshot(
+  adapterKind: AdapterKind.ffi,
+  languageService: _availableEndpoint,
+  projectGraph: _availableEndpoint,
+  execution: _availableEndpoint,
+  runtimeEvents: _availableEndpoint,
+);
+
 final class _FakeProjectGraphAdapter implements ProjectGraphAdapter {
-  const _FakeProjectGraphAdapter(this.graph);
+  const _FakeProjectGraphAdapter(this.graph, {this.capability = _capability});
 
   final ProjectGraphSnapshot graph;
+  final AdapterCapabilitySnapshot capability;
 
   @override
-  AdapterCapabilitySnapshot get capabilitySnapshot => _capability;
+  AdapterCapabilitySnapshot get capabilitySnapshot => capability;
 
   @override
   Future<ProjectGraphSnapshot> loadProjectGraph() async => graph;

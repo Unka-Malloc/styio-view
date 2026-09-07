@@ -109,8 +109,7 @@ class WorkspaceImplementationResult {
 class WorkspaceImplementationService {
   const WorkspaceImplementationService({
     required this.documentStore,
-    StyioSyntaxHighlighter syntaxHighlighter =
-        const StyioSyntaxHighlighter(),
+    StyioSyntaxHighlighter syntaxHighlighter = const StyioSyntaxHighlighter(),
   }) : _syntaxHighlighter = syntaxHighlighter;
 
   final WorkspaceDocumentStore documentStore;

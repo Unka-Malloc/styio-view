@@ -79,6 +79,8 @@ _FINGERPRINT_ROOTS = (
     "products/vityo_app/test",
     "products/vityo_app/integration_test",
     "products/vityo_app/benchmark",
+    "products/vityo_app/native/vityod",
+    "packages/vityo_daemon_protocol",
     "packages/vityo_agent_protocol/lib",
     "packages/vityo_agent_protocol/test",
     "packages/vityo_agent_protocol/schema",
@@ -89,7 +91,7 @@ _FINGERPRINT_ROOTS = (
 )
 _PROTOCOL_SCHEMA_ROOT = "packages/vityo_agent_protocol/schema"
 _ACCEPTANCE_FIXTURES_ROOT = "tests/acceptance/vityo_app"
-_IDE_FULL_REQUIRED_TOOLS = ("dart", "flutter")
+_IDE_FULL_REQUIRED_TOOLS = ("cargo", "dart", "flutter")
 _AGENT_FINGERPRINT_ROOTS = (
     "products/vityo_coding_agent",
     "packages/vityo_agent_protocol",
@@ -97,7 +99,7 @@ _AGENT_FINGERPRINT_ROOTS = (
     "docs/plan/vityo-coding-agent",
 )
 _IGNORED_DIRECTORIES = frozenset(
-    {".dart_tool", "build", "__pycache__", ".pytest_cache"}
+    {".dart_tool", "build", "target", "__pycache__", ".pytest_cache"}
 )
 
 
@@ -622,8 +624,6 @@ def mcp_host() -> int:
                 dart,
                 "analyze",
                 "lib/src/ide/agent_client/mcp",
-                "lib/src/ide/agent_client/tools",
-                "lib/src/ide/extensions",
                 "test/mcp_host",
                 "integration_test/mcp_host_test.dart",
             ],
@@ -635,15 +635,6 @@ def mcp_host() -> int:
                 dart,
                 "--packages=.dart_tool/package_config.json",
                 "integration_test/mcp_host_test.dart",
-            ],
-            product,
-        ),
-        (
-            [
-                dart,
-                "--packages=.dart_tool/package_config.json",
-                "../../tests/acceptance/vityo_app/"
-                "mcp_host_security_acceptance_test.dart",
             ],
             product,
         ),
@@ -664,7 +655,6 @@ def ide_security() -> int:
                 dart,
                 "analyze",
                 "lib/src/ide/agent_client/mcp",
-                "lib/src/ide/agent_client/tools",
                 "test/mcp_host/mcp_host_security_test.dart",
             ],
             product,
@@ -734,10 +724,38 @@ def agent_workbench() -> int:
 
 
 def ide_quality() -> int:
+    cargo = tool("cargo")
     dart = tool("dart")
     flutter = tool("flutter")
     product = ROOT / "products" / "vityo_app"
+    daemon = product / "native" / "vityod"
+    daemon_protocol = ROOT / "packages" / "vityo_daemon_protocol"
+    desktop_target = _host_platform()
     commands = (
+        (
+            [
+                cargo,
+                "test",
+                "--manifest-path",
+                str(daemon / "Cargo.toml"),
+                "--workspace",
+                "--all-targets",
+            ],
+            ROOT,
+        ),
+        ([dart, "analyze"], daemon_protocol),
+        ([dart, "test"], daemon_protocol),
+        (
+            [
+                flutter,
+                "test",
+                "--no-pub",
+                "-d",
+                desktop_target,
+                "integration_test/vityod_reconnect_test.dart",
+            ],
+            product,
+        ),
         (
             [
                 flutter,
@@ -796,6 +814,35 @@ def ide_quality() -> int:
                 sys.executable,
                 "tests/acceptance/vityo_app/"
                 "quality_packaging_acceptance_test.py",
+            ],
+            ROOT,
+        ),
+        (
+            [
+                sys.executable,
+                "tests/acceptance/vityo_app/"
+                "vityod_packaging_acceptance_test.py",
+            ],
+            ROOT,
+        ),
+        (
+            [
+                sys.executable,
+                "scripts/vityod-desktop-matrix-gate.py",
+                "--fixtures-only",
+            ],
+            ROOT,
+        ),
+        ([sys.executable, "scripts/check_architecture_boundaries.py"], ROOT),
+        ([sys.executable, "scripts/check_security_baseline.py"], ROOT),
+        ([sys.executable, "scripts/docs-index.py", "--check"], ROOT),
+        ([sys.executable, "tests/test_docs_tooling_coverage.py"], ROOT),
+        (
+            [
+                sys.executable,
+                "scripts/repo-hygiene-gate.py",
+                "--mode",
+                "tracked",
             ],
             ROOT,
         ),

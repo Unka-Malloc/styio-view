@@ -232,9 +232,9 @@ class WorkspaceTextSearchService {
       );
     }
 
-    final uniqueFilePaths = _uniqueFilePaths(filePaths)
-        .where((filePath) => _isIncluded(filePath, query))
-        .toList(growable: false);
+    final uniqueFilePaths = _uniqueFilePaths(
+      filePaths,
+    ).where((filePath) => _isIncluded(filePath, query)).toList(growable: false);
     final maxResults = query.maxResults <= 0 ? 100 : query.maxResults;
     final matches = <WorkspaceTextSearchMatch>[];
     var filesSearched = 0;
@@ -301,8 +301,7 @@ class WorkspaceTextSearchService {
         status: WorkspaceTextSearchStatus.invalidPattern,
         filesSearched: 0,
         matches: const <WorkspaceTextReplaceMatch>[],
-        message:
-            'Workspace replace pattern is not a valid regular expression.',
+        message: 'Workspace replace pattern is not a valid regular expression.',
       );
     }
 
@@ -347,8 +346,7 @@ class WorkspaceTextSearchService {
             status: WorkspaceTextSearchStatus.hitLimit,
             filesSearched: filesSearched,
             matches: List<WorkspaceTextReplaceMatch>.unmodifiable(matches),
-            message:
-                'Workspace replace stopped after $maxResults match(es).',
+            message: 'Workspace replace stopped after $maxResults match(es).',
           );
         }
       }
@@ -398,9 +396,10 @@ class WorkspaceTextSearchService {
           overlayDocuments[entry.key] ??
           await documentStore.loadDocument(entry.key);
       var nextDocument = document;
-      final descendingMatches = [...entry.value]..sort(
-        (first, second) => second.range.start.compareTo(first.range.start),
-      );
+      final descendingMatches = [...entry.value]
+        ..sort(
+          (first, second) => second.range.start.compareTo(first.range.start),
+        );
       for (final match in descendingMatches) {
         nextDocument = nextDocument.replaceRange(
           start: match.range.start,
@@ -527,7 +526,9 @@ class _TextMatcher {
     }
 
     final haystack = caseSensitive ? text : text.toLowerCase();
-    final needle = caseSensitive ? literalPattern : literalPattern.toLowerCase();
+    final needle = caseSensitive
+        ? literalPattern
+        : literalPattern.toLowerCase();
     var cursor = 0;
     while (cursor <= haystack.length) {
       final index = haystack.indexOf(needle, cursor);
@@ -639,8 +640,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

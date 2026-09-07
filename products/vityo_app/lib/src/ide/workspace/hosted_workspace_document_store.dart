@@ -52,7 +52,9 @@ class HostedWorkspaceDocumentStore implements WorkspaceDocumentStore {
 
   @override
   Future<bool> deleteDocument(String path) {
-    throw UnsupportedError('Hosted workspace document deletion is not supported.');
+    throw UnsupportedError(
+      'Hosted workspace document deletion is not supported.',
+    );
   }
 
   @override

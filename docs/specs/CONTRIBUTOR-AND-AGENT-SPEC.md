@@ -2,7 +2,7 @@
 
 **Purpose:** 定义人类贡献者与代码 agent 在 `Vityo` 仓库中的协作规则、联动更新要求与交付边界。
 
-**Last updated:** 2026-06-28
+**Last updated:** 2026-09-08
 
 ## 1. 基本原则
 
@@ -29,7 +29,7 @@
 1. Agent 不得把“显示层替换”误写成“源码层替换”。
 2. Agent 修改移动端执行路径前，必须核对平台约束，尤其是 iOS 代码执行限制。
 3. Agent 新增架构边界时，必须写 ADR，不得只更新 README。
-4. Agent 若发现既有计划与产品规格冲突，应先指出冲突，再修改文档，而不是只写代码。
+4. Report a conflict between a plan and the product specification, then resolve discoverable facts and ordinary in-scope defects within existing authority. Prepare a concrete proposal before requesting a necessary product, public-contract, or risk decision; pause only dependent work. Do not ask the user to repeat an approval covering the same action and risk, and do not bypass an explicit approval requirement.
 5. Agent 若新增模块，必须同时声明 manifest、capability matrix 和卸载/更新语义。
 6. Agent 若修改 adapter 或 hosted workspace 合同，必须同步更新对应 schema 文档。
 7. Agent 新增或调整 UI 面板、卡片、下拉或工具条后，必须检查内部组件是否超出外部容器，尤其是侧边栏、弹窗和移动端窄视口。
@@ -39,6 +39,7 @@
 11. Agent 开始修改前必须查看 `git status --short`，把无关 dirty files 视为并发改动，不得回滚、覆盖或重排他人工作。
 12. Agent 若修改 `view_ide` / `view_render` 边界、产品线依赖方向、sandbox/security、performance gate 或 release gate，必须同步更新 `docs/governance/` 和本地开发入口。
 13. Agent must write new documentation prose in English unless the target file's `Purpose` explicitly declares a Chinese-localized or Chinese user-facing product/marketing scope. When materially editing legacy Chinese prose in non-localized owner docs, convert the touched passage to English instead of extending it.
+14. Use [the execution runbook](../plan/EXECUTION-RUNBOOK.md) for the boundary between routine work and an explicitly used planning workflow. Follow [Post-Commit CI Checks](./POST-COMMIT-CI-CHECKS.md) for final regression and completion; a recorded blocker does not satisfy missing acceptance.
 
 ## 4. 人类审阅重点
 

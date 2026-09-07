@@ -6,6 +6,8 @@ import 'package:vityo_app/src/theme/vityo_theme.dart';
 import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test(
     'theme override store roundtrips through Foundation DataStore',
@@ -63,7 +65,7 @@ void main() {
 }
 
 FoundationDataStore _createFoundationDataStore(String systemTempPath) {
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: systemTempPath,

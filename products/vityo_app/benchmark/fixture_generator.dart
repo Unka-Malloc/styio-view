@@ -7,8 +7,11 @@
 /// - Burst event streams
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
+import 'package:vityo_app/src/ide/editor/performance/rendered_input_performance_protocol.dart';
 
 /// Fixture configuration.
 class FixtureConfig {
@@ -135,6 +138,11 @@ class FixtureGenerator {
     }
 
     return buf.toString();
+  }
+
+  /// Deterministic rendered-editor fixture for REQ-INPUT-004 lanes.
+  RenderedEditorFixture generateRenderedEditorFixture() {
+    return RenderedEditorFixtureGenerator(lineCount: config.lineCount).generate();
   }
 
   /// Generate burst event stream (as JSON lines).

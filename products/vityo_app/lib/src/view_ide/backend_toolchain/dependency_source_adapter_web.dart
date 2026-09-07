@@ -2,9 +2,11 @@ import 'hosted_control_plane.dart';
 import 'project_graph_contract.dart';
 import 'dependency_source_adapter.dart';
 import '../platform/platform_target.dart';
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
 
 Future<DependencySourceAdapter> createPlatformDependencySourceAdapter({
   required PlatformTarget platformTarget,
+  PlatformManagerBundle? platformManagers,
 }) async {
   final hostedClient = await createHostedControlPlaneClient(
     platformTarget: platformTarget,

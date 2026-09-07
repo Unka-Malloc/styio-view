@@ -40,6 +40,10 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.arrowLeft;
       case 'arrowRight':
         return LogicalKeyboardKey.arrowRight;
+      case 'arrowUp':
+        return LogicalKeyboardKey.arrowUp;
+      case 'arrowDown':
+        return LogicalKeyboardKey.arrowDown;
       case 'comma':
         return LogicalKeyboardKey.comma;
       case 'digit1':
@@ -50,6 +54,8 @@ class AppCommandShortcutRegistry {
         return LogicalKeyboardKey.digit3;
       case 'enter':
         return LogicalKeyboardKey.enter;
+      case 'escape':
+        return LogicalKeyboardKey.escape;
       case 'f2':
         return LogicalKeyboardKey.f2;
       case 'f5':

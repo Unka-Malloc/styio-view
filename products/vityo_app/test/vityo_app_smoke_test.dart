@@ -117,6 +117,29 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
   }
 
+  Future<void> commitPlatformText(WidgetTester tester, String text) async {
+    final state = tester.testTextInput.editingState;
+    expect(state, isNotNull);
+    final source = state!['text'] as String;
+    final selectionStart = state['selectionBase'] as int;
+    final selectionEnd = state['selectionExtent'] as int;
+    final replacementStart = selectionStart < selectionEnd
+        ? selectionStart
+        : selectionEnd;
+    final replacementEnd = selectionStart < selectionEnd
+        ? selectionEnd
+        : selectionStart;
+    final nextOffset = replacementStart + text.length;
+    tester.testTextInput.updateEditingValue(
+      TextEditingValue(
+        text: source.replaceRange(replacementStart, replacementEnd, text),
+        selection: TextSelection.collapsed(offset: nextOffset),
+        composing: TextRange.empty,
+      ),
+    );
+    await tester.pump();
+  }
+
   List<Color?> backgroundsForTextOnLine(
     WidgetTester tester, {
     required int lineIndex,
@@ -740,7 +763,21 @@ fn blend(left: f64, right: f64): f64 {
       findsOneWidget,
     );
     expect(find.byIcon(Icons.play_arrow_rounded), findsWidgets);
-    expect(find.byIcon(Icons.arrow_right_alt_rounded), findsWidgets);
+    final arrowLine = bootstrap.editorController.document
+        .positionForOffset(
+          bootstrap.editorController.document.text.indexOf('total ->'),
+        )
+        .line;
+    await tester.scrollUntilVisible(
+      find.byKey(ValueKey('source-line-$arrowLine')),
+      90,
+      scrollable: find.descendant(
+        of: find.byKey(const ValueKey('source-buffer-scroll')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(ValueKey('source-line-$arrowLine')), findsOneWidget);
 
     final vendorCommand = find.byKey(
       const ValueKey('command-strip-vendorDependencies'),
@@ -882,7 +919,7 @@ fn blend(left: f64, right: f64): f64 {
       find.byKey(const ValueKey('editor-language-family-mobile')),
       findsOneWidget,
     );
-    expect(find.text('Viewport Mobile'), findsWidgets);
+    expect(find.byKey(const ValueKey('shell-mobile-scroll')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('command-strip-syncDependencies')),
       findsNothing,
@@ -956,9 +993,7 @@ fn blend(left: f64, right: f64): f64 {
     }
   });
 
-  testWidgets('activates desktop bottom surface tabs from tab chips', (
-    tester,
-  ) async {
+  testWidgets('activates desktop contextual workbench regions', (tester) async {
     tester.view.physicalSize = const Size(2200, 1400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -987,16 +1022,52 @@ fn blend(left: f64, right: f64): f64 {
       expect(shell.activeBottomTab, expectedTab);
     }
 
+    Future<void> tapActivity(String label, BottomSurfaceTab expectedTab) async {
+      final destination = find.byTooltip(label);
+      expect(destination, findsOneWidget);
+      await tester.tap(destination);
+      await tester.pumpAndSettle();
+      expect(shell.activeBottomTab, expectedTab);
+    }
+
     await tapTab('Runtime', BottomSurfaceTab.runtime);
     await tapTab('Terminal', BottomSurfaceTab.terminal);
-    await tapTab('Commands', BottomSurfaceTab.commandPalette);
-    await tapTab('Agent', BottomSurfaceTab.agent);
-    await tapTab('SCM', BottomSurfaceTab.sourceControl);
-    await tapTab('Search', BottomSurfaceTab.search);
     await tapTab('Problems', BottomSurfaceTab.problems);
     await tapTab('Tests', BottomSurfaceTab.testing);
-    await tapTab('Extensions', BottomSurfaceTab.extensions);
     await tapTab('Debug', BottomSurfaceTab.debug);
+    await tapActivity('Search', BottomSurfaceTab.search);
+    await tapActivity('Source control', BottomSurfaceTab.sourceControl);
+    await tapActivity('Coding Agent', BottomSurfaceTab.agent);
+    await tapActivity('Extensions', BottomSurfaceTab.extensions);
+    await tapActivity('Settings', BottomSurfaceTab.settings);
+  });
+
+  testWidgets('collapses medium desktop sidebar into the activity rail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final bootstrap = await createBootstrap(PlatformTarget.macos);
+
+    await tester.pumpWidget(VityoApp(bootstrap: bootstrap));
+
+    expect(
+      find.byKey(const ValueKey('workbench-activity-rail')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('explorer-tree-scroll')), findsNothing);
+
+    await tester.tap(find.byTooltip('Search'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('workspace-search-surface')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('explorer-tree-scroll')), findsNothing);
   });
 
   testWidgets('activates mobile settings tab from tab chip', (tester) async {
@@ -2179,8 +2250,7 @@ fn blend(left: f64, right: f64): f64 {
 
     await focusSourceBuffer(tester);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.bracketLeft, character: '{');
-    await tester.pump();
+    await commitPlatformText(tester, '{');
 
     expect(bootstrap.editorController.document.text, 'fn main() {}');
     expect(bootstrap.editorController.selection.end, text.length + 1);
@@ -2875,7 +2945,7 @@ value -> @stdout
 
     await focusSourceBuffer(tester);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
+    await commitPlatformText(tester, 'j');
     await tester.pumpAndSettle();
 
     expect(bootstrap.editorController.document.text, '${text}j');
@@ -2883,7 +2953,13 @@ value -> @stdout
       find.byKey(const ValueKey('source-completion-lookup')),
       findsOneWidget,
     );
-    expect(find.text('job · variable'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-completion-item-0')),
+        matching: find.text('job · variable'),
+      ),
+      findsOneWidget,
+    );
     expect(
       tester
           .widget<Text>(
@@ -2916,7 +2992,7 @@ value -> @stdout
 
     await focusSourceBuffer(tester);
 
-    await tester.sendKeyEvent(LogicalKeyboardKey.keyJ, character: 'j');
+    await commitPlatformText(tester, 'j');
     await tester.pumpAndSettle();
 
     expect(bootstrap.editorController.document.text, '${text}j');
@@ -2956,7 +3032,13 @@ value -> @stdout
       findsOneWidget,
     );
     expect(find.text('Code Completion'), findsOneWidget);
-    expect(find.text('job · variable'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('source-completion-item-0')),
+        matching: find.text('job · variable'),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('source-completion-preview')),
       findsOneWidget,

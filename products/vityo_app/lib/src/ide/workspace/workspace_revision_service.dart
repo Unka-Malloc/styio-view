@@ -27,12 +27,8 @@ final class WorkspaceDocumentSnapshot {
       workspaceRevision == other.workspaceRevision;
 
   @override
-  int get hashCode => Object.hash(
-        resourceId,
-        text,
-        revision,
-        workspaceRevision,
-      );
+  int get hashCode =>
+      Object.hash(resourceId, text, revision, workspaceRevision);
 }
 
 final class WorkspaceSnapshot {
@@ -40,8 +36,8 @@ final class WorkspaceSnapshot {
     required this.workspaceRevision,
     required Map<String, WorkspaceDocumentSnapshot> documents,
   }) : documents = UnmodifiableMapView<String, WorkspaceDocumentSnapshot>(
-          Map<String, WorkspaceDocumentSnapshot>.of(documents),
-        );
+         Map<String, WorkspaceDocumentSnapshot>.of(documents),
+       );
 
   final int workspaceRevision;
   final Map<String, WorkspaceDocumentSnapshot> documents;
@@ -85,10 +81,10 @@ final class WorkspaceAtomicCommit {
     required this.expectedWorkspaceRevision,
     required Map<String, int> expectedDocumentRevisions,
     required Map<String, String> replacements,
-  })  : expectedDocumentRevisions = Map<String, int>.unmodifiable(
-          expectedDocumentRevisions,
-        ),
-        replacements = Map<String, String>.unmodifiable(replacements);
+  }) : expectedDocumentRevisions = Map<String, int>.unmodifiable(
+         expectedDocumentRevisions,
+       ),
+       replacements = Map<String, String>.unmodifiable(replacements);
 
   final int expectedWorkspaceRevision;
   final Map<String, int> expectedDocumentRevisions;
@@ -122,9 +118,9 @@ final class InMemoryWorkspaceRevisionService {
   var _failNextCommit = false;
 
   WorkspaceSnapshot snapshot() => WorkspaceSnapshot(
-        workspaceRevision: _workspaceRevision,
-        documents: _documents,
-      );
+    workspaceRevision: _workspaceRevision,
+    documents: _documents,
+  );
 
   void initialize(Map<String, String> documents) {
     if (_documents.isNotEmpty) {
@@ -209,10 +205,7 @@ final class StandaloneWorkspaceSearchMatch {
 
 /// Minimal standalone workspace composition with no Agent dependency.
 final class StandaloneIdeWorkspace {
-  StandaloneIdeWorkspace({
-    required this.revisions,
-    required this.transactions,
-  });
+  StandaloneIdeWorkspace({required this.revisions, required this.transactions});
 
   final InMemoryWorkspaceRevisionService revisions;
   final WorkspaceTransactionService transactions;

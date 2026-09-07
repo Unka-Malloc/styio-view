@@ -1,428 +1,264 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:io';
 
-import 'package:vityo_agent_protocol/vityo_agent_protocol.dart';
-import 'package:vityo_app/src/ide/agent_client/mcp/ide_mcp_server.dart';
-import 'package:vityo_app/src/ide/agent_client/mcp/workspace_root_registry.dart';
-import 'package:vityo_app/src/ide/agent_client/tools/ide_tool_catalog.dart';
-import 'package:vityo_app/src/ide/agent_client/tools/tool_security_policy.dart';
 import 'package:test/test.dart';
+import 'package:vityo_app/src/ide/agent_client/mcp/vityod_mcp_gateway.dart';
+import 'package:vityo_app/src/ide/local_service/vityod_client.dart';
 
 void main() {
-  test('authoritative risk consumes an allow-once grant once', () async {
-    final adapter = _Adapter(
-      name: 'ide.fixture.mutate',
-      risks: const <IdeToolRisk>{IdeToolRisk.mutating},
-    );
-    final grants = ToolGrantRegistry();
-    final server = _server(adapter, grants: grants);
-    await _initialize(server);
-
-    expect(
-      _code(await _call(server, adapter.descriptor.name)),
-      'permission_required',
-    );
-    expect(adapter.callCount, 0);
-    grants.grant(
-      ToolPermissionGrant(
-        id: 'once',
-        sessionId: 'session',
-        toolName: adapter.descriptor.name,
-        risks: const <IdeToolRisk>{IdeToolRisk.mutating},
-        scope: ToolGrantScope.once,
-      ),
-    );
-    expect((await _call(server, adapter.descriptor.name))['isError'], isFalse);
-    expect(
-      _code(await _call(server, adapter.descriptor.name)),
-      'permission_required',
-    );
-    expect(adapter.callCount, 1);
-    await server.close();
-  });
-
-  test('credentials and unexpected failures fail closed', () async {
-    final adapter = _Adapter(
-      name: 'ide.fixture.failure',
-      risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
-      failure: StateError('private failure detail'),
-    );
-    final server = _server(adapter);
-    await _initialize(server);
-
-    expect(
-      _code(
-        await _call(server, adapter.descriptor.name, const <String, Object?>{
-          'authorization': 'Bearer fixture-token',
-        }),
-      ),
-      'credential_passthrough_denied',
-    );
-    expect(adapter.callCount, 0);
-    final failed = await _call(server, adapter.descriptor.name);
-    expect(_code(failed), 'tool_failed');
-    expect(jsonEncode(failed), isNot(contains('private failure detail')));
-    await server.close();
-  });
-
-  test('grant storage and credential sanitization remain bounded', () {
-    final sensitiveValues = <String>{'private-value'};
-    final sanitizer = McpPayloadSanitizer.withSensitiveValues(sensitiveValues);
-    sensitiveValues.clear();
-
-    expect(
-      sanitizer.containsCredentialInput(const <String, Object?>{
-        'clientSecret': 'credential',
-      }),
-      isTrue,
-    );
-    expect(
-      sanitizer.sanitize(const <String, Object?>{
-        'clientSecret': 'credential',
-        'url': 'https://example.invalid/?access_token=value',
-        'message': 'private-value',
-      }),
-      <String, Object?>{
-        'clientSecret': '[REDACTED]',
-        'url': 'https://example.invalid/?access_token=[REDACTED]',
-        'message': '[REDACTED]',
-      },
-    );
-
-    final grants = ToolGrantRegistry(maxGrants: 1);
-    grants.grant(_grant('first', 'session-a'));
-    expect(() => grants.grant(_grant('second', 'session-b')), throwsStateError);
-    grants.revokeSession('session-a');
-    expect(() => grants.grant(_grant('second', 'session-b')), returnsNormally);
-  });
-
-  test('credential sanitization is cycle and depth bounded', () {
-    const sanitizer = McpPayloadSanitizer();
-    final cyclic = <String, Object?>{};
-    cyclic['self'] = cyclic;
-
-    expect(sanitizer.containsCredentialInput(cyclic), isTrue);
-    expect(sanitizer.sanitize(cyclic), <String, Object?>{'self': '[REDACTED]'});
-
-    Object? nested = 'safe';
-    for (var depth = 0; depth < 70; depth += 1) {
-      nested = <Object?>[nested];
-    }
-    expect(sanitizer.containsCredentialInput(nested), isTrue);
-    expect(jsonEncode(sanitizer.sanitize(nested)), contains('[REDACTED]'));
-  });
-
   test(
-    'MCP sessions are bounded and duplicate initialize is rejected',
+    'vityod MCP enforces roots, revisions, capabilities, preview, and revocation',
     () async {
-      final adapter = _Adapter(
-        name: 'ide.fixture.session-limit',
-        risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
+      if (Platform.isWindows) return;
+      final executable = _findVityodExecutable();
+      expect(
+        executable.existsSync(),
+        isTrue,
+        reason: 'Run the focused Cargo workspace tests before this suite.',
       );
-      final server = _server(adapter, maxSessions: 1);
-      await _initialize(server);
+      final temporary = await Directory.systemTemp.createTemp('vd-mcp-');
+      final endpoint = '${temporary.path}/service.sock';
+      var daemon = await Process.start(executable.path, <String>[
+        '--serve',
+        '--endpoint',
+        endpoint,
+      ]);
+      addTearDown(() async {
+        daemon.kill();
+        await daemon.exitCode.timeout(const Duration(seconds: 5));
+        await temporary.delete(recursive: true);
+      });
+      await _waitForEndpoint(endpoint);
 
-      final duplicate = await server.handle(
-        sessionId: 'session',
-        message: JsonRpcRequest(
-          id: const JsonRpcId.integer(3),
-          method: 'initialize',
-          params: const <String, Object?>{
-            'protocolVersion': mcpProtocolVersion,
-            'capabilities': <String, Object?>{},
-          },
-        ),
+      var client = VityodClient(
+        transport: SocketVityodTransport(endpointPath: endpoint),
+        clientInstanceId: 'mcp-security-test',
       );
-      final limited = await server.handle(
-        sessionId: 'session-2',
-        message: JsonRpcRequest(
-          id: const JsonRpcId.integer(4),
-          method: 'initialize',
-          params: const <String, Object?>{
-            'protocolVersion': mcpProtocolVersion,
-            'capabilities': <String, Object?>{},
-          },
-        ),
-      );
-
-      expect(_rpcErrorCode(duplicate), 'already_initialized');
-      expect(_rpcErrorCode(limited), 'session_limit_exceeded');
-      await server.close();
-    },
-  );
-
-  test('MCP negotiates versions and permits lifecycle pings', () async {
-    final server = _server(
-      _Adapter(
-        name: 'ide.fixture.lifecycle',
-        risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
-      ),
-    );
-    final initialized = await server.handle(
-      sessionId: 'session',
-      message: JsonRpcRequest(
-        id: const JsonRpcId.integer(1),
-        method: 'initialize',
+      await client.connect();
+      addTearDown(() => client.dispose());
+      final seed = await client.request(
+        method: 'workspace.transaction.commit',
+        idempotencyKey: 'seed-workspace',
+        workspaceId: 'workspace',
         params: const <String, Object?>{
-          'protocolVersion': '2099-01-01',
-          'capabilities': <String, Object?>{},
+          'expectedWorkspaceRevision': 0,
+          'changes': <Object?>[
+            <String, Object?>{
+              'relativePath': 'lib/main.styio',
+              'expectedDocumentRevision': 0,
+              'contents': 'before',
+            },
+          ],
         },
-      ),
-    );
-    expect(
-      (initialized as JsonRpcSuccessResponse).result,
-      containsPair('protocolVersion', mcpProtocolVersion),
-    );
-    final ping = await server.handle(
-      sessionId: 'session',
-      message: JsonRpcRequest(id: const JsonRpcId.integer(2), method: 'ping'),
-    );
-    expect((ping as JsonRpcSuccessResponse).result, isEmpty);
-    final tooEarly = await server.handle(
-      sessionId: 'session',
-      message: JsonRpcRequest(
-        id: const JsonRpcId.integer(3),
-        method: 'tools/list',
-      ),
-    );
-    expect(_rpcErrorCode(tooEarly), 'not_initialized');
-    await server.close();
-  });
-
-  test(
-    'workspace root slots are reserved before canonical resolution',
-    () async {
-      final resolver = _BlockingCanonicalPathResolver();
-      final roots = WorkspaceRootRegistry(resolver: resolver, maxSessions: 1);
-      final first = roots.replaceRoots(
-        sessionId: 'session-a',
-        proposals: const <WorkspaceRootProposal>[
-          WorkspaceRootProposal(path: '/workspace', displayName: 'workspace'),
-        ],
-        consentReceiptId: 'consent-a',
       );
-      await resolver.started.future;
+      expect(seed.method, 'workspace.transaction.commit.result');
+      expect(seed.params['workspaceRevision'], 1);
+
+      var gateway = VityodMcpGateway(client: client);
+      await gateway.startSession(
+        sessionId: 'session',
+        workspaceId: 'workspace',
+        workspaceRevision: 1,
+        capabilities: const <String>{'workspace.read', 'workspace.proposeEdit'},
+      );
+
+      final read = await gateway.invoke(
+        sessionId: 'session',
+        workspaceId: 'workspace',
+        workspaceRevision: 1,
+        tool: 'workspace.read',
+        arguments: const <String, Object?>{'relativePath': 'lib/main.styio'},
+      );
+      expect(read['contents'], 'before');
+      expect(read['documentRevision'], 1);
 
       await expectLater(
-        roots.replaceRoots(
-          sessionId: 'session-b',
-          proposals: const <WorkspaceRootProposal>[],
-          consentReceiptId: 'consent-b',
+        gateway.invoke(
+          sessionId: 'session',
+          workspaceId: 'workspace',
+          workspaceRevision: 1,
+          tool: 'workspace.read',
+          arguments: const <String, Object?>{'relativePath': '../secret'},
         ),
-        throwsStateError,
+        _failsWith('workspace_root_escape'),
       );
-      resolver.release.complete();
-      await first;
-      await roots.close();
-    },
-  );
+      await expectLater(
+        gateway.invoke(
+          sessionId: 'session',
+          workspaceId: 'workspace',
+          workspaceRevision: 1,
+          tool: 'task.start',
+        ),
+        _failsWith('capability_denied'),
+      );
+      await expectLater(
+        gateway.invoke(
+          sessionId: 'session',
+          workspaceId: 'workspace',
+          workspaceRevision: 1,
+          tool: 'workspace.read',
+          arguments: const <String, Object?>{
+            'relativePath': 'lib/main.styio',
+            'authorization': 'Bearer fixture-token',
+          },
+        ),
+        _failsWith('credential_passthrough_denied'),
+      );
 
-  test('workspace path resolution is deadline bounded', () async {
-    final roots = WorkspaceRootRegistry(
-      resolver: _NeverCanonicalPathResolver(),
-      resolutionTimeout: const Duration(milliseconds: 20),
-    );
-    await expectLater(
-      roots.replaceRoots(
+      final proposal = await gateway.invoke(
         sessionId: 'session',
-        proposals: const <WorkspaceRootProposal>[
-          WorkspaceRootProposal(path: '/workspace', displayName: 'workspace'),
-        ],
-        consentReceiptId: 'consent',
-      ),
-      throwsA(isA<TimeoutException>()),
-    );
-    await roots.close();
-  });
+        workspaceId: 'workspace',
+        workspaceRevision: 1,
+        tool: 'workspace.proposeEdit',
+        arguments: const <String, Object?>{
+          'relativePath': 'lib/main.styio',
+          'contents': 'after',
+        },
+      );
+      expect(
+        (proposal['proposal'] as Map<String, Object?>)['requiresPreview'],
+        isTrue,
+      );
+      expect(
+        (proposal['proposal']
+            as Map<String, Object?>)['requiresTransactionCommit'],
+        isTrue,
+      );
+      final unchanged = await gateway.invoke(
+        sessionId: 'session',
+        workspaceId: 'workspace',
+        workspaceRevision: 1,
+        tool: 'workspace.read',
+        arguments: const <String, Object?>{'relativePath': 'lib/main.styio'},
+      );
+      expect(unchanged['contents'], 'before');
 
-  test(
-    'tool execution concurrency is bounded before adapter effects',
-    () async {
-      final adapter = _BlockingAdapter();
-      final server = _server(adapter, maxConcurrentToolCallsPerSession: 1);
-      await _initialize(server);
+      await gateway.requestPermission(
+        sessionId: 'session',
+        permissionId: 'permission-1',
+      );
+      await gateway.decidePermission(
+        sessionId: 'session',
+        permissionId: 'permission-1',
+        allowOnce: false,
+      );
+      await client.dispose();
+      daemon.kill();
+      await daemon.exitCode.timeout(const Duration(seconds: 5));
+      daemon = await Process.start(executable.path, <String>[
+        '--serve',
+        '--endpoint',
+        endpoint,
+      ]);
+      await _waitForEndpoint(endpoint);
+      client = VityodClient(
+        transport: SocketVityodTransport(endpointPath: endpoint),
+        clientInstanceId: 'mcp-security-reconnected',
+      );
+      await client.connect();
+      gateway = VityodMcpGateway(client: client);
+      final resumed = await gateway.resumeSession('session');
+      expect(resumed['revoked'], isFalse);
+      expect(
+        (resumed['events'] as List<Object?>).cast<Map<String, Object?>>().map(
+          (event) => event['kind'],
+        ),
+        containsAll(<String>[
+          'started',
+          'permission.requested',
+          'permission.denied',
+        ]),
+      );
+      expect(
+        (await gateway.invoke(
+          sessionId: 'session',
+          workspaceId: 'workspace',
+          workspaceRevision: 1,
+          tool: 'workspace.read',
+          arguments: const <String, Object?>{'relativePath': 'lib/main.styio'},
+        ))['contents'],
+        'before',
+      );
 
-      final first = _call(server, adapter.descriptor.name);
-      await adapter.started.future;
-      final denied = await _call(server, adapter.descriptor.name);
-      expect(_code(denied), 'tool_concurrency_limit');
-      expect(adapter.callCount, 1);
+      final commit = await client.request(
+        method: 'workspace.transaction.commit',
+        idempotencyKey: 'commit-previewed-edit',
+        workspaceId: 'workspace',
+        params: const <String, Object?>{
+          'expectedWorkspaceRevision': 1,
+          'changes': <Object?>[
+            <String, Object?>{
+              'relativePath': 'lib/main.styio',
+              'expectedDocumentRevision': 1,
+              'contents': 'after',
+            },
+          ],
+        },
+      );
+      expect(commit.params['workspaceRevision'], 2);
 
-      adapter.release.complete();
-      expect((await first)['isError'], isFalse);
-      await server.close();
+      await expectLater(
+        gateway.invoke(
+          sessionId: 'session',
+          workspaceId: 'workspace',
+          workspaceRevision: 2,
+          tool: 'workspace.read',
+          arguments: const <String, Object?>{'relativePath': 'lib/main.styio'},
+        ),
+        _failsWith('capability_denied'),
+      );
+      await gateway.revokeSession('session');
+      await expectLater(
+        gateway.invoke(
+          sessionId: 'session',
+          workspaceId: 'workspace',
+          workspaceRevision: 1,
+          tool: 'workspace.read',
+          arguments: const <String, Object?>{'relativePath': 'lib/main.styio'},
+        ),
+        _failsWith('capability_denied'),
+      );
     },
+    skip: !(Platform.isMacOS || Platform.isLinux)
+        ? 'Unix local-service transport only.'
+        : false,
   );
 }
 
-ToolPermissionGrant _grant(String id, String sessionId) => ToolPermissionGrant(
-  id: id,
-  sessionId: sessionId,
-  toolName: 'ide.fixture.mutate',
-  risks: const <IdeToolRisk>{IdeToolRisk.mutating},
-  scope: ToolGrantScope.session,
+Matcher _failsWith(String code) => throwsA(
+  isA<VityodMcpFailure>().having((failure) => failure.code, 'code', code),
 );
 
-IdeMcpServer _server(
-  IdeToolAdapter adapter, {
-  ToolGrantRegistry? grants,
-  int maxSessions = 64,
-  int maxConcurrentToolCallsPerSession = 16,
-}) {
-  final catalog = IdeToolCatalog(adapters: <IdeToolAdapter>[adapter]);
-  catalog.replaceCapabilities('session', <String>{
-    adapter.descriptor.requiredCapabilityId,
-  });
-  return IdeMcpServer(
-    roots: WorkspaceRootRegistry(),
-    tools: catalog,
-    security: ToolSecurityPolicy(
-      grants: grants ?? ToolGrantRegistry(),
-      auditLog: ToolAuditLog(maxEntries: 8),
-      sanitizer: const McpPayloadSanitizer(),
-      maxResultBytes: 2048,
-    ),
-    maxSessions: maxSessions,
-    maxConcurrentToolCallsPerSession: maxConcurrentToolCallsPerSession,
-  );
-}
-
-Future<void> _initialize(IdeMcpServer server) async {
-  await server.handle(
-    sessionId: 'session',
-    message: JsonRpcRequest(
-      id: const JsonRpcId.integer(1),
-      method: 'initialize',
-      params: const <String, Object?>{
-        'protocolVersion': mcpProtocolVersion,
-        'capabilities': <String, Object?>{},
-      },
-    ),
-  );
-  await server.handle(
-    sessionId: 'session',
-    message: JsonRpcNotification(method: 'notifications/initialized'),
-  );
-}
-
-Future<Map<String, Object?>> _call(
-  IdeMcpServer server, [
-  String name = 'ide.fixture.failure',
-  Map<String, Object?> arguments = const <String, Object?>{},
-]) async {
-  final response = await server.handle(
-    sessionId: 'session',
-    message: JsonRpcRequest(
-      id: const JsonRpcId.integer(2),
-      method: 'tools/call',
-      params: <String, Object?>{'name': name, 'arguments': arguments},
-    ),
-  );
-  final success = response as JsonRpcSuccessResponse;
-  return success.result as Map<String, Object?>;
-}
-
-String? _code(Map<String, Object?> result) =>
-    (result['structuredContent'] as Map<String, Object?>)['code'] as String?;
-
-String? _rpcErrorCode(JsonRpcMessage? response) {
-  if (response is! JsonRpcErrorResponse) {
-    return null;
-  }
-  final data = response.error.data;
-  return data is Map<String, Object?> ? data['code'] as String? : null;
-}
-
-final class _Adapter implements IdeToolAdapter {
-  _Adapter({
-    required String name,
-    required Set<IdeToolRisk> risks,
-    this.failure,
-  }) : descriptor = IdeToolDescriptor(
-         name: name,
-         title: name,
-         description: 'Security fixture tool.',
-         requiredCapabilityId: name,
-         inputSchema: const <String, Object?>{
-           'type': 'object',
-           'additionalProperties': true,
-         },
-         outputSchema: const <String, Object?>{'type': 'object'},
-         risks: risks,
-         annotations: const <String, Object?>{'readOnlyHint': true},
-       );
-
-  @override
-  final IdeToolDescriptor descriptor;
-  final Object? failure;
-  int callCount = 0;
-
-  @override
-  Future<IdeToolResult> invoke(IdeToolInvocation invocation) async {
-    callCount += 1;
-    if (failure case final failure?) {
-      throw failure;
-    }
-    return IdeToolResult(
-      structuredContent: const <String, Object?>{'changed': true},
-      workspaceRevision: 1,
-      provenance: 'fixture',
-      sensitivity: ContextSensitivity.internal,
+File _findVityodExecutable() {
+  var directory = Directory.current.absolute;
+  for (var depth = 0; depth < 12; depth += 1) {
+    final candidate = File(
+      '${directory.path}/native/vityod/target/debug/vityod',
     );
+    if (candidate.existsSync()) return candidate;
+    final parent = directory.parent;
+    if (parent.path == directory.path) break;
+    directory = parent;
   }
+  return File('native/vityod/target/debug/vityod');
 }
 
-final class _BlockingCanonicalPathResolver implements CanonicalPathResolver {
-  final Completer<void> started = Completer<void>();
-  final Completer<void> release = Completer<void>();
-
-  @override
-  Future<CanonicalPath> resolve(String path) async {
-    if (!started.isCompleted) {
-      started.complete();
+Future<void> _waitForEndpoint(String endpoint) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 5));
+  while (true) {
+    try {
+      final probe = await Socket.connect(
+        InternetAddress(endpoint, type: InternetAddressType.unix),
+        0,
+      );
+      probe.destroy();
+      return;
+    } on SocketException {
+      // The previous daemon may have left an endpoint until its guard ran.
     }
-    await release.future;
-    return CanonicalPath(path: path);
-  }
-}
-
-final class _NeverCanonicalPathResolver implements CanonicalPathResolver {
-  @override
-  Future<CanonicalPath> resolve(String path) =>
-      Completer<CanonicalPath>().future;
-}
-
-final class _BlockingAdapter implements IdeToolAdapter {
-  final Completer<void> started = Completer<void>();
-  final Completer<void> release = Completer<void>();
-  int callCount = 0;
-
-  @override
-  final IdeToolDescriptor descriptor = IdeToolDescriptor(
-    name: 'ide.fixture.blocking',
-    title: 'blocking fixture',
-    description: 'Blocks until the acceptance fixture releases it.',
-    requiredCapabilityId: 'ide.fixture.blocking',
-    inputSchema: const <String, Object?>{
-      'type': 'object',
-      'additionalProperties': true,
-    },
-    outputSchema: const <String, Object?>{'type': 'object'},
-    risks: const <IdeToolRisk>{IdeToolRisk.readOnly},
-  );
-
-  @override
-  Future<IdeToolResult> invoke(IdeToolInvocation invocation) async {
-    callCount += 1;
-    if (!started.isCompleted) {
-      started.complete();
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('vityod MCP endpoint was not created');
     }
-    await release.future;
-    return IdeToolResult(
-      structuredContent: const <String, Object?>{'completed': true},
-      workspaceRevision: 1,
-      provenance: 'fixture',
-      sensitivity: ContextSensitivity.internal,
-    );
+    await Future<void>.delayed(const Duration(milliseconds: 20));
   }
 }

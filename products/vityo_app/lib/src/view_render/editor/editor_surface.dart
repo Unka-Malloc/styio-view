@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../../view_ide/interaction/interaction.dart';
@@ -7,8 +8,10 @@ import '../platform/viewport_profile.dart';
 import '../../ide/editor/document_state.dart';
 import '../../ide/editor/editor_controller.dart';
 import '../../ide/editor/render_plan/render_plan.dart';
+import '../../ide/editor/performance/rendered_input_performance_protocol.dart';
 import '../../ide/editor/selection_state.dart';
 import 'editor_text_style_binding.dart';
+import 'editor_text_input_client.dart';
 
 List<CompletionItem> mergeCompletionItems(
   Iterable<CompletionItem> primary,
@@ -77,263 +80,217 @@ class EditorSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final document = controller.document;
-        final selection = controller.selection;
-        final renderPlan = controller.renderPlan;
-        final semanticThemeBinding =
-            this.semanticThemeBinding ??
-            EditorSemanticThemeBinding.fromTheme(
-              EditorSemanticTheme.foundation(),
+    Widget buildShell(BuildContext context) {
+      final document = controller.document;
+      final selection = controller.selection;
+      final renderPlan = controller.renderPlan;
+      final semanticThemeBinding =
+          this.semanticThemeBinding ??
+          EditorSemanticThemeBinding.fromTheme(
+            EditorSemanticTheme.foundation(),
+          );
+      final analysis = controller.analysis;
+      final deferExpensiveLanguageQueries = document.lineCount >= 10000;
+      final hover = deferExpensiveLanguageQueries
+          ? null
+          : projectHoverAtSelection ?? controller.hoverAtSelection;
+      final completions = deferExpensiveLanguageQueries
+          ? const <CompletionItem>[]
+          : mergeCompletionItems(
+              controller.completionsAtSelection,
+              projectCompletionsAtSelection,
             );
-        final analysis = controller.analysis;
-        final hover = projectHoverAtSelection ?? controller.hoverAtSelection;
-        final completions = mergeCompletionItems(
-          controller.completionsAtSelection,
-          projectCompletionsAtSelection,
-        );
-        final activeReferences = controller.referencesAtSelection;
-        final activeToken = controller.tokenAtSelection;
-        final activeSemanticKind = controller.semanticKindAtSelection;
-        final serviceStatus = languageServiceStatus;
-        final fileBindingStatus = _fileBindingStatusFor(fileBindingSnapshot);
-        final closeRequest = closeRequestSurface;
-        final activeOpenDocumentId = activeDocumentId ?? document.documentId;
-        final visibleOpenDocumentIds = openDocumentIds.isEmpty
-            ? <String>[document.documentId]
-            : openDocumentIds;
-        final visibleServiceStatus = serviceStatus;
-        final summaryPills = <String>[
-          'lines ${document.lines.length}',
-          'chars ${document.length}',
-          'tokens ${analysis.tokenCount}',
-          'semantic ${analysis.semanticCount}',
-          'symbols ${analysis.symbolCount}',
-          'diagnostics ${analysis.diagnosticCount}',
-          if (visibleServiceStatus != null)
-            'service ${visibleServiceStatus.severity.name}',
-          selection.isCollapsed
-              ? 'caret ${selection.end}'
-              : 'selection ${selection.start}-${selection.end}',
-          'undo ${controller.canUndo ? "on" : "off"}',
-          'redo ${controller.canRedo ? "on" : "off"}',
-        ];
+      final activeReferences = deferExpensiveLanguageQueries
+          ? const <ReferenceSpan>[]
+          : controller.referencesAtSelection;
+      final activeToken = deferExpensiveLanguageQueries
+          ? null
+          : controller.tokenAtSelection;
+      final activeSemanticKind = deferExpensiveLanguageQueries
+          ? null
+          : controller.semanticKindAtSelection;
+      final serviceStatus = languageServiceStatus;
+      final fileBindingStatus = _fileBindingStatusFor(fileBindingSnapshot);
+      final closeRequest = closeRequestSurface;
+      final activeOpenDocumentId = activeDocumentId ?? document.documentId;
+      final visibleOpenDocumentIds = openDocumentIds.isEmpty
+          ? <String>[document.documentId]
+          : openDocumentIds;
+      final visibleServiceStatus = serviceStatus;
+      final summaryPills = <String>[
+        'lines ${document.lineCount}',
+        'chars ${document.length}',
+        'tokens ${analysis.tokenCount}',
+        'semantic ${analysis.semanticCount}',
+        'symbols ${analysis.symbolCount}',
+        'diagnostics ${analysis.diagnosticCount}',
+        if (visibleServiceStatus != null)
+          'service ${visibleServiceStatus.severity.name}',
+        selection.isCollapsed
+            ? 'caret ${selection.end}'
+            : 'selection ${selection.start}-${selection.end}',
+        'undo ${controller.canUndo ? "on" : "off"}',
+        'redo ${controller.canRedo ? "on" : "off"}',
+      ];
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final compact =
-                viewportProfile.isMobile ||
-                constraints.maxWidth < 780 ||
-                constraints.maxHeight < 560;
-            final dense =
-                (viewportProfile.isMobile && constraints.maxWidth < 640) ||
-                constraints.maxWidth < 560 ||
-                constraints.maxHeight < 430;
-            final outerPadding = dense ? 16.0 : 24.0;
-            final innerPadding = dense ? 14.0 : 18.0;
-            final visibleSummaryPills = dense
-                ? summaryPills.take(4).toList(growable: false)
-                : summaryPills;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              viewportProfile.isMobile ||
+              constraints.maxWidth < 780 ||
+              constraints.maxHeight < 560;
+          final dense =
+              (viewportProfile.isMobile && constraints.maxWidth < 640) ||
+              constraints.maxWidth < 560 ||
+              constraints.maxHeight < 430;
+          final outerPadding = dense ? 16.0 : 24.0;
+          final innerPadding = dense ? 14.0 : 18.0;
+          final visibleSummaryPills = dense
+              ? summaryPills.take(4).toList(growable: false)
+              : summaryPills;
 
-            return Card(
-              key: ValueKey(
-                'editor-viewport-${viewportProfile.label.toLowerCase()}',
-              ),
-              child: Padding(
-                padding: EdgeInsets.all(outerPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            document.documentId,
-                            style: theme.textTheme.titleMedium,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+          return Card(
+            key: ValueKey(
+              'editor-viewport-${viewportProfile.label.toLowerCase()}',
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(outerPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          document.documentId,
+                          style: theme.textTheme.titleMedium,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(width: 12),
-                        Chip(label: Text('rev ${document.revision}')),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 12),
+                      Chip(label: Text('rev ${document.revision}')),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _OpenDocumentTabStrip(
+                    documentIds: visibleOpenDocumentIds,
+                    dirtyDocumentIds: dirtyDocumentIds,
+                    activeDocumentId: activeOpenDocumentId,
+                    onSelectDocument: onSelectDocument,
+                    onCloseDocument: onCloseDocument,
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: visibleSummaryPills
+                        .map((label) => _CapabilityPill(label: label))
+                        .toList(growable: false),
+                  ),
+                  if (closeRequest != null &&
+                      closeRequest.requiresUserChoice) ...[
                     const SizedBox(height: 12),
-                    _OpenDocumentTabStrip(
-                      documentIds: visibleOpenDocumentIds,
-                      dirtyDocumentIds: dirtyDocumentIds,
-                      activeDocumentId: activeOpenDocumentId,
-                      onSelectDocument: onSelectDocument,
-                      onCloseDocument: onCloseDocument,
+                    _CloseRequestBanner(
+                      request: closeRequest,
+                      onSaveLocalChanges:
+                          onSaveAndCloseRequest ?? onSaveLocalChanges,
+                      onDiscardLocalChanges:
+                          onDiscardAndCloseRequest ?? onDiscardLocalChanges,
+                      onSwitchToCloseRequestFile: onSwitchToCloseRequestFile,
+                      onCancelCloseRequest: onCancelCloseRequest,
                     ),
+                  ] else if (fileBindingStatus != null) ...[
+                    const SizedBox(height: 12),
+                    _FileBindingStatusBanner(
+                      status: fileBindingStatus,
+                      onAcceptExternalChange: onAcceptExternalChange,
+                      onSaveLocalChanges: onSaveLocalChanges,
+                      onDiscardLocalChanges: onDiscardLocalChanges,
+                    ),
+                  ],
+                  if (!dense && fileBindingStatus == null) ...[
                     const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: visibleSummaryPills
-                          .map((label) => _CapabilityPill(label: label))
-                          .toList(growable: false),
+                    Text(
+                      compact
+                          ? 'Token, semantic, diagnostic, and formatting layers stay isolated while sharing one editor surface.'
+                          : 'M2/M3 editor anchor: token layer drives base highlighting, semantic layer overlays meaning, diagnostics stay separate, and formatting returns patch-like edits.',
+                      style: theme.textTheme.bodyMedium,
                     ),
-                    if (closeRequest != null &&
-                        closeRequest.requiresUserChoice) ...[
-                      const SizedBox(height: 12),
-                      _CloseRequestBanner(
-                        request: closeRequest,
-                        onSaveLocalChanges:
-                            onSaveAndCloseRequest ?? onSaveLocalChanges,
-                        onDiscardLocalChanges:
-                            onDiscardAndCloseRequest ?? onDiscardLocalChanges,
-                        onSwitchToCloseRequestFile: onSwitchToCloseRequestFile,
-                        onCancelCloseRequest: onCancelCloseRequest,
+                  ],
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.62),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: theme.dividerColor),
                       ),
-                    ] else if (fileBindingStatus != null) ...[
-                      const SizedBox(height: 12),
-                      _FileBindingStatusBanner(
-                        status: fileBindingStatus,
-                        onAcceptExternalChange: onAcceptExternalChange,
-                        onSaveLocalChanges: onSaveLocalChanges,
-                        onDiscardLocalChanges: onDiscardLocalChanges,
-                      ),
-                    ],
-                    if (!dense && fileBindingStatus == null) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        compact
-                            ? 'Token, semantic, diagnostic, and formatting layers stay isolated while sharing one editor surface.'
-                            : 'M2/M3 editor anchor: token layer drives base highlighting, semantic layer overlays meaning, diagnostics stay separate, and formatting returns patch-like edits.',
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.62),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: theme.dividerColor),
-                        ),
-                        padding: EdgeInsets.all(innerPadding),
-                        child: LayoutBuilder(
-                          builder: (context, sourceConstraints) {
-                            final showLayerToolbar =
-                                !dense && sourceConstraints.maxHeight >= 128;
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (showLayerToolbar) ...[
-                                  _HorizontalChipStrip(
-                                    height: 44,
-                                    children: [
-                                      ...renderPlan.activeLayers.map(
-                                        (layer) => _CapabilityPill(
-                                          label: 'layer ${layer.name}',
-                                        ),
+                      padding: EdgeInsets.all(innerPadding),
+                      child: LayoutBuilder(
+                        builder: (context, sourceConstraints) {
+                          final showLayerToolbar =
+                              !dense && sourceConstraints.maxHeight >= 128;
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (showLayerToolbar) ...[
+                                _HorizontalChipStrip(
+                                  height: 44,
+                                  children: [
+                                    ...renderPlan.activeLayers.map(
+                                      (layer) => _CapabilityPill(
+                                        label: 'layer ${layer.name}',
                                       ),
-                                      FilterChip(
+                                    ),
+                                    FilterChip(
+                                      key: const ValueKey(
+                                        'editor-glyph-substitution-toggle',
+                                      ),
+                                      selected:
+                                          renderPlan.glyphSubstitutionEnabled,
+                                      label: Text(
+                                        renderPlan.glyphSubstitutionEnabled
+                                            ? 'glyph substitution on'
+                                            : 'glyph substitution off',
+                                      ),
+                                      onSelected: (_) {
+                                        controller.toggleGlyphSubstitution();
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final mobileFamily =
+                                        viewportProfile.isMobile;
+                                    final scrollStackedPane =
+                                        mobileFamily &&
+                                        constraints.maxHeight < 460;
+                                    final inspectorHeight =
+                                        constraints.maxHeight >= 720
+                                        ? 240.0
+                                        : constraints.maxHeight >= 560
+                                        ? 200.0
+                                        : 160.0;
+
+                                    if (scrollStackedPane) {
+                                      return KeyedSubtree(
                                         key: const ValueKey(
-                                          'editor-glyph-substitution-toggle',
+                                          'editor-language-family-mobile',
                                         ),
-                                        selected:
-                                            renderPlan.glyphSubstitutionEnabled,
-                                        label: Text(
-                                          renderPlan.glyphSubstitutionEnabled
-                                              ? 'glyph substitution on'
-                                              : 'glyph substitution off',
-                                        ),
-                                        onSelected: (_) {
-                                          controller.toggleGlyphSubstitution();
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                ],
-                                Expanded(
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final mobileFamily =
-                                          viewportProfile.isMobile;
-                                      final scrollStackedPane =
-                                          mobileFamily &&
-                                          constraints.maxHeight < 460;
-                                      final inspectorHeight =
-                                          constraints.maxHeight >= 720
-                                          ? 240.0
-                                          : constraints.maxHeight >= 560
-                                          ? 200.0
-                                          : 160.0;
-
-                                      if (scrollStackedPane) {
-                                        return KeyedSubtree(
-                                          key: const ValueKey(
-                                            'editor-language-family-mobile',
-                                          ),
-                                          child: SingleChildScrollView(
-                                            key: ValueKey(
-                                              'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                SizedBox(
-                                                  height: 320,
-                                                  child: _SourcePreviewPane(
-                                                    controller: controller,
-                                                    viewportProfile:
-                                                        viewportProfile,
-                                                    hover: hover,
-                                                    completions: completions,
-                                                    activeReferences:
-                                                        activeReferences,
-                                                    activeToken: activeToken,
-                                                    activeSemanticKind:
-                                                        activeSemanticKind,
-                                                    document: document,
-                                                    selection: selection,
-                                                    analysis: analysis,
-                                                    renderPlan: renderPlan,
-                                                    semanticThemeBinding:
-                                                        semanticThemeBinding,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 16),
-                                                SizedBox(
-                                                  height: 180,
-                                                  child: _LanguageServicePane(
-                                                    controller: controller,
-                                                    viewportProfile:
-                                                        viewportProfile,
-                                                    analysis: analysis,
-                                                    hover: hover,
-                                                    completions: completions,
-                                                    activeToken: activeToken,
-                                                    activeSemanticKind:
-                                                        activeSemanticKind,
-                                                    languageServiceStatus:
-                                                        visibleServiceStatus,
-                                                    onRefreshLanguageService:
-                                                        onRefreshLanguageService,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }
-
-                                      if (mobileFamily) {
-                                        return KeyedSubtree(
-                                          key: const ValueKey(
-                                            'editor-language-family-mobile',
+                                        child: SingleChildScrollView(
+                                          key: ValueKey(
+                                            'editor-language-layout-scroll-${viewportProfile.label.toLowerCase()}',
                                           ),
                                           child: Column(
-                                            key: const ValueKey(
-                                              'editor-language-layout-mobile',
-                                            ),
                                             children: [
-                                              Expanded(
+                                              SizedBox(
+                                                height: 320,
                                                 child: _SourcePreviewPane(
                                                   controller: controller,
                                                   viewportProfile:
@@ -355,7 +312,7 @@ class EditorSurface extends StatelessWidget {
                                               ),
                                               const SizedBox(height: 16),
                                               SizedBox(
-                                                height: inspectorHeight,
+                                                height: 180,
                                                 child: _LanguageServicePane(
                                                   controller: controller,
                                                   viewportProfile:
@@ -374,20 +331,21 @@ class EditorSurface extends StatelessWidget {
                                               ),
                                             ],
                                           ),
-                                        );
-                                      }
+                                        ),
+                                      );
+                                    }
 
+                                    if (mobileFamily) {
                                       return KeyedSubtree(
                                         key: const ValueKey(
-                                          'editor-language-family-desktop',
+                                          'editor-language-family-mobile',
                                         ),
-                                        child: Row(
+                                        child: Column(
                                           key: const ValueKey(
-                                            'editor-language-layout-desktop',
+                                            'editor-language-layout-mobile',
                                           ),
                                           children: [
                                             Expanded(
-                                              flex: 5,
                                               child: _SourcePreviewPane(
                                                 controller: controller,
                                                 viewportProfile:
@@ -407,11 +365,9 @@ class EditorSurface extends StatelessWidget {
                                                     semanticThemeBinding,
                                               ),
                                             ),
-                                            const SizedBox(width: 16),
+                                            const SizedBox(height: 16),
                                             SizedBox(
-                                              width: constraints.maxWidth >= 760
-                                                  ? 300
-                                                  : 248,
+                                              height: inspectorHeight,
                                               child: _LanguageServicePane(
                                                 controller: controller,
                                                 viewportProfile:
@@ -431,22 +387,83 @@ class EditorSurface extends StatelessWidget {
                                           ],
                                         ),
                                       );
-                                    },
-                                  ),
+                                    }
+
+                                    return KeyedSubtree(
+                                      key: const ValueKey(
+                                        'editor-language-family-desktop',
+                                      ),
+                                      child: Row(
+                                        key: const ValueKey(
+                                          'editor-language-layout-desktop',
+                                        ),
+                                        children: [
+                                          Expanded(
+                                            flex: 5,
+                                            child: _SourcePreviewPane(
+                                              controller: controller,
+                                              viewportProfile: viewportProfile,
+                                              hover: hover,
+                                              completions: completions,
+                                              activeReferences:
+                                                  activeReferences,
+                                              activeToken: activeToken,
+                                              activeSemanticKind:
+                                                  activeSemanticKind,
+                                              document: document,
+                                              selection: selection,
+                                              analysis: analysis,
+                                              renderPlan: renderPlan,
+                                              semanticThemeBinding:
+                                                  semanticThemeBinding,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          SizedBox(
+                                            width: constraints.maxWidth >= 760
+                                                ? 300
+                                                : 248,
+                                            child: _LanguageServicePane(
+                                              controller: controller,
+                                              viewportProfile: viewportProfile,
+                                              analysis: analysis,
+                                              hover: hover,
+                                              completions: completions,
+                                              activeToken: activeToken,
+                                              activeSemanticKind:
+                                                  activeSemanticKind,
+                                              languageServiceStatus:
+                                                  visibleServiceStatus,
+                                              onRefreshLanguageService:
+                                                  onRefreshLanguageService,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
                                 ),
-                              ],
-                            );
-                          },
-                        ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            );
-          },
-        );
-      },
+            ),
+          );
+        },
+      );
+    }
+
+    if (controller.document.lineCount >= 10000) {
+      return buildShell(context);
+    }
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => buildShell(context),
     );
   }
 }
@@ -866,6 +883,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   static const int _maxRenderedPreviewLines = 400;
 
   late final FocusNode _focusNode;
+  late final EditorTextInputClient _textInputClient;
   late final FocusNode _inlineRenameFocusNode;
   late final FocusNode _introduceVariableFocusNode;
   late final FocusNode _extractFunctionFocusNode;
@@ -902,12 +920,17 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   String? _introduceVariableError;
   String? _extractFunctionError;
   String? _changeSignatureError;
+  int _observedInputCommitSerial = 0;
 
   @override
   void initState() {
     super.initState();
     _focusNode = FocusNode(debugLabel: 'editor-source-pane');
     _focusNode.addListener(_handleFocusChanged);
+    _textInputClient = EditorTextInputClient(
+      controller: widget.controller,
+      onChanged: _handleTextInputChanged,
+    );
     _inlineRenameFocusNode = FocusNode(debugLabel: 'editor-inline-rename');
     _introduceVariableFocusNode = FocusNode(
       debugLabel: 'editor-introduce-variable',
@@ -921,6 +944,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     );
     _sourceScrollController = ScrollController()
       ..addListener(_handleSourceScrollChanged);
+    widget.controller.addListener(_handleControllerChanged);
     _inlineRenameController = TextEditingController();
     _introduceVariableController = TextEditingController();
     _extractFunctionController = TextEditingController();
@@ -929,7 +953,26 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   @override
+  void didUpdateWidget(covariant _SourcePreviewPane oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleControllerChanged);
+      widget.controller.addListener(_handleControllerChanged);
+    }
+    _textInputClient.synchronizeCommittedState();
+  }
+
+  void _handleControllerChanged() {
+    _textInputClient.synchronizeCommittedState();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    widget.controller.removeListener(_handleControllerChanged);
+    _textInputClient.dispose();
     _focusNode
       ..removeListener(_handleFocusChanged)
       ..dispose();
@@ -950,15 +993,55 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   void _handleFocusChanged() {
+    if (_focusNode.hasFocus) {
+      _textInputClient.attach(explicit: true);
+    } else {
+      _textInputClient.detach();
+    }
     if (mounted) {
       setState(() {});
     }
   }
 
+  void _handleTextInputChanged() {
+    if (!mounted) {
+      return;
+    }
+    final commitSerial = _textInputClient.acceptedCommitSerial;
+    final newlyCommittedText = commitSerial == _observedInputCommitSerial
+        ? null
+        : _textInputClient.lastAcceptedCommitText;
+    _observedInputCommitSerial = commitSerial;
+    setState(() {
+      if (newlyCommittedText != null) {
+        _openCompletionLookupAfterTyping(newlyCommittedText);
+      }
+    });
+  }
+
+  void _focusSourcePane({required bool attachInput}) {
+    _focusNode.requestFocus();
+    if (attachInput) {
+      _textInputClient.attach(explicit: true);
+    }
+  }
+
+  void _focusAndAttachInput() => _focusSourcePane(attachInput: true);
+
   void _handleSourceScrollChanged() {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  KeyEventResult _handleStructuralTextKey(bool Function() mutate) {
+    if (_textInputClient.isComposing) {
+      return KeyEventResult.ignored;
+    }
+    if (!_textInputClient.isAttached) {
+      _textInputClient.attach(explicit: true);
+    }
+    return mutate() ? KeyEventResult.handled : KeyEventResult.ignored;
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
@@ -969,6 +1052,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final commandPressed =
         HardwareKeyboard.instance.isMetaPressed ||
         HardwareKeyboard.instance.isControlPressed;
+
+    if (event.logicalKey == LogicalKeyboardKey.escape &&
+        _textInputClient.cancelComposition()) {
+      return KeyEventResult.handled;
+    }
     final shiftPressed = HardwareKeyboard.instance.isShiftPressed;
     final altPressed = HardwareKeyboard.instance.isAltPressed;
     if (_inlineRenameFocusNode.hasFocus) {
@@ -1434,15 +1522,14 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         );
         return KeyEventResult.handled;
       case LogicalKeyboardKey.backspace:
-        widget.controller.backspace();
-        return KeyEventResult.handled;
+        return _handleStructuralTextKey(
+          () => _textInputClient.deleteBackward(),
+        );
       case LogicalKeyboardKey.delete:
-        widget.controller.deleteForward();
-        return KeyEventResult.handled;
+        return _handleStructuralTextKey(() => _textInputClient.deleteForward());
       case LogicalKeyboardKey.enter:
       case LogicalKeyboardKey.numpadEnter:
-        widget.controller.insertNewline();
-        return KeyEventResult.handled;
+        return _handleStructuralTextKey(() => _textInputClient.insertNewline());
       case LogicalKeyboardKey.tab:
         if (shiftPressed) {
           return widget.controller.outdentLineOrSelection()
@@ -1457,8 +1544,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             widget.controller.applyTokenCompletionAtSelection()) {
           return KeyEventResult.handled;
         }
-        widget.controller.insertText('  ');
-        return KeyEventResult.handled;
+        return _handleStructuralTextKey(
+          () => _textInputClient.insertPlainText('  '),
+        );
       case LogicalKeyboardKey.f2:
         return (shiftPressed
                 ? widget.controller.selectPreviousDiagnosticAtSelection()
@@ -1472,12 +1560,6 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
             ? KeyEventResult.handled
             : KeyEventResult.ignored;
       default:
-        final character = event.character;
-        if (_isPlainTextCharacter(character)) {
-          widget.controller.insertTypedCharacter(character!);
-          _openCompletionLookupAfterTyping(character);
-          return KeyEventResult.handled;
-        }
         return KeyEventResult.ignored;
     }
   }
@@ -1520,23 +1602,11 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         activeSpan.kind == TokenKind.whitespace) {
       return;
     }
-    setState(() {
-      _completionLookupOpen = true;
-      _completionLookupIndex = 0;
-      _surroundLookupOpen = false;
-      _symbolLookupOpen = false;
-      _quickFixLookupOpen = false;
-    });
-  }
-
-  CompletionItem? _selectedCompletionItem() {
-    if (widget.completions.isEmpty) {
-      return null;
-    }
-    final selectedIndex = _completionLookupIndex
-        .clamp(0, widget.completions.length - 1)
-        .toInt();
-    return widget.completions[selectedIndex];
+    _completionLookupOpen = true;
+    _completionLookupIndex = 0;
+    _surroundLookupOpen = false;
+    _symbolLookupOpen = false;
+    _quickFixLookupOpen = false;
   }
 
   bool _shouldAutoPopupCompletion(String character) {
@@ -1550,6 +1620,16 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
         character == '_' ||
         character == '@' ||
         character == '#';
+  }
+
+  CompletionItem? _selectedCompletionItem() {
+    if (widget.completions.isEmpty) {
+      return null;
+    }
+    final selectedIndex = _completionLookupIndex
+        .clamp(0, widget.completions.length - 1)
+        .toInt();
+    return widget.completions[selectedIndex];
   }
 
   bool _toggleSemanticBlockAtSelection() {
@@ -2499,7 +2579,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   void _handleLineTapDown(int lineIndex, TapDownDetails details) {
-    _focusNode.requestFocus();
+    _focusAndAttachInput();
     _dragBaseOffset = null;
     widget.controller.selectCollapsed(
       _offsetForLocalPosition(
@@ -2510,7 +2590,7 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   void _handleLinePanStart(int lineIndex, DragStartDetails details) {
-    _focusNode.requestFocus();
+    _focusAndAttachInput();
     final offset = _offsetForLocalPosition(
       originLineIndex: lineIndex,
       localPosition: details.localPosition,
@@ -2544,9 +2624,9 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
     final lineDelta = (localPosition.dy / _estimatedLineHeight).floor();
     final targetLine = (originLineIndex + lineDelta).clamp(
       0,
-      widget.document.lines.length - 1,
+      widget.document.lineCount - 1,
     );
-    final lineText = widget.document.lines[targetLine];
+    final lineText = widget.document.lineAt(targetLine);
     final relativeDx = (localPosition.dx - _gutterWidth).clamp(
       0.0,
       double.infinity,
@@ -2594,168 +2674,273 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
               viewportHeightPixels: constraints.maxHeight,
               lineHeightPixels: _estimatedLineHeight,
               overscanLineCount: dense ? 4 : 8,
-              totalLineCount: widget.document.lines.length,
+              totalLineCount: widget.document.lineCount,
             );
         final renderPipelinePlan = EditorRenderPipelinePlan.fromRenderFacts(
           renderPlan: widget.renderPlan,
-          lineCount: widget.document.lines.length,
+          lineCount: widget.document.lineCount,
           viewportBinding: viewportBinding,
           maxRenderedLines: _maxRenderedPreviewLines,
         );
+        final degradationState = EditorLargeFileDegradation.forLineCount(
+          widget.document.lineCount,
+        );
+        final viewportLineCap =
+            EditorRenderedInputSampleProtocol.viewportLineCap(
+              viewportLineCapacity: viewportBinding.viewportLineCapacity,
+              overscanLineCount: dense ? 4 : 8,
+              hardCap: _maxRenderedPreviewLines,
+            );
+        final effectiveSemanticBlocks =
+            degradationState ==
+                EditorLargeFileDegradation.largeFileReducedDecorations
+            ? const <_SemanticLineBlock>[]
+            : semanticBlocks;
 
+        final primary = widget.controller.selectionSet.primarySelection;
+        final primaryPosition = widget.document.positionForOffset(
+          primary.extentOffset,
+        );
+        final semanticsValue = _textInputClient.currentTextEditingValue!;
+        final semanticsDocumentValue = widget.document.lineCount >= 10000
+            ? '${widget.document.lineCount}-line generated document'
+            : semanticsValue.text;
         return Focus(
           focusNode: _focusNode,
           onKeyEvent: _handleKeyEvent,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: _focusNode.requestFocus,
-            child: Container(
-              key: const ValueKey('source-buffer-surface'),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F2E9),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: _focusNode.hasFocus
-                      ? const Color(0xFF8B7CC5)
-                      : Colors.transparent,
-                  width: 1.5,
-                ),
-              ),
-              padding: EdgeInsets.all(cramped ? 8 : contentPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!cramped)
-                    _HorizontalChipStrip(
-                      height: 36,
-                      children: [
-                        Text(
-                          'Source Buffer',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        _CapabilityPill(
-                          label: _focusNode.hasFocus
-                              ? 'editing'
-                              : 'click to focus',
-                        ),
-                        _CapabilityPill(
-                          label: viewportBinding.boundToScrollController
-                              ? 'viewport bound'
-                              : 'viewport unbound',
-                        ),
-                        _CapabilityPill(
-                          label:
-                              'visible ${viewportBinding.viewportFirstLine + 1}+${viewportBinding.viewportLineCapacity}',
-                        ),
-                        _CapabilityPill(
-                          label: 'renderer ${renderPipelinePlan.rendererKind}',
-                        ),
-                      ],
+          child: KeyedSubtree(
+            key: const ValueKey('source-input-status'),
+            child: Semantics(
+              key: const ValueKey('source-buffer-semantics'),
+              container: true,
+              explicitChildNodes: false,
+              textField: true,
+              multiline: true,
+              focusable: true,
+              focused: _focusNode.hasFocus,
+              value: semanticsDocumentValue,
+              textDirection: Directionality.of(context),
+              label:
+                  '${widget.controller.selectionSet.selections.length} selections, '
+                  'primary line ${primaryPosition.line + 1} column ${primaryPosition.column + 1}',
+              hint:
+                  '${_textInputClient.isComposing ? 'composition active' : 'composition idle'}, '
+                  '${_textInputClient.status}',
+              onSetText: (text) {
+                _textInputClient.updateEditingValue(
+                  TextEditingValue(
+                    text: text,
+                    selection: TextSelection.collapsed(offset: text.length),
+                  ),
+                );
+              },
+              onSetSelection: (selection) {
+                _textInputClient.updateEditingValue(
+                  semanticsValue.copyWith(selection: selection),
+                );
+              },
+              onMoveCursorForwardByCharacter: (extend) {
+                widget.controller.moveCaretHorizontally(
+                  1,
+                  expandSelection: extend,
+                );
+              },
+              onMoveCursorBackwardByCharacter: (extend) {
+                widget.controller.moveCaretHorizontally(
+                  -1,
+                  expandSelection: extend,
+                );
+              },
+              onFocus: () => _focusSourcePane(attachInput: false),
+              child: _SourceBufferTextSelectionSemantics(
+                textSelection: semanticsValue.selection,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _focusAndAttachInput,
+                  child: Container(
+                    key: const ValueKey('source-buffer-surface'),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F2E9),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: _focusNode.hasFocus
+                            ? const Color(0xFF8B7CC5)
+                            : Colors.transparent,
+                        width: 1.5,
+                      ),
                     ),
-                  if (!dense && !cramped) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      compact
-                          ? 'Glyph substitution stays display-only while one editor surface owns input.'
-                          : 'Desktop keyboard input is live. Token spans color the buffer, semantic ranges add structure, and glyph substitution stays display-only.',
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                  if (!cramped) const SizedBox(height: 14),
-                  Expanded(
-                    child: ListView(
-                      key: const ValueKey('source-buffer-scroll'),
-                      controller: _sourceScrollController,
+                    padding: EdgeInsets.all(cramped ? 8 : contentPadding),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        KeyedSubtree(
-                          key: ValueKey(
-                            viewportBinding.boundToScrollController
-                                ? 'source-viewport-binding-bound'
-                                : 'source-viewport-binding-unbound',
+                        if (!cramped)
+                          _HorizontalChipStrip(
+                            height: 36,
+                            children: [
+                              Text(
+                                'Source Buffer',
+                                style: theme.textTheme.titleMedium,
+                              ),
+                              _CapabilityPill(
+                                label: _focusNode.hasFocus
+                                    ? 'editing'
+                                    : 'click to focus',
+                              ),
+                              _CapabilityPill(label: _textInputClient.status),
+                              _CapabilityPill(
+                                label: viewportBinding.boundToScrollController
+                                    ? 'viewport bound'
+                                    : 'viewport unbound',
+                              ),
+                              _CapabilityPill(
+                                label:
+                                    'visible ${viewportBinding.viewportFirstLine + 1}+${viewportBinding.viewportLineCapacity}',
+                              ),
+                              _CapabilityPill(
+                                label:
+                                    'renderer ${renderPipelinePlan.rendererKind}',
+                              ),
+                            ],
                           ),
-                          child: const SizedBox.shrink(),
-                        ),
-                        if (_inlineRenameOpen) ...[
-                          _buildInlineRenamePanel(context),
-                          const SizedBox(height: 12),
+                        if (!dense && !cramped) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            compact
+                                ? 'Glyph substitution stays display-only while one editor surface owns input.'
+                                : 'Platform text input is live. Token spans color the buffer, semantic ranges add structure, and glyph substitution stays display-only.',
+                            style: theme.textTheme.bodySmall,
+                          ),
                         ],
-                        if (_introduceVariablePanelOpen) ...[
-                          _buildIntroduceVariablePanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_extractFunctionPanelOpen) ...[
-                          _buildExtractFunctionPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_changeSignaturePanelOpen) ...[
-                          _buildChangeSignaturePanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_surroundLookupOpen) ...[
-                          _buildSurroundLookupPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_completionLookupOpen) ...[
-                          _buildCompletionLookupPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_symbolLookupOpen) ...[
-                          _buildSymbolLookupPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_quickFixLookupOpen) ...[
-                          _buildQuickFixLookupPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_quickDocumentationOpen) ...[
-                          _buildQuickDocumentationPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_parameterInfoOpen) ...[
-                          _buildParameterInfoPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_usagesPanelOpen) ...[
-                          _buildUsagesPanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_safeDeletePanelOpen) ...[
-                          _buildSafeDeletePanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        if (_inlineVariablePanelOpen) ...[
-                          _buildInlineVariablePanel(context),
-                          const SizedBox(height: 12),
-                        ],
-                        ..._buildPreviewChildren(
-                          context,
-                          controller: widget.controller,
-                          viewportProfile: widget.viewportProfile,
-                          hover: widget.hover,
-                          completions: widget.completions,
-                          activeReferences: widget.activeReferences,
-                          activeToken: widget.activeToken,
-                          activeSemanticKind: widget.activeSemanticKind,
-                          document: widget.document,
-                          selection: widget.selection,
-                          analysis: widget.analysis,
-                          renderPlan: widget.renderPlan,
-                          semanticThemeBinding: widget.semanticThemeBinding,
-                          lineStarts: lineStarts,
-                          semanticBlocks: semanticBlocks,
-                          maxRenderedLineCount: _maxRenderedPreviewLines,
-                          collapsedSemanticBlockKeys:
-                              _collapsedSemanticBlockKeys,
-                          onToggleSemanticBlock: _toggleSemanticBlock,
-                          onTapLine: _handleLineTapDown,
-                          onPanStartLine: _handleLinePanStart,
-                          onPanUpdateLine: _handleLinePanUpdate,
-                          onPanEnd: _handleLinePanEnd,
+                        if (!cramped) const SizedBox(height: 14),
+                        Expanded(
+                          child: ListView(
+                            key: const ValueKey('source-buffer-scroll'),
+                            controller: _sourceScrollController,
+                            children: [
+                              KeyedSubtree(
+                                key: ValueKey(
+                                  'source-editor-degradation-${degradationState.label}',
+                                ),
+                                child: const SizedBox.shrink(),
+                              ),
+                              if (_textInputClient.isComposing)
+                                Text(
+                                  _textInputClient.provisionalText,
+                                  key: const ValueKey(
+                                    'source-composition-range',
+                                  ),
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    backgroundColor: const Color(0x337A65B3),
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              for (
+                                var index = 0;
+                                index <
+                                    widget
+                                        .controller
+                                        .selectionSet
+                                        .selections
+                                        .length;
+                                index += 1
+                              )
+                                SizedBox.shrink(
+                                  key: ValueKey('source-selection-item-$index'),
+                                ),
+                              KeyedSubtree(
+                                key: ValueKey(
+                                  viewportBinding.boundToScrollController
+                                      ? 'source-viewport-binding-bound'
+                                      : 'source-viewport-binding-unbound',
+                                ),
+                                child: const SizedBox.shrink(),
+                              ),
+                              if (_inlineRenameOpen) ...[
+                                _buildInlineRenamePanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_introduceVariablePanelOpen) ...[
+                                _buildIntroduceVariablePanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_extractFunctionPanelOpen) ...[
+                                _buildExtractFunctionPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_changeSignaturePanelOpen) ...[
+                                _buildChangeSignaturePanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_surroundLookupOpen) ...[
+                                _buildSurroundLookupPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_completionLookupOpen) ...[
+                                _buildCompletionLookupPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_symbolLookupOpen) ...[
+                                _buildSymbolLookupPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_quickFixLookupOpen) ...[
+                                _buildQuickFixLookupPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_quickDocumentationOpen) ...[
+                                _buildQuickDocumentationPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_parameterInfoOpen) ...[
+                                _buildParameterInfoPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_usagesPanelOpen) ...[
+                                _buildUsagesPanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_safeDeletePanelOpen) ...[
+                                _buildSafeDeletePanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              if (_inlineVariablePanelOpen) ...[
+                                _buildInlineVariablePanel(context),
+                                const SizedBox(height: 12),
+                              ],
+                              ..._buildPreviewChildren(
+                                context,
+                                controller: widget.controller,
+                                viewportProfile: widget.viewportProfile,
+                                hover: widget.hover,
+                                completions: widget.completions,
+                                activeReferences: widget.activeReferences,
+                                activeToken: widget.activeToken,
+                                activeSemanticKind: widget.activeSemanticKind,
+                                document: widget.document,
+                                selection: widget.selection,
+                                analysis: widget.analysis,
+                                renderPlan: widget.renderPlan,
+                                semanticThemeBinding:
+                                    widget.semanticThemeBinding,
+                                lineStarts: lineStarts,
+                                semanticBlocks: effectiveSemanticBlocks,
+                                renderWindow: renderPipelinePlan.renderWindow,
+                                maxRenderedLineCount: viewportLineCap,
+                                collapsedSemanticBlockKeys:
+                                    _collapsedSemanticBlockKeys,
+                                onToggleSemanticBlock: _toggleSemanticBlock,
+                                onTapLine: _handleLineTapDown,
+                                onPanStartLine: _handleLinePanStart,
+                                onPanUpdateLine: _handleLinePanUpdate,
+                                onPanEnd: _handleLinePanEnd,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
@@ -2905,15 +3090,16 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
   }
 
   String _formatPreviewText(String text) {
-    final escaped = text.replaceAll('\n', r'\n');
+    final escaped = _sanitizeUtf16ForPainting(text.replaceAll('\n', r'\n'));
     if (escaped.isEmpty) {
       return 'empty text';
     }
     const maxLength = 40;
-    final compact = escaped.length <= maxLength
-        ? escaped
-        : '${escaped.substring(0, maxLength - 1)}...';
-    return '`$compact`';
+    if (escaped.length <= maxLength) {
+      return '`$escaped`';
+    }
+    final cut = _utf16ScalarFloor(escaped, maxLength - 1);
+    return '`${escaped.substring(0, cut)}...`';
   }
 
   Widget _buildSymbolLookupPanel(BuildContext context) {
@@ -4171,10 +4357,10 @@ class _SourcePreviewPaneState extends State<_SourcePreviewPane> {
 
   String _linePreviewForRange(SourceRange range) {
     final position = widget.document.positionForOffset(range.start);
-    if (position.line < 0 || position.line >= widget.document.lines.length) {
+    if (position.line < 0 || position.line >= widget.document.lineCount) {
       return '';
     }
-    return widget.document.lines[position.line].trim();
+    return widget.document.lineAt(position.line).trim();
   }
 
   bool _isRangeSelected(SourceRange range) {
@@ -4757,6 +4943,8 @@ class _HighlightedLineRow extends StatelessWidget {
     required this.lineStarts,
     required this.renderPlan,
     required this.semanticThemeBinding,
+    required this.lineTokens,
+    required this.plainTextLine,
     required this.onTapDown,
     required this.onPanStart,
     required this.onPanUpdate,
@@ -4772,6 +4960,8 @@ class _HighlightedLineRow extends StatelessWidget {
   final List<int> lineStarts;
   final EditorRenderPlan renderPlan;
   final EditorSemanticThemeBinding semanticThemeBinding;
+  final List<TokenSpan> lineTokens;
+  final bool plainTextLine;
   final ValueChanged<TapDownDetails> onTapDown;
   final ValueChanged<DragStartDetails> onPanStart;
   final ValueChanged<DragUpdateDetails> onPanUpdate;
@@ -4780,7 +4970,7 @@ class _HighlightedLineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final lineText = document.lines[lineIndex];
+    final lineText = document.lineAt(lineIndex);
     final lineStart = lineStarts[lineIndex];
     final lineEnd = lineStart + lineText.length;
     final lineRange = SourceRange(start: lineStart, end: lineEnd);
@@ -4831,14 +5021,18 @@ class _HighlightedLineRow extends StatelessWidget {
                     TextSpan(
                       children: _buildLineSpans(
                         context,
-                        document.text,
-                        lineRange,
+                        lineText,
+                        SourceRange(start: 0, end: lineText.length),
                         analysis,
                         activeReferences: activeReferences,
                         activeTokenRange: activeTokenRange,
                         selection: selection,
                         renderPlan: renderPlan,
                         semanticThemeBinding: semanticThemeBinding,
+                        lineTokens: lineTokens,
+                        plainTextLine: plainTextLine,
+                        sourceOffsetBase: lineStart,
+                        globalLineRange: lineRange,
                       ),
                     ),
                     softWrap: false,
@@ -4907,7 +5101,7 @@ class _InlineLanguageFeedback extends StatelessWidget {
                   ),
                   if (activeToken != null) ...[
                     Text(
-                      'Token `${activeToken!.lexeme}` · ${activeToken!.kind.name}'
+                      'Token `${_sanitizeUtf16ForPainting(activeToken!.lexeme)}` · ${activeToken!.kind.name}'
                       '${activeSemanticKind != null ? ' · ${activeSemanticKind!.name}' : ''}'
                       ' · ${activeToken!.range.start}-${activeToken!.range.end}',
                       key: const ValueKey('active-token-context'),
@@ -5000,7 +5194,7 @@ class _InlineLanguageFeedback extends StatelessWidget {
                       children: [
                         if (activeToken != null)
                           Text(
-                            'Token `${activeToken!.lexeme}` · ${activeToken!.kind.name}'
+                            'Token `${_sanitizeUtf16ForPainting(activeToken!.lexeme)}` · ${activeToken!.kind.name}'
                             '${activeSemanticKind != null ? ' · ${activeSemanticKind!.name}' : ''}'
                             ' · ${activeToken!.range.start}-${activeToken!.range.end}',
                             key: const ValueKey('active-token-context'),
@@ -5329,6 +5523,57 @@ class _LanguageServicePaneState extends State<_LanguageServicePane> {
   Widget build(BuildContext context) {
     final analysis = widget.analysis;
     final showServiceStatusCard = widget.languageServiceStatus != null;
+    final lineCount = widget.controller.document.lineCount;
+    final deferLanguageLists = lineCount >= 10000;
+
+    if (deferLanguageLists) {
+      return KeyedSubtree(
+        key: const ValueKey('language-pane-deferred-large-file'),
+        child: ListView(
+          children: [
+            if (showServiceStatusCard) ...[
+              _InspectorCard(
+                key: const ValueKey('language-service-status-card'),
+                title: 'StyioService Status',
+                child: _buildServiceStatusContent(context),
+              ),
+              const SizedBox(height: 12),
+            ],
+            _InspectorCard(
+              title: 'Language Layers',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _CapabilityPill(label: 'token ${analysis.tokenCount}'),
+                      _CapabilityPill(
+                        label: 'semantic ${analysis.semanticCount}',
+                      ),
+                      _CapabilityPill(label: 'symbols ${analysis.symbolCount}'),
+                      _CapabilityPill(
+                        label: 'diag ${analysis.diagnosticCount}',
+                      ),
+                      _CapabilityPill(
+                        label: 'inlays ${analysis.inlayHintCount}',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Language inspector lists are deferred for $lineCount-line '
+                    'documents while input, scrolling, and selection stay live.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     if (widget.viewportProfile.isMobile) {
       return KeyedSubtree(
@@ -6206,6 +6451,7 @@ List<Widget> _buildPreviewChildren(
   required EditorSemanticThemeBinding semanticThemeBinding,
   required List<int> lineStarts,
   required List<_SemanticLineBlock> semanticBlocks,
+  required EditorVirtualizedRowWindow renderWindow,
   required int maxRenderedLineCount,
   required Set<String> collapsedSemanticBlockKeys,
   required ValueChanged<_SemanticLineBlock> onToggleSemanticBlock,
@@ -6223,15 +6469,58 @@ List<Widget> _buildPreviewChildren(
   final activeLineIndex = document
       .positionForOffset(selection.extentOffset)
       .line;
-  final renderedLineCount = document.lines.length < maxRenderedLineCount
-      ? document.lines.length
-      : maxRenderedLineCount;
-  final renderStartLine = _previewRenderStartLine(
-    totalLineCount: document.lines.length,
-    maxRenderedLineCount: maxRenderedLineCount,
-    activeLineIndex: activeLineIndex,
-  );
-  final renderEndLine = renderStartLine + renderedLineCount;
+  final useScrollViewport =
+      document.lineCount >= 10000 &&
+      renderWindow.totalLineCount == document.lineCount &&
+      renderWindow.renderLineCount <= maxRenderedLineCount;
+  final boundedWindow = useScrollViewport
+      ? renderWindow
+      : document.lineCount <= maxRenderedLineCount
+      ? renderWindow.totalLineCount == document.lineCount
+            ? renderWindow
+            : EditorVirtualizedRowWindow.fromViewport(
+                totalLineCount: document.lineCount,
+                firstVisibleLine: activeLineIndex,
+                viewportLineCapacity: maxRenderedLineCount,
+                overscanLineCount: 0,
+              )
+      : () {
+          final renderStartLine = _previewRenderStartLine(
+            totalLineCount: document.lineCount,
+            maxRenderedLineCount: maxRenderedLineCount,
+            activeLineIndex: activeLineIndex,
+          );
+          final renderEndLine =
+              renderStartLine +
+              (document.lineCount < maxRenderedLineCount
+                  ? document.lineCount
+                  : maxRenderedLineCount);
+          return EditorVirtualizedRowWindow(
+            totalLineCount: document.lineCount,
+            startLine: renderStartLine,
+            endLineExclusive: renderEndLine,
+            viewportFirstLine: activeLineIndex.clamp(
+              renderStartLine,
+              renderEndLine == renderStartLine
+                  ? renderStartLine
+                  : renderEndLine - 1,
+            ),
+            viewportLineCapacity: maxRenderedLineCount,
+            overscanLineCount: 0,
+          );
+        }();
+  final renderStartLine = boundedWindow.startLine;
+  final renderEndLine = boundedWindow.endLineExclusive;
+  final renderedLineCount = renderEndLine - renderStartLine;
+  final plainTextLines = document.lineCount >= 10000;
+  final lineTokenIndex = plainTextLines
+      ? const <int, List<TokenSpan>>{}
+      : _indexTokenSpansForLineWindow(
+          tokenSpans: analysis.tokenSpans,
+          lineStarts: lineStarts,
+          startLine: renderStartLine,
+          endLineExclusive: renderEndLine,
+        );
   var lineIndex = renderStartLine;
 
   while (lineIndex < renderEndLine) {
@@ -6278,6 +6567,9 @@ List<Widget> _buildPreviewChildren(
                     lineStarts: lineStarts,
                     renderPlan: renderPlan,
                     semanticThemeBinding: semanticThemeBinding,
+                    lineTokens:
+                        lineTokenIndex[blockLine] ?? const <TokenSpan>[],
+                    plainTextLine: plainTextLines,
                     onTapLine: onTapLine,
                     onPanStartLine: onPanStartLine,
                     onPanUpdateLine: onPanUpdateLine,
@@ -6315,6 +6607,8 @@ List<Widget> _buildPreviewChildren(
         lineStarts: lineStarts,
         renderPlan: renderPlan,
         semanticThemeBinding: semanticThemeBinding,
+        lineTokens: lineTokenIndex[lineIndex] ?? const <TokenSpan>[],
+        plainTextLine: plainTextLines,
         onTapLine: onTapLine,
         onPanStartLine: onPanStartLine,
         onPanUpdateLine: onPanUpdateLine,
@@ -6324,11 +6618,11 @@ List<Widget> _buildPreviewChildren(
     lineIndex += 1;
   }
 
-  if (renderedLineCount < document.lines.length) {
+  if (renderedLineCount < document.lineCount) {
     children.add(
       _LargeDocumentPreviewTruncationBanner(
         renderedLineCount: renderedLineCount,
-        totalLineCount: document.lines.length,
+        totalLineCount: document.lineCount,
         renderStartLine: renderStartLine,
         renderEndLine: renderEndLine,
         activeLineIndex: activeLineIndex,
@@ -6337,6 +6631,42 @@ List<Widget> _buildPreviewChildren(
   }
 
   return children;
+}
+
+Map<int, List<TokenSpan>> _indexTokenSpansForLineWindow({
+  required List<TokenSpan> tokenSpans,
+  required List<int> lineStarts,
+  required int startLine,
+  required int endLineExclusive,
+}) {
+  final buckets = <int, List<TokenSpan>>{
+    for (var line = startLine; line < endLineExclusive; line += 1)
+      line: <TokenSpan>[],
+  };
+  if (tokenSpans.isEmpty || buckets.isEmpty) {
+    return buckets;
+  }
+
+  final windowStart = lineStarts[startLine];
+  final lastLine = endLineExclusive - 1;
+  final windowEnd = lastLine + 1 < lineStarts.length
+      ? lineStarts[lastLine + 1]
+      : lineStarts[lastLine];
+
+  for (final token in tokenSpans) {
+    if (token.range.end <= windowStart) {
+      continue;
+    }
+    if (token.range.start >= windowEnd) {
+      break;
+    }
+    final line = _lineIndexForOffset(lineStarts, token.range.start);
+    final bucket = buckets[line];
+    if (bucket != null) {
+      bucket.add(token);
+    }
+  }
+  return buckets;
 }
 
 int _previewRenderStartLine({
@@ -6427,6 +6757,8 @@ List<Widget> _buildLineWithInlineFeedback(
   required List<int> lineStarts,
   required EditorRenderPlan renderPlan,
   required EditorSemanticThemeBinding semanticThemeBinding,
+  required List<TokenSpan> lineTokens,
+  required bool plainTextLine,
   required void Function(int lineIndex, TapDownDetails details) onTapLine,
   required void Function(int lineIndex, DragStartDetails details)
   onPanStartLine,
@@ -6446,6 +6778,8 @@ List<Widget> _buildLineWithInlineFeedback(
       lineStarts: lineStarts,
       renderPlan: renderPlan,
       semanticThemeBinding: semanticThemeBinding,
+      lineTokens: lineTokens,
+      plainTextLine: plainTextLine,
       onTapDown: (details) => onTapLine(lineIndex, details),
       onPanStart: (details) => onPanStartLine(lineIndex, details),
       onPanUpdate: (details) => onPanUpdateLine(lineIndex, details),
@@ -6457,7 +6791,7 @@ List<Widget> _buildLineWithInlineFeedback(
     return widgets;
   }
 
-  final lineText = document.lines[lineIndex];
+  final lineText = document.lineAt(lineIndex);
   final lineRange = SourceRange(
     start: lineStarts[lineIndex],
     end: lineStarts[lineIndex] + lineText.length,
@@ -6495,46 +6829,96 @@ List<InlineSpan> _buildLineSpans(
   required SelectionState selection,
   required EditorRenderPlan renderPlan,
   required EditorSemanticThemeBinding semanticThemeBinding,
+  required List<TokenSpan> lineTokens,
+  required bool plainTextLine,
+  int sourceOffsetBase = 0,
+  SourceRange? globalLineRange,
 }) {
   final spans = <InlineSpan>[];
-  final caretOffset = selection.isCollapsed ? selection.end : null;
+  final resolvedGlobalLineRange = globalLineRange ?? lineRange;
+  final caretOffset = selection.isCollapsed
+      ? selection.end - sourceOffsetBase
+      : null;
   final selectionRange = selection.isCollapsed
       ? null
-      : SourceRange(start: selection.start, end: selection.end);
-  final lineTokens = analysis.tokenSpans
-      .where((token) => token.range.intersects(lineRange))
-      .toList(growable: false);
+      : SourceRange(
+          start: selection.start - sourceOffsetBase,
+          end: selection.end - sourceOffsetBase,
+        );
   final lineInlayHints =
       analysis.inlayHints
           .where(
             (hint) =>
-                hint.position >= lineRange.start &&
-                hint.position <= lineRange.end,
+                hint.position >= resolvedGlobalLineRange.start &&
+                hint.position <= resolvedGlobalLineRange.end,
           )
           .toList(growable: false)
         ..sort((left, right) => left.position.compareTo(right.position));
   var inlayHintIndex = 0;
 
+  // Collapse caret/selection paint anchors to scalar boundaries so WidgetSpan
+  // carets never force TextSpan splits inside surrogate pairs.
+  final paintCaretOffset = caretOffset == null
+      ? null
+      : _utf16ScalarFloor(source, caretOffset);
+  final paintSelectionRange = selectionRange == null
+      ? null
+      : SourceRange(
+          start: _utf16ScalarFloor(source, selectionRange.start),
+          end: _utf16ScalarCeil(source, selectionRange.end),
+        );
+
   void appendInlayHintsThrough(int boundary) {
     while (inlayHintIndex < lineInlayHints.length &&
-        lineInlayHints[inlayHintIndex].position <= boundary) {
+        lineInlayHints[inlayHintIndex].position - sourceOffsetBase <=
+            boundary) {
       final hint = lineInlayHints[inlayHintIndex];
+      final localPosition = (hint.position - sourceOffsetBase).clamp(
+        lineRange.start,
+        lineRange.end,
+      );
       _appendCaretIfNeeded(
         spans,
         context,
-        caretOffset: caretOffset,
-        boundary: hint.position,
+        caretOffset: paintCaretOffset,
+        boundary: localPosition,
       );
       spans.add(_inlayHintSpan(hint));
       inlayHintIndex += 1;
     }
   }
 
+  if (plainTextLine) {
+    final slice = _utf16SafeSlice(source, lineRange.start, lineRange.end);
+    _appendCaretIfNeeded(
+      spans,
+      context,
+      caretOffset: paintCaretOffset,
+      boundary: lineRange.start,
+    );
+    _appendCaretAwareText(
+      spans,
+      context,
+      text: slice.text,
+      start: slice.start,
+      style: _textStyleForToken(
+        context,
+        tokenKind: TokenKind.identifier,
+        semanticKind: null,
+        diagnosticSeverity: null,
+        semanticThemeBinding: semanticThemeBinding,
+      ),
+      caretOffset: paintCaretOffset,
+      selectionRange: paintSelectionRange,
+    );
+    return spans;
+  }
+
   if (lineTokens.isEmpty) {
     _appendCaretIfNeeded(
       spans,
       context,
-      caretOffset: caretOffset,
+      caretOffset: paintCaretOffset,
       boundary: lineRange.start,
     );
     spans.add(
@@ -6553,7 +6937,7 @@ List<InlineSpan> _buildLineSpans(
       _appendCaretIfNeeded(
         spans,
         context,
-        caretOffset: caretOffset,
+        caretOffset: paintCaretOffset,
         boundary: lineRange.end,
       );
     }
@@ -6562,8 +6946,14 @@ List<InlineSpan> _buildLineSpans(
 
   var cursor = lineRange.start;
   for (final token in lineTokens) {
-    final start = token.range.start.clamp(lineRange.start, lineRange.end);
-    final end = token.range.end.clamp(lineRange.start, lineRange.end);
+    final start = (token.range.start - sourceOffsetBase).clamp(
+      lineRange.start,
+      lineRange.end,
+    );
+    final end = (token.range.end - sourceOffsetBase).clamp(
+      lineRange.start,
+      lineRange.end,
+    );
 
     if (start > cursor) {
       final style = _textStyleForToken(
@@ -6576,54 +6966,60 @@ List<InlineSpan> _buildLineSpans(
       _appendCaretIfNeeded(
         spans,
         context,
-        caretOffset: caretOffset,
+        caretOffset: paintCaretOffset,
         boundary: cursor,
       );
+      final gap = _utf16SafeSlice(source, cursor, start);
       _appendCaretAwareText(
         spans,
         context,
-        text: source.substring(cursor, start),
-        start: cursor,
+        text: gap.text,
+        start: gap.start,
         style: style,
-        caretOffset: caretOffset,
-        selectionRange: selectionRange,
+        caretOffset: paintCaretOffset,
+        selectionRange: paintSelectionRange,
       );
     }
 
     if (end > start) {
       appendInlayHintsThrough(start);
-      final tokenRange = SourceRange(start: start, end: end);
+      final localTokenRange = SourceRange(start: start, end: end);
+      final slice = _utf16SafeSlice(source, start, end);
       _appendCaretIfNeeded(
         spans,
         context,
-        caretOffset: caretOffset,
+        caretOffset: paintCaretOffset,
         boundary: start,
       );
       spans.addAll(
         _inlineSpansForToken(
           context,
           token: token,
-          lineSlice: source.substring(start, end),
-          segmentStart: start,
-          caretOffset: caretOffset,
-          selectionRange: selectionRange,
+          lineSlice: slice.text,
+          segmentStart: slice.start,
+          caretOffset: paintCaretOffset,
+          selectionRange: paintSelectionRange,
           semanticKind: _semanticKindForRange(
             analysis.semanticSpans,
-            tokenRange,
+            token.range,
           ),
           diagnosticSeverity: _diagnosticSeverityForRange(
             analysis.diagnostics,
-            tokenRange,
+            token.range,
           ),
-          activeReference: _referenceForRange(activeReferences, tokenRange),
+          activeReference: _referenceForRange(activeReferences, token.range),
           activeToken:
               activeTokenRange != null &&
-              _sameRange(activeTokenRange, tokenRange),
+              _sameRange(activeTokenRange, token.range),
           semanticThemeBinding: semanticThemeBinding,
           enableGlyphSubstitution:
               renderPlan.activeLayers.contains(EditorRenderLayer.decoration) &&
               renderPlan.glyphSubstitutionEnabled &&
-              !_selectionTouchesRange(selectionRange, caretOffset, tokenRange),
+              !_selectionTouchesRange(
+                paintSelectionRange,
+                paintCaretOffset,
+                localTokenRange,
+              ),
         ),
       );
       cursor = end;
@@ -6638,27 +7034,28 @@ List<InlineSpan> _buildLineSpans(
       diagnosticSeverity: null,
       semanticThemeBinding: semanticThemeBinding,
     );
+    final trailing = _utf16SafeSlice(source, cursor, lineRange.end);
     _appendCaretIfNeeded(
       spans,
       context,
-      caretOffset: caretOffset,
+      caretOffset: paintCaretOffset,
       boundary: cursor,
     );
     _appendCaretAwareText(
       spans,
       context,
-      text: source.substring(cursor, lineRange.end),
-      start: cursor,
+      text: trailing.text,
+      start: trailing.start,
       style: style,
-      caretOffset: caretOffset,
-      selectionRange: selectionRange,
+      caretOffset: paintCaretOffset,
+      selectionRange: paintSelectionRange,
     );
   }
 
   _appendCaretIfNeeded(
     spans,
     context,
-    caretOffset: caretOffset,
+    caretOffset: paintCaretOffset,
     boundary: lineRange.end,
   );
   appendInlayHintsThrough(lineRange.end);
@@ -6814,6 +7211,88 @@ void _appendCaretIfNeeded(
   }
 }
 
+bool _isUtf16ScalarBoundary(String value, int offset) {
+  if (offset <= 0 || offset >= value.length) {
+    return true;
+  }
+  final before = value.codeUnitAt(offset - 1);
+  final after = value.codeUnitAt(offset);
+  return !(before >= 0xD800 &&
+      before <= 0xDBFF &&
+      after >= 0xDC00 &&
+      after <= 0xDFFF);
+}
+
+/// Snaps [offset] left so TextSpan slices never begin/end inside a surrogate pair.
+int _utf16ScalarFloor(String value, int offset) {
+  if (offset <= 0) {
+    return 0;
+  }
+  if (offset >= value.length) {
+    return value.length;
+  }
+  return _isUtf16ScalarBoundary(value, offset) ? offset : offset - 1;
+}
+
+/// Snaps [offset] right so TextSpan slices never begin/end inside a surrogate pair.
+int _utf16ScalarCeil(String value, int offset) {
+  if (offset <= 0) {
+    return 0;
+  }
+  if (offset >= value.length) {
+    return value.length;
+  }
+  return _isUtf16ScalarBoundary(value, offset) ? offset : offset + 1;
+}
+
+({int start, int end, String text}) _utf16SafeSlice(
+  String value,
+  int start,
+  int end,
+) {
+  final safeStart = _utf16ScalarCeil(value, start);
+  final safeEnd = _utf16ScalarFloor(value, end);
+  if (safeEnd <= safeStart) {
+    return (start: safeStart, end: safeStart, text: '');
+  }
+  return (
+    start: safeStart,
+    end: safeEnd,
+    text: _sanitizeUtf16ForPainting(value.substring(safeStart, safeEnd)),
+  );
+}
+
+/// Replaces unpaired UTF-16 surrogates so ParagraphBuilder never rejects spans.
+String _sanitizeUtf16ForPainting(String value) {
+  final units = value.codeUnits;
+  if (units.isEmpty) {
+    return value;
+  }
+  final out = <int>[];
+  for (var index = 0; index < units.length; index += 1) {
+    final unit = units[index];
+    if (unit >= 0xD800 && unit <= 0xDBFF) {
+      if (index + 1 < units.length) {
+        final next = units[index + 1];
+        if (next >= 0xDC00 && next <= 0xDFFF) {
+          out.add(unit);
+          out.add(next);
+          index += 1;
+          continue;
+        }
+      }
+      out.add(0xFFFD);
+      continue;
+    }
+    if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      out.add(0xFFFD);
+      continue;
+    }
+    out.add(unit);
+  }
+  return String.fromCharCodes(out);
+}
+
 void _appendCaretAwareText(
   List<InlineSpan> spans,
   BuildContext context, {
@@ -6831,16 +7310,16 @@ void _appendCaretAwareText(
   if (caretOffset != null &&
       caretOffset > start &&
       caretOffset < start + text.length) {
-    boundaries.add(caretOffset - start);
+    boundaries.add(_utf16ScalarFloor(text, caretOffset - start));
   }
   if (selectionRange != null) {
     final selectionStart = selectionRange.start - start;
     final selectionEnd = selectionRange.end - start;
     if (selectionStart > 0 && selectionStart < text.length) {
-      boundaries.add(selectionStart);
+      boundaries.add(_utf16ScalarFloor(text, selectionStart));
     }
     if (selectionEnd > 0 && selectionEnd < text.length) {
-      boundaries.add(selectionEnd);
+      boundaries.add(_utf16ScalarCeil(text, selectionEnd));
     }
   }
 
@@ -6859,9 +7338,13 @@ void _appendCaretAwareText(
         absoluteStart < selectionRange.end &&
         selectionRange.start < absoluteEnd;
 
+    final slice = _utf16SafeSlice(text, segmentStart, segmentEnd).text;
+    if (slice.isEmpty) {
+      continue;
+    }
     spans.add(
       TextSpan(
-        text: text.substring(segmentStart, segmentEnd),
+        text: slice,
         style: selected
             ? style.copyWith(backgroundColor: const Color(0xFFCFD8F8))
             : style,
@@ -7099,4 +7582,46 @@ class _SemanticLineBlock {
   final int startLine;
   final int endLine;
   final String label;
+}
+
+class _SourceBufferTextSelectionSemantics
+    extends SingleChildRenderObjectWidget {
+  const _SourceBufferTextSelectionSemantics({
+    required this.textSelection,
+    required super.child,
+  });
+
+  final TextSelection textSelection;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return _RenderSourceBufferTextSelectionSemantics(textSelection);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSourceBufferTextSelectionSemantics renderObject,
+  ) {
+    renderObject.textSelection = textSelection;
+  }
+}
+
+class _RenderSourceBufferTextSelectionSemantics extends RenderProxyBox {
+  _RenderSourceBufferTextSelectionSemantics(this._textSelection);
+
+  TextSelection _textSelection;
+
+  set textSelection(TextSelection value) {
+    if (_textSelection == value) return;
+    _textSelection = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    if (_textSelection.isValid) {
+      config.textSelection = _textSelection;
+    }
+  }
 }

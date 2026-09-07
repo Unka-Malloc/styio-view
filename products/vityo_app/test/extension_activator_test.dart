@@ -5,6 +5,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/module_host/module_host.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('extension activator activates trusted event candidates', () {
     final registry = ExtensionManifestRegistry()
@@ -120,7 +122,7 @@ void main() {
           await tempRoot.delete(recursive: true);
         }
       });
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final resourceManager = LocalResourceManager(
         facts: ResourceFacts.linuxDebianArm(
           systemTempPath: tempRoot.path,

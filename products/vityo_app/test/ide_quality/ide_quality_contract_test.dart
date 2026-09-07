@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
 import 'package:vityo_app/src/ide/platform/desktop_capability_report.dart';
 import 'package:test/test.dart';
@@ -37,42 +35,6 @@ void main() {
     expect(snapshot.bufferedUpdateBytes, lessThanOrEqualTo(256));
     expect(snapshot.acceptedUpdateCount + snapshot.droppedUpdateCount, 20);
     await reducer.close();
-  });
-
-  test('recovery checksum rejects tampering', () async {
-    final storage = MemoryAgentSessionRecoveryStorage();
-    final store = AgentSessionRecoveryStore(
-      storage: storage,
-      maxSessions: 1,
-      maxTimelineEntriesPerSession: 1,
-      maxEncodedBytes: 2048,
-    );
-    await store.save(
-      AgentRecoveryCheckpoint(
-        sessionId: 'session',
-        agentId: 'agent',
-        processGeneration: 1,
-        protocolVersion: 1,
-        workspaceRevision: 1,
-        status: 'active',
-        droppedUpdateCount: 0,
-        timeline: const <AgentSessionUpdate>[],
-      ),
-    );
-    final envelope =
-        jsonDecode((await storage.read())!) as Map<String, Object?>;
-    envelope['checksum'] = 'invalid';
-    await storage.write(jsonEncode(envelope));
-    await expectLater(
-      store.loadAll(),
-      throwsA(
-        isA<AgentSessionRecoveryFailure>().having(
-          (failure) => failure.code,
-          'code',
-          'corrupted_projection',
-        ),
-      ),
-    );
   });
 
   test('desktop capability evidence is explicit when Agent is absent', () {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../ide/local_service/vityod_client.dart';
 import '../../presentation/agent_workbench/task_center.dart';
 import '../commands/command_palette_surface.dart';
 import '../editor/editor.dart';
@@ -31,6 +32,7 @@ import '../../app/commands/app_commands.dart';
 import 'shell_layout_plan.dart';
 import 'shell_model.dart';
 import 'shell_scope.dart';
+import 'workbench_regions/workbench_regions.dart';
 
 class VityoShellScaffold extends StatelessWidget {
   const VityoShellScaffold({super.key});
@@ -47,6 +49,7 @@ class VityoShellScaffold extends StatelessWidget {
       width: MediaQuery.sizeOf(context).width,
       height: MediaQuery.sizeOf(context).height,
     );
+    final servicePresentation = _servicePresentationFor(shell);
 
     return Shortcuts(
       shortcuts: AppCommandShortcutRegistry.shortcutIntents,
@@ -69,6 +72,25 @@ class VityoShellScaffold extends StatelessWidget {
                     : EdgeInsets.zero,
                 child: Column(
                   children: [
+                    if (!viewportProfile.isMobile)
+                      WorkbenchTitleBar(
+                        title:
+                            'Vityo — ${shell.workspaceController.activeFilePath}',
+                        commandHint: 'Search files or run a command',
+                        connectionLabel: servicePresentation.label,
+                        status: servicePresentation.status,
+                        actions: _buildTitleCommandActions(context, shell),
+                        onOpenCommands: () {
+                          shell.selectBottomTab(
+                            BottomSurfaceTab.commandPalette,
+                          );
+                        },
+                      ),
+                    if (servicePresentation.status != WorkbenchStatus.ready)
+                      _ServiceStateBanner(
+                        presentation: servicePresentation,
+                        onRecover: shell.recoverServiceConnection,
+                      ),
                     if (hostedClosePlan != null) ...[
                       HostedWorkspaceLifecycleBanner(plan: hostedClosePlan),
                       const SizedBox(height: 16),
@@ -111,14 +133,12 @@ class VityoShellScaffold extends StatelessWidget {
                         },
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    _ShellStatusBar(
-                      platformTarget: shell.platformTarget,
-                      viewportProfile: viewportProfile,
-                      mountedModuleCount: shell.mountedModules.length,
-                      visibleModuleCount: shell.visibleModules.length,
-                      projectTitle: project.title,
-                      activeFilePath: shell.workspaceController.activeFilePath,
+                    WorkbenchStatusBar(
+                      leading:
+                          '${project.title} · ${shell.workspaceController.activeFilePath}',
+                      trailing:
+                          '${shell.platformTarget.label} · ${servicePresentation.label}',
+                      status: servicePresentation.status,
                     ),
                   ],
                 ),
@@ -128,6 +148,58 @@ class VityoShellScaffold extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildTitleCommandActions(
+    BuildContext context,
+    ShellModel shell,
+  ) {
+    final theme = Theme.of(context);
+    const titleCommandIds = <AppCommandId>{
+      AppCommandId.save,
+      AppCommandId.saveAll,
+      AppCommandId.run,
+      AppCommandId.syncDependencies,
+      AppCommandId.vendorDependencies,
+      AppCommandId.refreshModules,
+    };
+    return <Widget>[
+      for (final command in VityoCommandRegistry.primaryCommands.where(
+        (command) => titleCommandIds.contains(command.id),
+      ))
+        Tooltip(
+          message:
+              shell.blockedReasonForCommand(command.id) ??
+              '${command.description} (${command.shortcutHint})',
+          child: IconButton(
+            key: ValueKey('command-strip-${command.id.name}'),
+            visualDensity: VisualDensity.compact,
+            onPressed: shell.blockedReasonForCommand(command.id) == null
+                ? () => shell.executeCommand(command.id)
+                : null,
+            icon: Icon(
+              _commandIcon(command.id),
+              size: 17,
+              color: shell.blockedReasonForCommand(command.id) == null
+                  ? theme.colorScheme.primary
+                  : theme.disabledColor,
+            ),
+          ),
+        ),
+      Tooltip(
+        message: 'Open settings and profile routes. (Cmd/Ctrl+,)',
+        child: IconButton(
+          key: const ValueKey('command-strip-openSettings'),
+          visualDensity: VisualDensity.compact,
+          onPressed: () => shell.executeCommand(AppCommandId.openSettings),
+          icon: Icon(
+            Icons.settings_outlined,
+            size: 17,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+      ),
+    ];
   }
 
   Widget _buildBottomSurface(
@@ -448,99 +520,6 @@ class VityoShellScaffold extends StatelessWidget {
   }
 }
 
-class _ShellStatusBar extends StatelessWidget {
-  const _ShellStatusBar({
-    required this.platformTarget,
-    required this.viewportProfile,
-    required this.mountedModuleCount,
-    required this.visibleModuleCount,
-    required this.projectTitle,
-    required this.activeFilePath,
-  });
-
-  final PlatformTarget platformTarget;
-  final ViewportProfile viewportProfile;
-  final int mountedModuleCount;
-  final int visibleModuleCount;
-  final String projectTitle;
-  final String activeFilePath;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.58),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.dividerColor),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: viewportProfile.isMobile
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    children: [
-                      Text(
-                        'Platform ${platformTarget.label}',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      Text(
-                        'Viewport ${viewportProfile.label}',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                      Text(
-                        'Mounted $mountedModuleCount/$visibleModuleCount modules',
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Project $projectTitle · $activeFilePath',
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              )
-            : Row(
-                children: [
-                  Text(
-                    'Platform ${platformTarget.label}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Viewport ${viewportProfile.label}',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Mounted $mountedModuleCount/$visibleModuleCount modules',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Project $projectTitle · $activeFilePath',
-                      style: theme.textTheme.bodySmall,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
-}
-
 class _DesktopShellBody extends StatelessWidget {
   const _DesktopShellBody({
     required this.shell,
@@ -557,12 +536,32 @@ class _DesktopShellBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final denseDesktop = viewportProfile.width < 1440;
-    final workspaceWidth = denseDesktop ? 252.0 : 288.0;
+    final primarySidebarVisible = viewportProfile.width >= 1180;
+    final primaryToolSurface = _usesPrimarySidebar(shell.activeBottomTab);
+    final workspaceWidth = primaryToolSurface
+        ? denseDesktop
+              ? 288.0
+              : 320.0
+        : denseDesktop
+        ? 252.0
+        : 288.0;
     final bottomSurfaceHeight = viewportProfile.height >= 840
         ? 250.0
         : viewportProfile.height >= 680
         ? 200.0
         : 160.0;
+    final agentUsesAuxiliaryPanel =
+        viewportProfile.width >= 1320 &&
+        shell.activeBottomTab == BottomSurfaceTab.agent;
+    final primaryToolUsesBottomPanel =
+        !primarySidebarVisible && primaryToolSurface;
+    final bottomSurfaceVisible =
+        layoutBinding.bottomPanelExpanded &&
+        (primaryToolUsesBottomPanel ||
+            _usesBottomPanel(
+              shell.activeBottomTab,
+              agentUsesAuxiliaryPanel: agentUsesAuxiliaryPanel,
+            ));
 
     return KeyedSubtree(
       key: ValueKey(layoutBinding.viewportKey),
@@ -578,11 +577,73 @@ class _DesktopShellBody extends StatelessWidget {
         ),
         child: Row(
           children: [
-            SizedBox(
-              width: workspaceWidth,
-              child: _ExplorerSidebar(shell: shell),
+            WorkbenchActivityRail(
+              destinations: const <WorkbenchDestination>[
+                WorkbenchDestination(
+                  label: 'Explorer',
+                  icon: Icons.folder_outlined,
+                ),
+                WorkbenchDestination(label: 'Search', icon: Icons.search),
+                WorkbenchDestination(
+                  label: 'Source control',
+                  icon: Icons.fork_right,
+                ),
+                WorkbenchDestination(
+                  label: 'Coding Agent',
+                  icon: Icons.auto_awesome_outlined,
+                ),
+                WorkbenchDestination(
+                  label: 'Extensions',
+                  icon: Icons.extension_outlined,
+                ),
+                WorkbenchDestination(
+                  label: 'Settings',
+                  icon: Icons.settings_outlined,
+                ),
+              ],
+              selectedIndex: switch (shell.activeBottomTab) {
+                BottomSurfaceTab.search => 1,
+                BottomSurfaceTab.sourceControl => 2,
+                BottomSurfaceTab.agent => 3,
+                BottomSurfaceTab.extensions => 4,
+                BottomSurfaceTab.settings => 5,
+                _ => 0,
+              },
+              onSelected: (index) {
+                switch (index) {
+                  case 1:
+                    shell.selectBottomTab(BottomSurfaceTab.search);
+                    break;
+                  case 2:
+                    shell.selectBottomTab(BottomSurfaceTab.sourceControl);
+                    break;
+                  case 3:
+                    shell.selectBottomTab(BottomSurfaceTab.agent);
+                    break;
+                  case 4:
+                    shell.selectBottomTab(BottomSurfaceTab.extensions);
+                    break;
+                  case 5:
+                    shell.selectBottomTab(BottomSurfaceTab.settings);
+                    break;
+                  default:
+                    shell.selectBottomTab(BottomSurfaceTab.navigate);
+                    break;
+                }
+              },
             ),
-            const VerticalDivider(width: 1, thickness: 1),
+            if (primarySidebarVisible)
+              SizedBox(
+                width: workspaceWidth,
+                child: WorkbenchRegionSurface(
+                  label: _primarySidebarLabel(shell.activeBottomTab),
+                  child: primaryToolSurface
+                      ? bottomSurface
+                      : _ExplorerSidebar(shell: shell),
+                ),
+              ),
+            if (primarySidebarVisible)
+              const VerticalDivider(width: 1, thickness: 1),
             Expanded(
               child: Column(
                 children: [
@@ -643,7 +704,7 @@ class _DesktopShellBody extends StatelessWidget {
                     shell: shell,
                     viewportProfile: viewportProfile,
                   ),
-                  if (layoutBinding.bottomPanelExpanded) ...[
+                  if (bottomSurfaceVisible) ...[
                     const Divider(height: 1, thickness: 1),
                     SizedBox(
                       height: bottomSurfaceHeight,
@@ -656,6 +717,13 @@ class _DesktopShellBody extends StatelessWidget {
                 ],
               ),
             ),
+            if (agentUsesAuxiliaryPanel) ...[
+              const VerticalDivider(width: 1, thickness: 1),
+              WorkbenchAuxiliaryPanel(
+                label: 'Coding Agent',
+                child: TaskCenter(collaboration: shell.agentCollaboration),
+              ),
+            ],
           ],
         ),
       ),
@@ -865,14 +933,6 @@ class _ExplorerSidebarState extends State<_ExplorerSidebar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'EXPLORER',
-              style: theme.textTheme.labelMedium?.copyWith(
-                letterSpacing: 1.2,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 6),
             Text(
               project.title,
               maxLines: 1,
@@ -2210,8 +2270,7 @@ class _BottomSurfaceTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tabs = <Widget>[
+    final bottomToolTabs = <Widget>[
       _SurfaceTabChip(
         label: 'Runtime',
         active: shell.activeBottomTab == BottomSurfaceTab.runtime,
@@ -2221,26 +2280,6 @@ class _BottomSurfaceTabs extends StatelessWidget {
         label: 'Terminal',
         active: shell.activeBottomTab == BottomSurfaceTab.terminal,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.terminal),
-      ),
-      _SurfaceTabChip(
-        label: 'Commands',
-        active: shell.activeBottomTab == BottomSurfaceTab.commandPalette,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.commandPalette),
-      ),
-      _SurfaceTabChip(
-        label: 'Agent',
-        active: shell.activeBottomTab == BottomSurfaceTab.agent,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
-      ),
-      _SurfaceTabChip(
-        label: 'SCM',
-        active: shell.activeBottomTab == BottomSurfaceTab.sourceControl,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.sourceControl),
-      ),
-      _SurfaceTabChip(
-        label: 'Search',
-        active: shell.activeBottomTab == BottomSurfaceTab.search,
-        onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
       ),
       _SurfaceTabChip(
         label: 'Problems',
@@ -2267,13 +2306,44 @@ class _BottomSurfaceTabs extends StatelessWidget {
         active: shell.activeBottomTab == BottomSurfaceTab.debug,
         onTap: () => shell.selectBottomTab(BottomSurfaceTab.debug),
       ),
-      if (viewportProfile.isMobile)
-        _SurfaceTabChip(
-          label: 'Settings',
-          active: shell.activeBottomTab == BottomSurfaceTab.settings,
-          onTap: () => shell.selectBottomTab(BottomSurfaceTab.settings),
-        ),
     ];
+    final tabs = viewportProfile.isMobile
+        ? <Widget>[
+            ...bottomToolTabs,
+            _SurfaceTabChip(
+              label: 'Commands',
+              active: shell.activeBottomTab == BottomSurfaceTab.commandPalette,
+              onTap: () =>
+                  shell.selectBottomTab(BottomSurfaceTab.commandPalette),
+            ),
+            _SurfaceTabChip(
+              label: 'Agent',
+              active: shell.activeBottomTab == BottomSurfaceTab.agent,
+              onTap: () => shell.selectBottomTab(BottomSurfaceTab.agent),
+            ),
+            _SurfaceTabChip(
+              label: 'SCM',
+              active: shell.activeBottomTab == BottomSurfaceTab.sourceControl,
+              onTap: () =>
+                  shell.selectBottomTab(BottomSurfaceTab.sourceControl),
+            ),
+            _SurfaceTabChip(
+              label: 'Search',
+              active: shell.activeBottomTab == BottomSurfaceTab.search,
+              onTap: () => shell.selectBottomTab(BottomSurfaceTab.search),
+            ),
+            _SurfaceTabChip(
+              label: 'Extensions',
+              active: shell.activeBottomTab == BottomSurfaceTab.extensions,
+              onTap: () => shell.selectBottomTab(BottomSurfaceTab.extensions),
+            ),
+            _SurfaceTabChip(
+              label: 'Settings',
+              active: shell.activeBottomTab == BottomSurfaceTab.settings,
+              onTap: () => shell.selectBottomTab(BottomSurfaceTab.settings),
+            ),
+          ]
+        : bottomToolTabs;
 
     if (viewportProfile.isMobile) {
       return Column(
@@ -2297,46 +2367,158 @@ class _BottomSurfaceTabs extends StatelessWidget {
             if (index > 0) const SizedBox(width: 10),
             tabs[index],
           ],
-          const SizedBox(width: 16),
-          for (final command in VityoCommandRegistry.primaryCommands)
-            Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: Tooltip(
-                message:
-                    shell.blockedReasonForCommand(command.id) ??
-                    '${command.description} (${command.shortcutHint})',
-                child: ActionChip(
-                  key: ValueKey('command-strip-${command.id.name}'),
-                  onPressed: shell.blockedReasonForCommand(command.id) == null
-                      ? () => shell.executeCommand(command.id)
-                      : null,
-                  avatar: Icon(
-                    _commandIcon(command.id),
-                    size: 18,
-                    color: shell.blockedReasonForCommand(command.id) == null
-                        ? theme.colorScheme.primary
-                        : theme.disabledColor,
-                  ),
-                  label: Text('${command.label} · ${command.shortcutHint}'),
-                ),
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+bool _usesPrimarySidebar(BottomSurfaceTab tab) {
+  return tab == BottomSurfaceTab.search ||
+      tab == BottomSurfaceTab.sourceControl ||
+      tab == BottomSurfaceTab.extensions ||
+      tab == BottomSurfaceTab.settings;
+}
+
+String _primarySidebarLabel(BottomSurfaceTab tab) {
+  return switch (tab) {
+    BottomSurfaceTab.search => 'Search',
+    BottomSurfaceTab.sourceControl => 'Source Control',
+    BottomSurfaceTab.extensions => 'Extensions',
+    BottomSurfaceTab.settings => 'Settings',
+    _ => 'Explorer',
+  };
+}
+
+bool _usesBottomPanel(
+  BottomSurfaceTab tab, {
+  required bool agentUsesAuxiliaryPanel,
+}) {
+  return switch (tab) {
+    BottomSurfaceTab.runtime ||
+    BottomSurfaceTab.terminal ||
+    BottomSurfaceTab.commandPalette ||
+    BottomSurfaceTab.problems ||
+    BottomSurfaceTab.testing ||
+    BottomSurfaceTab.debug => true,
+    BottomSurfaceTab.agent => !agentUsesAuxiliaryPanel,
+    _ => false,
+  };
+}
+
+final class _ServicePresentation {
+  const _ServicePresentation({
+    required this.status,
+    required this.label,
+    required this.detail,
+  });
+
+  final WorkbenchStatus status;
+  final String label;
+  final String detail;
+}
+
+_ServicePresentation _servicePresentationFor(ShellModel shell) {
+  switch (shell.platformTarget) {
+    case PlatformTarget.linux:
+    case PlatformTarget.macos:
+    case PlatformTarget.windows:
+      return switch (shell.localServiceConnection.phase) {
+        VityodConnectionPhase.connected => const _ServicePresentation(
+          status: WorkbenchStatus.ready,
+          label: 'Local service connected',
+          detail: 'Workspace services are available.',
+        ),
+        VityodConnectionPhase.connecting ||
+        VityodConnectionPhase.reconnecting => const _ServicePresentation(
+          status: WorkbenchStatus.reconnecting,
+          label: 'Local service reconnecting',
+          detail: 'Editing remains local while workspace services reconnect.',
+        ),
+        VityodConnectionPhase.resyncRequired => const _ServicePresentation(
+          status: WorkbenchStatus.blocked,
+          label: 'Workspace resync required',
+          detail: 'Refresh the authoritative workspace snapshot to continue.',
+        ),
+        VityodConnectionPhase.blocked => const _ServicePresentation(
+          status: WorkbenchStatus.blocked,
+          label: 'Local service blocked',
+          detail: 'Resolve the local service capability block to continue.',
+        ),
+        VityodConnectionPhase.disconnected => const _ServicePresentation(
+          status: WorkbenchStatus.blocked,
+          label: 'Local service disconnected',
+          detail: 'Reconnect to resume durable workspace services.',
+        ),
+      };
+    case PlatformTarget.web:
+    case PlatformTarget.ios:
+      if (shell.workspaceController.activeProject.hostedWorkspace != null) {
+        return const _ServicePresentation(
+          status: WorkbenchStatus.ready,
+          label: 'Hosted workspace connected',
+          detail: 'Hosted workspace services are available.',
+        );
+      }
+      return const _ServicePresentation(
+        status: WorkbenchStatus.blocked,
+        label: 'Hosted workspace unavailable',
+        detail: 'Reconnect to the hosted workspace to resume services.',
+      );
+    case PlatformTarget.android:
+    case PlatformTarget.unknown:
+      return const _ServicePresentation(
+        status: WorkbenchStatus.blocked,
+        label: 'Native IDE services unavailable',
+        detail: 'This platform keeps unsupported native capabilities blocked.',
+      );
+  }
+}
+
+class _ServiceStateBanner extends StatelessWidget {
+  const _ServiceStateBanner({
+    required this.presentation,
+    required this.onRecover,
+  });
+
+  final _ServicePresentation presentation;
+  final Future<void> Function() onRecover;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = switch (presentation.status) {
+      WorkbenchStatus.ready => theme.colorScheme.primaryContainer,
+      WorkbenchStatus.reconnecting => const Color(0xFFFFE0A3),
+      WorkbenchStatus.blocked => const Color(0xFFF2D7C9),
+      WorkbenchStatus.error => theme.colorScheme.errorContainer,
+    };
+    return Container(
+      key: ValueKey('service-state-${presentation.status.name}'),
+      width: double.infinity,
+      color: color,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            presentation.status == WorkbenchStatus.reconnecting
+                ? Icons.sync_rounded
+                : Icons.cloud_off_outlined,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${presentation.label} — ${presentation.detail}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall,
             ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: Tooltip(
-              message: 'Open settings and profile routes. (Cmd/Ctrl+,)',
-              child: ActionChip(
-                key: const ValueKey('command-strip-openSettings'),
-                onPressed: () =>
-                    shell.executeCommand(AppCommandId.openSettings),
-                avatar: Icon(
-                  Icons.settings_outlined,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
-                label: const Text('Settings · Cmd/Ctrl+,'),
-              ),
-            ),
+          ),
+          TextButton(
+            key: const ValueKey('service-state-recover'),
+            onPressed: onRecover,
+            child: const Text('Reconnect'),
           ),
         ],
       ),

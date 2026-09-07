@@ -12,6 +12,23 @@ mixin ShellRuntimeCommandDispatchFacade on ShellRuntimeFacadeHost {
     }
 
     switch (commandId) {
+      case AppCommandId.addCursorAbove:
+      case AppCommandId.addCursorBelow:
+      case AppCommandId.removeSecondaryCursors:
+      case AppCommandId.moveCursorsLeft:
+      case AppCommandId.moveCursorsRight:
+      case AppCommandId.moveCursorsUp:
+      case AppCommandId.moveCursorsDown:
+      case AppCommandId.extendSelectionsLeft:
+      case AppCommandId.extendSelectionsRight:
+      case AppCommandId.extendSelectionsUp:
+      case AppCommandId.extendSelectionsDown:
+      case AppCommandId.extendColumnSelectionLeft:
+      case AppCommandId.extendColumnSelectionRight:
+      case AppCommandId.extendColumnSelectionUp:
+      case AppCommandId.extendColumnSelectionDown:
+        await _shellInputCommandController.execute(commandId, '');
+        return;
       case AppCommandId.save:
         await _workspacePersistenceController.executeActiveSave();
         return;

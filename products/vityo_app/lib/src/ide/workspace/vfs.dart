@@ -3,10 +3,7 @@ import 'dart:async';
 enum VityoVfsEventKind { created, modified, deleted, moved }
 
 class VityoVirtualFileRef {
-  const VityoVirtualFileRef({
-    required this.workspaceRoot,
-    required this.path,
-  });
+  const VityoVirtualFileRef({required this.workspaceRoot, required this.path});
 
   final String workspaceRoot;
   final String path;
@@ -218,10 +215,7 @@ class VityoVfsFileSnapshot {
 }
 
 class VityoVfsSnapshot {
-  const VityoVfsSnapshot({
-    required this.revision,
-    required this.files,
-  });
+  const VityoVfsSnapshot({required this.revision, required this.files});
 
   final int revision;
   final Map<String, VityoVfsFileSnapshot> files;
@@ -379,9 +373,8 @@ class VityoRefreshQueue {
   List<VityoVfsEvent> drain() {
     final events = _pending.values.toList(growable: false)
       ..sort(
-        (left, right) => left.ref.normalizedPath.compareTo(
-          right.ref.normalizedPath,
-        ),
+        (left, right) =>
+            left.ref.normalizedPath.compareTo(right.ref.normalizedPath),
       );
     _pending.clear();
     return events;

@@ -6,6 +6,7 @@ import '../../../view_ide/language/service/semantic_snapshot_provider.dart';
 import '../../../view_ide/language/styio_language_service.dart';
 import '../document/document_state.dart';
 import '../document/range_index.dart';
+import '../input/editor_composition.dart';
 import '../render_plan/editor_render_layers.dart';
 import '../selection/selection_state.dart';
 import '../session/editor_session_data_store.dart';
@@ -74,6 +75,8 @@ class EditorSessionFacade extends ChangeNotifier {
   final RenderPlanController renderPlanController;
 
   bool _isDisposed = false;
+  int _lastAnalyzedRevision = -1;
+  int _lastAnalyzedLength = -1;
   late RangeIndex<Diagnostic> _diagnosticIndex;
   late RangeIndex<SemanticSpan> _semanticSpanIndex;
 
@@ -692,6 +695,152 @@ class EditorSessionFacade extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Applies one platform text-input intent against its captured anchors.
+  ///
+  /// Composition stays outside the Source Buffer until it reaches this
+  /// revision-checked boundary. A successful intent is one transaction and
+  /// therefore one history snapshot, regardless of the cursor count.
+  bool commitEditorInput(EditorCompositionCommitIntent intent) {
+    _ensureNotDisposed();
+    if (intent.documentId != _document.documentId ||
+        intent.expectedRevision != _document.revision ||
+        intent.selectionSet != selectionSet) {
+      return false;
+    }
+
+    final replacements = intent.selectionSet.selections
+        .map((selection) => _editorInputReplacement(intent.text, selection))
+        .toList(growable: false);
+    final edits = replacements
+        .where((replacement) => !replacement.skipMatchingCloser)
+        .map(
+          (replacement) => WorkspaceTextEdit(
+            documentId: _document.documentId,
+            range: SourceRange(
+              start: replacement.selection.start,
+              end: replacement.selection.end,
+            ),
+            newText: replacement.text,
+          ),
+        )
+        .toList(growable: false);
+    if (edits.isEmpty) {
+      final movedSet = EditorSelectionSet.normalized(
+        selections: replacements.map(
+          (replacement) => SelectionState.collapsed(
+            replacement.selection.end + 1,
+            affinity: replacement.selection.extentAffinity,
+          ),
+        ),
+        primaryIndex: intent.selectionSet.primaryIndex,
+        documentLength: _document.length,
+      );
+      _structuredSelectionStack.clear();
+      selectionController.selectSelectionSet(movedSet);
+      _refreshAnalysis();
+      notifyListeners();
+      return true;
+    }
+
+    final before = _captureSnapshot();
+    final result = transactionController.service.applyToDocument(
+      document: _document,
+      edit: WorkspaceEdit.singleDocument(
+        document: _document,
+        source: WorkspaceEditSource.userInput,
+        edits: edits,
+        undoGroupId:
+            'text-input-${intent.connectionGeneration}-${intent.sequence}',
+        label: 'Text input',
+      ),
+    );
+    if (!result.isApplied) {
+      return false;
+    }
+
+    final mappedSelections = replacements
+        .map((replacement) {
+          final mappedOffset = replacement.skipMatchingCloser
+              ? mapEditorPositionThroughEdits(
+                  position: replacement.selection.end + 1,
+                  editsAscending: result.normalizedEdits,
+                  association: EditorPositionAssociation.right,
+                )
+              : mapEditorPositionThroughEdits(
+                      position: replacement.selection.start,
+                      editsAscending: result.normalizedEdits,
+                      association: EditorPositionAssociation.left,
+                    ) +
+                    replacement.caretDelta;
+          return SelectionState.collapsed(
+            mappedOffset,
+            affinity: replacement.selection.extentAffinity,
+          );
+        })
+        .toList(growable: false);
+    final mappedSet = EditorSelectionSet.normalized(
+      selections: mappedSelections,
+      primaryIndex: intent.selectionSet.primaryIndex,
+      documentLength: result.document.length,
+    );
+
+    _structuredSelectionStack.clear();
+    historyController.pushUndo(before);
+    _document = result.document;
+    selectionController.selectSelectionSet(mappedSet);
+    _refreshAnalysis();
+    _clearRedoStack();
+    notifyListeners();
+    return true;
+  }
+
+  _EditorInputReplacement _editorInputReplacement(
+    String text,
+    SelectionState selection,
+  ) {
+    if (text == '\n') {
+      final insertion = _newlineInsertionForSelection(selection);
+      return _EditorInputReplacement(
+        selection: selection,
+        text: insertion.text,
+        caretDelta: insertion.caretDelta,
+      );
+    }
+
+    if (text.length == 1) {
+      final close = _pairedCloseForOpening(text);
+      if (close != null) {
+        final selectedText = _document.text.substring(
+          selection.start,
+          selection.end,
+        );
+        final replacement = '$text$selectedText$close';
+        return _EditorInputReplacement(
+          selection: selection,
+          text: replacement,
+          caretDelta: selection.isCollapsed ? 1 : replacement.length,
+        );
+      }
+      if (selection.isCollapsed &&
+          _isPairedClosing(text) &&
+          selection.end < _document.length &&
+          _document.text[selection.end] == text) {
+        return _EditorInputReplacement.skipMatchingCloser(selection: selection);
+      }
+    }
+
+    return _EditorInputReplacement(
+      selection: selection,
+      text: text,
+      caretDelta: text.length,
+    );
+  }
+
+  /// Smart-pair helper retained for controller unit tests.
+  ///
+  /// Production editor input must not call this. Printable characters enter
+  /// through EditorTextInputClient / [commitEditorInput]; the live surface
+  /// KeyEvent path no longer forwards `event.character` here.
   void insertTypedCharacter(String value) {
     if (value.length == 1 && _insertSmartPairCharacter(value)) {
       return;
@@ -699,6 +848,11 @@ class EditorSessionFacade extends ChangeNotifier {
     insertText(value);
   }
 
+  /// Primary-selection newline with indent helpers for non-surface callers.
+  ///
+  /// The live EditorSurface KeyEvent path uses
+  /// EditorTextInputClient.insertNewline so multi-cursor commits share the
+  /// text-input undo group.
   void insertNewline() {
     _structuredSelectionStack.clear();
     final insertion = _newlineInsertion();
@@ -714,6 +868,10 @@ class EditorSessionFacade extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Primary-selection code-unit backspace for non-surface callers/tests.
+  ///
+  /// The live EditorSurface KeyEvent path uses
+  /// EditorTextInputClient.deleteBackward (grapheme-aware, multi-cursor).
   void backspace() {
     if (_selection.isCollapsed && _selection.end == 0) {
       return;
@@ -741,6 +899,10 @@ class EditorSessionFacade extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Primary-selection code-unit forward delete for non-surface callers/tests.
+  ///
+  /// The live EditorSurface KeyEvent path uses
+  /// EditorTextInputClient.deleteForward (grapheme-aware, multi-cursor).
   void deleteForward() {
     if (_selection.isCollapsed && _selection.end >= _document.length) {
       return;
@@ -1769,7 +1931,11 @@ class EditorSessionFacade extends ChangeNotifier {
   }
 
   _NewlineInsertion _newlineInsertion() {
-    final offset = (_selection.isCollapsed ? _selection.end : _selection.start)
+    return _newlineInsertionForSelection(_selection);
+  }
+
+  _NewlineInsertion _newlineInsertionForSelection(SelectionState selection) {
+    final offset = (selection.isCollapsed ? selection.end : selection.start)
         .clamp(0, _document.length)
         .toInt();
     final position = _document.positionForOffset(offset);
@@ -1777,7 +1943,7 @@ class EditorSessionFacade extends ChangeNotifier {
     final baseIndentLength = _leadingHorizontalWhitespaceLength(lineText);
     final baseIndent = lineText.substring(0, baseIndentLength);
 
-    if (_selection.isCollapsed && _hasImmediatePairAroundOffset(offset)) {
+    if (selection.isCollapsed && _hasImmediatePairAroundOffset(offset)) {
       final innerIndent = '$baseIndent  ';
       return _NewlineInsertion(
         text: '\n$innerIndent\n$baseIndent',
@@ -1785,7 +1951,7 @@ class EditorSessionFacade extends ChangeNotifier {
       );
     }
 
-    final indent = _selection.isCollapsed && _hasOpeningPairBeforeOffset(offset)
+    final indent = selection.isCollapsed && _hasOpeningPairBeforeOffset(offset)
         ? '$baseIndent  '
         : baseIndent;
     return _NewlineInsertion(text: '\n$indent', caretDelta: 1 + indent.length);
@@ -2023,6 +2189,16 @@ class EditorSessionFacade extends ChangeNotifier {
   }
 
   void _refreshAnalysis() {
+    if (_document.revision == _lastAnalyzedRevision &&
+        _document.length == _lastAnalyzedLength) {
+      return;
+    }
+    _lastAnalyzedRevision = _document.revision;
+    _lastAnalyzedLength = _document.length;
+    if (_document.lineCount >= 10000) {
+      diagnosticsStore.resetForDocumentLength(_document.length);
+      return;
+    }
     languageFeatureController.refresh(_document);
     diagnosticsStore.resetForDocumentLength(_document.length);
     semanticTokenStore.updateFromAnalysis(_analysis);
@@ -2783,6 +2959,24 @@ class _NewlineInsertion {
 
   final String text;
   final int caretDelta;
+}
+
+class _EditorInputReplacement {
+  const _EditorInputReplacement({
+    required this.selection,
+    required this.text,
+    required this.caretDelta,
+  }) : skipMatchingCloser = false;
+
+  const _EditorInputReplacement.skipMatchingCloser({required this.selection})
+    : text = '',
+      caretDelta = 0,
+      skipMatchingCloser = true;
+
+  final SelectionState selection;
+  final String text;
+  final int caretDelta;
+  final bool skipMatchingCloser;
 }
 
 class _CommentLineRange {

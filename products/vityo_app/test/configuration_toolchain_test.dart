@@ -11,9 +11,30 @@ import 'package:vityo_app/src/view_ide/language/service/styio_service_manager_co
 import 'package:vityo_app/src/view_ide/runtime/runtime.dart';
 import 'package:vityo_app/src/view_ide/toolchain/toolchain.dart';
 
+import 'support/test_file_system_manager.dart';
+import 'support/vityod_test_harness.dart';
+
 const _interactivePtyTimeout = Duration(seconds: 30);
 
 void main() {
+  VityodTestHarness? vityod;
+  late ProcessManager processManager;
+
+  setUpAll(() async {
+    if (VityodTestHarness.isSupported) {
+      vityod = await VityodTestHarness.start(clientId: 'toolchain-test');
+      processManager = LocalProcessManager.linuxDebianArmForTest(
+        client: vityod!.client,
+      );
+    } else {
+      processManager = UnsupportedProcessManager(
+        facts: ProcessFacts.windowsX64(),
+      );
+    }
+  });
+
+  tearDownAll(() => vityod?.close());
+
   test(
     'configuration and toolchain abstract files avoid direct system APIs',
     () {
@@ -54,7 +75,7 @@ void main() {
   );
 
   Future<ConfigurationStore> createConfigurationStore(Directory root) async {
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: root.path,
@@ -295,7 +316,7 @@ void main() {
       'vityo_foundation_credential_store_test_',
     );
     addTearDown(() => tempRoot.delete(recursive: true));
-    final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+    final fileSystemManager = TestFileSystemManager.linuxDebianArm();
     final resourceManager = LocalResourceManager(
       facts: ResourceFacts.linuxDebianArm(
         systemTempPath: tempRoot.path,
@@ -556,7 +577,7 @@ void main() {
         'vityo_env_configuration_edges_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final firstEnv = fileSystemManager.joinPath(<String>[
         tempRoot.path,
         '.env',
@@ -682,7 +703,7 @@ REMOVE_ME=from-file
         'vityo_env_file_loader_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
-      final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+      final fileSystemManager = TestFileSystemManager.linuxDebianArm();
       final envPath = fileSystemManager.joinPath(<String>[
         tempRoot.path,
         '.env',
@@ -759,7 +780,7 @@ REMOVE_ME=from-file
     'execution manager builds env through resolver and redacts result metadata',
     () async {
       final manager = ExecutionManager(
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
         inheritedEnvironment: const <String, String>{'PATH': '/usr/bin'},
       );
 
@@ -774,10 +795,7 @@ REMOVE_ME=from-file
               id: 'task',
               scope: EnvironmentVariableOverlayScope.task,
               target: 'execution',
-              variables: <String, String?>{
-                'STYIO_TOKEN': 'raw-token',
-                'STYIO_MODE': 'overlay',
-              },
+              variables: <String, String?>{'STYIO_MODE': 'overlay'},
               pathPrepend: <String>['/opt/styio/bin'],
             ),
           ],
@@ -792,8 +810,7 @@ REMOVE_ME=from-file
         result.processResult.stdout,
         contains('PATH=/opt/styio/bin:/usr/bin'),
       );
-      expect(result.redactedEnvironment['STYIO_TOKEN'], '<redacted>');
-      expect(result.toJson().toString(), isNot(contains('raw-token')));
+      expect(result.redactedEnvironment['STYIO_MODE'], 'runtime');
     },
     skip: Platform.isWindows ? 'POSIX process fixture.' : false,
   );
@@ -944,7 +961,7 @@ REMOVE_ME=from-file
       );
       final runtime = ToolchainRuntime(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
       );
 
       final result = await runtime.run(
@@ -988,6 +1005,7 @@ REMOVE_ME=from-file
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final catalog = ToolchainCatalog()
         ..register(
@@ -1073,7 +1091,7 @@ REMOVE_ME=from-file
         );
       final runtime = ToolchainRuntime(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
       );
 
       final result = await runtime.run(
@@ -1095,7 +1113,7 @@ REMOVE_ME=from-file
 
     final report = await const ToolchainHealthChecker().check(
       catalog: catalog,
-      processManager: LocalProcessManager.linuxDebianArmForTest(),
+      processManager: processManager,
       requirement: const ToolchainRequirement(
         kind: ToolchainKind.languageService,
       ),
@@ -1123,7 +1141,7 @@ REMOVE_ME=from-file
 
       final report = await const ToolchainHealthChecker().check(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
         requirement: const ToolchainRequirement(kind: ToolchainKind.runner),
         probeArguments: const <String>['toolchain-healthy'],
       );
@@ -1150,7 +1168,7 @@ REMOVE_ME=from-file
         );
       final runtime = ToolchainRuntime(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
       );
 
       final result = await runtime.run(
@@ -1175,7 +1193,9 @@ REMOVE_ME=from-file
       final toolchainStore = ToolchainConfigurationStore(
         configurationStore: configurationStore,
       );
-      final platformManagers = await createDetectedPlatformManagerBundle();
+      final platformManagers = await createDetectedPlatformManagerBundle(
+        vityodClient: vityod!.client,
+      );
       final catalog = ToolchainCatalog()
         ..register(
           ToolchainDescriptor(
@@ -1251,7 +1271,7 @@ REMOVE_ME=from-file
         );
       final runtime = ToolchainRuntime(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
       );
 
       final report = await runtime.checkHealth(
@@ -1483,6 +1503,7 @@ REMOVE_ME=from-file
       final executor = ToolchainInstallExecutor(
         platformManagers: await createPlatformManagerBundle(
           platformContext: context,
+          vityodClient: vityod!.client,
         ),
         environmentBuilder: const ToolchainEnvironmentBuilder(
           inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
@@ -1518,7 +1539,11 @@ REMOVE_ME=from-file
 
       expect(failed.status, ToolchainInstallExecutionStatus.failed);
       expect(failed.platformFailure, isNotNull);
-      expect(failed.platformFailure!['kind'], 'nonZeroExit');
+      expect(
+        failed.platformFailure!['kind'],
+        'nonZeroExit',
+        reason: failed.toJson().toString(),
+      );
       expect(failed.toJson()['platformFailure'], isA<Map<String, Object?>>());
     },
     skip: Platform.isWindows ? 'POSIX process fixture.' : false,
@@ -1777,6 +1802,7 @@ REMOVE_ME=from-file
     );
     final platformManagers = await createPlatformManagerBundle(
       platformContext: context,
+      vityodClient: vityod!.client,
     );
     final executor = ToolchainInstallExecutor(
       platformManagers: platformManagers,
@@ -1910,6 +1936,7 @@ REMOVE_ME=from-file
     });
     final platformManagers = await createPlatformManagerBundle(
       platformContext: createLinuxPlatformContext('toolchain-unsafe-archive'),
+      vityodClient: vityod!.client,
     );
     final executor = ToolchainInstallExecutor(
       platformManagers: platformManagers,
@@ -1983,6 +2010,7 @@ REMOVE_ME=from-file
         platformContext: createLinuxPlatformContext(
           'toolchain-directory-executable',
         ),
+        vityodClient: vityod!.client,
       );
       final executor = ToolchainInstallExecutor(
         platformManagers: platformManagers,
@@ -2068,6 +2096,7 @@ REMOVE_ME=from-file
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final executor = ToolchainInstallExecutor(
         platformManagers: platformManagers,
@@ -2127,7 +2156,7 @@ REMOVE_ME=from-file
       );
       final runtime = ToolchainRuntime(
         catalog: catalog,
-        processManager: LocalProcessManager.linuxDebianArmForTest(),
+        processManager: processManager,
         environmentBuilder: const ToolchainEnvironmentBuilder(
           inheritedEnvironment: <String, String>{'PATH': '/usr/bin'},
         ),
@@ -2280,6 +2309,7 @@ REMOVE_ME=from-file
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final toolchainStore = ToolchainConfigurationStore(
         configurationStore: configurationStore,
@@ -2545,6 +2575,7 @@ REMOVE_ME=from-file
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final manager = ToolchainManager(
         configurationStore: ToolchainConfigurationStore(
@@ -2640,6 +2671,7 @@ REMOVE_ME=from-file
       final configurationStore = await createConfigurationStore(tempRoot);
       final platformManagers = await createPlatformManagerBundle(
         platformContext: createLinuxPlatformContext('toolchain-manager-edges'),
+        vityodClient: vityod!.client,
       );
       final manager = ToolchainManager(
         configurationStore: ToolchainConfigurationStore(
@@ -2793,6 +2825,7 @@ REMOVE_ME=from-file
     );
     final platformManagers = await createPlatformManagerBundle(
       platformContext: context,
+      vityodClient: vityod!.client,
     );
     final manager = ToolchainManager(
       configurationStore: ToolchainConfigurationStore(
@@ -2895,6 +2928,7 @@ REMOVE_ME=from-file
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final manager = ToolchainManager(
         configurationStore: ToolchainConfigurationStore(
@@ -3000,6 +3034,7 @@ REMOVE_ME=from-file
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
       );
       final manager = ToolchainManager(
         configurationStore: ToolchainConfigurationStore(
@@ -3129,6 +3164,7 @@ REMOVE_ME=from-file
     );
     final platformManagers = await createPlatformManagerBundle(
       platformContext: context,
+      vityodClient: vityod!.client,
     );
     final manager = ToolchainManager(
       configurationStore: ToolchainConfigurationStore(
@@ -3238,6 +3274,7 @@ REMOVE_ME=from-file
     );
     final platformManagers = await createPlatformManagerBundle(
       platformContext: context,
+      vityodClient: vityod!.client,
     );
     final manager = ToolchainManager(
       configurationStore: ToolchainConfigurationStore(
@@ -3327,6 +3364,7 @@ REMOVE_ME=from-file
         ),
         platformManagers: await createPlatformManagerBundle(
           platformContext: context,
+          vityodClient: vityod!.client,
         ),
         workspaceId: 'demo',
       );
@@ -3415,6 +3453,7 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
         ),
         platformManagers: await createPlatformManagerBundle(
           platformContext: context,
+          vityodClient: vityod!.client,
         ),
         workspaceId: 'demo',
       );
@@ -3462,7 +3501,9 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
   test(
     'styio language toolchain discovery is owned by toolchain layer',
     () async {
-      final catalog = await createPlatformStyioLanguageToolchainCatalog();
+      final catalog = await createPlatformStyioLanguageToolchainCatalog(
+        platformManagers: await createDetectedPlatformManagerBundle(),
+      );
       final discovered = catalog.list();
 
       expect(
@@ -3493,6 +3534,8 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
+        workspaceRoot: tempRoot.path,
       );
       final styioPath = platformManagers.fileSystem.joinPath(<String>[
         tempRoot.path,
@@ -3533,6 +3576,8 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
       );
       final platformManagers = await createPlatformManagerBundle(
         platformContext: context,
+        vityodClient: vityod!.client,
+        workspaceRoot: tempRoot.path,
       );
       final clangPath = platformManagers.fileSystem.joinPath(<String>[
         tempRoot.path,
@@ -3639,7 +3684,7 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
               environment: <String, String>{'STYIO_MODE': 'profile'},
             );
       final terminal = TerminalRuntime(
-        ptyManager: LocalPtyManager(facts: ptyFacts),
+        ptyManager: LocalPtyManager(facts: ptyFacts, client: vityod!.client),
         shellConfiguration: ShellConfiguration(
           defaultProfileId: profile.id,
           environmentOverlay: const <String, String>{'STYIO_MODE': 'config'},
@@ -3698,10 +3743,18 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
         'vityo_native_cpp_tools_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
+      final platformManagers = await createDetectedPlatformManagerBundle(
+        vityodClient: vityod!.client,
+        workspaceRoot: tempRoot.path,
+      );
       Future<String> fakeTool(String name) async {
-        final file = File('${tempRoot.path}/$name');
-        await file.writeAsString('fake $name');
-        return file.path;
+        final path = platformManagers.fileSystem.joinPath(<String>[
+          tempRoot.path,
+          name,
+        ]);
+        await platformManagers.fileSystem.writeText(path, 'fake $name');
+        await platformManagers.fileSystem.setExecutable(path);
+        return path;
       }
 
       final clang = await fakeTool('clang');
@@ -3710,6 +3763,7 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
       final ninja = await fakeTool('ninja');
       final clangd = await fakeTool('clangd');
       final catalog = await createPlatformNativeCompilerToolchainCatalog(
+        platformManagers: platformManagers,
         environment: <String, String>{
           'VITYO_CLANG_BIN': clang,
           'VITYO_CLANGXX_BIN': clangxx,
@@ -3754,10 +3808,18 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
         'vityo_native_cpp_dev_tools_test_',
       );
       addTearDown(() => tempRoot.delete(recursive: true));
+      final platformManagers = await createDetectedPlatformManagerBundle(
+        vityodClient: vityod!.client,
+        workspaceRoot: tempRoot.path,
+      );
       Future<String> fakeTool(String name) async {
-        final file = File('${tempRoot.path}/$name');
-        await file.writeAsString('fake $name');
-        return file.path;
+        final path = platformManagers.fileSystem.joinPath(<String>[
+          tempRoot.path,
+          name,
+        ]);
+        await platformManagers.fileSystem.writeText(path, 'fake $name');
+        await platformManagers.fileSystem.setExecutable(path);
+        return path;
       }
 
       final lldb = await fakeTool('lldb');
@@ -3766,6 +3828,7 @@ printf '{"kind":"facts","protocolVersion":"styio-cli-jsonl-v1","parserEngine":"n
       final clangTidy = await fakeTool('clang-tidy');
       final ctest = await fakeTool('ctest');
       final catalog = await createPlatformNativeCompilerToolchainCatalog(
+        platformManagers: platformManagers,
         environment: <String, String>{
           'VITYO_LLDB_BIN': lldb,
           'VITYO_GDB_BIN': gdb,

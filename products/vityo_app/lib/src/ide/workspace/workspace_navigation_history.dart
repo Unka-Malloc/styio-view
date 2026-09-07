@@ -1,12 +1,6 @@
 import '../../view_ide/language/language.dart';
 
-enum WorkspaceNavigationLocationKind {
-  caret,
-  file,
-  symbol,
-  search,
-  problem,
-}
+enum WorkspaceNavigationLocationKind { caret, file, symbol, search, problem }
 
 class WorkspaceNavigationLocation {
   const WorkspaceNavigationLocation({

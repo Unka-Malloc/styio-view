@@ -1,4 +1,5 @@
 import '../platform/platform_target.dart';
+import '../environment/system_compatibility/platform_manager/platform_manager.dart';
 import 'dependency_source_adapter.dart';
 import 'deployment_adapter.dart';
 import 'execution_adapter.dart';
@@ -13,17 +14,24 @@ abstract interface class BackendProvider {
 
   int get priority;
 
-  Future<ProjectGraphAdapter> createProjectGraphAdapter();
+  Future<ProjectGraphAdapter> createProjectGraphAdapter({
+    PlatformManagerBundle? platformManagers,
+  });
 
   Future<ExecutionAdapter> createExecutionAdapter(
-    ProjectGraphSnapshot projectGraph,
-  );
+    ProjectGraphSnapshot projectGraph, {
+    PlatformManagerBundle? platformManagers,
+  });
 
   RuntimeEventAdapter createRuntimeEventAdapter();
 
-  Future<DependencySourceAdapter> createDependencySourceAdapter();
+  Future<DependencySourceAdapter> createDependencySourceAdapter({
+    PlatformManagerBundle? platformManagers,
+  });
 
-  Future<DeploymentAdapter> createDeploymentAdapter();
+  Future<DeploymentAdapter> createDeploymentAdapter({
+    PlatformManagerBundle? platformManagers,
+  });
 }
 
 class BackendProviderRegistry {

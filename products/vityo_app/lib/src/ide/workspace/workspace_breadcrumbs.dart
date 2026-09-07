@@ -1,17 +1,9 @@
 import '../editor/document/document_state.dart';
 import '../../view_ide/language/language.dart';
 
-enum WorkspaceBreadcrumbsStatus {
-  ready,
-  pathOnly,
-  emptyWorkspace,
-}
+enum WorkspaceBreadcrumbsStatus { ready, pathOnly, emptyWorkspace }
 
-enum WorkspaceBreadcrumbItemKind {
-  folder,
-  file,
-  symbol,
-}
+enum WorkspaceBreadcrumbItemKind { folder, file, symbol }
 
 class WorkspaceBreadcrumbsQuery {
   const WorkspaceBreadcrumbsQuery({
@@ -91,7 +83,9 @@ class WorkspaceBreadcrumbsService {
     required WorkspaceBreadcrumbsQuery query,
   }) {
     final targetFilePath = _displayPath(query.targetFilePath);
-    final workspaceFiles = _uniqueFilePaths(filePaths).map(_displayPath).toSet();
+    final workspaceFiles = _uniqueFilePaths(
+      filePaths,
+    ).map(_displayPath).toSet();
     if (targetFilePath.isEmpty || !workspaceFiles.contains(targetFilePath)) {
       return WorkspaceBreadcrumbsResult(
         query: query,
@@ -285,10 +279,7 @@ class WorkspaceBreadcrumbsService {
 }
 
 class _SymbolBreadcrumbs {
-  const _SymbolBreadcrumbs({
-    required this.symbolsIndexed,
-    this.activeSymbol,
-  });
+  const _SymbolBreadcrumbs({required this.symbolsIndexed, this.activeSymbol});
 
   final int symbolsIndexed;
   final WorkspaceBreadcrumbItem? activeSymbol;

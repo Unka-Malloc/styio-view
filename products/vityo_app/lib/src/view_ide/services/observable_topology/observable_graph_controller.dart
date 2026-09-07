@@ -24,6 +24,7 @@ class ObservableGraphController extends ChangeNotifier {
     required ObservableSnapshotPublisher publisher,
     required ObservableProjectGraphProvider projectGraph,
     required bool ioPlatform,
+    PlatformManagerBundle? platformManagers,
     FileSystemManager? fileSystemManager,
     Stream<FileSystemManagerEvent>? watchStream,
     ObservableSnapshotCache? cache,
@@ -44,7 +45,11 @@ class ObservableGraphController extends ChangeNotifier {
        _changeSource = changeSource ?? const IdSetComparisonChangeSource(),
        _delay = delay ?? Future<void>.delayed,
        _clock = clock ?? DateTime.now,
-       _resolvePafio = resolvePafio ?? resolvePafioBinary,
+       _resolvePafio =
+           resolvePafio ??
+           (platformManagers == null
+               ? () async => null
+               : () => resolvePafioBinary(platformManagers)),
        _runtimeIntake = runtimeIntake;
 
   final ObservableSnapshotPublisher _publisher;
@@ -460,13 +465,13 @@ class ObservableGraphController extends ChangeNotifier {
   }
 
   void _scheduleDebouncedRefresh() {
-    final token = ++_debounceGeneration;
-    unawaited(_debounceThenRun(token));
+    final generation = ++_debounceGeneration;
+    unawaited(_debounceThenRun(generation));
   }
 
-  Future<void> _debounceThenRun(int token) async {
+  Future<void> _debounceThenRun(int generation) async {
     await _delay(debounce);
-    if (_disposed || token != _debounceGeneration) {
+    if (_disposed || generation != _debounceGeneration) {
       return;
     }
     await _run(_generation += 1);

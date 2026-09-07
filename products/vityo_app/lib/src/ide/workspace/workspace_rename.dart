@@ -174,8 +174,7 @@ class WorkspaceRenameService {
         oldName: preview.oldName,
         newName: preview.newName,
         edits: const <WorkspaceRenameEdit>[],
-        message:
-            '`${preview.oldName}` is already the current symbol name.',
+        message: '`${preview.oldName}` is already the current symbol name.',
       );
     }
 
@@ -257,9 +256,10 @@ class WorkspaceRenameService {
         continue;
       }
       var nextDocument = document;
-      final descendingEdits = [...entry.value]..sort(
-        (first, second) => second.range.start.compareTo(first.range.start),
-      );
+      final descendingEdits = [...entry.value]
+        ..sort(
+          (first, second) => second.range.start.compareTo(first.range.start),
+        );
       for (final edit in descendingEdits) {
         nextDocument = nextDocument.replaceRange(
           start: edit.range.start,
@@ -267,9 +267,9 @@ class WorkspaceRenameService {
           replacement: preview.newName,
         );
       }
-      await documentStore.saveDocument(nextDocument);
       changedDocuments[entry.key] = nextDocument;
     }
+    await saveWorkspaceDocuments(documentStore, changedDocuments.values);
 
     return WorkspaceRenameApplyResult(
       preview: preview,
@@ -294,7 +294,8 @@ class WorkspaceRenameService {
     final documents = <DocumentState>[];
     for (final filePath in uniqueFilePaths) {
       documents.add(
-        overlayDocuments[filePath] ?? await documentStore.loadDocument(filePath),
+        overlayDocuments[filePath] ??
+            await documentStore.loadDocument(filePath),
       );
     }
     return documents;
@@ -377,8 +378,7 @@ class _GlobMatcher {
     for (var index = 0; index < glob.length; index += 1) {
       final char = glob[index];
       if (char == '*') {
-        final isDoubleStar =
-            index + 1 < glob.length && glob[index + 1] == '*';
+        final isDoubleStar = index + 1 < glob.length && glob[index + 1] == '*';
         if (isDoubleStar) {
           index += 1;
           if (index + 1 < glob.length && glob[index + 1] == '/') {

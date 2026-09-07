@@ -5,6 +5,8 @@ import 'package:vityo_app/src/view_ide/environment/environment.dart';
 import 'package:vityo_app/src/view_ide/foundation/foundation.dart';
 import 'package:vityo_app/src/view_ide/language/language.dart';
 
+import 'support/test_file_system_manager.dart';
+
 void main() {
   test('semantic snapshot bridge dispatches code actions to Problems sink', () {
     final received = <SemanticSnapshotPanelEvent>[];
@@ -336,7 +338,7 @@ Future<FoundationDataStore> _createDataStore() async {
     'vityo_semantic_panel_event_test_',
   );
   addTearDown(() => tempRoot.delete(recursive: true));
-  final fileSystemManager = LocalFileSystemManager.linuxDebianArmForTest();
+  final fileSystemManager = TestFileSystemManager.linuxDebianArm();
   final resourceManager = LocalResourceManager(
     facts: ResourceFacts.linuxDebianArm(
       systemTempPath: tempRoot.path,

@@ -254,11 +254,12 @@ void main() {
       contains('language-service refresh callback fallback'),
     );
     expect(
-      entriesById['service.semantic-snapshot']?.todo,
+      entriesById['service.semantic-snapshot']?.summary,
       contains(
-        'platform-specific StyioService process/service implementations',
+        'ToolchainManager and the vityod local service',
       ),
     );
+    expect(entriesById['service.semantic-snapshot']?.todo, isEmpty);
     expect(
       entriesById['service.semantic-snapshot']?.runtimeMaturityBlocking,
       isFalse,

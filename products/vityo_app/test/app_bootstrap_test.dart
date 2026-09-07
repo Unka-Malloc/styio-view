@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/app/app_bootstrap.dart';
 import 'package:vityo_app/src/ide/agent_client/agent_client.dart';
+import 'package:vityo_app/src/ide/local_service/vityod_client.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_revision_service.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_transaction_service.dart';
 import 'package:vityo_app/src/ide/workspace/workspace_controller.dart';
@@ -30,6 +31,14 @@ import 'package:vityo_app/src/ide/workspace/workspace_document_store_types.dart'
 import 'backend_provider_test_support.dart';
 
 void main() {
+  test('app bootstrap normalizes daemon workspace identifiers', () {
+    expect(AppBootstrap.normalizeDaemonWorkspaceId('scratch:42'), 'scratch_42');
+    expect(
+      AppBootstrap.normalizeDaemonWorkspaceId('workspace.valid-1'),
+      'workspace.valid-1',
+    );
+  });
+
   test('app bootstrap resolves language service project context', () {
     final context = AppBootstrap.resolveLanguageServiceProjectContext(
       workspaceRoot: '/workspace/demo',
@@ -49,6 +58,11 @@ void main() {
   });
 
   test('configured Agent collaboration requires transaction authority', () {
+    final client = VityodClient(
+      transport: MemoryVityodTransport(),
+      clientInstanceId: 'bootstrap-agent-required',
+    );
+    addTearDown(client.dispose);
     final registry = AgentClientRegistry(
       descriptors: <String, AgentLaunchDescriptor>{
         'fixture': AgentLaunchDescriptor(
@@ -58,6 +72,7 @@ void main() {
           workingDirectory: '.',
         ),
       },
+      client: client,
     );
     addTearDown(registry.close);
 
@@ -74,6 +89,11 @@ void main() {
   test(
     'configured Agent collaboration uses injected transaction authority',
     () {
+      final client = VityodClient(
+        transport: MemoryVityodTransport(),
+        clientInstanceId: 'bootstrap-agent-injected',
+      );
+      addTearDown(client.dispose);
       final registry = AgentClientRegistry(
         descriptors: <String, AgentLaunchDescriptor>{
           'fixture': AgentLaunchDescriptor(
@@ -83,6 +103,7 @@ void main() {
             workingDirectory: '.',
           ),
         },
+        client: client,
       );
       final revisions = InMemoryWorkspaceRevisionService(
         initialDocuments: const <String, String>{'file': 'text'},

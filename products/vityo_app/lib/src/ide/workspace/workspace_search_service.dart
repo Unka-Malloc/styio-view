@@ -49,6 +49,14 @@ class WorkspaceSearchResult {
   final bool truncated;
 }
 
+abstract interface class WorkspaceTextSearchProvider {
+  Future<WorkspaceSearchResult> search({
+    required String workspaceId,
+    required String query,
+    int maxMatches = 1000,
+  });
+}
+
 class WorkspaceSearchIndexDocument {
   WorkspaceSearchIndexDocument._({
     required this.documentId,
@@ -1614,6 +1622,8 @@ class WorkspaceSearchService {
   ) async {
     final documents = <WorkspaceReplaceDocumentResult>[];
     final failures = <WorkspaceSearchFailure>[];
+    final pending =
+        <({WorkspaceReplacePreviewDocument preview, DocumentState next})>[];
 
     for (final previewDocument in preview.documents) {
       late final DocumentState current;
@@ -1644,24 +1654,34 @@ class WorkspaceSearchService {
         text: previewDocument.afterText,
         revision: current.revision + 1,
       );
+      pending.add((preview: previewDocument, next: nextDocument));
+    }
+
+    if (failures.isEmpty && pending.isNotEmpty) {
       try {
-        await documentStore.saveDocument(nextDocument);
+        await saveWorkspaceDocuments(
+          documentStore,
+          pending.map((entry) => entry.next),
+        );
+        for (final entry in pending) {
+          documents.add(
+            WorkspaceReplaceDocumentResult(
+              documentId: entry.next.documentId,
+              replacementCount: entry.preview.replacementCount,
+              revision: entry.next.revision,
+            ),
+          );
+        }
       } on Object catch (error) {
-        failures.add(
-          WorkspaceSearchFailure(
-            documentId: previewDocument.documentId,
-            message: error.toString(),
+        failures.addAll(
+          pending.map(
+            (entry) => WorkspaceSearchFailure(
+              documentId: entry.preview.documentId,
+              message: error.toString(),
+            ),
           ),
         );
-        continue;
       }
-      documents.add(
-        WorkspaceReplaceDocumentResult(
-          documentId: nextDocument.documentId,
-          replacementCount: previewDocument.replacementCount,
-          revision: nextDocument.revision,
-        ),
-      );
     }
 
     return WorkspaceReplaceResult(

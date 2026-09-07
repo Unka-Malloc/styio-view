@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vityo_app/src/ide/editor/editor.dart';
 
@@ -84,6 +86,32 @@ void main() {
           isFalse,
         );
       }
+    });
+
+    test('baseline Markdown preserves required documentation metadata', () {
+      const harness = EditorRenderedInputProfileHarness();
+      final receipt = harness.buildProfileReceipt(
+        platformFamily: 'desktop-test',
+        measurements: const <EditorRenderedInputLaneMeasurements>[],
+      );
+      final temporaryDirectory = Directory.systemTemp.createTempSync(
+        'vityo-rendered-input-profile-',
+      );
+      addTearDown(() => temporaryDirectory.deleteSync(recursive: true));
+      final jsonFile = File('${temporaryDirectory.path}/baseline.json');
+      final markdownFile = File('${temporaryDirectory.path}/baseline.md');
+
+      harness.writeBaselineFiles(
+        receipt: receipt,
+        jsonPath: jsonFile.path,
+        markdownPath: markdownFile.path,
+        documentUpdatedAt: DateTime.utc(2026, 8, 31),
+      );
+
+      expect(
+        markdownFile.readAsStringSync(),
+        contains('**Last updated:** 2026-08-31'),
+      );
     });
 
     test('profiling bounds reject quadratic selection scans', () {

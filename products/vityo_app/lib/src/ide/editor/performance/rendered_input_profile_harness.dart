@@ -214,6 +214,7 @@ final class EditorRenderedInputProfileHarness {
     required String jsonPath,
     required String markdownPath,
     String jsonProjection = 'docs/review/performance-baseline.json',
+    DateTime? documentUpdatedAt,
   }) {
     final jsonFile = File(jsonPath);
     jsonFile.parent.createSync(recursive: true);
@@ -223,7 +224,13 @@ final class EditorRenderedInputProfileHarness {
 
     final markdownFile = File(markdownPath);
     markdownFile.parent.createSync(recursive: true);
-    markdownFile.writeAsStringSync(_renderMarkdown(receipt, jsonProjection));
+    markdownFile.writeAsStringSync(
+      _renderMarkdown(
+        receipt,
+        jsonProjection,
+        documentUpdatedAt ?? DateTime.now(),
+      ),
+    );
   }
 
   Map<String, Object?> _readExistingBaseline(File jsonFile) {
@@ -250,13 +257,17 @@ final class EditorRenderedInputProfileHarness {
   String _renderMarkdown(
     EditorRenderedInputProfileReceipt receipt,
     String jsonPath,
+    DateTime documentUpdatedAt,
   ) {
+    final updated = documentUpdatedAt.toIso8601String().substring(0, 10);
     final buffer = StringBuffer()
       ..writeln('# Performance Baseline')
       ..writeln()
       ..writeln(
         '**Purpose:** Record Vityo performance baselines for regression detection.',
       )
+      ..writeln()
+      ..writeln('**Last updated:** $updated')
       ..writeln()
       ..writeln('## Rendered editor input (REQ-INPUT-004)')
       ..writeln()

@@ -2,7 +2,7 @@
 
 **Purpose:** 提供 Flutter 主壳、编辑器核心、language UI 外壳与手写 Web Editor 主线的日常维护入口。
 
-**Last updated:** 2026-08-09
+**Last updated:** 2026-09-08
 
 ## Mission
 
@@ -78,6 +78,10 @@ Key SSOTs:
     child traversal. Preview-host security tests execute the non-zero loopback rejection on POSIX
     hosts and verify the same shell contract statically on Windows, where Python-to-Git-Bash
     subprocess startup is not a product security boundary.
+25. Rendered-input baseline exports include the required documentation metadata in the generator.
+    `Last updated` records the document export date; metadata-only maintenance does not establish
+    a new performance measurement. Verify the export with
+    `test/editor_rendered_input_performance_test.dart` before refreshing generated docs indexes.
 
 ## Change Classes
 
